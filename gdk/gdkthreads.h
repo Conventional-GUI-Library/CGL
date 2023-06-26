@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -35,9 +33,19 @@
 
 G_BEGIN_DECLS
 
+#if defined(GDK_COMPILATION) || defined(GTK_COMPILATION)
+#define GDK_THREADS_DEPRECATED
+#else
+#define GDK_THREADS_DEPRECATED GDK_DEPRECATED_IN_3_6
+#endif
+
+GDK_THREADS_DEPRECATED
 void     gdk_threads_init                     (void);
+GDK_THREADS_DEPRECATED
 void     gdk_threads_enter                    (void);
+GDK_THREADS_DEPRECATED
 void     gdk_threads_leave                    (void);
+GDK_THREADS_DEPRECATED
 void     gdk_threads_set_lock_functions       (GCallback enter_fn,
                                                GCallback leave_fn);
 
@@ -64,6 +72,7 @@ guint    gdk_threads_add_timeout_seconds      (guint          interval,
                                                GSourceFunc    function,
                                                gpointer       data);
 
+
 /**
  * GDK_THREADS_ENTER:
  *
@@ -73,6 +82,9 @@ guint    gdk_threads_add_timeout_seconds      (guint          interval,
  * section. The macro expands to a no-op if #G_THREADS_ENABLED has not
  * been defined. Typically gdk_threads_enter() should be used instead of
  * this macro.
+ *
+ * Deprecated:3.6: Use g_main_context_invoke(), g_idle_add() and related
+ *     functions if you need to schedule GTK+ calls from other threads.
  */
 #define GDK_THREADS_ENTER() gdk_threads_enter()
 
@@ -81,8 +93,12 @@ guint    gdk_threads_add_timeout_seconds      (guint          interval,
  *
  * This macro marks the end of a critical section
  * begun with #GDK_THREADS_ENTER.
+ *
+ * Deprecated:3.6: Deprecated in 3.6.
  */
 #define GDK_THREADS_LEAVE() gdk_threads_leave()
+
+#undef GDK_THREADS_DEPRECATED
 
 G_END_DECLS
 

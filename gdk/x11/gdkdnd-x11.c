@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -242,12 +240,12 @@ gdk_drag_context_find (GdkDisplay *display,
                        Window      source_xid,
                        Window      dest_xid)
 {
-  GList *tmp_list = contexts;
+  GList *tmp_list;
   GdkDragContext *context;
   GdkX11DragContext *context_x11;
   Window context_dest_xid;
 
-  while (tmp_list)
+  for (tmp_list = contexts; tmp_list; tmp_list = tmp_list->next)
     {
       context = (GdkDragContext *)tmp_list->data;
       context_x11 = (GdkX11DragContext *)context;
@@ -267,8 +265,6 @@ gdk_drag_context_find (GdkDisplay *display,
             (GDK_WINDOW_XID (context->source_window) == source_xid))) &&
           ((dest_xid == None) || (context_dest_xid == dest_xid)))
         return context;
-
-      tmp_list = tmp_list->next;
     }
 
   return NULL;
@@ -1512,9 +1508,11 @@ motif_send_enter (GdkX11DragContext *context_x11,
   if (!_gdk_x11_display_send_xevent (display,
                                      GDK_WINDOW_XID (context->dest_window),
                                      FALSE, 0, &xev))
-    GDK_NOTE (DND,
-              g_message ("Send event to %lx failed",
-              GDK_WINDOW_XID (context->dest_window)));
+    {
+      GDK_NOTE (DND,
+                g_message ("Send event to %lx failed",
+                GDK_WINDOW_XID (context->dest_window)));
+    }
 }
 
 static void
@@ -1541,9 +1539,11 @@ motif_send_leave (GdkX11DragContext *context_x11,
   if (!_gdk_x11_display_send_xevent (display,
                                      GDK_WINDOW_XID (context->dest_window),
                                      FALSE, 0, &xev))
-    GDK_NOTE (DND,
-              g_message ("Send event to %lx failed",
-                         GDK_WINDOW_XID (context->dest_window)));
+    {
+      GDK_NOTE (DND,
+                g_message ("Send event to %lx failed",
+                           GDK_WINDOW_XID (context->dest_window)));
+    }
 }
 
 static gboolean
@@ -1591,9 +1591,11 @@ motif_send_motion (GdkX11DragContext *context_x11,
   if (!_gdk_x11_display_send_xevent (display,
                                      GDK_WINDOW_XID (context->dest_window),
                                      FALSE, 0, &xev))
-    GDK_NOTE (DND,
-              g_message ("Send event to %lx failed",
-                         GDK_WINDOW_XID (context->dest_window)));
+    {
+      GDK_NOTE (DND,
+                g_message ("Send event to %lx failed",
+                           GDK_WINDOW_XID (context->dest_window)));
+    }
 
   return retval;
 }
@@ -1625,9 +1627,11 @@ motif_send_drop (GdkX11DragContext *context_x11,
   if (!_gdk_x11_display_send_xevent (display,
                                      GDK_WINDOW_XID (context->dest_window),
                                      FALSE, 0, &xev))
-    GDK_NOTE (DND,
-              g_message ("Send event to %lx failed",
-                         GDK_WINDOW_XID (context->dest_window)));
+    {
+      GDK_NOTE (DND,
+                g_message ("Send event to %lx failed",
+                           GDK_WINDOW_XID (context->dest_window)));
+    }
 }
 
 /* Target Side */
@@ -2607,9 +2611,11 @@ xdnd_check_dest (GdkDisplay *display,
               proxy = *proxy_data;
             }
           else
-            GDK_NOTE (DND,
-                      g_warning ("Invalid XdndProxy "
-                                 "property on window %ld\n", win));
+            {
+              GDK_NOTE (DND,
+                        g_warning ("Invalid XdndProxy "
+                                   "property on window %ld\n", win));
+            }
 
           XFree (proxy_data);
         }
@@ -2631,9 +2637,11 @@ xdnd_check_dest (GdkDisplay *display,
                 *xdnd_version = *version;
             }
           else
-            GDK_NOTE (DND,
-                      g_warning ("Invalid XdndAware "
-                                 "property on window %ld\n", win));
+            {
+              GDK_NOTE (DND,
+                        g_warning ("Invalid XdndAware "
+                                   "property on window %ld\n", win));
+            }
 
           XFree (version);
         }
@@ -3659,9 +3667,11 @@ gdk_x11_drag_context_drag_status (GdkDragContext *context,
       if (!_gdk_x11_display_send_xevent (display,
                                          GDK_WINDOW_XID (context->source_window),
                                          FALSE, 0, &xev))
-        GDK_NOTE (DND,
-                  g_message ("Send event to %lx failed",
-                             GDK_WINDOW_XID (context->source_window)));
+        {
+          GDK_NOTE (DND,
+                    g_message ("Send event to %lx failed",
+                               GDK_WINDOW_XID (context->source_window)));
+        }
     }
   else if (context->protocol == GDK_DRAG_PROTO_XDND)
     {
@@ -3676,9 +3686,11 @@ gdk_x11_drag_context_drag_status (GdkDragContext *context,
       xev.xclient.data.l[3] = 0;
       xev.xclient.data.l[4] = xdnd_action_to_atom (display, action);
       if (!xdnd_send_xevent (context_x11, context->source_window, FALSE, &xev))
-        GDK_NOTE (DND,
-                  g_message ("Send event to %lx failed",
-                             GDK_WINDOW_XID (context->source_window)));
+        {
+          GDK_NOTE (DND,
+                    g_message ("Send event to %lx failed",
+                               GDK_WINDOW_XID (context->source_window)));
+        }
     }
 
   context_x11->old_action = action;
@@ -3756,9 +3768,11 @@ gdk_x11_drag_context_drop_finish (GdkDragContext *context,
       xev.xclient.data.l[4] = 0;
 
       if (!xdnd_send_xevent (GDK_X11_DRAG_CONTEXT (context), context->source_window, FALSE, &xev))
-        GDK_NOTE (DND,
-                  g_message ("Send event to %lx failed",
-                             GDK_WINDOW_XID (context->source_window)));
+        {
+          GDK_NOTE (DND,
+                    g_message ("Send event to %lx failed",
+                               GDK_WINDOW_XID (context->source_window)));
+        }
     }
 }
 

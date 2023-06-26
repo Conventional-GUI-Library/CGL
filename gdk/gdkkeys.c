@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -109,6 +107,11 @@ enum {
   LAST_SIGNAL
 };
 
+
+static GdkModifierType gdk_keymap_real_get_modifier_mask (GdkKeymap         *keymap,
+                                                          GdkModifierIntent  intent);
+
+
 static guint signals[LAST_SIGNAL] = { 0 };
 
 G_DEFINE_TYPE (GdkKeymap, gdk_keymap, G_TYPE_OBJECT)
@@ -117,6 +120,8 @@ static void
 gdk_keymap_class_init (GdkKeymapClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+  klass->get_modifier_mask = gdk_keymap_real_get_modifier_mask;
 
   /**
    * GdkKeymap::direction-changed:
@@ -372,6 +377,27 @@ gdk_keymap_get_num_lock_state (GdkKeymap *keymap)
 }
 
 /**
+ * gdk_keymap_get_modifier_state:
+ * @keymap: a #GdkKeymap
+ *
+ * Returns the current modifier state.
+ *
+ * Returns: the current modifier state.
+ *
+ * Since: 3.4
+ */
+guint
+gdk_keymap_get_modifier_state (GdkKeymap *keymap)
+{
+  g_return_val_if_fail (GDK_IS_KEYMAP (keymap), FALSE);
+
+  if (GDK_KEYMAP_GET_CLASS (keymap)->get_modifier_state)
+    return GDK_KEYMAP_GET_CLASS (keymap)->get_modifier_state (keymap);
+
+  return 0;
+}
+
+/**
  * gdk_keymap_get_entries_for_keyval:
  * @keymap: a #GdkKeymap
  * @keyval: a keyval, such as %GDK_a, %GDK_Up, %GDK_Return, etc.
@@ -400,6 +426,9 @@ gdk_keymap_get_entries_for_keyval (GdkKeymap     *keymap,
                                    gint          *n_keys)
 {
   g_return_val_if_fail (GDK_IS_KEYMAP (keymap), FALSE);
+  g_return_val_if_fail (keys != NULL, FALSE);
+  g_return_val_if_fail (n_keys != NULL, FALSE);
+  g_return_val_if_fail (keyval != 0, FALSE);
 
   return GDK_KEYMAP_GET_CLASS (keymap)->get_entries_for_keyval (keymap, keyval,
                                                                 keys, n_keys);
@@ -432,6 +461,7 @@ gdk_keymap_get_entries_for_keycode (GdkKeymap     *keymap,
                                     gint          *n_entries)
 {
   g_return_val_if_fail (GDK_IS_KEYMAP (keymap), FALSE);
+  g_return_val_if_fail (n_entries != NULL, FALSE);
 
   return GDK_KEYMAP_GET_CLASS (keymap)->get_entries_for_keycode (keymap, hardware_keycode,
                                                                  keys, keyvals, n_entries);
@@ -455,6 +485,7 @@ gdk_keymap_lookup_key (GdkKeymap          *keymap,
                        const GdkKeymapKey *key)
 {
   g_return_val_if_fail (GDK_IS_KEYMAP (keymap), 0);
+  g_return_val_if_fail (key != NULL, 0);
 
   return GDK_KEYMAP_GET_CLASS (keymap)->lookup_key (keymap, key);
 }
@@ -553,12 +584,11 @@ gdk_keymap_translate_keyboard_state (GdkKeymap       *keymap,
 /**
  * gdk_keymap_add_virtual_modifiers:
  * @keymap: a #GdkKeymap
- * @state: (out): pointer to the modifier mask to change
+ * @state: (inout): pointer to the modifier mask to change
  *
- * Adds virtual modifiers (i.e. Super, Hyper and Meta) which correspond
- * to the real modifiers (i.e Mod2, Mod3, ...) in @modifiers.
- * are set in @state to their non-virtual counterparts (i.e. Mod2,
- * Mod3,...) and set the corresponding bits in @state.
+ * Maps the non-virtual modifiers (i.e Mod2, Mod3, ...) which are set
+ * in @state to the virtual modifiers (i.e. Super, Hyper and Meta) and
+ * set the corresponding bits in @state.
  *
  * GDK already does this before delivering key events, but for
  * compatibility reasons, it only sets the first virtual modifier
@@ -581,7 +611,7 @@ gdk_keymap_add_virtual_modifiers (GdkKeymap       *keymap,
 /**
  * gdk_keymap_map_virtual_modifiers:
  * @keymap: a #GdkKeymap
- * @state: (out): pointer to the modifier state to map
+ * @state: (inout): pointer to the modifier state to map
  *
  * Maps the virtual modifiers (i.e. Super, Hyper and Meta) which
  * are set in @state to their non-virtual counterparts (i.e. Mod2,
@@ -605,6 +635,64 @@ gdk_keymap_map_virtual_modifiers (GdkKeymap       *keymap,
 
   return GDK_KEYMAP_GET_CLASS(keymap)->map_virtual_modifiers (keymap, state);
 }
+
+static GdkModifierType
+gdk_keymap_real_get_modifier_mask (GdkKeymap         *keymap,
+                                   GdkModifierIntent  intent)
+{
+  switch (intent)
+    {
+    case GDK_MODIFIER_INTENT_PRIMARY_ACCELERATOR:
+      return GDK_CONTROL_MASK;
+
+    case GDK_MODIFIER_INTENT_CONTEXT_MENU:
+      return 0;
+
+    case GDK_MODIFIER_INTENT_EXTEND_SELECTION:
+      return GDK_SHIFT_MASK;
+
+    case GDK_MODIFIER_INTENT_MODIFY_SELECTION:
+      return GDK_CONTROL_MASK;
+
+    case GDK_MODIFIER_INTENT_NO_TEXT_INPUT:
+      return GDK_MOD1_MASK | GDK_CONTROL_MASK;
+
+    case GDK_MODIFIER_INTENT_SHIFT_GROUP:
+      return 0;
+
+    default:
+      g_return_val_if_reached (0);
+    }
+}
+
+/**
+ * gdk_keymap_get_modifier_mask:
+ * @keymap: a #GdkKeymap
+ * @intent: the use case for the modifier mask
+ *
+ * Returns the modifier mask the @keymap's windowing system backend
+ * uses for a particular purpose.
+ *
+ * Note that this function always returns real hardware modifiers, not
+ * virtual ones (e.g. it will return #GDK_MOD1_MASK rather than
+ * #GDK_META_MASK if the backend maps MOD1 to META), so there are use
+ * cases where the return value of this function has to be transformed
+ * by gdk_keymap_add_virtual_modifiers() in order to contain the
+ * expected result.
+ *
+ * Returns: the modifier mask used for @intent.
+ *
+ * Since: 3.4
+ **/
+GdkModifierType
+gdk_keymap_get_modifier_mask (GdkKeymap         *keymap,
+                              GdkModifierIntent  intent)
+{
+  g_return_val_if_fail (GDK_IS_KEYMAP (keymap), 0);
+
+  return GDK_KEYMAP_GET_CLASS (keymap)->get_modifier_mask (keymap, intent);
+}
+
 
 /**
  * gdk_keyval_name:

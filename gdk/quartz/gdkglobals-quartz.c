@@ -13,9 +13,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -30,15 +28,19 @@ GdkWindow *_gdk_root = NULL;
 GdkOSXVersion
 gdk_quartz_osx_version (void)
 {
-  gint minor;
-  OSErr err = Gestalt(gestaltSystemVersionMinor, &minor);
-  g_return_val_if_fail(err == noErr, GDK_OSX_UNSUPPORTED);
+  static gint32 minor = GDK_OSX_UNSUPPORTED;
+
+  if (minor == GDK_OSX_UNSUPPORTED)
+    {
+      OSErr err = Gestalt (gestaltSystemVersionMinor, (SInt32*)&minor);
+
+      g_return_val_if_fail (err == noErr, GDK_OSX_UNSUPPORTED);
+    }
 
   if (minor < GDK_OSX_MIN)
-      return GDK_OSX_UNSUPPORTED;
+    return GDK_OSX_UNSUPPORTED;
   else if (minor > GDK_OSX_CURRENT)
-      return GDK_OSX_NEW;
+    return GDK_OSX_NEW;
   else
-      return minor;
-
+    return minor;
 }

@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -25,6 +23,8 @@
  */
 
 #include "config.h"
+
+#define GDK_DISABLE_DEPRECATION_WARNINGS 1
 
 #include "gdkmain.h"
 
@@ -45,7 +45,19 @@
  * @Title: General
  *
  * This section describes the GDK initialization functions and miscellaneous
- * utility functions.
+ * utility functions, as well as deprecation facilities.
+ *
+ * The GDK and GTK+ headers annotate deprecated APIs in a way that produces
+ * compiler warnings if these deprecated APIs are used. The warnings
+ * can be turned off by defining the macro %GDK_DISABLE_DEPRECATION_WARNINGS
+ * before including the glib.h header.
+ *
+ * GDK and GTK+ also provide support for building applications against
+ * defined subsets of deprecated or new APIs. Define the macro
+ * %GDK_VERSION_MIN_REQUIRED to specify up to what version
+ * you want to receive warnings about deprecated APIs. Define the
+ * macro %GDK_VERSION_MAX_ALLOWED to specify the newest version
+ * whose API you want to use.
  */
 
 /**
@@ -75,6 +87,14 @@
  * Use this macro to guard code that is specific to the Quartz backend.
  */
 
+/**
+ * GDK_DISABLE_DEPRECATION_WARNINGS:
+ *
+ * A macro that should be defined before including the gdk.h header.
+ * If it is defined, no compiler warnings will be produced for uses
+ * of deprecated GDK APIs.
+ */
+
 typedef struct _GdkPredicate  GdkPredicate;
 
 struct _GdkPredicate
@@ -101,7 +121,7 @@ static int gdk_initialized = 0;                     /* 1 if the library is initi
 
 static gchar  *gdk_progclass = NULL;
 
-static GMutex *gdk_threads_mutex = NULL;            /* Global GDK lock */
+static GMutex gdk_threads_mutex;
 
 static GCallback gdk_threads_lock = NULL;
 static GCallback gdk_threads_unlock = NULL;
@@ -428,17 +448,13 @@ gdk_init (int *argc, char ***argv)
  * which protects all use of GTK+. That is, only one thread can use GTK+
  * at any given time.
  *
- * Unfortunately the above holds with the X11 backend only. With the
- * Win32 backend, GDK calls should not be attempted from multiple threads
- * at all.
+ * You must call gdk_threads_init() before executing any other GTK+ or
+ * GDK functions in a threaded GTK+ program.
  *
- * You must call g_thread_init() and gdk_threads_init() before executing
- * any other GTK+ or GDK functions in a threaded GTK+ program.
- *
- * Idles, timeouts, and input functions from GLib, such as g_idle_add(), are
- * executed outside of the main GTK+ lock.
- * So, if you need to call GTK+ inside of such a callback, you must surround
- * the callback with a gdk_threads_enter()/gdk_threads_leave() pair or use
+ * Idles, timeouts, and input functions from GLib, such as g_idle_add(),
+ * are executed outside of the main GTK+ lock. So, if you need to call
+ * GTK+ inside of such a callback, you must surround the callback with
+ * a gdk_threads_enter()/gdk_threads_leave() pair or use
  * gdk_threads_add_idle_full() which does this for you.
  * However, event dispatching from the mainloop is still executed within
  * the main GTK+ lock, so callback functions connected to event signals
@@ -468,7 +484,6 @@ gdk_init (int *argc, char ***argv)
  * {
  *   GtkWidget *window;
  *
- *   g_thread_init (NULL);
  *   gdk_threads_init (<!-- -->);
  *   gdk_threads_enter (<!-- -->);
  *
@@ -593,7 +608,6 @@ gdk_init (int *argc, char ***argv)
  *   pthread_t no_tid, yes_tid;
  *
  *   /<!---->* init threads *<!---->/
- *   g_thread_init (NULL);
  *   gdk_threads_init (<!-- -->);
  *   gdk_threads_enter (<!-- -->);
  *
@@ -635,16 +649,34 @@ gdk_init (int *argc, char ***argv)
  * }
  * </programlisting>
  * </informalexample>
+ *
+ * Unfortunately, all of the above documentation holds with the X11
+ * backend only. With the Win32 backend, GDK and GTK+ calls should not
+ * be attempted from multiple threads at all. Combining the GDK lock
+ * with other locks such as the Python global interpreter lock can be
+ * complicated.
+ *
+ * For these reason, the threading support has been deprecated in
+ * GTK+ 3.6. Instead of calling GTK+ directly from multiple threads,
+ * it is recommended to use g_idle_add(), g_main_context_invoke()
+ * and similar functions to make these calls from the main thread
+ * instead. The main thread is the thread which has called gtk_init()
+ * and is running the GTK+ mainloop. GTK+ itself will continue to
+ * use the GDK lock internally as long as the deprecated functionality
+ * is still available, and other libraries should probably do the same.
  */
 
 
 /**
  * gdk_threads_enter:
  *
- * This macro marks the beginning of a critical section in which GDK and
- * GTK+ functions can be called safely and without causing race
- * conditions.  Only one thread at a time can be in such a critial
+ * This function marks the beginning of a critical section in which
+ * GDK and GTK+ functions can be called safely and without causing race
+ * conditions. Only one thread at a time can be in such a critial
  * section.
+ *
+ * Deprecated:3.6: All GDK and GTK+ calls should be made from the main
+ *     thread
  */
 void
 gdk_threads_enter (void)
@@ -657,6 +689,9 @@ gdk_threads_enter (void)
  * gdk_threads_leave:
  *
  * Leaves a critical region begun with gdk_threads_enter().
+ *
+ * Deprecated:3.6: All GDK and GTK+ calls should be made from the main
+ *     thread
  */
 void
 gdk_threads_leave (void)
@@ -668,15 +703,13 @@ gdk_threads_leave (void)
 static void
 gdk_threads_impl_lock (void)
 {
-  if (gdk_threads_mutex)
-    g_mutex_lock (gdk_threads_mutex);
+  g_mutex_lock (&gdk_threads_mutex);
 }
 
 static void
 gdk_threads_impl_unlock (void)
 {
-  if (gdk_threads_mutex)
-    g_mutex_unlock (gdk_threads_mutex);
+  g_mutex_unlock (&gdk_threads_mutex);
 }
 
 /**
@@ -684,18 +717,16 @@ gdk_threads_impl_unlock (void)
  *
  * Initializes GDK so that it can be used from multiple threads
  * in conjunction with gdk_threads_enter() and gdk_threads_leave().
- * g_thread_init() must be called previous to this function.
  *
  * This call must be made before any use of the main loop from
  * GTK+; to be safe, call it before gtk_init().
- **/
+ *
+ * Deprecated:3.6: All GDK and GTK+ calls should be made from the main
+ *     thread
+ */
 void
 gdk_threads_init (void)
 {
-  if (!g_thread_supported ())
-    g_error ("g_thread_init() must be called before gdk_threads_init()");
-
-  gdk_threads_mutex = g_mutex_new ();
   if (!gdk_threads_lock)
     gdk_threads_lock = gdk_threads_impl_lock;
   if (!gdk_threads_unlock)
@@ -729,6 +760,9 @@ gdk_threads_init (void)
  * This method must be called before gdk_threads_init(), and cannot
  * be called multiple times.
  *
+ * Deprecated:3.6: All GDK and GTK+ calls should be made from the main
+ *     thread
+ *
  * Since: 2.4
  **/
 void
@@ -748,12 +782,12 @@ gdk_threads_dispatch (gpointer data)
   GdkThreadsDispatch *dispatch = data;
   gboolean ret = FALSE;
 
-  GDK_THREADS_ENTER ();
+  gdk_threads_enter ();
 
   if (!g_source_is_destroyed (g_main_current_source ()))
     ret = dispatch->func (dispatch->data);
 
-  GDK_THREADS_LEAVE ();
+  gdk_threads_leave ();
 
   return ret;
 }
@@ -783,7 +817,7 @@ gdk_threads_dispatch_free (gpointer data)
  * removed from the list of event sources and will not be called again.
  *
  * This variant of g_idle_add_full() calls @function with the GDK lock
- * held. It can be thought of a MT-safe version for GTK+ widgets for the 
+ * held. It can be thought of a MT-safe version for GTK+ widgets for the
  * following use case, where you have to worry about idle_callback()
  * running in thread A and accessing @self after it has been finalized
  * in thread B:
@@ -904,7 +938,7 @@ gdk_threads_add_idle (GSourceFunc    function,
  *    
  *    self->timeout_id = 0;
  *    
- *    return FALSE;
+ *    return G_SOURCE_REMOVE;
  * }
  *  
  * static void some_widget_do_stuff_later (SomeWidget *self)

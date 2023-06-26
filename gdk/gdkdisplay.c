@@ -16,9 +16,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -154,8 +152,7 @@ free_device_grabs_foreach (gpointer key,
 {
   GList *list = value;
 
-  g_list_foreach (list, (GFunc) free_device_grab, NULL);
-  g_list_free (list);
+  g_list_free_full (list, (GDestroyNotify) free_device_grab);
 
   return TRUE;
 }
@@ -189,6 +186,7 @@ gdk_display_init (GdkDisplay *display)
   display->double_click_time = 250;
   display->double_click_distance = 5;
 
+  display->touch_implicit_grabs = g_array_new (FALSE, FALSE, sizeof (GdkTouchGrabInfo));
   display->device_grabs = g_hash_table_new (NULL, NULL);
   display->motion_hint_info = g_hash_table_new_full (NULL, NULL, NULL,
                                                      (GDestroyNotify) g_free);
@@ -211,8 +209,7 @@ gdk_display_dispose (GObject *object)
 
   device_manager = gdk_display_get_device_manager (GDK_DISPLAY (object));
 
-  g_list_foreach (display->queued_events, (GFunc)gdk_event_free, NULL);
-  g_list_free (display->queued_events);
+  g_list_free_full (display->queued_events, (GDestroyNotify) gdk_event_free);
   display->queued_events = NULL;
   display->queued_tail = NULL;
 
@@ -237,6 +234,8 @@ gdk_display_finalize (GObject *object)
                                free_device_grabs_foreach,
                                NULL);
   g_hash_table_destroy (display->device_grabs);
+
+  g_array_free (display->touch_implicit_grabs, TRUE);
 
   g_hash_table_destroy (display->motion_hint_info);
   g_hash_table_destroy (display->pointers_info);
@@ -405,42 +404,6 @@ gdk_display_pointer_ungrab (GdkDisplay *display,
 }
 
 /**
- * gdk_pointer_ungrab:
- * @time_: a timestamp from a #GdkEvent, or %GDK_CURRENT_TIME if no 
- *  timestamp is available.
- *
- * Ungrabs the pointer on the default display, if it is grabbed by this 
- * application.
- *
- * Deprecated: 3.0: Use gdk_device_ungrab(), together with gdk_device_grab()
- *             instead.
- **/
-void
-gdk_pointer_ungrab (guint32 time)
-{
-  gdk_display_pointer_ungrab (gdk_display_get_default (), time);
-}
-
-/**
- * gdk_pointer_is_grabbed:
- * 
- * Returns %TRUE if the pointer on the default display is currently 
- * grabbed by this application.
- *
- * Note that this does not take the inmplicit pointer grab on button
- * presses into account.
- *
- * Return value: %TRUE if the pointer is currently grabbed by this application.
- *
- * Deprecated: 3.0: Use gdk_display_device_is_grabbed() instead.
- **/
-gboolean
-gdk_pointer_is_grabbed (void)
-{
-  return gdk_display_pointer_is_grabbed (gdk_display_get_default ());
-}
-
-/**
  * gdk_display_keyboard_ungrab:
  * @display: a #GdkDisplay.
  * @time_: a timestap (e.g #GDK_CURRENT_TIME).
@@ -478,23 +441,6 @@ gdk_display_keyboard_ungrab (GdkDisplay *display,
     }
 
   g_list_free (devices);
-}
-
-/**
- * gdk_keyboard_ungrab:
- * @time_: a timestamp from a #GdkEvent, or %GDK_CURRENT_TIME if no
- *        timestamp is available.
- * 
- * Ungrabs the keyboard on the default display, if it is grabbed by this 
- * application.
- *
- * Deprecated: 3.0: Use gdk_device_ungrab(), together with gdk_device_grab()
- *             instead.
- **/
-void
-gdk_keyboard_ungrab (guint32 time)
-{
-  gdk_display_keyboard_ungrab (gdk_display_get_default (), time);
 }
 
 /**
@@ -749,6 +695,73 @@ _gdk_display_add_device_grab (GdkDisplay       *display,
   return info;
 }
 
+static void
+_gdk_display_break_touch_grabs (GdkDisplay *display,
+                                GdkDevice  *device,
+                                GdkWindow  *new_grab_window)
+{
+  guint i;
+
+  for (i = 0; i < display->touch_implicit_grabs->len; i++)
+    {
+      GdkTouchGrabInfo *info;
+
+      info = &g_array_index (display->touch_implicit_grabs,
+                             GdkTouchGrabInfo, i);
+
+      if (info->device == device && info->window != new_grab_window)
+        generate_grab_broken_event (GDK_WINDOW (info->window),
+                                    device, TRUE, new_grab_window);
+    }
+}
+
+void
+_gdk_display_add_touch_grab (GdkDisplay       *display,
+                             GdkDevice        *device,
+                             GdkEventSequence *sequence,
+                             GdkWindow        *window,
+                             GdkWindow        *native_window,
+                             GdkEventMask      event_mask,
+                             unsigned long     serial,
+                             guint32           time)
+{
+  GdkTouchGrabInfo info;
+
+  info.device = device;
+  info.sequence = sequence;
+  info.window = g_object_ref (window);
+  info.native_window = g_object_ref (native_window);
+  info.serial = serial;
+  info.event_mask = event_mask;
+  info.time = time;
+
+  g_array_append_val (display->touch_implicit_grabs, info);
+}
+
+gboolean
+_gdk_display_end_touch_grab (GdkDisplay       *display,
+                             GdkDevice        *device,
+                             GdkEventSequence *sequence)
+{
+  guint i;
+
+  for (i = 0; i < display->touch_implicit_grabs->len; i++)
+    {
+      GdkTouchGrabInfo *info;
+
+      info = &g_array_index (display->touch_implicit_grabs,
+                             GdkTouchGrabInfo, i);
+
+      if (info->device == device && info->sequence == sequence)
+        {
+          g_array_remove_index_fast (display->touch_implicit_grabs, i);
+          return TRUE;
+        }
+    }
+
+  return FALSE;
+}
+
 /* _gdk_synthesize_crossing_events only works inside one toplevel.
    This function splits things into two calls if needed, converting the
    coordinates to the right toplevel */
@@ -782,8 +795,9 @@ synthesize_crossing_events (GdkDisplay      *display,
       src_toplevel == dest_toplevel)
     {
       /* Same toplevels */
-      gdk_window_get_pointer (dest_toplevel,
-			      &x, &y, &state);
+      gdk_window_get_device_position (dest_toplevel,
+                                      device,
+			              &x, &y, &state);
       _gdk_synthesize_crossing_events (display,
 				       src_window,
 				       dest_window,
@@ -796,8 +810,9 @@ synthesize_crossing_events (GdkDisplay      *display,
     }
   else if (dest_toplevel == NULL)
     {
-      gdk_window_get_pointer (src_toplevel,
-			      &x, &y, &state);
+      gdk_window_get_device_position (src_toplevel,
+                                      device,
+			              &x, &y, &state);
       _gdk_synthesize_crossing_events (display,
                                        src_window,
                                        NULL,
@@ -811,8 +826,9 @@ synthesize_crossing_events (GdkDisplay      *display,
   else
     {
       /* Different toplevels */
-      gdk_window_get_pointer (src_toplevel,
-			      &x, &y, &state);
+      gdk_window_get_device_position (src_toplevel,
+                                      device,
+			              &x, &y, &state);
       _gdk_synthesize_crossing_events (display,
 				       src_window,
 				       NULL,
@@ -822,8 +838,9 @@ synthesize_crossing_events (GdkDisplay      *display,
 				       time,
 				       NULL,
 				       serial, FALSE);
-      gdk_window_get_pointer (dest_toplevel,
-			      &x, &y, &state);
+      gdk_window_get_device_position (dest_toplevel,
+                                      device,
+			              &x, &y, &state);
       _gdk_synthesize_crossing_events (display,
 				       NULL,
 				       dest_window,
@@ -948,17 +965,28 @@ switch_to_pointer_grab (GdkDisplay        *display,
 
       if (grab == NULL) /* Ungrabbed, send events */
 	{
-	  pointer_window = NULL;
-	  if (new_toplevel)
-	    {
-	      /* Find (possibly virtual) child window */
-	      pointer_window =
-		_gdk_window_find_descendant_at (new_toplevel,
-						x, y,
-						NULL, NULL);
-	    }
+          /* If the source device is a touch device, do not
+           * propagate any enter event yet, until one is
+           * synthesized when needed.
+           */
+          if (source_device &&
+              (gdk_device_get_source (source_device) == GDK_SOURCE_TOUCHSCREEN))
+            info->need_touch_press_enter = TRUE;
 
-	  if (pointer_window != last_grab->window)
+          pointer_window = NULL;
+
+          if (new_toplevel &&
+              !info->need_touch_press_enter)
+            {
+              /* Find (possibly virtual) child window */
+              pointer_window =
+                _gdk_window_find_descendant_at (new_toplevel,
+                                                x, y,
+                                                NULL, NULL);
+            }
+
+	  if (!info->need_touch_press_enter &&
+	      pointer_window != last_grab->window)
             synthesize_crossing_events (display, device, source_device,
                                         last_grab->window, pointer_window,
                                         GDK_CROSSING_UNGRAB, time, serial);
@@ -1015,12 +1043,15 @@ _gdk_display_device_grab_update (GdkDisplay *display,
 	    next_grab = NULL; /* Actually its not yet active */
 	}
 
+      if (next_grab)
+        _gdk_display_break_touch_grabs (display, device, next_grab->window);
+
       if ((next_grab == NULL && current_grab->implicit_ungrab) ||
-	  (next_grab != NULL && current_grab->window != next_grab->window))
-	generate_grab_broken_event (GDK_WINDOW (current_grab->window),
+          (next_grab != NULL && current_grab->window != next_grab->window))
+        generate_grab_broken_event (GDK_WINDOW (current_grab->window),
                                     device,
-				    current_grab->implicit,
-				    next_grab? next_grab->window : NULL);
+                                    current_grab->implicit,
+                                    next_grab? next_grab->window : NULL);
 
       /* Remove old grab */
       grabs = g_list_delete_link (grabs, grabs);
@@ -1075,6 +1106,33 @@ _gdk_display_has_device_grab (GdkDisplay *display,
   l = find_device_grab (display, device, serial);
   if (l)
     return l->data;
+
+  return NULL;
+}
+
+GdkTouchGrabInfo *
+_gdk_display_has_touch_grab (GdkDisplay       *display,
+                             GdkDevice        *device,
+                             GdkEventSequence *sequence,
+                             gulong            serial)
+{
+  guint i;
+
+  for (i = 0; i < display->touch_implicit_grabs->len; i++)
+    {
+      GdkTouchGrabInfo *info;
+
+      info = &g_array_index (display->touch_implicit_grabs,
+                             GdkTouchGrabInfo, i);
+
+      if (info->device == device && info->sequence == sequence)
+        {
+          if (serial >= info->serial)
+            return info;
+          else
+            return NULL;
+        }
+    }
 
   return NULL;
 }
@@ -1170,6 +1228,9 @@ _gdk_display_get_pointer_info (GdkDisplay *display,
                                GdkDevice  *device)
 {
   GdkPointerWindowInfo *info;
+
+  if (device && gdk_device_get_source (device) == GDK_SOURCE_KEYBOARD)
+    device = gdk_device_get_associated_device (device);
 
   if (G_UNLIKELY (!device))
     return NULL;
@@ -1542,7 +1603,7 @@ gdk_display_request_selection_notification (GdkDisplay *display,
 }
 
 /**
- * gdk_display_supports_clipboard_persistence
+ * gdk_display_supports_clipboard_persistence:
  * @display: a #GdkDisplay
  *
  * Returns whether the speicifed display supports clipboard
@@ -1563,7 +1624,7 @@ gdk_display_supports_clipboard_persistence (GdkDisplay *display)
 }
 
 /**
- * gdk_display_store_clipboard
+ * gdk_display_store_clipboard:
  * @display:          a #GdkDisplay
  * @clipboard_window: a #GdkWindow belonging to the clipboard owner
  * @time_:            a timestamp

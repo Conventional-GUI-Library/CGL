@@ -12,9 +12,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -39,9 +37,6 @@ _gdk_wayland_display_set_selection_owner (GdkDisplay *display,
 					  guint32     time,
 					  gboolean    send_event)
 {
-  fprintf(stderr, "set selection owner: atom %ld, owner %p\n",
-	  selection, owner);
-
   return TRUE;
 }
 

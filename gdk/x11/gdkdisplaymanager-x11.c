@@ -16,9 +16,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -53,8 +51,13 @@ gdk_x11_display_manager_open_display (GdkDisplayManager *manager,
   GdkDisplay *display;
 
   display = _gdk_x11_display_open (name);
-  if (manager_x11->default_display == NULL && display != NULL)
-    gdk_display_manager_set_default_display (manager, display);
+  if (display != NULL)
+    {
+      if (manager_x11->default_display == NULL)
+        gdk_display_manager_set_default_display (manager, display);
+
+      g_signal_emit_by_name (manager, "display-opened", display);
+    }
 
   return display;
 }
@@ -110,9 +113,7 @@ gdk_x11_display_manager_class_init (GdkX11DisplayManagerClass *class)
   manager_class->get_atom_name = _gdk_x11_display_manager_get_atom_name;
   manager_class->lookup_keyval = _gdk_x11_display_manager_lookup_keyval;
   manager_class->get_keyval_name = _gdk_x11_display_manager_get_keyval_name;
-#ifdef HAVE_XCONVERTCASE
   manager_class->keyval_convert_case = _gdk_x11_display_manager_keyval_convert_case;
-#endif
 }
 
 void

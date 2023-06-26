@@ -13,9 +13,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #import "GdkQuartzNSWindow.h"
@@ -116,10 +114,15 @@
   switch ([event type])
     {
     case NSLeftMouseUp:
+    {
+      double time = ((double)[event timestamp]) * 1000.0;
+
+      _gdk_quartz_events_break_all_grabs (time);
       inManualMove = NO;
       inManualResize = NO;
       inMove = NO;
       break;
+    }
 
     case NSLeftMouseDragged:
       if ([self trackManualMove] || [self trackManualResize])
@@ -138,6 +141,38 @@
   return inMove;
 }
 
+-(void)checkSendEnterNotify
+{
+  GdkWindow *window = [[self contentView] gdkWindow];
+  GdkWindowImplQuartz *impl = GDK_WINDOW_IMPL_QUARTZ (window->impl);
+
+  /* When a new window has been created, and the mouse
+   * is in the window area, we will not receive an NSMouseEntered
+   * event.  Therefore, we synthesize an enter notify event manually.
+   */
+  if (!initialPositionKnown)
+    {
+      initialPositionKnown = YES;
+
+      if (NSPointInRect ([NSEvent mouseLocation], [self frame]))
+        {
+          NSEvent *event;
+
+          event = [NSEvent enterExitEventWithType: NSMouseEntered
+                                         location: [self mouseLocationOutsideOfEventStream]
+                                    modifierFlags: 0
+                                        timestamp: [[NSApp currentEvent] timestamp]
+                                     windowNumber: [impl->toplevel windowNumber]
+                                          context: NULL
+                                      eventNumber: 0
+                                   trackingNumber: [impl->view trackingRect]
+                                         userData: nil];
+
+          [NSApp postEvent:event atStart:NO];
+        }
+    }
+}
+
 -(void)windowDidMove:(NSNotification *)aNotification
 {
   GdkWindow *window = [[self contentView] gdkWindow];
@@ -154,6 +189,8 @@
   event->configure.height = window->height;
 
   _gdk_event_queue_append (gdk_display_get_default (), event);
+
+  [self checkSendEnterNotify];
 }
 
 -(void)windowDidResize:(NSNotification *)aNotification
@@ -183,6 +220,8 @@
   event->configure.height = window->height;
 
   _gdk_event_queue_append (gdk_display_get_default (), event);
+
+  [self checkSendEnterNotify];
 }
 
 -(id)initWithContentRect:(NSRect)contentRect styleMask:(NSUInteger)styleMask backing:(NSBackingStoreType)backingType defer:(BOOL)flag screen:(NSScreen *)screen
@@ -280,6 +319,8 @@
     [impl->toplevel orderFront:nil];
 
   inShowOrHide = NO;
+
+  [self checkSendEnterNotify];
 }
 
 - (void)hide
@@ -290,6 +331,8 @@
   inShowOrHide = YES;
   [impl->toplevel orderOut:nil];
   inShowOrHide = NO;
+
+  initialPositionKnown = NO;
 }
 
 - (BOOL)trackManualMove
@@ -313,6 +356,11 @@
   [self setFrameOrigin:newOrigin];
 
   return YES;
+}
+
+-(BOOL)isInManualResize
+{
+  return inManualResize;
 }
 
 -(void)beginManualMove

@@ -14,9 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __GDK_QUARTZ_H__
@@ -50,7 +48,8 @@ typedef enum
   GDK_OSX_LEOPARD = 5,
   GDK_OSX_SNOW_LEOPARD = 6,
   GDK_OSX_LION = 7,
-  GDK_OSX_CURRENT = 7,
+  GDK_OSX_MOUNTAIN_LION = 8,
+  GDK_OSX_CURRENT = 8,
   GDK_OSX_NEW = 99
 } GdkOSXVersion;
 

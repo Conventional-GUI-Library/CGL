@@ -12,20 +12,15 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
 
 #include "gdkx11devicemanager-core.h"
 #include "gdkdevicemanagerprivate-core.h"
-#ifdef XINPUT_XFREE
-#include "gdkx11devicemanager-xi.h"
 #ifdef XINPUT_2
 #include "gdkx11devicemanager-xi2.h"
-#endif
 #endif
 #include "gdkinternals.h"
 #include "gdkprivate-x11.h"
@@ -41,7 +36,7 @@ _gdk_x11_device_manager_new (GdkDisplay *display)
 {
   if (!g_getenv ("GDK_CORE_DEVICE_EVENTS"))
     {
-#if defined (XINPUT_2) || defined (XINPUT_XFREE)
+#ifdef XINPUT_2
       int opcode, firstevent, firsterror;
       Display *xdisplay;
 
@@ -50,11 +45,14 @@ _gdk_x11_device_manager_new (GdkDisplay *display)
       if (XQueryExtension (xdisplay, "XInputExtension",
                            &opcode, &firstevent, &firsterror))
         {
-#ifdef XINPUT_2
           int major, minor;
 
           major = 2;
+#ifdef XINPUT_2_2
+	  minor = 2;
+#else
           minor = 0;
+#endif /* XINPUT_2_2 */
 
           if (!_gdk_disable_multidevice &&
               XIQueryVersion (xdisplay, &major, &minor) != BadRequest)
@@ -66,22 +64,14 @@ _gdk_x11_device_manager_new (GdkDisplay *display)
               device_manager_xi2 = g_object_new (GDK_TYPE_X11_DEVICE_MANAGER_XI2,
                                                  "display", display,
                                                  "opcode", opcode,
+                                                 "major", major,
+                                                 "minor", minor,
                                                  NULL);
 
               return GDK_DEVICE_MANAGER (device_manager_xi2);
             }
-          else
-#endif /* XINPUT_2 */
-            {
-              GDK_NOTE (INPUT, g_print ("Creating XI device manager\n"));
-
-              return g_object_new (GDK_TYPE_X11_DEVICE_MANAGER_XI,
-                                   "display", display,
-                                   "event-base", firstevent,
-                                   NULL);
-            }
         }
-#endif /* XINPUT_2 || XINPUT_XFREE */
+#endif /* XINPUT_2 */
     }
 
   GDK_NOTE (INPUT, g_print ("Creating core device manager\n"));

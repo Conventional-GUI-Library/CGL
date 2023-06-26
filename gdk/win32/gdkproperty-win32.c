@@ -13,9 +13,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -149,7 +147,7 @@ _gdk_win32_window_change_property (GdkWindow    *window,
 {
   HGLOBAL hdata;
   gint i, size;
-  guchar *ucptr, *buf = NULL;
+  guchar *ucptr;
   wchar_t *wcptr, *p;
   glong wclen;
 
@@ -208,7 +206,7 @@ _gdk_win32_window_change_property (GdkWindow    *window,
 	      WIN32_API_FAILED ("GlobalAlloc");
 	      if (!CloseClipboard ())
 		WIN32_API_FAILED ("CloseClipboard");
-	      g_free (buf);
+	      g_free (wcptr);
 	      return;
 	    }
 
@@ -401,7 +399,6 @@ _gdk_win32_screen_get_setting (GdkScreen   *screen,
       g_value_set_boolean (value, TRUE);
       return TRUE;
     }
-#if 0
   /*
    * With 'MS Sans Serif' as windows menu font (default on win98se) you'll get a 
    * bunch of :
@@ -418,7 +415,7 @@ _gdk_win32_screen_get_setting (GdkScreen   *screen,
           /* Pango finally uses GetDeviceCaps to scale, we use simple
 	   * approximation here.
 	   */
-          int nHeight = (0 > ncm.lfMenuFont.lfHeight ? -3*ncm.lfMenuFont.lfHeight/4 : 10);
+          int nHeight = (0 > ncm.lfMenuFont.lfHeight ? - 3 * ncm.lfMenuFont.lfHeight / 4 : 10);
           if (OUT_STRING_PRECIS == ncm.lfMenuFont.lfOutPrecision)
             GDK_NOTE(MISC, g_print("gdk_screen_get_setting(%s) : ignoring bitmap font '%s'\n", 
                                    name, ncm.lfMenuFont.lfFaceName));
@@ -426,7 +423,7 @@ _gdk_win32_screen_get_setting (GdkScreen   *screen,
                    /* Avoid issues like those described in bug #135098 */
                    g_utf8_validate (ncm.lfMenuFont.lfFaceName, -1, NULL))
             {
-              char* s = g_strdup_printf ("%s %d", ncm.lfMenuFont.lfFaceName, nHeight);
+              char *s = g_strdup_printf ("%s %d", ncm.lfMenuFont.lfFaceName, nHeight);
               GDK_NOTE(MISC, g_print("gdk_screen_get_setting(%s) : %s\n", name, s));
               g_value_set_string (value, s);
 
@@ -435,7 +432,6 @@ _gdk_win32_screen_get_setting (GdkScreen   *screen,
             }
         }
     }
-#endif
 
   return FALSE;
 }

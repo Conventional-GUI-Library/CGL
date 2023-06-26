@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #if !defined (__GDKX_H_INSIDE__) && !defined (GDK_COMPILATION)
@@ -44,6 +42,13 @@ typedef struct _GdkX11KeymapClass GdkX11KeymapClass;
 
 GType gdk_x11_keymap_get_type (void);
 
+GDK_AVAILABLE_IN_3_6
+gint gdk_x11_keymap_get_group_for_state (GdkKeymap *keymap,
+                                         guint      state);
+
+GDK_AVAILABLE_IN_3_6
+gboolean gdk_x11_keymap_key_is_modifier (GdkKeymap *keymap,
+                                         guint      keycode);
 G_END_DECLS
 
 #endif /* __GDK_X11_KEYMAP_H__ */

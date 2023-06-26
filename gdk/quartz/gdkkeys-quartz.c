@@ -14,9 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 /* Some parts of this code come from quartzKeyboard.c,
  * from the Apple X11 Server.
@@ -178,7 +176,7 @@ const static struct {
   { 67, GDK_KEY_asterisk, GDK_KEY_KP_Multiply },
   { 69, GDK_KEY_plus, GDK_KEY_KP_Add },
   { 75, GDK_KEY_slash, GDK_KEY_KP_Divide },
-  { 76, 0x01000003, GDK_KEY_KP_Enter },
+  { 76, GDK_KEY_Return, GDK_KEY_KP_Enter },
   { 78, GDK_KEY_minus, GDK_KEY_KP_Subtract },
   { 81, GDK_KEY_equal, GDK_KEY_KP_Equal },
   { 82, GDK_KEY_0, GDK_KEY_KP_0 },
@@ -222,6 +220,7 @@ const static struct {
   { 0xf2c6, GDK_KEY_dead_circumflex },
   { 0xf302, GDK_KEY_dead_circumflex },
   { 0xf07e, GDK_KEY_dead_tilde },
+  { 0xf2dc, GDK_KEY_dead_tilde },
   { 0xf303, GDK_KEY_dead_tilde },
   { 0xf342, GDK_KEY_dead_perispomeni },
   { 0xf0af, GDK_KEY_dead_macron },
@@ -630,16 +629,14 @@ gdk_quartz_keymap_get_entries_for_keycode (GdkKeymap     *keymap,
   return *n_entries > 0;
 }
 
+#define GET_KEYVAL(keycode, group, level) (keyval_array[(keycode * KEYVALS_PER_KEYCODE + group * 2 + level)])
+
 static guint
 gdk_quartz_keymap_lookup_key (GdkKeymap          *keymap,
                               const GdkKeymapKey *key)
 {
-  /* FIXME: Implement */
-
-  return 0;
+  return GET_KEYVAL (key->keycode, key->group, key->level);
 }
-
-#define GET_KEYVAL(keycode, group, level) (keyval_array[(keycode * KEYVALS_PER_KEYCODE + group * 2 + level)])
 
 static guint
 translate_keysym (guint           hardware_keycode,
@@ -749,6 +746,35 @@ gdk_quartz_keymap_map_virtual_modifiers (GdkKeymap       *keymap,
   return TRUE;
 }
 
+static GdkModifierType
+gdk_quartz_keymap_get_modifier_mask (GdkKeymap         *keymap,
+                                     GdkModifierIntent  intent)
+{
+  switch (intent)
+    {
+    case GDK_MODIFIER_INTENT_PRIMARY_ACCELERATOR:
+      return GDK_MOD2_MASK;
+
+    case GDK_MODIFIER_INTENT_CONTEXT_MENU:
+      return GDK_CONTROL_MASK;
+
+    case GDK_MODIFIER_INTENT_EXTEND_SELECTION:
+      return GDK_SHIFT_MASK;
+
+    case GDK_MODIFIER_INTENT_MODIFY_SELECTION:
+      return GDK_MOD2_MASK;
+
+    case GDK_MODIFIER_INTENT_NO_TEXT_INPUT:
+      return GDK_MOD2_MASK | GDK_CONTROL_MASK;
+
+    case GDK_MODIFIER_INTENT_SHIFT_GROUP:
+      return GDK_MOD1_MASK;
+
+    default:
+      g_return_val_if_reached (0);
+    }
+}
+
 /* What sort of key event is this? Returns one of
  * GDK_KEY_PRESS, GDK_KEY_RELEASE, GDK_NOTHING (should be ignored)
  */
@@ -838,4 +864,5 @@ gdk_quartz_keymap_class_init (GdkQuartzKeymapClass *klass)
   keymap_class->translate_keyboard_state = gdk_quartz_keymap_translate_keyboard_state;
   keymap_class->add_virtual_modifiers = gdk_quartz_keymap_add_virtual_modifiers;
   keymap_class->map_virtual_modifiers = gdk_quartz_keymap_map_virtual_modifiers;
+  keymap_class->get_modifier_mask = gdk_quartz_keymap_get_modifier_mask;
 }

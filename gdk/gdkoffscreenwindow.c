@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -145,19 +143,12 @@ _gdk_offscreen_window_create_surface (GdkWindow *offscreen,
 {
   cairo_surface_t *similar;
   cairo_surface_t *surface;
-  cairo_content_t  content = CAIRO_CONTENT_COLOR;
 
   g_return_val_if_fail (GDK_IS_OFFSCREEN_WINDOW (offscreen->impl), NULL);
 
   similar = _gdk_window_ref_cairo_surface (offscreen->parent);
 
-  if (gdk_window_get_visual (offscreen) ==
-      gdk_screen_get_rgba_visual (gdk_window_get_screen (offscreen)))
-    {
-      content = CAIRO_CONTENT_COLOR_ALPHA;
-    }
-
-  surface = cairo_surface_create_similar (similar, content, width, height);
+  surface = cairo_surface_create_similar (similar, CAIRO_CONTENT_COLOR_ALPHA, width, height);
 
   cairo_surface_destroy (similar);
 
@@ -224,6 +215,13 @@ gdk_offscreen_window_reparent (GdkWindow *window,
     _gdk_synthesize_crossing_events_for_geometry_change (old_parent);
 
   return was_mapped;
+}
+
+static void
+gdk_offscreen_window_set_device_cursor (GdkWindow     *window,
+					GdkDevice     *device,
+					GdkCursor     *cursor)
+{
 }
 
 static void
@@ -736,7 +734,7 @@ gdk_offscreen_window_class_init (GdkOffscreenWindowClass *klass)
   impl_class->move_resize = gdk_offscreen_window_move_resize;
   impl_class->set_background = gdk_offscreen_window_set_background;
   impl_class->reparent = gdk_offscreen_window_reparent;
-  impl_class->set_device_cursor = NULL;
+  impl_class->set_device_cursor = gdk_offscreen_window_set_device_cursor;
   impl_class->get_geometry = gdk_offscreen_window_get_geometry;
   impl_class->get_root_coords = gdk_offscreen_window_get_root_coords;
   impl_class->get_device_state = gdk_offscreen_window_get_device_state;

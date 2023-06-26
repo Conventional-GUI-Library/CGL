@@ -17,6 +17,7 @@ CLEANFILES =
 
 EXTRA_DIST += 			\
 	keynames.txt		\
+	keynames-translate.txt	\
 	keyname-table.h		\
 	gdkkeynames.c		\
 	gen-keyname-table.pl	\
@@ -29,14 +30,15 @@ EXTRA_DIST += 			\
 	gdk.symbols		\
 	gdkenumtypes.c.template	\
 	gdkenumtypes.h.template	\
+	gdkversionmacros.h.in	\
 	abicheck.sh
 
 AM_CPPFLAGS = 				\
 	-DG_LOG_DOMAIN=\"Gdk\"		\
 	-DGDK_COMPILATION		\
-	-I$(top_srcdir)			\
 	-I$(top_builddir)		\
 	-I$(top_builddir)/gdk		\
+	-I$(top_srcdir)			\
 	$(GTK_DEBUG_FLAGS)		\
 	$(GDK_DEP_CFLAGS)
 
@@ -112,6 +114,7 @@ gdk_c_sources = 				\
 	gdkcairo.c				\
 	gdkcolor.c				\
 	gdkcursor.c				\
+	gdkdeprecated.c				\
 	gdkdevice.c				\
 	gdkdevicemanager.c			\
 	gdkdisplay.c				\
@@ -136,6 +139,7 @@ gdk_built_sources = 				\
 	gdkenumtypes.c				\
 	gdkmarshalers.h 			\
 	gdkmarshalers.c				\
+	gdkversionmacros.h			\
 	gdkenumtypes.h
 
 #
@@ -143,7 +147,7 @@ gdk_built_sources = 				\
 #
 
 gdkincludedir = $(includedir)/gtk-3.0/gdk
-gdkinclude_HEADERS = $(gdk_public_h_sources) gdkenumtypes.h
+gdkinclude_HEADERS = $(gdk_public_h_sources) gdkenumtypes.h gdkversionmacros.h
 nodist_gdkinclude_HEADERS = gdkconfig.h
 
 common_sources = 		\
@@ -207,10 +211,8 @@ x11_introspection_files = 		\
 	x11/gdkdevice-core-x11.c	\
 	x11/gdkdevicemanager-core-x11.c	\
 	x11/gdkdevicemanager-x11.c	\
-	x11/gdkdevicemanager-xi.c	\
 	x11/gdkdevicemanager-xi2.c	\
 	x11/gdkdevice-xi2.c		\
-	x11/gdkdevice-xi.c		\
 	x11/gdkdisplay-x11.c		\
 	x11/gdkdnd-x11.c		\
 	x11/gdkeventsource.c		\
@@ -304,7 +306,9 @@ endif
 lib_LTLIBRARIES = libgdk-3.la
 
 MAINTAINERCLEANFILES = $(gdk_built_sources) stamp-gdkenumtypes.h
-EXTRA_DIST += $(gdk_built_sources)
+EXTRA_DIST += \
+	$(gdk_built_sources)	\
+	fallback-c89.c
 
 install-exec-hook:
 if DISABLE_EXPLICIT_DEPS
@@ -337,7 +341,8 @@ gdkmarshalers.h: @REBUILD@ gdkmarshalers.list
 	&& mv gdkmarshalers-h.tmp gdkmarshalers.h \
 	|| ( rm -f gdkmarshalers-h.tmp && exit 1)
 gdkmarshalers.c: @REBUILD@ gdkmarshalers.list
-	$(AM_V_GEN) $(GLIB_GENMARSHAL) --prefix=_gdk_marshal $(srcdir)/gdkmarshalers.list --body > gdkmarshalers-c.tmp	\
+	$(AM_V_GEN) (echo "#include \"gdkmarshalers.h\""; \
+	 $(GLIB_GENMARSHAL) --prefix=_gdk_marshal $(srcdir)/gdkmarshalers.list --body) > gdkmarshalers-c.tmp	\
 	&& mv gdkmarshalers-c.tmp gdkmarshalers.c \
 	|| ( rm -f gdkmarshalers-c.tmp && exit 1 )
 

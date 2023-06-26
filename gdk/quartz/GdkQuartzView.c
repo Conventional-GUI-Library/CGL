@@ -13,9 +13,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #import "GdkQuartzView.h"
@@ -82,6 +80,25 @@
 
   if (NSEqualRects (rect, NSZeroRect))
     return;
+
+  if (!GDK_WINDOW_IS_MAPPED (gdk_window))
+    {
+      /* If the window is not yet mapped, clip_region_with_children
+       * will be empty causing the usual code below to draw nothing.
+       * To not see garbage on the screen, we draw an aesthetic color
+       * here. The garbage would be visible if any widget enabled
+       * the NSView's CALayer in order to add sublayers for custom
+       * native rendering.
+       */
+      [NSGraphicsContext saveGraphicsState];
+
+      [[NSColor windowBackgroundColor] setFill];
+      [NSBezierPath fillRect:rect];
+
+      [NSGraphicsContext restoreGraphicsState];
+
+      return;
+    }
 
   /* Clear our own bookkeeping of regions that need display */
   if (impl->needs_display_region)
@@ -150,15 +167,6 @@
                                  owner:self
                               userData:nil
                           assumeInside:NO];
-
-  if (NSPointInRect ([[self window] convertScreenToBase:[NSEvent mouseLocation]], rect))
-    {
-      /* When a new window (and thus view) has been created, and the mouse
-       * is in the window area, we will not receive an NSMouseEntered
-       * event.  Therefore, we synthesize an enter notify event manually.
-       */
-      _gdk_quartz_events_send_enter_notify_event (gdk_window);
-    }
 }
 
 -(void)viewDidMoveToWindow

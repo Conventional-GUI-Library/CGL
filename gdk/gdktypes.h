@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -137,7 +135,7 @@ typedef struct _GdkAppLaunchContext   GdkAppLaunchContext;
  *   in memory as 0xcc, 0xee, 0xff, 0x00.
  * @GDK_MSB_FIRST: The values are stored with the most-significant byte
  *   first. For instance, the 32-bit value 0xffeecc would be stored
- *   in memory as 0x00, 0xcc, 0xee, 0xff.
+ *   in memory as 0x00, 0xff, 0xee, 0xcc.
  *
  * A set of values describing the possible byte-orders
  * for storing pixel values in memory.
@@ -242,6 +240,44 @@ typedef enum
   GDK_MODIFIER_MASK = 0x5c001fff
 } GdkModifierType;
 
+/**
+ * GdkModifierIntent:
+ * @GDK_MODIFIER_INTENT_PRIMARY_ACCELERATOR: the primary modifier used to invoke
+ *  menu accelerators.
+ * @GDK_MODIFIER_INTENT_CONTEXT_MENU: the modifier used to invoke context menus.
+ *  Note that mouse button 3 always triggers context menus. When this modifier
+ *  is not 0, it <strong>additionally</strong> triggers context menus when used
+ *  with mouse button 1.
+ * @GDK_MODIFIER_INTENT_EXTEND_SELECTION: the modifier used to extend selections
+ *  using &lt;modifier&gt;-click or &lt;modifier&gt;-cursor-key
+ * @GDK_MODIFIER_INTENT_MODIFY_SELECTION: the modifier used to modify selections,
+ *  which in most cases means toggling the clicked item into or out of the selection.
+ * @GDK_MODIFIER_INTENT_NO_TEXT_INPUT: when any of these modifiers is pressed, the
+ *  key event cannot produce a symbol directly. This is meant to be used for
+ *  input methods, and for use cases like typeahead search.
+ * @GDK_MODIFIER_INTENT_SHIFT_GROUP: the modifier that switches between keyboard
+ *  groups (AltGr on X11/Windows and Option/Alt on OS X).
+ *
+ * This enum is used with gdk_keymap_get_modifier_mask() and
+ * gdk_get_modifier_mask() in order to determine what modifiers the
+ * currently used windowing system backend uses for particular
+ * purposes. For example, on X11/Windows, the Control key is used for
+ * invoking menu shortcuts (accelerators), whereas on Apple computers
+ * it's the Command key (which correspond to %GDK_CONTROL_MASK and
+ * %GDK_MOD2_MASK, respectively).
+ *
+ * Since: 3.4
+ **/
+typedef enum
+{
+  GDK_MODIFIER_INTENT_PRIMARY_ACCELERATOR,
+  GDK_MODIFIER_INTENT_CONTEXT_MENU,
+  GDK_MODIFIER_INTENT_EXTEND_SELECTION,
+  GDK_MODIFIER_INTENT_MODIFY_SELECTION,
+  GDK_MODIFIER_INTENT_NO_TEXT_INPUT,
+  GDK_MODIFIER_INTENT_SHIFT_GROUP
+} GdkModifierIntent;
+
 typedef enum
 {
   GDK_OK          = 0,
@@ -312,6 +348,8 @@ typedef enum
  * @GDK_SUBSTRUCTURE_MASK: receive events about window configuration changes of
  *   child windows
  * @GDK_SCROLL_MASK: receive scroll events
+ * @GDK_TOUCH_MASK: receive touch events. Since 3.4
+ * @GDK_SMOOTH_SCROLL_MASK: receive smooth scrolling events. Since 3.4
  * @GDK_ALL_EVENTS_MASK: the combination of all the above event masks.
  *
  * A set of bit-flags to indicate which events a window is to receive.
@@ -327,6 +365,13 @@ typedef enum
  * some of which are marked as a hint (the is_hint member is %TRUE).
  * To receive more motion events after a motion hint event, the application
  * needs to asks for more, by calling gdk_event_request_motions().
+ *
+ * If %GDK_TOUCH_MASK is enabled, the window will receive touch events
+ * from touch-enabled devices. Those will come as sequences of #GdkEventTouch
+ * with type %GDK_TOUCH_UPDATE, enclosed by two events with
+ * type %GDK_TOUCH_BEGIN and %GDK_TOUCH_END (or %GDK_TOUCH_CANCEL).
+ * gdk_event_get_event_sequence() returns the event sequence for these
+ * events, so different sequences may be distinguished.
  */
 typedef enum
 {
@@ -351,7 +396,9 @@ typedef enum
   GDK_PROXIMITY_OUT_MASK        = 1 << 19,
   GDK_SUBSTRUCTURE_MASK         = 1 << 20,
   GDK_SCROLL_MASK               = 1 << 21,
-  GDK_ALL_EVENTS_MASK           = 0x3FFFFE
+  GDK_TOUCH_MASK                = 1 << 22,
+  GDK_SMOOTH_SCROLL_MASK        = 1 << 23,
+  GDK_ALL_EVENTS_MASK           = 0xFFFFFE
 } GdkEventMask;
 
 /**
