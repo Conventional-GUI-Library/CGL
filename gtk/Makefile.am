@@ -1012,7 +1012,6 @@ TEST_DEPS = $(DEPS) immodules.cache
 LDADDS =								\
 	libgtk-3.la							\
 	$(top_builddir)/gdk/libgdk-3.la				\
-	-lgmodule-2.0 \
 	$(GTK_DEP_LIBS)
 
 if HAVE_INTROSPECTION
@@ -1101,7 +1100,7 @@ endif
 endif
 
 gtk_query_immodules_3_0_DEPENDENCIES = $(DEPS)
-gtk_query_immodules_3_0_LDADD = $(LDADDS)
+gtk_query_immodules_3_0_LDADD = $(LDADDS) $(GMODULE_LIBS)
 gtk_query_immodules_3_0_SOURCES = queryimmodules.c
 
 if BUILD_ICON_CACHE
@@ -1350,7 +1349,6 @@ GENERATED_ICONS = \
 	stock-icons/16/folder-remote.png 		\
 	stock-icons/16/user-home.png 			\
 	stock-icons/16/user-desktop.png 		\
-	stock-icons/16/text-x-generic.png 		\
 	stock-icons/24/go-previous-rtl.png 		\
 	stock-icons/24/go-next-rtl.png 			\
 	stock-icons/24/go-first-rtl.png 		\
@@ -1362,8 +1360,7 @@ GENERATED_ICONS = \
 	stock-icons/24/document-save.png 		\
 	stock-icons/24/folder-remote.png 		\
 	stock-icons/24/user-home.png 			\
-	stock-icons/24/user-desktop.png 		\
-	stock-icons/24/text-x-generic.png
+	stock-icons/24/user-desktop.png 		
 
 # need to copy the icons so that we can replace the generated ones with
 # symlinks, even in the readonly srcdir case
