@@ -3370,6 +3370,7 @@ EXPORTS
 	gtk_widget_get_parent
 	gtk_widget_get_parent_window
 	gtk_widget_get_path
+	gtk_widget_get_modifier_mask
 	gtk_widget_get_pointer
 	gtk_widget_get_preferred_height
 	gtk_widget_get_preferred_height_for_width

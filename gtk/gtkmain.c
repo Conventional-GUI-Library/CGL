@@ -2647,21 +2647,7 @@ _gtk_boolean_handled_accumulator (GSignalInvocationHint *ihint,
 gboolean
 _gtk_button_event_triggers_context_menu (GdkEventButton *event)
 {
-  if (event->type == GDK_BUTTON_PRESS)
-    {
-      if (event->button == 3 &&
-          ! (event->state & (GDK_BUTTON1_MASK | GDK_BUTTON2_MASK)))
-        return TRUE;
-
-#ifdef GDK_WINDOWING_QUARTZ
-      if (event->button == 1 &&
-          ! (event->state & (GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)) &&
-          (event->state & GDK_CONTROL_MASK))
-        return TRUE;
-#endif
-    }
-
-  return FALSE;
+  return gdk_event_triggers_context_menu ((GdkEvent *) event);
 }
 
 gboolean
@@ -2707,4 +2693,67 @@ _gtk_translate_keyboard_accel_state (GdkKeymap       *keymap,
     }
 
   return retval;
+}
+
+gboolean
+_gtk_single_string_accumulator (GSignalInvocationHint *ihint,
+				GValue                *return_accu,
+				const GValue          *handler_return,
+				gpointer               dummy)
+{
+  gboolean continue_emission;
+  const gchar *str;
+  
+  str = g_value_get_string (handler_return);
+  g_value_set_string (return_accu, str);
+  continue_emission = str == NULL;
+  
+  return continue_emission;
+}
+
+GdkModifierType
+_gtk_replace_virtual_modifiers (GdkKeymap       *keymap,
+                                GdkModifierType  modifiers)
+{
+  GdkModifierType result = 0;
+  gint            i;
+
+  g_return_val_if_fail (GDK_IS_KEYMAP (keymap), 0);
+
+  for (i = 0; i < 8; i++) /* SHIFT...MOD5 */
+    {
+      GdkModifierType real = 1 << i;
+
+      if (modifiers & real)
+        {
+          GdkModifierType virtual = real;
+
+          gdk_keymap_add_virtual_modifiers (keymap, &virtual);
+
+          if (virtual == real)
+            result |= virtual;
+          else
+            result |= virtual & ~real;
+        }
+    }
+
+  return result;
+}
+
+GdkModifierType
+_gtk_get_primary_accel_mod (void)
+{
+  static GdkModifierType primary = 0;
+
+  if (! primary)
+    {
+      GdkDisplay *display = gdk_display_get_default ();
+
+      primary = gdk_keymap_get_modifier_mask (gdk_keymap_get_for_display (display),
+                                              GDK_MODIFIER_INTENT_PRIMARY_ACCELERATOR);
+      primary = _gtk_replace_virtual_modifiers (gdk_keymap_get_for_display (display),
+                                                primary);
+    }
+
+  return primary;
 }
