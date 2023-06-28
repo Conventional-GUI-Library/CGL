@@ -23,8 +23,6 @@
 #undef GDK_PIXBUF_DISABLE_DEPRECATED
 #include <gdk-pixbuf/gdk-pixdata.h>
 
-
-
 #define VERBOSE(x) 
 
 #define check(name,condition) \

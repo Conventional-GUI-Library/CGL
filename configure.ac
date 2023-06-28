@@ -328,7 +328,8 @@ AC_ARG_ENABLE(wayland-cairo-gl,
                              [enable the use of Cairo GL in the Wayland backend]),
               [],
               [enable_wayland_cairo_gl=no])
-              
+
+
 cairo_backends=
 backend_immodules=
 GDK_BACKENDS=
@@ -412,6 +413,7 @@ if test "x$enable_wayland_backend" = "xyes"; then
 else
   AM_CONDITIONAL(USE_WAYLAND, false)
 fi
+
 # strip leading space
 GDK_BACKENDS=${GDK_BACKENDS#* }
 

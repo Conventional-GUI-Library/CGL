@@ -27,7 +27,6 @@
 #undef GDK_PIXBUF_DISABLE_DEPRECATED
 #include <gdk-pixbuf/gdk-pixdata.h>
 
-
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -450,6 +449,9 @@ _gtk_icon_cache_get_icon (GtkIconCache *cache,
 
   offset = find_image_offset (cache, icon_name, directory_index);
   
+  if (!offset)
+    return NULL;
+
   image_data_offset = GET_UINT32 (cache->buffer, offset + 4);
   
   if (!image_data_offset)
@@ -497,6 +499,7 @@ _gtk_icon_cache_get_icon (GtkIconCache *cache,
 
   return pixbuf;
 }
+
 GtkIconData  *
 _gtk_icon_cache_get_icon_data  (GtkIconCache *cache,
 				const gchar  *icon_name,
