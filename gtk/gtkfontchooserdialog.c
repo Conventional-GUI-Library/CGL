@@ -160,7 +160,6 @@ gtk_font_chooser_dialog_init (GtkFontChooserDialog *fontchooserdiag)
 
   /* Create the content area */
   priv->fontchooser = gtk_font_chooser_widget_new ();
-  gtk_font_chooser_set_show_preview_entry(GTK_FONT_CHOOSER(priv->fontchooser), TRUE);
   gtk_container_set_border_width (GTK_CONTAINER (priv->fontchooser), 5);
   gtk_widget_show (priv->fontchooser);
   gtk_box_pack_start (GTK_BOX (content_area),
