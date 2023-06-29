@@ -41,6 +41,7 @@
 #include "gtkintl.h"
 #include "gtkbuildable.h"
 #include "gtkbuilderprivate.h"
+#include "gtkmainprivate.h"
 
 #include "a11y/gtkscaleaccessible.h"
 
