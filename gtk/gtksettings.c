@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "gtkmodules.h"
+#include "gtkmodulesprivate.h"
 #include "gtksettingsprivate.h"
 #include "gtkintl.h"
 #include "gtkwidget.h"
@@ -292,7 +293,7 @@ gtk_settings_init (GtkSettings *settings)
     }
   g_free (pspecs);
 
-  path = g_build_filename (GTK_SYSCONFDIR, "gtk-3.0", "settings.ini", NULL);
+  path = g_build_filename (_gtk_get_sysconfdir (), "gtk-3.0", "settings.ini", NULL);
   if (g_file_test (path, G_FILE_TEST_EXISTS))
     gtk_settings_load_from_key_file (settings, path, GTK_SETTINGS_SOURCE_DEFAULT);
   g_free (path);
@@ -2516,11 +2517,11 @@ settings_update_modules (GtkSettings *settings)
 static void
 settings_update_cursor_theme (GtkSettings *settings)
 {
+#ifdef GDK_WINDOWING_X11
   GdkDisplay *display = gdk_screen_get_display (settings->priv->screen);
   gchar *theme = NULL;
   gint size = 0;
 
-#ifdef GDK_WINDOWING_X11
   if (GDK_IS_X11_DISPLAY (display))
     {
       g_object_get (settings,
@@ -2644,6 +2645,8 @@ settings_update_fontconfig (GtkSettings *settings)
     }
 
   return last_update_needed;
+#else
+  return FALSE;
 #endif /* GDK_WINDOWING_X11 */
 }
 

@@ -91,9 +91,6 @@
 
 #include "config.h"
 
-#include "gtkmainprivate.h"
-
-#include <glib.h>
 #include "gdk/gdk.h"
 
 #include <locale.h>
@@ -117,17 +114,24 @@
 #include "gtkaccelmap.h"
 #include "gtkbox.h"
 #include "gtkclipboard.h"
+#include "gtkdebug.h"
 #include "gtkdnd.h"
-#include "gtkversion.h"
+#include "gtkmain.h"
+#include "gtkmenu.h"
 #include "gtkmodules.h"
+#include "gtkmodulesprivate.h"
+#include "gtkprivate.h"
 #include "gtkrecentmanager.h"
 #include "gtkselectionprivate.h"
 #include "gtksettingsprivate.h"
+#include "gtktooltip.h"
+#include "gtkversion.h"
 #include "gtkwidgetprivate.h"
 #include "gtkwindowprivate.h"
 #include "gtktooltip.h"
 #include "gtkdebug.h"
 #include "gtkmenu.h"
+#include "gtkprivate.h"
 
 #ifdef G_OS_WIN32
 
@@ -737,32 +741,6 @@ setlocale_initialization (void)
     }
 }
 
-/* Return TRUE if module_to_check causes version conflicts.
- * If module_to_check is NULL, check the main module.
- */
-gboolean
-_gtk_module_has_mixed_deps (GModule *module_to_check)
-{
-  GModule *module;
-  gpointer func;
-  gboolean result;
-
-  if (!module_to_check)
-    module = g_module_open (NULL, 0);
-  else
-    module = module_to_check;
-
-  if (g_module_symbol (module, "gtk_progress_get_type", &func))
-    result = TRUE;
-  else
-    result = FALSE;
-
-  if (!module_to_check)
-    g_module_close (module);
-
-  return result;
-}
-
 static void
 do_pre_parse_initialization (int    *argc,
                              char ***argv)
@@ -1256,66 +1234,6 @@ gtk_init_check_abi_check (int *argc, char ***argv, int num_checks, size_t sizeof
 }
 
 #endif
-
-/*
- * _gtk_get_lc_ctype:
- *
- * Return the Unix-style locale string for the language currently in
- * effect. On Unix systems, this is the return value from
- * <literal>setlocale(LC_CTYPE, NULL)</literal>, and the user can
- * affect this through the environment variables LC_ALL, LC_CTYPE or
- * LANG (checked in that order). The locale strings typically is in
- * the form lang_COUNTRY, where lang is an ISO-639 language code, and
- * COUNTRY is an ISO-3166 country code. For instance, sv_FI for
- * Swedish as written in Finland or pt_BR for Portuguese as written in
- * Brazil.
- *
- * On Windows, the C library doesn't use any such environment
- * variables, and setting them won't affect the behaviour of functions
- * like ctime(). The user sets the locale through the Regional Options
- * in the Control Panel. The C library (in the setlocale() function)
- * does not use country and language codes, but country and language
- * names spelled out in English.
- * However, this function does check the above environment
- * variables, and does return a Unix-style locale string based on
- * either said environment variables or the thread's current locale.
- *
- * Return value: a dynamically allocated string, free with g_free().
- */
-
-gchar *
-_gtk_get_lc_ctype (void)
-{
-#ifdef G_OS_WIN32
-  /* Somebody might try to set the locale for this process using the
-   * LANG or LC_ environment variables. The Microsoft C library
-   * doesn't know anything about them. You set the locale in the
-   * Control Panel. Setting these env vars won't have any affect on
-   * locale-dependent C library functions like ctime(). But just for
-   * kicks, do obey LC_ALL, LC_CTYPE and LANG in GTK. (This also makes
-   * it easier to test GTK and Pango in various default languages, you
-   * don't have to clickety-click in the Control Panel, you can simply
-   * start the program with LC_ALL=something on the command line.)
-   */
-  gchar *p;
-
-  p = getenv ("LC_ALL");
-  if (p != NULL)
-    return g_strdup (p);
-
-  p = getenv ("LC_CTYPE");
-  if (p != NULL)
-    return g_strdup (p);
-
-  p = getenv ("LANG");
-  if (p != NULL)
-    return g_strdup (p);
-
-  return g_win32_getlocale ();
-#else
-  return g_strdup (setlocale (LC_CTYPE, NULL));
-#endif
-}
 
 /**
  * gtk_get_default_language:
@@ -2629,39 +2547,9 @@ gtk_propagate_event (GtkWidget *widget,
 }
 
 gboolean
-_gtk_boolean_handled_accumulator (GSignalInvocationHint *ihint,
-                                  GValue                *return_accu,
-                                  const GValue          *handler_return,
-                                  gpointer               dummy)
-{
-  gboolean continue_emission;
-  gboolean signal_handled;
-
-  signal_handled = g_value_get_boolean (handler_return);
-  g_value_set_boolean (return_accu, signal_handled);
-  continue_emission = !signal_handled;
-
-  return continue_emission;
-}
-
-gboolean
 _gtk_button_event_triggers_context_menu (GdkEventButton *event)
 {
-  if (event->type == GDK_BUTTON_PRESS)
-    {
-      if (event->button == 3 &&
-          ! (event->state & (GDK_BUTTON1_MASK | GDK_BUTTON2_MASK)))
-        return TRUE;
-
-#ifdef GDK_WINDOWING_QUARTZ
-      if (event->button == 1 &&
-          ! (event->state & (GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)) &&
-          (event->state & GDK_CONTROL_MASK))
-        return TRUE;
-#endif
-    }
-
-  return FALSE;
+  return gdk_event_triggers_context_menu ((GdkEvent *) event);
 }
 
 gboolean
@@ -2708,3 +2596,4 @@ _gtk_translate_keyboard_accel_state (GdkKeymap       *keymap,
 
   return retval;
 }
+

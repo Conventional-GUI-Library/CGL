@@ -165,9 +165,6 @@ case $host in
   *-*-linux*)
     os_linux=yes
     ;;
-  *-*-openbsd*)
-    os_openbsd=yes
-    ;;
 esac
 
 dnl
@@ -329,6 +326,11 @@ AC_ARG_ENABLE(wayland-cairo-gl,
               [],
               [enable_wayland_cairo_gl=no])
 
+
+AC_ARG_ENABLE(quartz-relocation,
+              [AS_HELP_STRING([--enable-quartz-relocation],
+                              [enable bundle-based relocation functions])],
+                              [quartz_relocation=yes])
 
 cairo_backends=
 backend_immodules=
@@ -1342,9 +1344,6 @@ if test "x$enable_x11_backend" = xyes; then
   GTK_PACKAGES="$GTK_PACKAGES pangoft2"
 fi
 GTK_EXTRA_LIBS=
-if test x"$os_openbsd" = xyes; then
-  GTK_EXTRA_LIBS="$GTK_EXTRA_LIBS -lkvm"
-fi
 
 GTK_EXTRA_CFLAGS=
 GTK_DEP_LIBS="$GDK_EXTRA_LIBS $GTK_DEP_LIBS_FOR_X `$PKG_CONFIG --libs $PANGO_PACKAGES $GTK_PACKAGES_FOR_X $GTK_PACKAGES` $GTK_EXTRA_LIBS $MATH_LIB"

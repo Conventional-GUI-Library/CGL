@@ -67,6 +67,9 @@ static void init_stock_hash (void);
  */
 #define NON_STATIC_MASK (1 << 29)
 
+/* Magic value which is automatically replaced by the primary accel modifier */
+#define PRIMARY_MODIFIER 0xffffffff
+
 typedef struct _GtkStockTranslateFunc GtkStockTranslateFunc;
 struct _GtkStockTranslateFunc
 {
@@ -78,7 +81,8 @@ struct _GtkStockTranslateFunc
 static void
 real_add (const GtkStockItem *items,
           guint               n_items,
-          gboolean            copy)
+          gboolean            copy,
+          gboolean            replace_primary)
 {
   int i;
 
@@ -93,17 +97,26 @@ real_add (const GtkStockItem *items,
       gpointer old_key, old_value;
       const GtkStockItem *item = &items[i];
 
-      if (item->modifier & NON_STATIC_MASK)
-	{
-	  g_warning ("Bit 29 set in stock accelerator.\n");
-	  copy = TRUE;
-	}
+      if (replace_primary && item->modifier == PRIMARY_MODIFIER)
+        {
+          item = gtk_stock_item_copy (item);
+          ((GtkStockItem *)item)->modifier = (NON_STATIC_MASK |
+                                              _gtk_get_primary_accel_mod ());
+        }
+      else
+        {
+          if (item->modifier & NON_STATIC_MASK)
+            {
+              g_warning ("Bit 29 set in stock accelerator.\n");
+              copy = TRUE;
+            }
 
-      if (copy)
-	{
-	  item = gtk_stock_item_copy (item);
-	  ((GtkStockItem *)item)->modifier |= NON_STATIC_MASK;
-	}
+          if (copy)
+            {
+              item = gtk_stock_item_copy (item);
+              ((GtkStockItem *)item)->modifier |= NON_STATIC_MASK;
+            }
+        }
 
       if (g_hash_table_lookup_extended (stock_hash, item->stock_id,
                                         &old_key, &old_value))
@@ -139,7 +152,7 @@ gtk_stock_add (const GtkStockItem *items,
 {
   g_return_if_fail (items != NULL);
 
-  real_add (items, n_items, TRUE);
+  real_add (items, n_items, TRUE, FALSE);
 }
 
 /**
@@ -157,7 +170,7 @@ gtk_stock_add_static (const GtkStockItem *items,
 {
   g_return_if_fail (items != NULL);
 
-  real_add (items, n_items, FALSE);
+  real_add (items, n_items, FALSE, FALSE);
 }
 
 /**
@@ -531,7 +544,7 @@ init_stock_hash (void)
     {
       stock_hash = g_hash_table_new (g_str_hash, g_str_equal);
 
-      gtk_stock_add_static (builtin_items, G_N_ELEMENTS (builtin_items));
+      real_add (builtin_items, G_N_ELEMENTS (builtin_items), FALSE, TRUE);
     }
 
   if (translate_hash == NULL)
