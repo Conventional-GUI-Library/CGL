@@ -25,6 +25,7 @@
 #define __GTK_FONT_CHOOSER_WIDGET_H__
 
 #include <gtk/gtkbox.h>
+#include <gtk/gtkfontsel.h>
 
 G_BEGIN_DECLS
 

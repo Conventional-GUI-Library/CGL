@@ -173,7 +173,7 @@ gtk_font_chooser_dialog_init (GtkFontChooserDialog *fontchooserdiag)
                                                GTK_STOCK_CANCEL,
                                                GTK_RESPONSE_CANCEL);
   priv->select_button = gtk_dialog_add_button (dialog,
-                                               _("_Select"),
+                                               GTK_STOCK_OK,
                                                GTK_RESPONSE_OK);
   gtk_widget_grab_default (priv->select_button);
 
