@@ -1079,6 +1079,8 @@ EXPORTS
 	gtk_font_selection_new
 	gtk_font_selection_set_font_name
 	gtk_font_selection_set_preview_text
+	gtk_font_selection_set_show_preview
+	gtk_font_selection_get_show_preview
 	gtk_frame_get_label
 	gtk_frame_get_label_align
 	gtk_frame_get_label_widget

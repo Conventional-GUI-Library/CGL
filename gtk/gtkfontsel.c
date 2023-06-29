@@ -89,6 +89,7 @@ struct _GtkFontSelectionPrivate
   GtkWidget *font_style_entry;  /* Used _get_face_entry() for consistency, -mr */
 
   GtkWidget *size_entry;
+  GtkWidget *preview_label;
   GtkWidget *preview_entry;
 
   GtkWidget *family_list;
@@ -147,7 +148,8 @@ static const guint16 font_sizes[] = {
 enum {
    PROP_0,
    PROP_FONT_NAME,
-   PROP_PREVIEW_TEXT
+   PROP_PREVIEW_TEXT,
+   PROP_SHOW_PREVIEW
 };
 
 
@@ -223,6 +225,7 @@ static void     gtk_font_selection_ref_family            (GtkFontSelection *font
 static void     gtk_font_selection_ref_face              (GtkFontSelection *fontsel,
 							  PangoFontFace    *face);
 
+
 G_DEFINE_TYPE (GtkFontSelection, gtk_font_selection, GTK_TYPE_BOX)
 
 static void
@@ -252,6 +255,13 @@ gtk_font_selection_class_init (GtkFontSelectionClass *klass)
                                                         P_("The text to display in order to demonstrate the selected font"),
                                                         _(PREVIEW_TEXT),
                                                         GTK_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class,
+                                   PROP_SHOW_PREVIEW,
+                                   g_param_spec_boolean ("show-preview",
+                                                        P_("Show preview"),
+                                                        P_("Show preview"),
+                                                        TRUE,
+                                                        GTK_PARAM_READWRITE));
 
   g_type_class_add_private (klass, sizeof (GtkFontSelectionPrivate));
 }
@@ -273,6 +283,9 @@ gtk_font_selection_set_property (GObject         *object,
       break;
     case PROP_PREVIEW_TEXT:
       gtk_font_selection_set_preview_text (fontsel, g_value_get_string (value));
+      break;
+    case PROP_SHOW_PREVIEW:
+      gtk_font_selection_set_show_preview(fontsel, g_value_get_boolean (value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -296,6 +309,9 @@ static void gtk_font_selection_get_property (GObject         *object,
       break;
     case PROP_PREVIEW_TEXT:
       g_value_set_string (value, gtk_font_selection_get_preview_text (fontsel));
+      break;
+    case PROP_SHOW_PREVIEW:
+      g_value_set_boolean(value, gtk_font_selection_get_show_preview(fontsel));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -582,11 +598,11 @@ gtk_font_selection_init (GtkFontSelection *fontsel)
   gtk_box_pack_start (GTK_BOX (fontsel), vbox, FALSE, TRUE, 0);
   
   /* create the text entry widget */
-  label = gtk_label_new_with_mnemonic (_("_Preview:"));
-  gtk_widget_set_halign (label, GTK_ALIGN_START);
-  gtk_widget_set_valign (label, GTK_ALIGN_CENTER);
-  gtk_widget_show (label);
-  gtk_box_pack_start (GTK_BOX (vbox), label, FALSE, TRUE, 0);
+  priv->preview_label = gtk_label_new_with_mnemonic (_("_Preview:"));
+  gtk_widget_set_halign (priv->preview_label, GTK_ALIGN_START);
+  gtk_widget_set_valign (priv->preview_label, GTK_ALIGN_CENTER);
+  gtk_widget_show (priv->preview_label);
+  gtk_box_pack_start (GTK_BOX (vbox), priv->preview_label, FALSE, TRUE, 0);
 
   text_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
   gtk_widget_show (text_box);
@@ -1606,6 +1622,25 @@ gtk_font_selection_get_preview_text (GtkFontSelection *fontsel)
   return gtk_entry_get_text (GTK_ENTRY (priv->preview_entry));
 }
 
+/**
+ * gtk_font_selection_get_show_preview:
+ * @fontsel: a #GtkFontSelection
+ *
+ * Return value: the visibility of the preview entry
+ *
+ * Deprecated: 3.2: Use #GtkFontChooser
+ */
+gboolean     gtk_font_selection_get_show_preview (GtkFontSelection *fontsel)
+{
+  GtkFontSelectionPrivate *priv;
+
+  g_return_val_if_fail (GTK_IS_FONT_SELECTION (fontsel), NULL);
+
+  priv = fontsel->priv;
+
+  return gtk_widget_get_visible (priv->preview_entry);
+}
+
 
 /**
  * gtk_font_selection_set_preview_text:
@@ -1629,6 +1664,27 @@ gtk_font_selection_set_preview_text  (GtkFontSelection *fontsel,
   priv = fontsel->priv;
 
   gtk_entry_set_text (GTK_ENTRY (priv->preview_entry), text);
+}
+
+/**
+ * gtk_font_selection_set_show_preview:
+ * @fontsel: a #GtkFontSelection
+ * @show_preview: the visibility of the preview entry. 
+ *
+ *
+ * Deprecated: 3.2: Use #GtkFontChooser
+ */
+void
+gtk_font_selection_set_show_preview (GtkFontSelection *fontsel, gboolean show_preview)
+{
+  GtkFontSelectionPrivate *priv;
+
+  g_return_if_fail (GTK_IS_FONT_SELECTION (fontsel));
+
+  priv = fontsel->priv;
+
+  gtk_widget_set_visible(priv->preview_label, show_preview);
+  gtk_widget_set_visible(priv->preview_entry, show_preview);
 }
 
 

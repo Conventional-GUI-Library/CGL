@@ -133,6 +133,10 @@ gboolean     gtk_font_selection_set_font_name     (GtkFontSelection *fontsel,
 const gchar* gtk_font_selection_get_preview_text  (GtkFontSelection *fontsel);
 void         gtk_font_selection_set_preview_text  (GtkFontSelection *fontsel,
                                                    const gchar      *text);
+                                                   
+gboolean     gtk_font_selection_get_show_preview (GtkFontSelection *fontsel);
+void     gtk_font_selection_set_show_preview (GtkFontSelection *fontsel, gboolean show_preview);
+
 
 /*****************************************************************************
  * GtkFontSelectionDialog functions.

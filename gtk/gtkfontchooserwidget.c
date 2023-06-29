@@ -278,7 +278,7 @@ gtk_font_chooser_widget_take_font_desc (GtkFontChooserWidget *fontchooser,
 static gboolean
 gtk_font_chooser_widget_get_show_preview_entry (GtkFontChooserWidget *fontchooser)
 {
-  return TRUE;
+  return gtk_font_selection_get_show_preview(GTK_FONT_SELECTION(fontchooser->priv->font_sel_widget));
 }
 
 static void
@@ -286,7 +286,8 @@ gtk_font_chooser_widget_set_show_preview_entry (GtkFontChooserWidget *fontchoose
                                                 gboolean              show_preview_entry)
 {
   GtkFontChooserWidgetPrivate *priv = fontchooser->priv;
-
+  
+  gtk_font_selection_set_show_preview(priv->font_sel_widget, show_preview_entry);
 
   g_object_notify (G_OBJECT (fontchooser), "show-preview-entry");
 }
