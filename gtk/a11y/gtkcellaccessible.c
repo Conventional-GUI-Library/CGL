@@ -61,9 +61,6 @@ gtk_cell_accessible_object_finalize (GObject *obj)
   gpointer target_object;
   gint i;
 
-  if (cell->state_set)
-    g_object_unref (cell->state_set);
-
   if (cell->action_list)
     g_list_free_full (cell->action_list, destroy_action_info);
 
@@ -91,27 +88,77 @@ static gint
 gtk_cell_accessible_get_index_in_parent (AtkObject *obj)
 {
   GtkCellAccessible *cell;
+  AtkObject *parent;
 
   cell = GTK_CELL_ACCESSIBLE (obj);
-  if (atk_state_set_contains_state (cell->state_set, ATK_STATE_STALE) &&
-      cell->refresh_index != NULL)
-    {
-      cell->refresh_index (cell);
-      atk_state_set_remove_state (cell->state_set, ATK_STATE_STALE);
-    }
 
-  return cell->index;
+  parent = atk_object_get_parent (obj);
+  if (GTK_IS_CONTAINER_CELL_ACCESSIBLE (parent))
+    return g_list_index (GTK_CONTAINER_CELL_ACCESSIBLE (parent)->children, obj);
+
+  parent = gtk_widget_get_accessible (cell->widget);
+  if (parent == NULL)
+    return -1;
+
+  return _gtk_cell_accessible_parent_get_child_index (GTK_CELL_ACCESSIBLE_PARENT (parent), cell);
 }
 
 static AtkStateSet *
-gtk_cell_accessible_ref_state_set (AtkObject *obj)
+gtk_cell_accessible_ref_state_set (AtkObject *accessible)
 {
-  GtkCellAccessible *cell = GTK_CELL_ACCESSIBLE (obj);
+  GtkCellAccessible *cell_accessible;
+  AtkStateSet *state_set;
+  GtkCellRendererState flags;
+  gboolean expandable, expanded;
 
-  g_object_ref (cell->state_set);
+  cell_accessible = GTK_CELL_ACCESSIBLE (accessible);
 
-  return cell->state_set;
+  state_set = atk_state_set_new ();
+
+  if (cell_accessible->widget == NULL)
+    {
+      atk_state_set_add_state (state_set, ATK_STATE_DEFUNCT);
+      return state_set;
+    }
+
+  flags = _gtk_cell_accessible_get_state (cell_accessible, &expandable, &expanded);
+
+  atk_state_set_add_state (state_set, ATK_STATE_TRANSIENT);
+
+  if (!(flags & GTK_CELL_RENDERER_INSENSITIVE))
+    {
+      atk_state_set_add_state (state_set, ATK_STATE_SENSITIVE);
+      atk_state_set_add_state (state_set, ATK_STATE_ENABLED);
+    }
+
+  atk_state_set_add_state (state_set, ATK_STATE_SELECTABLE);
+  if (flags & GTK_CELL_RENDERER_SELECTED)
+    atk_state_set_add_state (state_set, ATK_STATE_SELECTED);
+
+  atk_state_set_add_state (state_set, ATK_STATE_VISIBLE);
+  if (gtk_widget_get_mapped (cell_accessible->widget))
+    atk_state_set_add_state (state_set, ATK_STATE_SHOWING);
+
+  /* This is not completely right. We should be tracking the
+   * focussed cell renderer, but that involves diving into
+   * cell areas...
+   */
+  atk_state_set_add_state (state_set, ATK_STATE_FOCUSABLE);
+  if (flags & GTK_CELL_RENDERER_FOCUSED)
+    {
+      /* XXX: Why do we set ACTIVE here? */
+      atk_state_set_add_state (state_set, ATK_STATE_ACTIVE);
+      atk_state_set_add_state (state_set, ATK_STATE_FOCUSED);
+    }
+
+  if (expandable)
+    atk_state_set_add_state (state_set, ATK_STATE_EXPANDABLE);
+  if (expanded)
+    atk_state_set_add_state (state_set, ATK_STATE_EXPANDED);
+  
+  return state_set;
 }
+
 
 static void
 _gtk_cell_accessible_class_init (GtkCellAccessibleClass *klass)
@@ -130,13 +177,6 @@ _gtk_cell_accessible_init (GtkCellAccessible *cell)
 {
   cell->widget = NULL;
   cell->action_list = NULL;
-  cell->index = 0;
-  cell->refresh_index = NULL;
-  cell->state_set = atk_state_set_new ();
-  atk_state_set_add_state (cell->state_set, ATK_STATE_TRANSIENT);
-  atk_state_set_add_state (cell->state_set, ATK_STATE_ENABLED);
-  atk_state_set_add_state (cell->state_set, ATK_STATE_SENSITIVE);
-  atk_state_set_add_state (cell->state_set, ATK_STATE_SELECTABLE);
 }
 
 static void
@@ -149,12 +189,10 @@ widget_destroyed (GtkWidget         *widget,
 void
 _gtk_cell_accessible_initialise (GtkCellAccessible *cell,
                                  GtkWidget         *widget,
-                                 AtkObject         *parent,
-                                 gint               index)
+                                 AtkObject         *parent)
 {
   cell->widget = widget;
   atk_object_set_parent (ATK_OBJECT (cell), parent);
-  cell->index = index;
 
   g_signal_connect_object (G_OBJECT (widget), "destroy",
                            G_CALLBACK (widget_destroyed), cell, 0);
@@ -165,13 +203,7 @@ _gtk_cell_accessible_add_state (GtkCellAccessible *cell,
                                 AtkStateType       state_type,
                                 gboolean           emit_signal)
 {
-  gboolean rc;
   AtkObject *parent;
-
-  if (atk_state_set_contains_state (cell->state_set, state_type))
-    return FALSE;
-
-  rc = atk_state_set_add_state (cell->state_set, state_type);
 
   /* The signal should only be generated if the value changed,
    * not when the cell is set up. So states that are set
@@ -192,7 +224,7 @@ _gtk_cell_accessible_add_state (GtkCellAccessible *cell,
   if (GTK_IS_CONTAINER_CELL_ACCESSIBLE (parent))
     _gtk_cell_accessible_add_state (GTK_CELL_ACCESSIBLE (parent), state_type, emit_signal);
 
-  return rc;
+  return TRUE;
 }
 
 gboolean
@@ -200,15 +232,9 @@ _gtk_cell_accessible_remove_state (GtkCellAccessible *cell,
                                    AtkStateType       state_type,
                                    gboolean           emit_signal)
 {
-  gboolean rc;
   AtkObject *parent;
 
-  if (!atk_state_set_contains_state (cell->state_set, state_type))
-    return FALSE;
-
   parent = atk_object_get_parent (ATK_OBJECT (cell));
-
-  rc = atk_state_set_remove_state (cell->state_set, state_type);
 
   /* The signal should only be generated if the value changed,
    * not when the cell is set up.  So states that are set
@@ -228,7 +254,7 @@ _gtk_cell_accessible_remove_state (GtkCellAccessible *cell,
   if (GTK_IS_CONTAINER_CELL_ACCESSIBLE (parent))
     _gtk_cell_accessible_remove_state (GTK_CELL_ACCESSIBLE (parent), state_type, emit_signal);
 
-  return rc;
+  return TRUE;
 }
 
 gboolean
@@ -421,4 +447,63 @@ atk_component_interface_init (AtkComponentIface *iface)
 {
   iface->get_extents = gtk_cell_accessible_get_extents;
   iface->grab_focus = gtk_cell_accessible_grab_focus;
+}
+
+/**
+ * _gtk_cell_accessible_set_cell_data:
+ * @cell: a #GtkCellAccessible
+ *
+ * Sets the cell data to the row used by @cell. This is useful in
+ * particular if you want to work with cell renderers.
+ *
+ * Note that this function is potentially slow, so be careful.
+ **/
+void
+_gtk_cell_accessible_set_cell_data (GtkCellAccessible *cell)
+{
+  AtkObject *parent;
+
+  g_return_if_fail (GTK_IS_CELL_ACCESSIBLE (cell));
+
+  parent = gtk_widget_get_accessible (cell->widget);
+  if (parent == NULL)
+    return;
+
+  _gtk_cell_accessible_parent_set_cell_data (GTK_CELL_ACCESSIBLE_PARENT (parent), cell);
+}
+
+/**
+ * _gtk_cell_accessible_get_state:
+ * @cell: a #GtkCellAccessible
+ * @expandable: (out): %NULL or pointer to boolean that gets set to
+ *     whether the cell can be expanded
+ * @expanded: (out): %NULL or pointer to boolean that gets set to
+ *     whether the cell is expanded
+ *
+ * Gets the state that would be used to render the area referenced by @cell.
+ *
+ * Returns: the #GtkCellRendererState for cell
+ **/
+GtkCellRendererState
+_gtk_cell_accessible_get_state (GtkCellAccessible *cell,
+                                gboolean          *expandable,
+                                gboolean          *expanded)
+{
+  AtkObject *parent;
+
+  g_return_val_if_fail (GTK_IS_CELL_ACCESSIBLE (cell), 0);
+
+  if (expandable)
+    *expandable = FALSE;
+  if (expanded)
+    *expanded = FALSE;
+
+  parent = gtk_widget_get_accessible (cell->widget);
+  if (parent == NULL)
+    return 0;
+
+  return _gtk_cell_accessible_parent_get_renderer_state (GTK_CELL_ACCESSIBLE_PARENT (parent),
+                                                         cell,
+                                                         expandable,
+                                                         expanded);
 }

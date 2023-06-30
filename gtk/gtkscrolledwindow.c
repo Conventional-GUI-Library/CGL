@@ -36,6 +36,7 @@
 #include "gtkwindow.h"
 #include "gtkprivate.h"
 #include "gtktypebuiltins.h"
+#include "gtkviewport.h"
 #include "gtkintl.h"
 #include "a11y/gtkscrolledwindowaccessible.h"
 

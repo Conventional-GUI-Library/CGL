@@ -39,13 +39,7 @@ struct _GtkCellAccessible
   AtkObject parent;
 
   GtkWidget    *widget;
-  /* This cached value is used only by atk_object_get_index_in_parent()
-   * which updates the value when it is stale.
-   */
-  gint         index;
-  AtkStateSet *state_set;
   GList       *action_list;
-  void (*refresh_index) (GtkCellAccessible *cell);
 };
 
 struct _GtkCellAccessibleClass
@@ -55,10 +49,15 @@ struct _GtkCellAccessibleClass
 
 GType    _gtk_cell_accessible_get_type      (void);
 
+GtkCellRendererState
+         _gtk_cell_accessible_get_state     (GtkCellAccessible *cell,
+                                             gboolean          *expandable,
+                                             gboolean          *expanded);
+void     _gtk_cell_accessible_set_cell_data (GtkCellAccessible *cell);
+
 void     _gtk_cell_accessible_initialise    (GtkCellAccessible *cell,
                                              GtkWidget         *widget,
-                                             AtkObject         *parent,
-                                             gint               index);
+                                             AtkObject         *parent);
 gboolean _gtk_cell_accessible_add_state     (GtkCellAccessible *cell,
                                              AtkStateType       state_type,
                                              gboolean           emit_signal);

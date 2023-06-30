@@ -95,3 +95,59 @@ _gtk_cell_accessible_parent_grab_focus (GtkCellAccessibleParent *parent,
   else
     return FALSE;
 }
+
+int
+_gtk_cell_accessible_parent_get_child_index (GtkCellAccessibleParent *parent,
+                                             GtkCellAccessible       *cell)
+{
+  GtkCellAccessibleParentIface *iface;
+
+  g_return_val_if_fail (GTK_IS_CELL_ACCESSIBLE_PARENT (parent), FALSE);
+
+  iface = GTK_CELL_ACCESSIBLE_PARENT_GET_IFACE (parent);
+
+  if (iface->get_child_index)
+    return (iface->get_child_index) (parent, cell);
+  else
+    return -1;
+}
+
+GtkCellRendererState
+_gtk_cell_accessible_parent_get_renderer_state (GtkCellAccessibleParent *parent,
+                                                GtkCellAccessible       *cell,
+                                                gboolean                *expandable,
+                                                gboolean                *expanded)
+{
+  GtkCellAccessibleParentIface *iface;
+
+  g_return_val_if_fail (GTK_IS_CELL_ACCESSIBLE_PARENT (parent), 0);
+  g_return_val_if_fail (GTK_IS_CELL_ACCESSIBLE (cell), 0);
+
+  iface = GTK_CELL_ACCESSIBLE_PARENT_GET_IFACE (parent);
+
+  if (expandable)
+    *expandable = FALSE;
+  if (expanded)
+    *expanded = FALSE;
+
+  if (iface->get_renderer_state)
+    return (iface->get_renderer_state) (parent, cell, expandable, expanded);
+  else
+    return 0;
+}
+
+void
+_gtk_cell_accessible_parent_set_cell_data (GtkCellAccessibleParent *parent,
+                                           GtkCellAccessible       *cell)
+{
+  GtkCellAccessibleParentIface *iface;
+
+  g_return_if_fail (GTK_IS_CELL_ACCESSIBLE_PARENT (parent));
+  g_return_if_fail (GTK_IS_CELL_ACCESSIBLE (cell));
+
+  iface = GTK_CELL_ACCESSIBLE_PARENT_GET_IFACE (parent);
+
+  if (iface->set_cell_data)
+    (iface->set_cell_data) (parent, cell);
+}
+
