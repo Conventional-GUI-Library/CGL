@@ -90,6 +90,16 @@ gboolean _gtk_translate_keyboard_accel_state     (GdkKeymap       *keymap,
                                                   GdkModifierType *consumed_modifiers);
 
 
+gboolean _gtk_translate_keyboard_accel_state   (GdkKeymap       *keymap,
+                                                guint            hardware_keycode,
+                                                GdkModifierType  state,
+                                                GdkModifierType  accel_mask,
+                                                gint             group,
+                                                guint           *keyval,
+                                                gint            *effective_group,
+                                                gint            *level,
+                                                GdkModifierType *consumed_modifiers);
+
 G_END_DECLS
 
 #endif /* __GTK_PRIVATE_H__ */

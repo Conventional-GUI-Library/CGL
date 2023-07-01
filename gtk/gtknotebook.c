@@ -2230,6 +2230,27 @@ get_preferred_size_for_size (GtkWidget      *widget,
 }
 
 static void
+get_padding_and_border (GtkNotebook *notebook,
+                        GtkBorder *border)
+{
+  GtkStyleContext *context;
+
+  context = gtk_widget_get_style_context (GTK_WIDGET (notebook));
+  gtk_style_context_get_padding (context, 0, border);
+
+  if (notebook->priv->show_border || notebook->priv->show_tabs)
+    {
+      GtkBorder tmp;
+
+      gtk_style_context_get_border (context, 0, &tmp);
+      border->top += tmp.top;
+      border->right += tmp.right;
+      border->bottom += tmp.bottom;
+      border->left += tmp.left;
+    }
+}
+
+static void
 gtk_notebook_size_request (GtkWidget      *widget,
                            GtkOrientation  orientation,
                            gint            size,
@@ -2289,11 +2310,9 @@ gtk_notebook_size_request (GtkWidget      *widget,
 
   if (priv->show_border || priv->show_tabs)
     {
-      GtkStyleContext *context;
       GtkBorder notebook_padding;
 
-      context = gtk_widget_get_style_context (widget);
-      gtk_style_context_get_padding (context, 0, &notebook_padding);
+      get_padding_and_border (notebook, &notebook_padding);
 
       if (orientation == GTK_ORIENTATION_HORIZONTAL)
         {
@@ -2466,11 +2485,9 @@ gtk_notebook_size_allocate (GtkWidget     *widget,
 
       if (priv->show_tabs || priv->show_border)
         {
-          GtkStyleContext *context;
           GtkBorder padding;
 
-          context = gtk_widget_get_style_context (widget);
-          gtk_style_context_get_padding (context, 0, &padding);
+          get_padding_and_border (notebook, &padding);
 
           child_allocation.x += padding.left;
           child_allocation.y += padding.top;
@@ -4695,7 +4712,6 @@ gtk_notebook_redraw_tabs (GtkNotebook *notebook)
   GtkAllocation allocation;
   GtkWidget *widget;
   GtkNotebookPage *page;
-  GtkStyleContext *context;
   GdkRectangle redraw_rect;
   gint border;
   gint tab_pos = get_effective_tab_pos (notebook);
@@ -4714,8 +4730,7 @@ gtk_notebook_redraw_tabs (GtkNotebook *notebook)
 
   gtk_widget_get_allocation (widget, &allocation);
 
-  context = gtk_widget_get_style_context (widget);
-  gtk_style_context_get_padding (context, 0, &padding);
+  get_padding_and_border (notebook, &padding);
 
   switch (tab_pos)
     {
@@ -5425,7 +5440,6 @@ gtk_notebook_tab_space (GtkNotebook *notebook,
   GtkNotebookPrivate *priv = notebook->priv;
   GtkAllocation allocation, action_allocation;
   GtkWidget *widget;
-  GtkStyleContext *context;
   GList *children;
   gint tab_pos = get_effective_tab_pos (notebook);
   gint tab_overlap;
@@ -5442,8 +5456,6 @@ gtk_notebook_tab_space (GtkNotebook *notebook,
   children = priv->children;
   is_rtl = gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL;
 
-  context = gtk_widget_get_style_context (widget);
-
   gtk_widget_style_get (GTK_WIDGET (notebook),
                         "arrow-spacing", &arrow_spacing,
                         "scroll-arrow-hlength", &scroll_arrow_hlength,
@@ -5452,7 +5464,7 @@ gtk_notebook_tab_space (GtkNotebook *notebook,
                         NULL);
 
   border_width = gtk_container_get_border_width (GTK_CONTAINER (notebook));
-  gtk_style_context_get_padding (context, 0, &padding);
+  get_padding_and_border (notebook, &padding);
 
   gtk_widget_get_allocation (widget, &allocation);
 

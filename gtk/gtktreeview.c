@@ -5939,7 +5939,9 @@ gtk_tree_view_leave_notify (GtkWidget        *widget,
 {
   GtkTreeView *tree_view;
 
-  if (event->mode == GDK_CROSSING_GRAB)
+  if (event->mode == GDK_CROSSING_GRAB ||
+      event->mode == GDK_CROSSING_GTK_GRAB ||
+      event->mode == GDK_CROSSING_GTK_UNGRAB)
     return TRUE;
 
   tree_view = GTK_TREE_VIEW (widget);
@@ -7613,7 +7615,14 @@ gtk_tree_view_drag_begin (GtkWidget      *widget,
                                  &cell_x,
                                  &cell_y);
 
-  g_return_if_fail (path != NULL);
+  /* If path is NULL, there's nothing we can drag.  For now, we silently
+   * bail out.  Actually, dragging should not be possible from an empty
+   * tree view, but there's no way we can cancel that from here.
+   * Automatically unsetting the tree view as drag source for empty models
+   * is something that would likely break other people's code ...
+   */
+  if (!path)
+    return;
 
   row_pix = gtk_tree_view_create_row_drag_icon (tree_view,
                                                 path);
@@ -7981,8 +7990,9 @@ gtk_tree_view_drag_data_received (GtkWidget        *widget,
                    (gdk_drag_context_get_selected_action (context) == GDK_ACTION_MOVE),
                    time);
 
-  if (gtk_tree_path_get_depth (dest_row) == 1
-      && gtk_tree_path_get_indices (dest_row)[0] == 0)
+  if (gtk_tree_path_get_depth (dest_row) == 1 &&
+      gtk_tree_path_get_indices (dest_row)[0] == 0 &&
+      gtk_tree_model_iter_n_children (tree_view->priv->model, NULL) != 0)
     {
       /* special special case drag to "0", scroll to first item */
       if (!tree_view->priv->scroll_to_path)

@@ -737,7 +737,6 @@ gtk_os_unix_c_sources = 		\
 	gtkprintoperation-unix.c	\
 	gtkprintunixdialog.c		\
         gtkprintbackend.c		\
-	gtksearchenginebeagle.c		\
 	gtksearchenginetracker.c
 gtk_all_c_sources += $(gtk_os_unix_c_sources)
 if OS_UNIX
@@ -748,7 +747,6 @@ gtk_private_h_sources += \
 	gtkprinteroption.h		\
 	gtkprinteroptionset.h		\
 	gtkprinteroptionwidget.h	\
-	gtksearchenginebeagle.h		\
 	gtksearchenginetracker.h
 gtk_c_sources += $(gtk_os_unix_c_sources)
 endif
