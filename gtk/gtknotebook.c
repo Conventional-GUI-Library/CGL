@@ -4720,10 +4720,10 @@ gtk_notebook_redraw_tabs (GtkNotebook *notebook)
   widget = GTK_WIDGET (notebook);
   border = gtk_container_get_border_width (GTK_CONTAINER (notebook));
 
-  if (!gtk_widget_get_mapped (widget) || !priv->first_tab)
+  if (!gtk_widget_get_mapped (widget) || !priv->cur_page)
     return;
 
-  page = priv->first_tab->data;
+  page = priv->cur_page;
 
   redraw_rect.x = border;
   redraw_rect.y = border;
@@ -4737,30 +4737,21 @@ gtk_notebook_redraw_tabs (GtkNotebook *notebook)
     case GTK_POS_BOTTOM:
       redraw_rect.y = allocation.height - border -
         page->allocation.height - padding.bottom;
-
-      if (page != priv->cur_page)
-        redraw_rect.y -= padding.bottom;
       /* fall through */
     case GTK_POS_TOP:
       redraw_rect.width = allocation.width - 2 * border;
       redraw_rect.height = page->allocation.height + padding.top;
 
-      if (page != priv->cur_page)
-        redraw_rect.height += padding.top;
       break;
     case GTK_POS_RIGHT:
       redraw_rect.x = allocation.width - border -
         page->allocation.width - padding.right;
 
-      if (page != priv->cur_page)
-        redraw_rect.x -= padding.right;
       /* fall through */
     case GTK_POS_LEFT:
       redraw_rect.width = page->allocation.width + padding.left;
       redraw_rect.height = allocation.height - 2 * border;
 
-      if (page != priv->cur_page)
-        redraw_rect.width += padding.left;
       break;
     }
 
@@ -5468,9 +5459,6 @@ gtk_notebook_tab_space (GtkNotebook *notebook,
 
   gtk_widget_get_allocation (widget, &allocation);
 
-  allocation.x += initial_gap;
-  allocation.width -= 2 * initial_gap;
-
   switch (tab_pos)
     {
     case GTK_POS_TOP:
@@ -5535,6 +5523,9 @@ gtk_notebook_tab_space (GtkNotebook *notebook,
         }
       break;
     }
+
+  *min += initial_gap;
+  *max -= (2 * initial_gap);
 
   if (!priv->scrollable)
     *show_arrows = FALSE;
