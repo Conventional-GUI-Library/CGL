@@ -21,16 +21,24 @@
 
 #include "config.h"
 
+#include "gtkapplication.h"
+
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <string.h>
 
-#include "gtkapplication.h"
+#include "gtkapplicationprivate.h"
 #include "gtkmarshalers.h"
 #include "gtkmain.h"
-#include "gtkwindow.h"
+#include "gtkaccelmapprivate.h"
+#include "gactionmuxer.h"
+
+#ifdef GDK_WINDOWING_QUARTZ
+#include "gtkquartz-menu.h"
+#import <Cocoa/Cocoa.h>
+#endif
 
 #include <gdk/gdk.h>
 #ifdef GDK_WINDOWING_X11
@@ -47,9 +55,18 @@
  * a one-size-fits-all application model.
  *
  * Currently, GtkApplication handles GTK+ initialization, application
- * uniqueness, provides some basic scriptability by exporting 'actions',
- * and manages a list of toplevel windows whose life-cycle is automatically
- * tied to the life-cycle of your application.
+ * uniqueness, provides some basic scriptability and desktop shell integration
+ * by exporting actions and menus and manages a list of toplevel windows whose
+ * life-cycle is automatically tied to the life-cycle of your application.
+ *
+ * While GtkApplication works fine with plain #GtkWindows, it is recommended
+ * to use it together with #GtkApplicationWindow.
+ *
+ * To set an app menu on a GtkApplication, use g_application_set_app_menu().
+ * The #GMenuModel that this function expects is usually constructed using
+ * #GtkBuilder, as seen in the following example. To set a menubar that will
+ * be automatically picked up by #GApplicationWindows, use
+ * g_application_set_menubar().
  *
  * <example id="gtkapplication"><title>A simple application</title>
  * <programlisting>
@@ -73,7 +90,151 @@ G_DEFINE_TYPE (GtkApplication, gtk_application, G_TYPE_APPLICATION)
 struct _GtkApplicationPrivate
 {
   GList *windows;
+
+#ifdef GDK_WINDOWING_X11
+  GDBusConnection *session;
+  gchar *window_prefix;
+  guint next_id;
+#endif
+
+#ifdef GDK_WINDOWING_QUARTZ
+  GActionMuxer *muxer;
+  GMenu *combined;
+#endif
 };
+
+#ifdef GDK_WINDOWING_X11
+static void
+gtk_application_window_added_x11 (GtkApplication *application,
+                                  GtkWindow      *window)
+{
+  if (application->priv->session == NULL)
+    return;
+
+  if (GTK_IS_APPLICATION_WINDOW (window))
+    {
+      GtkApplicationWindow *app_window = GTK_APPLICATION_WINDOW (window);
+      gboolean success;
+
+      /* GtkApplicationWindow associates with us when it is first created,
+       * so surely it's not realized yet...
+       */
+      g_assert (!gtk_widget_get_realized (GTK_WIDGET (window)));
+
+      do
+        {
+          gchar *window_path;
+          guint window_id;
+
+          window_id = application->priv->next_id++;
+          window_path = g_strdup_printf ("%s%d", application->priv->window_prefix, window_id);
+          success = gtk_application_window_publish (app_window, application->priv->session, window_path);
+          g_free (window_path);
+        }
+      while (!success);
+    }
+}
+
+static void
+gtk_application_window_removed_x11 (GtkApplication *application,
+                                    GtkWindow      *window)
+{
+  if (application->priv->session == NULL)
+    return;
+
+  if (GTK_IS_APPLICATION_WINDOW (window))
+    gtk_application_window_unpublish (GTK_APPLICATION_WINDOW (window));
+}
+
+static gchar *
+window_prefix_from_appid (const gchar *appid)
+{
+  gchar *appid_path, *iter;
+
+  appid_path = g_strconcat ("/", appid, "/windows/", NULL);
+  for (iter = appid_path; *iter; iter++)
+    {
+      if (*iter == '.')
+        *iter = '/';
+
+      if (*iter == '-')
+        *iter = '_';
+    }
+
+  return appid_path;
+}
+
+static void
+gtk_application_startup_x11 (GtkApplication *application)
+{
+  const gchar *application_id;
+
+  application_id = g_application_get_application_id (G_APPLICATION (application));
+  application->priv->session = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+  application->priv->window_prefix = window_prefix_from_appid (application_id);
+}
+
+static void
+gtk_application_shutdown_x11 (GtkApplication *application)
+{
+  g_free (application->priv->window_prefix);
+  application->priv->window_prefix = NULL;
+  if (application->priv->session)
+    {
+      g_object_unref (application->priv->session);
+      application->priv->session = NULL;
+    }
+}
+#endif
+
+#ifdef GDK_WINDOWING_QUARTZ
+static void
+gtk_application_menu_changed_quartz (GObject    *object,
+                                     GParamSpec *pspec,
+                                     gpointer    user_data)
+{
+  GtkApplication *application = GTK_APPLICATION (object);
+  GMenu *combined;
+
+  combined = g_menu_new ();
+  g_menu_append_submenu (combined, "Application", g_application_get_app_menu (application));
+  g_menu_append_section (combined, NULL, gtk_application_get_menubar (application));
+
+  gtk_quartz_set_main_menu (G_MENU_MODEL (combined), G_ACTION_OBSERVABLE (application->priv->muxer));
+}
+
+static void
+gtk_application_startup_quartz (GtkApplication *application)
+{
+  [NSApp finishLaunching];
+
+  application->priv->muxer = g_action_muxer_new ();
+  g_action_muxer_insert (application->priv->muxer, "app", G_ACTION_GROUP (application));
+
+  g_signal_connect (application, "notify::app-menu", G_CALLBACK (gtk_application_menu_changed_quartz), NULL);
+  g_signal_connect (application, "notify::menubar", G_CALLBACK (gtk_application_menu_changed_quartz), NULL);
+  gtk_application_menu_changed_quartz (G_OBJECT (application), NULL, NULL);
+}
+
+static void
+gtk_application_shutdown_quartz (GtkApplication *application)
+{
+  g_signal_handlers_disconnect_by_func (application, gtk_application_menu_changed_quartz, NULL);
+
+  g_object_unref (application->priv->muxer);
+  application->priv->muxer = NULL;
+}
+
+static void
+gtk_application_focus_changed (GtkApplication *application,
+                               GtkWindow      *window)
+{
+  if (G_IS_ACTION_GROUP (window))
+    g_action_muxer_insert (application->priv->muxer, "win", G_ACTION_GROUP (window));
+  else
+    g_action_muxer_remove (application->priv->muxer, "win");
+}
+#endif
 
 static gboolean
 gtk_application_focus_in_event_cb (GtkWindow      *window,
@@ -91,6 +252,10 @@ gtk_application_focus_in_event_cb (GtkWindow      *window,
       priv->windows = g_list_concat (link, priv->windows);
     }
 
+#ifdef GDK_WINDOWING_QUARTZ
+  gtk_application_focus_changed (application, window);
+#endif
+
   return FALSE;
 }
 
@@ -101,6 +266,29 @@ gtk_application_startup (GApplication *application)
     ->startup (application);
 
   gtk_init (0, 0);
+
+#ifdef GDK_WINDOWING_X11
+  gtk_application_startup_x11 (GTK_APPLICATION (application));
+#endif
+
+#ifdef GDK_WINDOWING_QUARTZ
+  gtk_application_startup_quartz (GTK_APPLICATION (application));
+#endif
+}
+
+static void
+gtk_application_shutdown (GApplication *application)
+{
+#ifdef GDK_WINDOWING_X11
+  gtk_application_shutdown_x11 (GTK_APPLICATION (application));
+#endif
+
+#ifdef GDK_WINDOWING_QUARTZ
+  gtk_application_shutdown_quartz (GTK_APPLICATION (application));
+#endif
+
+  G_APPLICATION_CLASS (gtk_application_parent_class)
+    ->shutdown (application);
 }
 
 static void
@@ -124,6 +312,8 @@ gtk_application_before_emit (GApplication *application,
   const gchar *key;
   GVariant *value;
 
+  gdk_threads_enter ();
+
   g_variant_iter_init (&iter, platform_data);
   while (g_variant_iter_loop (&iter, "{&sv}", &key, &value))
     {
@@ -135,7 +325,8 @@ gtk_application_before_emit (GApplication *application,
 
           display = gdk_display_get_default ();
           id = g_variant_get_string (value, NULL);
-          gdk_x11_display_set_startup_notification_id (display, id);
+          if (GDK_IS_X11_DISPLAY (display))
+            gdk_x11_display_set_startup_notification_id (display, id);
        }
 #endif
     }
@@ -146,6 +337,8 @@ gtk_application_after_emit (GApplication *application,
                             GVariant     *platform_data)
 {
   gdk_notify_startup_complete ();
+
+  gdk_threads_leave ();
 }
 
 static void
@@ -169,6 +362,10 @@ gtk_application_window_added (GtkApplication *application,
   g_signal_connect (window, "focus-in-event",
                     G_CALLBACK (gtk_application_focus_in_event_cb),
                     application);
+
+#ifdef GDK_WINDOWING_X11
+  gtk_application_window_added_x11 (application, window);
+#endif
 }
 
 static void
@@ -176,6 +373,10 @@ gtk_application_window_removed (GtkApplication *application,
                                 GtkWindow      *window)
 {
   GtkApplicationPrivate *priv = application->priv;
+
+#ifdef GDK_WINDOWING_X11
+  gtk_application_window_removed_x11 (application, window);
+#endif
 
   g_signal_handlers_disconnect_by_func (window,
                                         gtk_application_focus_in_event_cb,
@@ -187,14 +388,93 @@ gtk_application_window_removed (GtkApplication *application,
 }
 
 static void
+extract_accel_from_menu_item (GMenuModel     *model,
+                              gint            item,
+                              GtkApplication *app)
+{
+  GMenuAttributeIter *iter;
+  const gchar *key;
+  GVariant *value;
+  const gchar *accel = NULL;
+  const gchar *action = NULL;
+  GVariant *target = NULL;
+
+  iter = g_menu_model_iterate_item_attributes (model, item);
+  while (g_menu_attribute_iter_get_next (iter, &key, &value))
+    {
+      if (g_str_equal (key, "action") && g_variant_is_of_type (value, G_VARIANT_TYPE_STRING))
+        action = g_variant_get_string (value, NULL);
+      else if (g_str_equal (key, "accel") && g_variant_is_of_type (value, G_VARIANT_TYPE_STRING))
+        accel = g_variant_get_string (value, NULL);
+      else if (g_str_equal (key, "target"))
+        target = g_variant_ref (value);
+      g_variant_unref (value);
+    }
+  g_object_unref (iter);
+
+  if (accel && action)
+    gtk_application_add_accelerator (app, accel, action, target);
+
+  if (target)
+    g_variant_unref (target);
+}
+
+static void
+extract_accels_from_menu (GMenuModel     *model,
+                          GtkApplication *app)
+{
+  gint i;
+  GMenuLinkIter *iter;
+  const gchar *key;
+  GMenuModel *m;
+
+  for (i = 0; i < g_menu_model_get_n_items (model); i++)
+    {
+      extract_accel_from_menu_item (model, i, app);
+
+      iter = g_menu_model_iterate_item_links (model, i);
+      while (g_menu_link_iter_get_next (iter, &key, &m))
+        {
+          extract_accels_from_menu (m, app);
+          g_object_unref (m);
+        }
+      g_object_unref (iter);
+    }
+}
+
+static void
+gtk_application_notify (GObject    *object,
+                        GParamSpec *pspec)
+{
+  if (strcmp (pspec->name, "app-menu") == 0 ||
+      strcmp (pspec->name, "menubar") == 0)
+    {
+      GMenuModel *model;
+      g_object_get (object, pspec->name, &model, NULL);
+      if (model)
+        {
+          extract_accels_from_menu (model, GTK_APPLICATION (object));
+          g_object_unref (model);
+        }
+    }
+
+  if (G_OBJECT_CLASS (gtk_application_parent_class)->notify)
+    G_OBJECT_CLASS (gtk_application_parent_class)->notify (object, pspec);
+}
+
+static void
 gtk_application_class_init (GtkApplicationClass *class)
 {
+  GObjectClass *object_class = G_OBJECT_CLASS (class);
   GApplicationClass *application_class = G_APPLICATION_CLASS (class);
+
+  object_class->notify = gtk_application_notify;
 
   application_class->add_platform_data = gtk_application_add_platform_data;
   application_class->before_emit = gtk_application_before_emit;
   application_class->after_emit = gtk_application_after_emit;
   application_class->startup = gtk_application_startup;
+  application_class->shutdown = gtk_application_shutdown;
 
   class->window_added = gtk_application_window_added;
   class->window_removed = gtk_application_window_removed;
@@ -246,6 +526,14 @@ gtk_application_class_init (GtkApplicationClass *class)
  *
  * This function calls g_type_init() for you. gtk_init() is called
  * as soon as the application gets registered as the primary instance.
+ *
+ * Note that commandline arguments are not passed to gtk_init().
+ * All GTK+ functionality that is available via commandline arguments
+ * can also be achieved by setting suitable environment variables
+ * such as <envvar>G_DEBUG</envvar>, so this should not be a big
+ * problem. If you absolutely must support GTK+ commandline arguments,
+ * you can explicitly call gtk_init() before creating the application
+ * instance.
  *
  * The application id must be valid. See g_application_id_is_valid().
  *
@@ -326,10 +614,10 @@ gtk_application_remove_window (GtkApplication *application,
  * gtk_application_get_windows:
  * @application: a #GtkApplication
  *
- * Gets a list of the #GtkWindow<!-- -->s associated with @application.
+ * Gets a list of the #GtkWindows associated with @application.
  *
  * The list is sorted by most recently focused window, such that the first
- * element is the currently focused window.  (Useful for choosing a parent
+ * element is the currently focused window. (Useful for choosing a parent
  * for a transient window.)
  *
  * The list that is returned should not be modified in any way. It will
@@ -346,4 +634,193 @@ gtk_application_get_windows (GtkApplication *application)
   g_return_val_if_fail (GTK_IS_APPLICATION (application), NULL);
 
   return application->priv->windows;
+}
+
+/**
+ * gtk_application_add_accelerator:
+ * @application: a #GtkApplication
+ * @accelerator: accelerator string
+ * @action_name: the name of the action to activate
+ * @parameter: (allow-none): parameter to pass when activating the action,
+ *   or %NULL if the action does not accept an activation parameter
+ *
+ * Installs an accelerator that will cause the named action
+ * to be activated when the key combination specificed by @accelerator
+ * is pressed.
+ *
+ * @accelerator must be a string that can be parsed by
+ * gtk_accelerator_parse(), e.g. "<Primary>q" or "<Control><Alt>p".
+ *
+ * @action_name must be the name of an action as it would be used
+ * in the app menu, i.e. actions that have been added to the application
+ * are referred to with an "app." prefix, and window-specific actions
+ * with a "win." prefix.
+ *
+ * GtkApplication also extracts accelerators out of 'accel' attributes
+ * in the #GMenuModels passed to g_application_set_app_menu() and
+ * g_application_set_menubar(), which is usually more convenient
+ * than calling this function for each accelerator.
+ *
+ * Since: 3.4
+ */
+void
+gtk_application_add_accelerator (GtkApplication *application,
+                                 const gchar    *accelerator,
+                                 const gchar    *action_name,
+                                 GVariant       *parameter)
+{
+  gchar *accel_path;
+  guint accel_key;
+  GdkModifierType accel_mods;
+
+  g_return_if_fail (GTK_IS_APPLICATION (application));
+
+  /* Call this here, since gtk_init() is only getting called in startup() */
+  _gtk_accel_map_init ();
+
+  gtk_accelerator_parse (accelerator, &accel_key, &accel_mods);
+
+  if (accel_key == 0)
+    {
+      g_warning ("Failed to parse accelerator: '%s'\n", accelerator);
+      return;
+    }
+
+  accel_path = _gtk_accel_path_for_action (action_name, parameter);
+
+  if (gtk_accel_map_lookup_entry (accel_path, NULL))
+    gtk_accel_map_change_entry (accel_path, accel_key, accel_mods, TRUE);
+  else
+    gtk_accel_map_add_entry (accel_path, accel_key, accel_mods);
+
+  g_free (accel_path);
+}
+
+/**
+ * gtk_application_remove_accelerator:
+ * @application: a #GtkApplication
+ * @action_name: the name of the action to activate
+ * @parameter: (allow-none): parameter to pass when activating the action,
+ *   or %NULL if the action does not accept an activation parameter
+ *
+ * Removes an accelerator that has been previously added
+ * with gtk_application_add_accelerator().
+ *
+ * Since: 3.4
+ */
+void
+gtk_application_remove_accelerator (GtkApplication *application,
+                                    const gchar    *action_name,
+                                    GVariant       *parameter)
+{
+  gchar *accel_path;
+
+  g_return_if_fail (GTK_IS_APPLICATION (application));
+
+  accel_path = _gtk_accel_path_for_action (action_name, parameter);
+
+  if (!gtk_accel_map_lookup_entry (accel_path, NULL))
+    {
+      g_warning ("No accelerator found for '%s'\n", accel_path);
+      g_free (accel_path);
+      return;
+    }
+
+  gtk_accel_map_change_entry (accel_path, 0, 0, FALSE);
+  g_free (accel_path);
+}
+
+/**
+ * gtk_application_set_app_menu:
+ * @application: a #GtkApplication
+ * @app_menu: (allow-none): a #GMenuModel, or %NULL
+ *
+ * Sets or unsets the application menu for @application.
+ *
+ * The application menu is a single menu containing items that typically
+ * impact the application as a whole, rather than acting on a specific
+ * window or document.  For example, you would expect to see
+ * "Preferences" or "Quit" in an application menu, but not "Save" or
+ * "Print".
+ *
+ * If supported, the application menu will be rendered by the desktop
+ * environment.
+ *
+ * Since: 3.4
+ */
+void
+gtk_application_set_app_menu (GtkApplication *application,
+                              GMenuModel     *app_menu)
+{
+  g_object_set (application, "app-menu", app_menu, NULL);
+}
+
+/**
+ * gtk_application_get_app_menu:
+ * @application: a #GtkApplication
+ *
+ * Returns the menu model that has been set with
+ * g_application_set_app_menu().
+ *
+ * Returns: the application menu of @application
+ *
+ * Since: 3.4
+ */
+GMenuModel *
+gtk_application_get_app_menu (GtkApplication *application)
+{
+  GMenuModel *app_menu;
+
+  g_object_get (application, "app-menu", &app_menu, NULL);
+  g_object_unref (app_menu);
+
+  return app_menu;
+}
+
+/**
+ * gtk_application_set_menubar:
+ * @application: a #GtkApplication
+ * @menubar: (allow-none): a #GMenuModel, or %NULL
+ *
+ * Sets or unsets the menubar for windows of @application.
+ *
+ * This is a menubar in the traditional sense.
+ *
+ * Depending on the desktop environment, this may appear at the top of
+ * each window, or at the top of the screen.  In some environments, if
+ * both the application menu and the menubar are set, the application
+ * menu will be presented as if it were the first item of the menubar.
+ * Other environments treat the two as completely separate -- for
+ * example, the application menu may be rendered by the desktop shell
+ * while the menubar (if set) remains in each individual window.
+ *
+ * Since: 3.4
+ */
+void
+gtk_application_set_menubar (GtkApplication *application,
+                             GMenuModel     *menubar)
+{
+  g_object_set (application, "menubar", menubar, NULL);
+}
+
+/**
+ * gtk_application_get_menubar:
+ * @application: a #GtkApplication
+ *
+ * Returns the menu model that has been set with
+ * g_application_set_menubar().
+ *
+ * Returns: the menubar for windows of @application
+ *
+ * Since: 3.4
+ */
+GMenuModel *
+gtk_application_get_menubar (GtkApplication *application)
+{
+  GMenuModel *menubar;
+
+  g_object_get (application, "menubar", &menubar, NULL);
+  g_object_unref (menubar);
+
+  return menubar;
 }

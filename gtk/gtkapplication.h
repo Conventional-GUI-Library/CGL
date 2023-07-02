@@ -19,14 +19,13 @@
  * Author: Ryan Lortie <desrt@desrt.ca>
  */
 
-#if defined(GTK_DISABLE_SINGLE_INCLUDES) && !defined (__GTK_H_INSIDE__) && !defined (GTK_COMPILATION)
+#if !defined (__GTK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
 #ifndef __GTK_APPLICATION_H__
 #define __GTK_APPLICATION_H__
 
-#include <gtk/gtkactiongroup.h>
 #include <gtk/gtkwidget.h>
 #include <gio/gio.h>
 
@@ -64,18 +63,33 @@ struct _GtkApplicationClass
   gpointer padding[14];
 };
 
-GType                   gtk_application_get_type                        (void) G_GNUC_CONST;
+GType            gtk_application_get_type      (void) G_GNUC_CONST;
 
-GtkApplication *        gtk_application_new                             (const gchar       *application_id,
-                                                                         GApplicationFlags  flags);
+GtkApplication * gtk_application_new           (const gchar       *application_id,
+                                                GApplicationFlags  flags);
 
-void                    gtk_application_add_window                      (GtkApplication    *application,
-                                                                         GtkWindow         *window);
+void             gtk_application_add_window    (GtkApplication    *application,
+                                                GtkWindow         *window);
 
-void                    gtk_application_remove_window                   (GtkApplication    *application,
-                                                                         GtkWindow         *window);
+void             gtk_application_remove_window (GtkApplication    *application,
+                                                GtkWindow         *window);
+GList *          gtk_application_get_windows   (GtkApplication    *application);
 
-GList *                 gtk_application_get_windows                     (GtkApplication    *application);
+GMenuModel *     gtk_application_get_app_menu  (GtkApplication    *application);
+void             gtk_application_set_app_menu  (GtkApplication    *application,
+                                                GMenuModel        *model);
+
+GMenuModel *     gtk_application_get_menubar   (GtkApplication    *application);
+void             gtk_application_set_menubar   (GtkApplication    *application,
+                                                GMenuModel        *model);
+
+void             gtk_application_add_accelerator    (GtkApplication  *application,
+                                                     const gchar     *accelerator,
+                                                     const gchar     *action_name,
+                                                     GVariant        *parameter);
+void             gtk_application_remove_accelerator (GtkApplication *application,
+                                                     const gchar    *action_name,
+                                                     GVariant       *parameter);
 
 G_END_DECLS
 

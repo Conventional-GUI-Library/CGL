@@ -196,7 +196,7 @@ gtk_color_selection_dialog_init (GtkColorSelectionDialog *colorseldiag)
                                                GTK_RESPONSE_CANCEL);
 
   priv->ok_button = gtk_dialog_add_button (dialog,
-                                           _("_Select"),
+                                           GTK_STOCK_OK,
                                            GTK_RESPONSE_OK);
 
   gtk_widget_grab_default (priv->ok_button);

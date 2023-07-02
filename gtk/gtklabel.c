@@ -4028,12 +4028,11 @@ gtk_label_draw (GtkWidget *widget,
 
       cairo_translate (cr, -allocation.x, -allocation.y);
 
-      state = gtk_widget_get_state_flags (widget);
-      gtk_style_context_set_state (context, state);
-
       gtk_render_layout (context, cr,
                          x, y,
                          priv->layout);
+
+      state = gtk_widget_get_state_flags (widget);
 
       if (info &&
           (info->selection_anchor != info->selection_end))
@@ -4063,10 +4062,7 @@ gtk_label_draw (GtkWidget *widget,
           gdk_cairo_region (cr, clip);
           cairo_clip (cr);
 
-          state = GTK_STATE_FLAG_SELECTED;
-
-          if (gtk_widget_has_focus (widget))
-            state |= GTK_STATE_FLAG_FOCUSED;
+          state |= GTK_STATE_FLAG_SELECTED;
 
           gtk_style_context_get_color (context, state, &fg_color);
           gtk_style_context_get_background_color (context, state, &bg_color);
@@ -4132,9 +4128,9 @@ gtk_label_draw (GtkWidget *widget,
                 text_color = link_color;
 
               if (info->link_clicked)
-                state = GTK_STATE_FLAG_ACTIVE;
+                state |= GTK_STATE_FLAG_ACTIVE;
               else
-                state = GTK_STATE_FLAG_PRELIGHT;
+                state |= GTK_STATE_FLAG_PRELIGHT;
 
               gtk_style_context_get_background_color (context, state, &bg_color);
 
@@ -4161,9 +4157,6 @@ gtk_label_draw (GtkWidget *widget,
                                                        range,
                                                        1);
               cairo_region_get_extents (clip, &rect);
-
-              state = gtk_widget_get_state_flags (widget);
-              gtk_style_context_set_state (context, state);
 
               gtk_render_focus (context, cr,
                                 rect.x, rect.y,

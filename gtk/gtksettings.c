@@ -193,7 +193,9 @@ enum {
   PROP_LABEL_SELECT_ON_FOCUS,
   PROP_COLOR_PALETTE,
   PROP_IM_PREEDIT_STYLE,
-  PROP_IM_STATUS_STYLE
+  PROP_IM_STATUS_STYLE,
+  PROP_SHELL_SHOWS_APP_MENU,
+  PROP_SHELL_SHOWS_MENUBAR
 };
 
 /* --- prototypes --- */
@@ -1309,6 +1311,26 @@ gtk_settings_class_init (GtkSettingsClass *class)
                                              gtk_rc_property_parse_enum);
   g_assert (result == PROP_IM_STATUS_STYLE);
 
+  result = settings_install_property_parser (class,
+                                             g_param_spec_boolean ("gtk-shell-shows-app-menu",
+                                                                   P_("Desktop shell shows app menu"),
+                                                                   P_("Set to TRUE if the desktop environment "
+                                                                      "is displaying the app menu, FALSE if "
+                                                                      "the app should display it itself."),
+                                                                   FALSE, GTK_PARAM_READWRITE),
+                                             NULL);
+  g_assert (result == PROP_SHELL_SHOWS_APP_MENU);
+
+  result = settings_install_property_parser (class,
+                                             g_param_spec_boolean ("gtk-shell-shows-menubar",
+                                                                   P_("Desktop shell shows the menubar"),
+                                                                   P_("Set to TRUE if the desktop environment "
+                                                                      "is displaying the menubar, FALSE if "
+                                                                      "the app should display it itself."),
+                                                                   FALSE, GTK_PARAM_READWRITE),
+                                             NULL);
+  g_assert (result == PROP_SHELL_SHOWS_MENUBAR);
+
   g_type_class_add_private (class, sizeof (GtkSettingsPrivate));
 }
 
@@ -1491,7 +1513,11 @@ gtk_settings_get_for_screen (GdkScreen *screen)
     {
 #ifdef GDK_WINDOWING_QUARTZ
       if (GDK_IS_QUARTZ_SCREEN (screen))
-        settings = g_object_new (GTK_TYPE_SETTINGS, "gtk-key-theme-name", "Mac", NULL);
+        settings = g_object_new (GTK_TYPE_SETTINGS,
+                                 "gtk-key-theme-name", "Mac",
+                                 "gtk-shell-shows-app-menu", TRUE,
+                                 "gtk-shell-shows-menubar", TRUE,
+                                 NULL);
       else
 #endif
         settings = g_object_new (GTK_TYPE_SETTINGS, NULL);

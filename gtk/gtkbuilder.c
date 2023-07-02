@@ -240,6 +240,14 @@
  * <link linkend="GtkTextTagTable-BUILDER-UI">GtkTextTagTable</link>.
  * </para>
  * </refsect2>
+ * <refsect2 id="BUILDER-UI">
+ * <title>Embedding other XML</title>
+ * <para>
+ * Apart from the language for UI descriptions that has been explained
+ * in the previous section, GtkBuilder can also parse XML fragments
+ * of <link linkend="gio-GMenu-Markup">GMenu markup</link>. The resulting
+ * #GMenu object and its named submenus are available via
+ * gtk_builder_get_object() like other constructed objects.
  */
 
 #include "config.h"
@@ -731,6 +739,13 @@ _gtk_builder_construct (GtkBuilder *builder,
   return obj;
 }
 
+void
+_gtk_builder_add_object (GtkBuilder  *builder,
+                         const gchar *id,
+                         GObject     *object)
+{
+  g_hash_table_insert (builder->priv->objects, g_strdup (id), g_object_ref (object));
+}
 
 void
 _gtk_builder_add (GtkBuilder *builder,

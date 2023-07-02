@@ -5200,7 +5200,7 @@ gtk_window_realize (GtkWidget *widget)
     gdk_window_set_modal_hint (gdk_window, TRUE);
   else
     gdk_window_set_modal_hint (gdk_window, FALSE);
-  
+
   if (priv->startup_id)
     {
 #ifdef GDK_WINDOWING_X11
@@ -5222,6 +5222,8 @@ gtk_window_realize (GtkWidget *widget)
         gdk_x11_window_set_user_time (gdk_window, priv->initial_timestamp);
     }
 #endif
+
+  gtk_window_set_application (window, gtk_window_get_application (window));
 
   /* Icons */
   gtk_window_realize_icon (window);

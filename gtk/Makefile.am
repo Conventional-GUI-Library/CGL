@@ -163,6 +163,7 @@ gtk_public_h_sources = 		\
 	gtkappchooserdialog.h	\
 	gtkappchooserwidget.h	\
 	gtkapplication.h	\
+	gtkapplicationwindow.h	\
 	gtkarrow.h		\
 	gtkaspectframe.h	\
 	gtkassistant.h		\
@@ -388,7 +389,12 @@ gtk_private_type_h_sources = \
 
 # GTK+ header files that don't get installed
 gtk_private_h_sources =		\
+	gactionmuxer.h		\
+	gactionobserver.h	\
+	gactionobservable.h	\
+	gtkapplicationprivate.h	\
 	gtkaccelgroupprivate.h	\
+	gtkaccelmapprivate.h	\
 	gtkanimationdescription.h \
 	gtkappchooserprivate.h	\
 	gtkappchoosermodule.h	\
@@ -427,6 +433,8 @@ gtk_private_h_sources =		\
 	gtkmenuitemprivate.h	\
 	gtkmenushellprivate.h	\
 	gtkmnemonichash.h	\
+	gtkmodelmenu.h		\
+	gtkmodelmenuitem.h	\
 	gtkmodifierstyle.h	\
 	gtkmodulesprivate.h	\
 	gtkmountoperationprivate.h \
@@ -479,9 +487,12 @@ gtk_private_h_sources =		\
 
 # GTK+ C sources to build the library from
 gtk_base_c_sources = 		\
-	gtkquery.c		\
-	gtksearchengine.c	\
-	gtksearchenginesimple.c	\
+	gactionmuxer.c		\
+	gactionobserver.c	\
+	gactionobservable.c	\
+ 	gtkquery.c		\
+ 	gtksearchengine.c	\
+ 	gtksearchenginesimple.c	\
 	fnmatch.c		\
 	gtkaboutdialog.c	\
 	gtkaccelgroup.c		\
@@ -500,6 +511,7 @@ gtk_base_c_sources = 		\
 	gtkappchoosermodule.c	\
 	gtkappchooseronline.c	\
 	gtkapplication.c	\
+	gtkapplicationwindow.c	\
 	gtkanimationdescription.c \
 	gtkarrow.c		\
 	gtkaspectframe.c	\
@@ -611,6 +623,8 @@ gtk_base_c_sources = 		\
 	gtkmessagedialog.c	\
 	gtkmisc.c		\
 	gtkmnemonichash.c	\
+	gtkmodelmenu.c		\
+	gtkmodelmenuitem.c	\
 	gtkmodifierstyle.c	\
 	gtkmodules.c		\
 	gtkmountoperation.c	\
@@ -786,6 +800,8 @@ gtk_use_win32_c_sources = 	\
 gtk_use_quartz_c_sources = 	\
 	gtksearchenginequartz.c	\
 	gtkmountoperation-stub.c \
+  gtkquartz-menu.h \
+  gtkquartz-menu.c \
 	gtkquartz.c
 gtk_use_stub_c_sources = 	\
 	gtkmountoperation-stub.c
@@ -806,6 +822,7 @@ else
 if USE_QUARTZ
 gtk_private_h_sources += 	\
 	gtksearchenginequartz.h	\
+	gtkmenuquartz.h \
 	gtkquartz.h
 gtk_c_sources += $(gtk_use_quartz_c_sources)
 libgtk_3_la_CFLAGS = "-xobjective-c"

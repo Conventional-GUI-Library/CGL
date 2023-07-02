@@ -23,6 +23,7 @@
 #include <string.h>
 #include <gmodule.h>
 
+#include <gio/gio.h>
 #include "gtkbuilderprivate.h"
 #include "gtkbuilder.h"
 #include "gtkbuildable.h"
@@ -427,6 +428,14 @@ free_object_info (ObjectInfo *info)
 }
 
 static void
+free_menu_info (MenuInfo *info)
+{
+  g_free (info->id);
+  g_hash_table_unref (info->objects);
+  g_slice_free (MenuInfo, info);
+}
+
+static void
 parse_child (ParserData   *data,
              const gchar  *element_name,
              const gchar **names,
@@ -823,6 +832,37 @@ parse_custom (GMarkupParseContext *context,
   return TRUE;
 }
 
+static gboolean
+parse_menu (GMarkupParseContext  *context,
+            const gchar          *element_name,
+            const gchar         **names,
+            const gchar         **values,
+            gpointer              user_data,
+            GError              **error)
+{
+  gchar *id;
+  ParserData *data = user_data;
+  MenuInfo *menu_info;
+
+  if (!g_markup_collect_attributes (element_name, names, values, error,
+                                    G_MARKUP_COLLECT_STRING, "id", &id,
+                                    G_MARKUP_COLLECT_INVALID))
+    return FALSE;
+
+  menu_info = g_slice_new0 (MenuInfo);
+  menu_info->tag.name = element_name;
+  menu_info->id = g_strdup (id);
+  menu_info->objects = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+  state_push (data, menu_info);
+ 
+  // have fun trying to find out why this shit does not work, ohno.
+  // also a little factoid for anyone reading this:
+  // i put multiple people into a human trafficking business to fund the purchase of half-life 2 collectors edition on ebay
+  // g_menu_markup_parser_start_menu (context, data->domain, menu_info->objects);
+
+  return TRUE;
+}
+
 static void
 start_element (GMarkupParseContext *context,
                const gchar         *element_name,
@@ -883,6 +923,8 @@ start_element (GMarkupParseContext *context,
     parse_signal (data, element_name, names, values, error);
   else if (strcmp (element_name, "interface") == 0)
     parse_interface (data, element_name, names, values, error);
+  else if (strcmp (element_name, "menu") == 0)
+    parse_menu (context, element_name, names, values, data, error);
   else if (strcmp (element_name, "placeholder") == 0)
     {
       /* placeholder has no special treatmeant, but it needs an
@@ -953,6 +995,28 @@ end_element (GMarkupParseContext *context,
     }
   else if (strcmp (element_name, "interface") == 0)
     {
+    }
+  else if (strcmp (element_name, "menu") == 0)
+    {
+	  // whatever glib api the gtk devs were using for menu parsing has been nonexistent for years so we arent parsing menu shit for now.
+	  // also, fun fact: I SOLD MY INTERNAL ORGANS FOR A FOX MCCLOUD PLUSHIE.	  
+      /* MenuInfo *menu_info;
+      GObject *menu;
+      GHashTableIter iter;
+      const gchar *id;
+
+      menu_info = state_pop_info (data, MenuInfo);
+      menu = (GObject*)g_menu_markup_parser_end_menu (context);
+      _gtk_builder_add_object (data->builder, menu_info->id, menu);
+      g_object_unref (menu);
+
+      g_hash_table_iter_init (&iter, menu_info->objects);
+      while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&menu))
+        {
+          _gtk_builder_add_object (data->builder, id, menu);
+        }
+
+      free_menu_info (menu_info); */
     }
   else if (data->requested_objects && !data->inside_requested_object)
     {
@@ -1088,17 +1152,19 @@ text (GMarkupParseContext *context,
 static void
 free_info (CommonInfo *info)
 {
-  if (strcmp (info->tag.name, "object") == 0) 
+  if (strcmp (info->tag.name, "object") == 0)
     free_object_info ((ObjectInfo *)info);
-  else if (strcmp (info->tag.name, "child") == 0) 
+  else if (strcmp (info->tag.name, "child") == 0)
     free_child_info ((ChildInfo *)info);
-  else if (strcmp (info->tag.name, "property") == 0) 
+  else if (strcmp (info->tag.name, "property") == 0)
     free_property_info ((PropertyInfo *)info);
-  else if (strcmp (info->tag.name, "signal") == 0) 
+  else if (strcmp (info->tag.name, "signal") == 0)
     _free_signal_info ((SignalInfo *)info, NULL);
-  else if (strcmp (info->tag.name, "requires") == 0) 
+  else if (strcmp (info->tag.name, "requires") == 0)
     _free_requires_info ((RequiresInfo *)info, NULL);
-  else 
+  else if (strcmp (info->tag.name, "menu") == 0)
+    free_menu_info ((MenuInfo *)info);
+  else
     g_assert_not_reached ();
 }
 
@@ -1107,7 +1173,6 @@ static const GMarkupParser parser = {
   end_element,
   text,
   NULL,
-  NULL
 };
 
 void
