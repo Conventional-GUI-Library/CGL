@@ -112,14 +112,10 @@ static void
 gtk_widget_accessible_initialize (AtkObject *obj,
                                   gpointer   data)
 {
-  GtkAccessible *accessible;
   GtkWidget *widget;
 
   widget = GTK_WIDGET (data);
 
-  accessible = GTK_ACCESSIBLE (obj);
-  gtk_accessible_set_widget (accessible, widget);
-  gtk_accessible_connect_widget_destroyed (accessible);
   g_signal_connect_after (widget, "focus-in-event", G_CALLBACK (focus_cb), NULL);
   g_signal_connect_after (widget, "focus-out-event", G_CALLBACK (focus_cb), NULL);
   g_signal_connect (widget, "notify", G_CALLBACK (notify_cb), NULL);
@@ -129,25 +125,6 @@ gtk_widget_accessible_initialize (AtkObject *obj,
 
   GTK_WIDGET_ACCESSIBLE (obj)->layer = ATK_LAYER_WIDGET;
   obj->role = ATK_ROLE_UNKNOWN;
-}
-
-static void
-gtk_widget_accessible_destroyed (GtkWidget     *widget,
-                                 GtkAccessible *accessible)
-{
-  gtk_accessible_set_widget (accessible, NULL);
-  atk_object_notify_state_change (ATK_OBJECT (accessible), ATK_STATE_DEFUNCT, TRUE);
-}
-
-static void
-gtk_widget_accessible_connect_widget_destroyed (GtkAccessible *accessible)
-{
-  GtkWidget *widget;
-
-  widget = gtk_accessible_get_widget (GTK_ACCESSIBLE (accessible));
-  if (widget)
-    g_signal_connect_after (widget, "destroy",
-                            G_CALLBACK (gtk_widget_accessible_destroyed), accessible);
 }
 
 static const gchar *
@@ -528,11 +505,8 @@ static void
 _gtk_widget_accessible_class_init (GtkWidgetAccessibleClass *klass)
 {
   AtkObjectClass *class = ATK_OBJECT_CLASS (klass);
-  GtkAccessibleClass *accessible_class = GTK_ACCESSIBLE_CLASS (klass);
 
   klass->notify_gtk = gtk_widget_accessible_notify_gtk;
-
-  accessible_class->connect_widget_destroyed = gtk_widget_accessible_connect_widget_destroyed;
 
   class->get_description = gtk_widget_accessible_get_description;
   class->get_parent = gtk_widget_accessible_get_parent;
