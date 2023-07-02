@@ -91,7 +91,7 @@ window1
       parent: tree1
       index: 2
       name: One
-      state: enabled focusable focused selectable selected sensitive single-line transient visible
+      state: enabled focusable selectable selected sensitive showing single-line transient visible
       <AtkComponent>
       layer: widget
       alpha: 1
@@ -124,8 +124,12 @@ window1
                           weight: <omitted>
                           wrap-mode: word
       <AtkAction>
-      action 0 name: activate
-      action 0 description: activate the cell
+      action 0 name: expand or contract
+      action 0 description: expands or contracts the row in the tree view containing this cell
+      action 1 name: edit
+      action 1 description: creates a widget in which the contents of the cell can be edited
+      action 2 name: activate
+      action 2 description: activate the cell
     Two
       "table cell"
       parent: tree1
@@ -164,14 +168,18 @@ window1
                           weight: <omitted>
                           wrap-mode: word
       <AtkAction>
-      action 0 name: activate
-      action 0 description: activate the cell
+      action 0 name: expand or contract
+      action 0 description: expands or contracts the row in the tree view containing this cell
+      action 1 name: edit
+      action 1 description: creates a widget in which the contents of the cell can be edited
+      action 2 name: activate
+      action 2 description: activate the cell
     Three
       "table cell"
       parent: tree1
       index: 4
       name: Three
-      state: enabled focusable selectable sensitive single-line transient visible
+      state: enabled focusable selectable sensitive showing single-line transient visible
       <AtkComponent>
       layer: widget
       alpha: 1
@@ -204,8 +212,12 @@ window1
                           weight: <omitted>
                           wrap-mode: word
       <AtkAction>
-      action 0 name: activate
-      action 0 description: activate the cell
+      action 0 name: expand or contract
+      action 0 description: expands or contracts the row in the tree view containing this cell
+      action 1 name: edit
+      action 1 description: creates a widget in which the contents of the cell can be edited
+      action 2 name: activate
+      action 2 description: activate the cell
     Four
       "table cell"
       parent: tree1
@@ -244,14 +256,18 @@ window1
                           weight: <omitted>
                           wrap-mode: word
       <AtkAction>
-      action 0 name: activate
-      action 0 description: activate the cell
+      action 0 name: expand or contract
+      action 0 description: expands or contracts the row in the tree view containing this cell
+      action 1 name: edit
+      action 1 description: creates a widget in which the contents of the cell can be edited
+      action 2 name: activate
+      action 2 description: activate the cell
     Five
       "table cell"
       parent: tree1
       index: 6
       name: Five
-      state: enabled focusable selectable sensitive single-line transient visible
+      state: enabled focusable selectable sensitive showing single-line transient visible
       <AtkComponent>
       layer: widget
       alpha: 1
@@ -284,8 +300,12 @@ window1
                           weight: <omitted>
                           wrap-mode: word
       <AtkAction>
-      action 0 name: activate
-      action 0 description: activate the cell
+      action 0 name: expand or contract
+      action 0 description: expands or contracts the row in the tree view containing this cell
+      action 1 name: edit
+      action 1 description: creates a widget in which the contents of the cell can be edited
+      action 2 name: activate
+      action 2 description: activate the cell
     Six
       "table cell"
       parent: tree1
@@ -324,14 +344,18 @@ window1
                           weight: <omitted>
                           wrap-mode: word
       <AtkAction>
-      action 0 name: activate
-      action 0 description: activate the cell
+      action 0 name: expand or contract
+      action 0 description: expands or contracts the row in the tree view containing this cell
+      action 1 name: edit
+      action 1 description: creates a widget in which the contents of the cell can be edited
+      action 2 name: activate
+      action 2 description: activate the cell
     Seven
       "table cell"
       parent: tree1
       index: 8
       name: Seven
-      state: enabled focusable selectable sensitive single-line transient visible
+      state: enabled focusable selectable sensitive showing single-line transient visible
       <AtkComponent>
       layer: widget
       alpha: 1
@@ -364,8 +388,12 @@ window1
                           weight: <omitted>
                           wrap-mode: word
       <AtkAction>
-      action 0 name: activate
-      action 0 description: activate the cell
+      action 0 name: expand or contract
+      action 0 description: expands or contracts the row in the tree view containing this cell
+      action 1 name: edit
+      action 1 description: creates a widget in which the contents of the cell can be edited
+      action 2 name: activate
+      action 2 description: activate the cell
     Eight
       "table cell"
       parent: tree1
@@ -404,5 +432,9 @@ window1
                           weight: <omitted>
                           wrap-mode: word
       <AtkAction>
-      action 0 name: activate
-      action 0 description: activate the cell
+      action 0 name: expand or contract
+      action 0 description: expands or contracts the row in the tree view containing this cell
+      action 1 name: edit
+      action 1 description: creates a widget in which the contents of the cell can be edited
+      action 2 name: activate
+      action 2 description: activate the cell

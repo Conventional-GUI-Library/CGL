@@ -710,13 +710,11 @@ esac
 # Run AM_PATH_GLIB_2_0 to make sure that GLib is installed and working
 #
 
-GLIB_PACKAGES="gobject-2.0 gio-2.0 gmodule-no-export-2.0"
-
 AM_PATH_GLIB_2_0(glib_required_version, :,
   AC_MSG_ERROR([
 *** GLIB glib_required_version or better is required. The latest version of
 *** GLIB is always available from ftp://ftp.gtk.org/pub/gtk/.]),
-  gobject gmodule-no-export gthread)
+  gobject gmodule-no-export)
 
 # See if it's safe to turn G_DISABLE_DEPRECATED on.
 GLIB_VERSION_MAJOR_MINOR=`$PKG_CONFIG --modversion glib-2.0 | sed "s/\.@<:@^.@:>@*\$//"`
@@ -1153,6 +1151,7 @@ if test "x$enable_x11_backend" = xyes; then
               [Define to 1 if XFree XInput should be used])
 
     X_PACKAGES="$X_PACKAGES xi"
+    GTK_PACKAGES_FOR_X="$GTK_PACKAGES_FOR_X xi"
 
     AC_CHECK_HEADER(X11/extensions/XInput2.h,
                     have_xinput2=yes
@@ -1290,20 +1289,24 @@ fi
 CFLAGS="$saved_cflags"
 LDFLAGS="$saved_ldflags"
 
-GDK_PACKAGES="$PANGO_PACKAGES $GIO_PACKAGE $X_PACKAGES $WAYLAND_PACKAGES gdk-pixbuf-2.0 $cairo_backends cairo-gobject"
+GDK_PACKAGES="$PANGO_PACKAGES gdk-pixbuf-2.0 cairo cairo-gobject"
+GDK_PRIVATE_PACKAGES="$GIO_PACKAGE $X_PACKAGES $WAYLAND_PACKAGES $cairo_backends"
+if test "x$enable_x11_backend" = xyes; then
+  GDK_PRIVATE_PACKAGES="$GDK_PRIVATE_PACKAGES pangoft2"
+fi
 
-GDK_DEP_LIBS="$GDK_EXTRA_LIBS `$PKG_CONFIG --libs $GDK_PACKAGES` $MATH_LIB"
-GDK_DEP_CFLAGS="`$PKG_CONFIG --cflags  gthread-2.0 $GDK_PACKAGES` $GDK_EXTRA_CFLAGS"
+GDK_DEP_LIBS="$GDK_EXTRA_LIBS `$PKG_CONFIG --libs $GDK_PACKAGES $GDK_PRIVATE_PACKAGES` $MATH_LIB"
+GDK_DEP_CFLAGS="`$PKG_CONFIG --cflags $GDK_PACKAGES $GDK_PRIVATE_PACKAGES` $GDK_EXTRA_CFLAGS"
 #
 # If we aren't writing explicit dependencies, then don't put the extra libraries we need
 # into the pkg-config files
 #
 if test $enable_explicit_deps != yes ; then
-  GDK_PACKAGES="$PANGO_PACKAGES gdk-pixbuf-2.0 cairo-gobject"
   GDK_EXTRA_LIBS=
 fi
 
 AC_SUBST(GDK_PACKAGES)
+AC_SUBST(GDK_PRIVATE_PACKAGES)
 AC_SUBST(GDK_EXTRA_LIBS)
 AC_SUBST(GDK_EXTRA_CFLAGS)
 AC_SUBST(GDK_DEP_LIBS)
@@ -1346,8 +1349,8 @@ fi
 GTK_EXTRA_LIBS=
 
 GTK_EXTRA_CFLAGS=
-GTK_DEP_LIBS="$GDK_EXTRA_LIBS $GTK_DEP_LIBS_FOR_X `$PKG_CONFIG --libs $PANGO_PACKAGES $GTK_PACKAGES_FOR_X $GTK_PACKAGES` $GTK_EXTRA_LIBS $MATH_LIB"
-GTK_DEP_CFLAGS="`$PKG_CONFIG --cflags  gthread-2.0 $GDK_PACKAGES $GTK_PACKAGES` $GDK_EXTRA_CFLAGS $GTK_EXTRA_CFLAGS"
+GTK_DEP_LIBS="$GDK_EXTRA_LIBS $GTK_DEP_LIBS_FOR_X `$PKG_CONFIG --libs $PANGO_PACKAGES $GTK_PACKAGES_FOR_X $GTK_PACKAGES $GTK_PRIVATE_PACKAGES` $GTK_EXTRA_LIBS $MATH_LIB"
+GTK_DEP_CFLAGS="`$PKG_CONFIG --cflags $GDK_PACKAGES $GTK_PACKAGES $GTK_PRIVATE_PACKAGES` $GDK_EXTRA_CFLAGS $GTK_EXTRA_CFLAGS"
 
 if test x"$os_win32" = xyes; then
   GTK_EXTRA_CFLAGS="$msnative_struct"

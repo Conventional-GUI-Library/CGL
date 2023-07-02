@@ -57,7 +57,6 @@ typedef void (*GtkRBTreeTraverseFunc) (GtkRBTree  *tree,
 struct _GtkRBTree
 {
   GtkRBNode *root;
-  GtkRBNode *nil;
   GtkRBTree *parent_tree;
   GtkRBNode *parent_node;
 };
@@ -114,9 +113,12 @@ GtkRBNode *_gtk_rbtree_insert_after     (GtkRBTree              *tree,
 					 gboolean                valid);
 void       _gtk_rbtree_remove_node      (GtkRBTree              *tree,
 					 GtkRBNode              *node);
+gboolean   _gtk_rbtree_is_nil           (GtkRBNode              *node);
 void       _gtk_rbtree_reorder          (GtkRBTree              *tree,
 					 gint                   *new_order,
 					 gint                    length);
+gboolean   _gtk_rbtree_contains         (GtkRBTree              *tree,
+                                         GtkRBTree              *potential_child);
 GtkRBNode *_gtk_rbtree_find_count       (GtkRBTree              *tree,
 					 gint                    count);
 void       _gtk_rbtree_node_set_height  (GtkRBTree              *tree,
@@ -148,6 +150,7 @@ void       _gtk_rbtree_traverse         (GtkRBTree              *tree,
 					 GTraverseType           order,
 					 GtkRBTreeTraverseFunc   func,
 					 gpointer                data);
+GtkRBNode *_gtk_rbtree_first            (GtkRBTree              *tree);
 GtkRBNode *_gtk_rbtree_next             (GtkRBTree              *tree,
 					 GtkRBNode              *node);
 GtkRBNode *_gtk_rbtree_prev             (GtkRBTree              *tree,

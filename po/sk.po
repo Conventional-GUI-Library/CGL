@@ -4578,6 +4578,8 @@ msgstr "Vytlačiť na skúšobnej tlačiarni"
 #~ msgid "Error loading icon: %s"
 #~ msgstr "Chyba pri načítaní ikony: %s"
 
+# takto sa v slovenčine opytovacia veta netvorí
+# buď preč otáznik alebo inak preformulovať vetu
 #~ msgid ""
 #~ "Could not find the icon '%s'. The '%s' theme\n"
 #~ "was not found either, perhaps you need to install it.\n"
@@ -4897,6 +4899,9 @@ msgstr "Vytlačiť na skúšobnej tlačiarni"
 #~ msgstr ""
 #~ "Kvalita JPEG musí byť medzi 0 a 100, hodnotu '%s' nie je možné spracovať."
 
+#~ msgid "Color profile has invalid length %d."
+#~ msgstr "Farebný profil má neplatnú dĺžku %d."
+
 #~ msgid ""
 #~ "JPEG quality must be a value between 0 and 100; value '%d' is not allowed."
 #~ msgstr "Kvalita JPEG musí byť medzi 0 a 100, hodnota '%d' nie je povolená."
@@ -4983,9 +4988,6 @@ msgstr "Vytlačiť na skúšobnej tlačiarni"
 #~ msgid "Keys for PNG text chunks must be ASCII characters."
 #~ msgstr "Kľúče pre kusy PNG textu musia byť znaky ASCII."
 
-#~ msgid "Color profile has invalid length %d."
-#~ msgstr "Farebný profil má neplatnú dĺžku %d."
-
 #~ msgid ""
 #~ "PNG compression level must be a value between 0 and 9; value '%s' could "
 #~ "not be parsed."
@@ -5003,8 +5005,8 @@ msgstr "Vytlačiť na skúšobnej tlačiarni"
 #~ msgid ""
 #~ "Value for PNG text chunk %s cannot be converted to ISO-8859-1 encoding."
 #~ msgstr ""
-#~ "Hodnotu pre kus PNG textu %s nie je možné previesť do kódovania "
-#~ "ISO-8859-1."
+#~ "Hodnotu pre kus PNG textu %s nie je možné previesť do kódovania ISO-8859-"
+#~ "1."
 
 #~ msgid "The PNG image format"
 #~ msgstr "Formát obrázkov PNG"
@@ -5178,9 +5180,6 @@ msgstr "Vytlačiť na skúšobnej tlačiarni"
 
 #~ msgid "TIFF compression doesn't refer to a valid codec."
 #~ msgstr "TIFF kompresia neodkazuje na platný kodek."
-
-#~ msgid "Failed to write TIFF data"
-#~ msgstr "Nepodarilo sa zapísať dáta obrázku TIFF"
 
 #~ msgid "Couldn't write to TIFF file"
 #~ msgstr "Nepodarilo sa zapísať súbor TIFF"

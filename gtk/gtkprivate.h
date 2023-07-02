@@ -31,6 +31,10 @@
 
 #include "gtksettings.h"
 
+#include "gtkcsstypesprivate.h"
+
+#include "gtkcsstypesprivate.h"
+
 G_BEGIN_DECLS
 
 

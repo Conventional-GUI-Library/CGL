@@ -835,10 +835,10 @@ gtk_frame_real_compute_child_allocation (GtkFrame      *frame,
 
   child_allocation->x = border_width + padding.left;
   child_allocation->y = border_width + top_margin;
-  child_allocation->width = MAX (1, (gint) allocation.width - (border_width * 2) -
-                                 padding.left - padding.right);
-  child_allocation->height = MAX (1, ((gint) allocation.height - child_allocation->y -
-                                      border_width - padding.bottom));
+  child_allocation->width = MAX (1, (gint) (allocation.width - (border_width * 2) -
+					    padding.left - padding.right));
+  child_allocation->height = MAX (1, (gint) (allocation.height - child_allocation->y -
+					     border_width - padding.bottom));
 
   child_allocation->x += allocation.x;
   child_allocation->y += allocation.y;
@@ -859,6 +859,9 @@ gtk_frame_get_preferred_size (GtkWidget      *request,
   gint child_min, child_nat;
   gint minimum, natural;
   guint border_width;
+
+  get_padding_and_border (frame, &padding);
+  border_width = gtk_container_get_border_width (GTK_CONTAINER (widget));
 
   if (priv->label_widget && gtk_widget_get_visible (priv->label_widget))
     {
@@ -901,9 +904,6 @@ gtk_frame_get_preferred_size (GtkWidget      *request,
           natural += child_nat;
         }
     }
-
-  get_padding_and_border (frame, &padding);
-  border_width = gtk_container_get_border_width (GTK_CONTAINER (widget));
 
   if (orientation == GTK_ORIENTATION_HORIZONTAL)
     {

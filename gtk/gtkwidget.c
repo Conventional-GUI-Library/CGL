@@ -624,6 +624,8 @@ static void             gtk_widget_real_get_width_for_height    (GtkWidget      
                                                                  gint              height,
                                                                  gint             *minimum_width,
                                                                  gint             *natural_width);
+static void             gtk_widget_real_state_flags_changed     (GtkWidget        *widget,
+                                                                 GtkStateFlags     old_state);
 static const GtkWidgetAuxInfo* _gtk_widget_get_aux_info_or_defaults (GtkWidget *widget);
 static GtkWidgetAuxInfo* gtk_widget_get_aux_info                (GtkWidget        *widget,
                                                                  gboolean          create);
@@ -885,6 +887,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
   klass->get_preferred_width_for_height = gtk_widget_real_get_width_for_height;
   klass->get_preferred_height_for_width = gtk_widget_real_get_height_for_width;
   klass->state_changed = NULL;
+  klass->state_flags_changed = gtk_widget_real_state_flags_changed;
   klass->parent_set = NULL;
   klass->hierarchy_changed = NULL;
   klass->style_set = gtk_widget_real_style_set;
@@ -3783,6 +3786,9 @@ gtk_widget_unparent (GtkWidget *widget)
       gtk_widget_queue_compute_expand (old_parent);
     }
 
+  /* Unset window-unfocused since we are no longer inside a toplevel window */
+  gtk_widget_unset_state_flags (widget, GTK_STATE_FLAG_WINDOW_UNFOCUSED);
+
   g_signal_emit (widget, widget_signals[PARENT_SET], 0, old_parent);
   if (toplevel)
     {
@@ -6464,10 +6470,15 @@ gtk_widget_real_grab_focus (GtkWidget *focus_widget)
 
 	  if (widget)
 	    {
-	      while (widget->priv->parent && widget->priv->parent != focus_widget->priv->parent)
+	      GtkWidget *common_ancestor = gtk_widget_common_ancestor (widget, focus_widget);
+
+	      if (widget != common_ancestor)
 		{
-		  widget = widget->priv->parent;
-		  gtk_container_set_focus_child (GTK_CONTAINER (widget), NULL);
+		  while (widget->priv->parent && widget->priv->parent != common_ancestor)
+		    {
+		      widget = widget->priv->parent;
+		      gtk_container_set_focus_child (GTK_CONTAINER (widget), NULL);
+		    }
 		}
 	    }
 	}
@@ -6516,6 +6527,13 @@ gtk_widget_real_query_tooltip (GtkWidget  *widget,
     }
 
   return FALSE;
+}
+
+static void
+gtk_widget_real_state_flags_changed (GtkWidget     *widget,
+                                     GtkStateFlags  old_state)
+{
+  gtk_widget_update_pango_context (widget);
 }
 
 static void
@@ -7647,7 +7665,6 @@ gtk_widget_set_sensitive (GtkWidget *widget,
 			  gboolean   sensitive)
 {
   GtkWidgetPrivate *priv;
-  GtkStateData data;
 
   g_return_if_fail (GTK_IS_WIDGET (widget));
 
@@ -7658,24 +7675,30 @@ gtk_widget_set_sensitive (GtkWidget *widget,
   if (priv->sensitive == sensitive)
     return;
 
-  data.flags = GTK_STATE_FLAG_INSENSITIVE;
-
-  if (sensitive)
+  if (priv->parent == NULL
+      || gtk_widget_is_sensitive (priv->parent))
     {
-      priv->sensitive = TRUE;
-      data.operation = STATE_CHANGE_UNSET;
+      GtkStateData data;
+
+      data.flags = GTK_STATE_FLAG_INSENSITIVE;
+
+      if (sensitive)
+        {
+          priv->sensitive = TRUE;
+          data.operation = STATE_CHANGE_UNSET;
+        }
+      else
+        {
+          priv->sensitive = FALSE;
+          data.operation = STATE_CHANGE_SET;
+        }
+
+      data.use_forall = TRUE;
+
+      gtk_widget_propagate_state (widget, &data);
+
+      gtk_widget_queue_resize (widget);
     }
-  else
-    {
-      priv->sensitive = FALSE;
-      data.operation = STATE_CHANGE_SET;
-    }
-
-  data.use_forall = TRUE;
-
-  gtk_widget_propagate_state (widget, &data);
-
-  gtk_widget_queue_resize (widget);
 
   g_object_notify (G_OBJECT (widget), "sensitive");
 }
@@ -11279,7 +11302,8 @@ gtk_widget_propagate_state (GtkWidget    *widget,
       g_signal_emit (widget, widget_signals[STATE_CHANGED], 0, old_state);
       g_signal_emit (widget, widget_signals[STATE_FLAGS_CHANGED], 0, old_flags);
 
-      if (!priv->shadowed)
+      if (!priv->shadowed &&
+          (new_flags & GTK_STATE_FLAG_INSENSITIVE) != (old_flags & GTK_STATE_FLAG_INSENSITIVE))
         {
           GList *event_windows = NULL;
           GList *devices, *d;
@@ -11304,7 +11328,7 @@ gtk_widget_propagate_state (GtkWidget    *widget,
               if (!gtk_widget_is_sensitive (widget))
                 _gtk_widget_synthesize_crossing (widget, NULL, d->data,
                                                  GDK_CROSSING_STATE_CHANGED);
-              else if (old_flags & GTK_STATE_FLAG_INSENSITIVE)
+              else
                 _gtk_widget_synthesize_crossing (NULL, widget, d->data,
                                                  GDK_CROSSING_STATE_CHANGED);
 

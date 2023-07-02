@@ -545,7 +545,7 @@ msgstr "Графический дизайн"
 #. * translated on keyboards used for your language, don't translate
 #. * this.
 #.
-#: ../gtk/gtkaccellabel.c:158
+#: ../gtk/gtkaccellabel.c:170
 msgctxt "keyboard label"
 msgid "Shift"
 msgstr "Shift"
@@ -4511,17 +4511,17 @@ msgstr "Командная строка"
 #. SUN_BRANDING
 #: ../modules/printbackends/papi/gtkprintbackendpapi.c:811
 msgid "printer offline"
-msgstr "Принтер недоступен"
+msgstr "принтер выключен"
 
 #. SUN_BRANDING
 #: ../modules/printbackends/papi/gtkprintbackendpapi.c:829
 msgid "ready to print"
-msgstr "Готов к печати"
+msgstr "готов к печати"
 
 #. SUN_BRANDING
 #: ../modules/printbackends/papi/gtkprintbackendpapi.c:832
 msgid "processing job"
-msgstr "обработка печати"
+msgstr "обработка задания"
 
 #. SUN_BRANDING
 #: ../modules/printbackends/papi/gtkprintbackendpapi.c:836

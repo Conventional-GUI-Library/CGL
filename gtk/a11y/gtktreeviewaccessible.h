@@ -39,14 +39,8 @@ struct _GtkTreeViewAccessible
 {
   GtkContainerAccessible parent;
 
-  gint           n_children_deleted;
   GHashTable    *cell_infos;
-  GtkTreeModel  *tree_model;
   AtkObject     *focus_cell;
-  GtkAdjustment *old_hadj;
-  GtkAdjustment *old_vadj;
-  guint          idle_expand_id;
-  GtkTreePath   *idle_expand_path;
 };
 
 struct _GtkTreeViewAccessibleClass
@@ -57,9 +51,17 @@ struct _GtkTreeViewAccessibleClass
 GType _gtk_tree_view_accessible_get_type (void);
 
 /* called by treeview code */
+void            _gtk_tree_view_accessible_reorder       (GtkTreeView       *treeview);
+void            _gtk_tree_view_accessible_add           (GtkTreeView       *treeview,
+                                                         GtkRBTree         *tree,
+                                                         GtkRBNode         *node);
 void            _gtk_tree_view_accessible_remove        (GtkTreeView       *treeview,
                                                          GtkRBTree         *tree,
                                                          GtkRBNode         *node);
+void            _gtk_tree_view_accessible_changed       (GtkTreeView       *treeview,
+                                                         GtkRBTree         *tree,
+                                                         GtkRBNode         *node);
+
 
 void            _gtk_tree_view_accessible_add_column    (GtkTreeView       *treeview,
                                                          GtkTreeViewColumn *column,
@@ -72,6 +74,15 @@ void            _gtk_tree_view_accessible_reorder_column(GtkTreeView       *tree
 void            _gtk_tree_view_accessible_toggle_visibility
                                                         (GtkTreeView       *treeview,
                                                          GtkTreeViewColumn *column);
+
+void            _gtk_tree_view_accessible_add_state     (GtkTreeView       *treeview,
+                                                         GtkRBTree         *tree,
+                                                         GtkRBNode         *node,
+                                                         GtkCellRendererState state);
+void            _gtk_tree_view_accessible_remove_state  (GtkTreeView       *treeview,
+                                                         GtkRBTree         *tree,
+                                                         GtkRBNode         *node,
+                                                         GtkCellRendererState state);
 
 G_END_DECLS
 

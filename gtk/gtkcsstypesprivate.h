@@ -31,11 +31,17 @@ typedef enum {
 } GtkCssBackgroundRepeatStyle;
 
 typedef enum {
-  GTK_CSS_REPEAT_STYLE_NONE,
+  GTK_CSS_REPEAT_STYLE_STRETCH,
   GTK_CSS_REPEAT_STYLE_REPEAT,
   GTK_CSS_REPEAT_STYLE_ROUND,
   GTK_CSS_REPEAT_STYLE_SPACE
 } GtkCssBorderRepeatStyle;
+
+typedef enum {
+  GTK_CSS_AREA_BORDER_BOX,
+  GTK_CSS_AREA_PADDING_BOX,
+  GTK_CSS_AREA_CONTENT_BOX
+} GtkCssArea;
 
 typedef struct _GtkCssBackgroundRepeat GtkCssBackgroundRepeat;
 

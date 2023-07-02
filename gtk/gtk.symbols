@@ -2276,6 +2276,7 @@ gtk_render_frame_gap
 gtk_render_handle
 gtk_render_icon
 gtk_render_icon_pixbuf
+gtk_render_insertion_cursor
 gtk_render_layout
 gtk_render_line
 gtk_render_option
@@ -2301,6 +2302,7 @@ gtk_scale_button_set_value
 gtk_scale_clear_marks
 gtk_scale_get_digits
 gtk_scale_get_draw_value
+gtk_scale_get_has_origin
 gtk_scale_get_layout
 gtk_scale_get_layout_offsets
 gtk_scale_get_type
@@ -2309,6 +2311,7 @@ gtk_scale_new
 gtk_scale_new_with_range
 gtk_scale_set_digits
 gtk_scale_set_draw_value
+gtk_scale_set_has_origin
 gtk_scale_set_value_pos
 gtk_scrollable_get_hadjustment
 gtk_scrollable_get_hscroll_policy
@@ -3772,6 +3775,7 @@ gtk_window_get_focus_visible
 gtk_window_get_gravity
 gtk_window_get_group
 gtk_window_get_has_resize_grip
+gtk_window_get_hide_titlebar_when_maximized
 gtk_window_get_icon
 gtk_window_get_icon_list
 gtk_window_get_icon_name
@@ -3840,6 +3844,7 @@ gtk_window_set_geometry_hints
 gtk_window_set_gravity
 gtk_window_set_has_resize_grip
 gtk_window_set_has_user_ref_count
+gtk_window_set_hide_titlebar_when_maximized
 gtk_window_set_icon
 gtk_window_set_icon_from_file
 gtk_window_set_icon_list

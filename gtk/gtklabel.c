@@ -383,8 +383,8 @@ static void gtk_label_finalize          (GObject          *object);
 static void gtk_label_destroy           (GtkWidget        *widget);
 static void gtk_label_size_allocate     (GtkWidget        *widget,
                                          GtkAllocation    *allocation);
-static void gtk_label_state_changed     (GtkWidget        *widget,
-                                         GtkStateType      state);
+static void gtk_label_state_flags_changed   (GtkWidget        *widget,
+                                             GtkStateFlags     prev_state);
 static void gtk_label_style_updated     (GtkWidget        *widget);
 static void gtk_label_direction_changed (GtkWidget        *widget,
 					 GtkTextDirection  previous_dir);
@@ -569,7 +569,7 @@ gtk_label_class_init (GtkLabelClass *class)
 
   widget_class->destroy = gtk_label_destroy;
   widget_class->size_allocate = gtk_label_size_allocate;
-  widget_class->state_changed = gtk_label_state_changed;
+  widget_class->state_flags_changed = gtk_label_state_flags_changed;
   widget_class->style_updated = gtk_label_style_updated;
   widget_class->query_tooltip = gtk_label_query_tooltip;
   widget_class->direction_changed = gtk_label_direction_changed;
@@ -3836,8 +3836,8 @@ gtk_label_update_cursor (GtkLabel *label)
 }
 
 static void
-gtk_label_state_changed (GtkWidget   *widget,
-                         GtkStateType prev_state)
+gtk_label_state_flags_changed (GtkWidget     *widget,
+                               GtkStateFlags  prev_state)
 {
   GtkLabel *label = GTK_LABEL (widget);
   GtkLabelPrivate *priv = label->priv;
@@ -3850,8 +3850,11 @@ gtk_label_state_changed (GtkWidget   *widget,
       gtk_label_update_cursor (label);
     }
 
-  if (GTK_WIDGET_CLASS (gtk_label_parent_class)->state_changed)
-    GTK_WIDGET_CLASS (gtk_label_parent_class)->state_changed (widget, prev_state);
+  /* We have to clear the layout, fonts etc. may have changed */
+  gtk_label_clear_layout (label);
+
+  if (GTK_WIDGET_CLASS (gtk_label_parent_class)->state_flags_changed)
+    GTK_WIDGET_CLASS (gtk_label_parent_class)->state_flags_changed (widget, prev_state);
 }
 
 static void
@@ -3950,26 +3953,6 @@ get_layout_location (GtkLabel  *label,
     *yp = y;
 }
 
-static void
-draw_insertion_cursor (GtkLabel      *label,
-                       cairo_t       *cr,
-		       GdkRectangle  *cursor_location,
-		       gboolean       is_primary,
-		       PangoDirection direction,
-		       gboolean       draw_arrow)
-{
-  GtkWidget *widget = GTK_WIDGET (label);
-  GtkTextDirection text_dir;
-
-  if (direction == PANGO_DIRECTION_LTR)
-    text_dir = GTK_TEXT_DIR_LTR;
-  else
-    text_dir = GTK_TEXT_DIR_RTL;
-
-  gtk_draw_insertion_cursor (widget, cr, cursor_location,
-			     is_primary, text_dir, draw_arrow);
-}
-
 static PangoDirection
 get_cursor_direction (GtkLabel *label)
 {
@@ -3996,85 +3979,6 @@ get_cursor_direction (GtkLabel *label)
     }
 
   return PANGO_DIRECTION_LTR;
-}
-
-static void
-gtk_label_draw_cursor (GtkLabel  *label, cairo_t *cr, gint xoffset, gint yoffset)
-{
-  GtkLabelPrivate *priv = label->priv;
-  GtkWidget *widget;
-
-  if (priv->select_info == NULL)
-    return;
-
-  widget = GTK_WIDGET (label);
-  
-  if (gtk_widget_is_drawable (widget))
-    {
-      PangoDirection keymap_direction;
-      PangoDirection cursor_direction;
-      PangoRectangle strong_pos, weak_pos;
-      gboolean split_cursor;
-      PangoRectangle *cursor1 = NULL;
-      PangoRectangle *cursor2 = NULL;
-      GdkRectangle cursor_location;
-      PangoDirection dir1 = PANGO_DIRECTION_NEUTRAL;
-      PangoDirection dir2 = PANGO_DIRECTION_NEUTRAL;
-
-      keymap_direction = gdk_keymap_get_direction (gdk_keymap_get_for_display (gtk_widget_get_display (widget)));
-      cursor_direction = get_cursor_direction (label);
-
-      gtk_label_ensure_layout (label);
-      
-      pango_layout_get_cursor_pos (priv->layout, priv->select_info->selection_end,
-				   &strong_pos, &weak_pos);
-
-      g_object_get (gtk_widget_get_settings (widget),
-		    "gtk-split-cursor", &split_cursor,
-		    NULL);
-
-      dir1 = cursor_direction;
-      
-      if (split_cursor)
-	{
-	  cursor1 = &strong_pos;
-
-	  if (strong_pos.x != weak_pos.x ||
-	      strong_pos.y != weak_pos.y)
-	    {
-	      dir2 = (cursor_direction == PANGO_DIRECTION_LTR) ? PANGO_DIRECTION_RTL : PANGO_DIRECTION_LTR;
-	      cursor2 = &weak_pos;
-	    }
-	}
-      else
-	{
-	  if (keymap_direction == cursor_direction)
-	    cursor1 = &strong_pos;
-	  else
-	    cursor1 = &weak_pos;
-	}
-      
-      cursor_location.x = xoffset + PANGO_PIXELS (cursor1->x);
-      cursor_location.y = yoffset + PANGO_PIXELS (cursor1->y);
-      cursor_location.width = 0;
-      cursor_location.height = PANGO_PIXELS (cursor1->height);
-
-      draw_insertion_cursor (label, cr,
-			     &cursor_location, TRUE, dir1,
-			     dir2 != PANGO_DIRECTION_NEUTRAL);
-      
-      if (dir2 != PANGO_DIRECTION_NEUTRAL)
-	{
-	  cursor_location.x = xoffset + PANGO_PIXELS (cursor2->x);
-	  cursor_location.y = yoffset + PANGO_PIXELS (cursor2->y);
-	  cursor_location.width = 0;
-	  cursor_location.height = PANGO_PIXELS (cursor2->height);
-
-	  draw_insertion_cursor (label, cr,
-				 &cursor_location, FALSE, dir2,
-				 TRUE);
-	}
-    }
 }
 
 static GtkLabelLink *
@@ -4188,8 +4092,18 @@ gtk_label_draw (GtkWidget *widget,
           GdkColor *link_color;
           GdkColor *visited_link_color;
 
-          if (info->selectable && gtk_widget_has_focus (widget))
-            gtk_label_draw_cursor (label, cr, x, y);
+          if (info->selectable &&
+              gtk_widget_has_focus (widget) &&
+              gtk_widget_is_drawable (widget))
+            {
+              PangoDirection cursor_direction;
+
+              cursor_direction = get_cursor_direction (label);
+              gtk_render_insertion_cursor (context, cr,
+                                           x, y,
+                                           priv->layout, priv->select_info->selection_end,
+                                           cursor_direction);
+            }
 
           focus_link = gtk_label_get_focus_link (label);
           active_link = info->active_link;

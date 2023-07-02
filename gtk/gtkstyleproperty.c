@@ -32,6 +32,7 @@
 #include "gtkcssprovider.h"
 #include "gtkcssparserprivate.h"
 #include "gtkcsstypesprivate.h"
+#include "gtkprivatetypebuiltins.h"
 
 /* the actual parsers we have */
 #include "gtkanimationdescription.h"
@@ -113,6 +114,47 @@ string_append_string (GString    *str,
 /*** IMPLEMENTATIONS ***/
 
 static gboolean 
+enum_parse (GtkCssParser *parser,
+	    GType         type,
+	    int          *res)
+{
+  char *str;
+
+  if (_gtk_css_parser_try_enum (parser, type, res))
+    return TRUE;
+
+  str = _gtk_css_parser_try_ident (parser, TRUE);
+  if (str == NULL)
+    {
+      _gtk_css_parser_error (parser, "Expected an identifier");
+      return FALSE;
+    }
+
+  _gtk_css_parser_error (parser,
+			 "Unknown value '%s' for enum type '%s'",
+			 str, g_type_name (type));
+  g_free (str);
+
+  return FALSE;
+}
+
+static void
+enum_print (int         value,
+	    GType       type,
+	    GString    *string)
+{
+  GEnumClass *enum_class;
+  GEnumValue *enum_value;
+
+  enum_class = g_type_class_ref (type);
+  enum_value = g_enum_get_value (enum_class, value);
+
+  g_string_append (string, enum_value->value_nick);
+
+  g_type_class_unref (enum_class);
+}
+
+static gboolean
 rgba_value_parse (GtkCssParser *parser,
                   GFile        *base,
                   GValue       *value)
@@ -1164,34 +1206,16 @@ background_repeat_value_parse (GtkCssParser *parser,
                                GValue *value)
 {
   GtkCssBackgroundRepeat repeat;
-  GtkCssBackgroundRepeatStyle style;
+  int style;
 
-  if (_gtk_css_parser_try (parser, "repeat", TRUE))
-    style = GTK_CSS_BACKGROUND_REPEAT_STYLE_REPEAT;
-  else if (_gtk_css_parser_try (parser, "no-repeat", TRUE))
-    style = GTK_CSS_BACKGROUND_REPEAT_STYLE_NO_REPEAT;
-  else
-    style = GTK_CSS_BACKGROUND_REPEAT_STYLE_NONE;
+  if (!enum_parse (parser, GTK_TYPE_CSS_BACKGROUND_REPEAT_STYLE, &style))
+    return FALSE;
 
   repeat.repeat = style;
 
   g_value_set_boxed (value, &repeat);
 
   return TRUE;
-}
-
-static const gchar *
-background_repeat_style_to_string (GtkCssBackgroundRepeatStyle repeat)
-{
-  switch (repeat)
-    {
-    case GTK_CSS_BACKGROUND_REPEAT_STYLE_REPEAT:
-      return "repeat";
-    case GTK_CSS_BACKGROUND_REPEAT_STYLE_NO_REPEAT:
-      return "no-repeat";
-    default:
-      return NULL;
-    }
 }
 
 static void
@@ -1202,7 +1226,7 @@ background_repeat_value_print (const GValue *value,
 
   repeat = g_value_get_boxed (value);
 
-  g_string_append (string, background_repeat_style_to_string (repeat->repeat));
+  enum_print (repeat->repeat, GTK_TYPE_CSS_BACKGROUND_REPEAT_STYLE, string);
 }
 
 static gboolean
@@ -1212,21 +1236,15 @@ border_image_repeat_value_parse (GtkCssParser *parser,
 {
   GtkCssBorderImageRepeat image_repeat;
   GtkCssBorderRepeatStyle styles[2];
-  gint i;
+  gint i, v;
 
   for (i = 0; i < 2; i++)
     {
-      if (_gtk_css_parser_try (parser, "stretch", TRUE))
-        styles[i] = GTK_CSS_REPEAT_STYLE_NONE;
-      else if (_gtk_css_parser_try (parser, "repeat", TRUE))
-        styles[i] = GTK_CSS_REPEAT_STYLE_REPEAT;
-      else if (_gtk_css_parser_try (parser, "round", TRUE))
-        styles[i] = GTK_CSS_REPEAT_STYLE_ROUND;
-      else if (_gtk_css_parser_try (parser, "space", TRUE))
-        styles[i] = GTK_CSS_REPEAT_STYLE_SPACE;
+      if (_gtk_css_parser_try_enum (parser, GTK_TYPE_CSS_BORDER_REPEAT_STYLE, &v))
+        styles[i] = v;
       else if (i == 0)
         {
-          styles[1] = styles[0] = GTK_CSS_REPEAT_STYLE_NONE;
+          styles[1] = styles[0] = GTK_CSS_REPEAT_STYLE_STRETCH;
           break;
         }
       else
@@ -1241,24 +1259,6 @@ border_image_repeat_value_parse (GtkCssParser *parser,
   return TRUE;
 }
 
-static const gchar *
-border_image_repeat_style_to_string (GtkCssBorderRepeatStyle repeat)
-{
-  switch (repeat)
-    {
-    case GTK_CSS_REPEAT_STYLE_NONE:
-      return "stretch";
-    case GTK_CSS_REPEAT_STYLE_REPEAT:
-      return "repeat";
-    case GTK_CSS_REPEAT_STYLE_ROUND:
-      return "round";
-    case GTK_CSS_REPEAT_STYLE_SPACE:
-      return "space";
-    default:
-      return NULL;
-    }
-}
-
 static void
 border_image_repeat_value_print (const GValue *value,
                                  GString      *string)
@@ -1267,11 +1267,11 @@ border_image_repeat_value_print (const GValue *value,
 
   image_repeat = g_value_get_boxed (value);
 
-  g_string_append (string, border_image_repeat_style_to_string (image_repeat->hrepeat));
+  enum_print (image_repeat->hrepeat, GTK_TYPE_CSS_BORDER_REPEAT_STYLE, string);
   if (image_repeat->hrepeat != image_repeat->vrepeat)
     {
       g_string_append (string, " ");
-      g_string_append (string, border_image_repeat_style_to_string (image_repeat->vrepeat));
+      enum_print (image_repeat->vrepeat, GTK_TYPE_CSS_BORDER_REPEAT_STYLE, string);
     }
 }
 
@@ -1360,46 +1360,22 @@ enum_value_parse (GtkCssParser *parser,
                   GFile        *base,
                   GValue       *value)
 {
-  GEnumClass *enum_class;
-  GEnumValue *enum_value;
-  char *str;
+  int v;
 
-  str = _gtk_css_parser_try_ident (parser, TRUE);
-  if (str == NULL)
+  if (enum_parse (parser, G_VALUE_TYPE (value), &v))
     {
-      _gtk_css_parser_error (parser, "Expected an identifier");
-      return FALSE;
+      g_value_set_enum (value, v);
+      return TRUE;
     }
 
-  enum_class = g_type_class_ref (G_VALUE_TYPE (value));
-  enum_value = g_enum_get_value_by_nick (enum_class, str);
-
-  if (enum_value)
-    g_value_set_enum (value, enum_value->value);
-  else
-    _gtk_css_parser_error (parser,
-                           "Unknown value '%s' for enum type '%s'",
-                           str, g_type_name (G_VALUE_TYPE (value)));
-  
-  g_type_class_unref (enum_class);
-  g_free (str);
-
-  return enum_value != NULL;
+  return FALSE;
 }
 
 static void
 enum_value_print (const GValue *value,
                   GString      *string)
 {
-  GEnumClass *enum_class;
-  GEnumValue *enum_value;
-
-  enum_class = g_type_class_ref (G_VALUE_TYPE (value));
-  enum_value = g_enum_get_value (enum_class, g_value_get_enum (value));
-
-  g_string_append (string, enum_value->value_nick);
-
-  g_type_class_unref (enum_class);
+  enum_print (g_value_get_enum (value), G_VALUE_TYPE (value), string);
 }
 
 static gboolean 
@@ -2969,6 +2945,18 @@ gtk_style_property_init (void)
                                                              "Border style",
                                                              GTK_TYPE_BORDER_STYLE,
                                                              GTK_BORDER_STYLE_NONE, 0));
+  gtk_style_properties_register_property (NULL,
+                                          g_param_spec_enum ("background-clip",
+                                                             "Background clip",
+                                                             "Background clip",
+                                                             GTK_TYPE_CSS_AREA,
+                                                             GTK_CSS_AREA_BORDER_BOX, 0));
+  gtk_style_properties_register_property (NULL,
+                                          g_param_spec_enum ("background-origin",
+                                                             "Background origin",
+                                                             "Background origin",
+                                                             GTK_TYPE_CSS_AREA,
+                                                             GTK_CSS_AREA_PADDING_BOX, 0));
   _gtk_style_property_register           (g_param_spec_boxed ("border-top-color",
                                                               "Border top color",
                                                               "Border top color",

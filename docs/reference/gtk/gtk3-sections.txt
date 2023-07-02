@@ -76,6 +76,9 @@ gtk_accelerator_valid
 gtk_accelerator_parse
 gtk_accelerator_name
 gtk_accelerator_get_label
+gtk_accelerator_parse_with_keycode
+gtk_accelerator_name_with_keycode
+gtk_accelerator_get_label_with_keycode
 gtk_accelerator_set_default_mod_mask
 gtk_accelerator_get_default_mod_mask
 
@@ -2820,9 +2823,11 @@ gtk_scale_new
 gtk_scale_new_with_range
 gtk_scale_set_digits
 gtk_scale_set_draw_value
+gtk_scale_set_has_origin
 gtk_scale_set_value_pos
 gtk_scale_get_digits
 gtk_scale_get_draw_value
+gtk_scale_get_has_origin
 gtk_scale_get_value_pos
 gtk_scale_get_layout
 gtk_scale_get_layout_offsets
@@ -5658,6 +5663,8 @@ GTK_STYLE_CLASS_TOP
 GTK_STYLE_CLASS_BOTTOM
 GTK_STYLE_CLASS_LEFT
 GTK_STYLE_CLASS_RIGHT
+GTK_STYLE_CLASS_LINKED
+GTK_STYLE_CLASS_ARROW
 GTK_STYLE_REGION_COLUMN
 GTK_STYLE_REGION_COLUMN_HEADER
 GTK_STYLE_REGION_ROW
@@ -5737,6 +5744,7 @@ gtk_render_slider
 gtk_render_activity
 gtk_render_icon_pixbuf
 gtk_render_icon
+gtk_render_insertion_cursor
 
 <SUBSECTION Standard>
 GTK_TYPE_STYLE_CONTEXT
@@ -5841,6 +5849,7 @@ gtk_symbolic_color_new_name
 gtk_symbolic_color_new_shade
 gtk_symbolic_color_new_alpha
 gtk_symbolic_color_new_mix
+gtk_symbolic_color_new_win32
 gtk_symbolic_color_ref
 gtk_symbolic_color_unref
 gtk_symbolic_color_resolve

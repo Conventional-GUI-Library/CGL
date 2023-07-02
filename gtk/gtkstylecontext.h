@@ -389,6 +389,14 @@ struct _GtkStyleContextClass
 #define GTK_STYLE_CLASS_RAISED "raised"
 
 /**
+ * GTK_STYLE_CLASS_LINKED:
+ *
+ * A CSS class to match a linked area, such as a box containing buttons
+ * belonging to the same control.
+ */
+#define GTK_STYLE_CLASS_LINKED "linked"
+
+/**
  * GTK_STYLE_CLASS_GRIP:
  *
  * A CSS class defining a resize grip.
@@ -678,6 +686,16 @@ struct _GtkStyleContextClass
  */
 #define GTK_STYLE_CLASS_PULSE "pulse"
 
+/**
+ * GTK_STYLE_CLASS_ARROW:
+ *
+ * A CSS class used when rendering an arrow element.
+ *
+ * Note that #gtk_render_arrow automatically adds this style class
+ * to the style context when rendering an arrow element.
+ */
+#define GTK_STYLE_CLASS_ARROW "arrow"
+
 
 GType gtk_style_context_get_type (void) G_GNUC_CONST;
 
@@ -914,7 +932,22 @@ void        gtk_render_icon        (GtkStyleContext     *context,
 				    GdkPixbuf           *pixbuf,
                                     gdouble              x,
                                     gdouble              y);
+void        gtk_render_insertion_cursor
+                                   (GtkStyleContext     *context,
+                                    cairo_t             *cr,
+                                    gdouble              x,
+                                    gdouble              y,
+                                    PangoLayout         *layout,
+                                    int                  index,
+                                    PangoDirection       direction);
 
+void   gtk_draw_insertion_cursor    (GtkWidget          *widget,
+                                     cairo_t            *cr,
+                                     const GdkRectangle *location,
+                                     gboolean            is_primary,
+                                     GtkTextDirection    direction,
+                                     gboolean            draw_arrow);
+                                     
 /* Accessibility support */
 AtkAttributeSet *_gtk_style_context_get_attributes (AtkAttributeSet *attributes,
                                                     GtkStyleContext *context,
