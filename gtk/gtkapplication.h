@@ -59,8 +59,12 @@ struct _GtkApplicationClass
   void (*window_removed) (GtkApplication *application,
                           GtkWindow      *window);
 
+  void (*quit_requested) (GtkApplication *application);
+  void (*quit_cancelled) (GtkApplication *application);
+  void (*quit)           (GtkApplication *application);
+
   /*< private >*/
-  gpointer padding[14];
+  gpointer padding[11];
 };
 
 GType            gtk_application_get_type      (void) G_GNUC_CONST;
@@ -90,6 +94,37 @@ void             gtk_application_add_accelerator    (GtkApplication  *applicatio
 void             gtk_application_remove_accelerator (GtkApplication *application,
                                                      const gchar    *action_name,
                                                      GVariant       *parameter);
+
+void             gtk_application_quit_response      (GtkApplication *application,
+                                                     gboolean        will_quit,
+                                                     const gchar    *reason);
+
+typedef enum
+{
+  GTK_APPLICATION_INHIBIT_LOGOUT  = (1 << 0),
+  GTK_APPLICATION_INHIBIT_SWITCH  = (1 << 1),
+  GTK_APPLICATION_INHIBIT_SUSPEND = (1 << 2),
+  GTK_APPLICATION_INHIBIT_IDLE    = (1 << 3)
+} GtkApplicationInhibitFlags;
+
+guint            gtk_application_inhibit            (GtkApplication             *application,
+                                                     GtkWindow                  *window,
+                                                     GtkApplicationInhibitFlags  flags,
+                                                     const gchar                *reason);
+void             gtk_application_uninhibit          (GtkApplication             *application,
+                                                     guint                       cookie);
+gboolean         gtk_application_is_inhibited       (GtkApplication             *application,
+                                                     GtkApplicationInhibitFlags  flags);
+
+typedef enum {
+  GTK_APPLICATION_LOGOUT,
+  GTK_APPLICATION_REBOOT,
+  GTK_APPLICATION_SHUTDOWN
+} GtkApplicationEndStyle;
+
+gboolean         gtk_application_end_session        (GtkApplication             *application,
+                                                     GtkApplicationEndStyle      style,
+                                                     gboolean                    request_confirmation);
 
 G_END_DECLS
 

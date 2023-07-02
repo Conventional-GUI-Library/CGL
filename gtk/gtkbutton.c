@@ -58,7 +58,8 @@
 #include "gtkprivate.h"
 #include "gtkintl.h"
 #include "a11y/gtkbuttonaccessible.h"
-
+#include "gtkapplicationprivate.h"
+#include "gtkactionable.h"
 
 static const GtkBorder default_default_border = { 1, 1, 1, 1 };
 static const GtkBorder default_default_outside_border = { 0, 0, 0, 0 };
@@ -91,6 +92,8 @@ enum {
   PROP_XALIGN,
   PROP_YALIGN,
   PROP_IMAGE_POSITION,
+  PROP_ACTION_NAME,
+  PROP_ACTION_TARGET,
 
   /* activatable properties */
   PROP_ACTIVATABLE_RELATED_ACTION,
@@ -148,8 +151,11 @@ static void gtk_button_state_changed   (GtkWidget             *widget,
 					GtkStateType           previous_state);
 static void gtk_button_grab_notify     (GtkWidget             *widget,
 					gboolean               was_grabbed);
+static void gtk_button_hierarchy_changed (GtkWidget           *widget,
+                                          GtkWidget           *previous_toplevel);
 
 
+static void gtk_button_actionable_iface_init     (GtkActionableInterface *iface);
 static void gtk_button_activatable_interface_init(GtkActivatableIface  *iface);
 static void gtk_button_update                    (GtkActivatable       *activatable,
 				                  GtkAction            *action,
@@ -171,6 +177,7 @@ static void gtk_button_get_preferred_height      (GtkWidget           *widget,
 static guint button_signals[LAST_SIGNAL] = { 0 };
 
 G_DEFINE_TYPE_WITH_CODE (GtkButton, gtk_button, GTK_TYPE_BIN,
+                         G_IMPLEMENT_INTERFACE (GTK_TYPE_ACTIONABLE, gtk_button_actionable_iface_init)
 			 G_IMPLEMENT_INTERFACE (GTK_TYPE_ACTIVATABLE,
 						gtk_button_activatable_interface_init))
 
@@ -209,6 +216,7 @@ gtk_button_class_init (GtkButtonClass *klass)
   widget_class->leave_notify_event = gtk_button_leave_notify;
   widget_class->state_changed = gtk_button_state_changed;
   widget_class->grab_notify = gtk_button_grab_notify;
+  widget_class->hierarchy_changed = gtk_button_hierarchy_changed;
 
   container_class->child_type = gtk_button_child_type;
   container_class->add = gtk_button_add;
@@ -330,6 +338,9 @@ gtk_button_class_init (GtkButtonClass *klass)
                                                       GTK_TYPE_POSITION_TYPE,
                                                       GTK_POS_LEFT,
                                                       GTK_PARAM_READWRITE));
+
+  g_object_class_override_property (gobject_class, PROP_ACTION_NAME, "action-name");
+  g_object_class_override_property (gobject_class, PROP_ACTION_TARGET, "action-target");
 
   g_object_class_override_property (gobject_class, PROP_ACTIVATABLE_RELATED_ACTION, "related-action");
   g_object_class_override_property (gobject_class, PROP_ACTIVATABLE_USE_ACTION_APPEARANCE, "use-action-appearance");
@@ -582,6 +593,12 @@ gtk_button_destroy (GtkWidget *widget)
       priv->label_text = NULL;
     }
 
+  if (priv->action_name)
+    {
+      g_free (priv->action_name);
+      priv->action_name = NULL;
+    }
+
   GTK_WIDGET_CLASS (gtk_button_parent_class)->destroy (widget);
 }
 
@@ -664,12 +681,92 @@ gtk_button_dispose (GObject *object)
   GtkButton *button = GTK_BUTTON (object);
   GtkButtonPrivate *priv = button->priv;
 
+  g_clear_object (&priv->action_observer);
+
   if (priv->action)
     {
       gtk_activatable_do_set_related_action (GTK_ACTIVATABLE (button), NULL);
       priv->action = NULL;
     }
   G_OBJECT_CLASS (gtk_button_parent_class)->dispose (object);
+}
+
+static void
+gtk_button_update_action_observer (GtkButton *button)
+{
+  GtkWidget *window;
+
+  g_signal_handlers_disconnect_by_func (button, gtk_real_button_clicked, NULL);
+
+  /* we are the only owner so this will clear all the signals */
+  g_clear_object (&button->priv->action_observer);
+
+  window = gtk_widget_get_toplevel (GTK_WIDGET (button));
+
+  if (GTK_IS_APPLICATION_WINDOW (window) && button->priv->action_name)
+    {
+      GSimpleActionObserver *observer;
+
+      observer = gtk_application_window_get_observer (GTK_APPLICATION_WINDOW (window),
+                                                      button->priv->action_name,
+                                                      button->priv->action_target);
+
+      _gtk_button_set_depressed (button, g_simple_action_observer_get_active (observer));
+
+      if (g_object_class_find_property (G_OBJECT_GET_CLASS (button), "active"))
+        g_object_bind_property (observer, "active", button, "active", G_BINDING_SYNC_CREATE);
+      g_object_bind_property (observer, "enabled", button, "sensitive", G_BINDING_SYNC_CREATE);
+
+      button->priv->action_observer = observer;
+
+      g_signal_connect_after (button, "clicked", G_CALLBACK (gtk_real_button_clicked), NULL);
+    }
+}
+
+static void
+gtk_button_set_action_name (GtkActionable *actionable,
+                            const gchar   *action_name)
+{
+  GtkButton *button = GTK_BUTTON (actionable);
+
+  g_return_if_fail (GTK_IS_BUTTON (button));
+  g_return_if_fail (button->priv->action == NULL);
+
+  if (g_strcmp0 (action_name, button->priv->action_name) != 0)
+    {
+      g_free (button->priv->action_name);
+      button->priv->action_name = g_strdup (action_name);
+
+      gtk_button_update_action_observer (button);
+
+      g_object_notify (G_OBJECT (button), "action-name");
+    }
+}
+
+static void
+gtk_button_set_action_target_value (GtkActionable *actionable,
+                                    GVariant      *action_target)
+{
+  GtkButton *button = GTK_BUTTON (actionable);
+
+  g_return_if_fail (GTK_IS_BUTTON (button));
+
+  if (action_target != button->priv->action_target &&
+      (!action_target || !button->priv->action_target ||
+       !g_variant_equal (action_target, button->priv->action_target)))
+    {
+      if (button->priv->action_target)
+        g_variant_unref (button->priv->action_target);
+
+      button->priv->action_target = NULL;
+
+      if (action_target)
+        button->priv->action_target = g_variant_ref_sink (action_target);
+
+      gtk_button_update_action_observer (button);
+
+      g_object_notify (G_OBJECT (button), "action-target");
+    }
 }
 
 static void
@@ -715,6 +812,12 @@ gtk_button_set_property (GObject         *object,
       break;
     case PROP_ACTIVATABLE_USE_ACTION_APPEARANCE:
       gtk_button_set_use_action_appearance (button, g_value_get_boolean (value));
+      break;
+    case PROP_ACTION_NAME:
+      gtk_button_set_action_name (GTK_ACTIONABLE (button), g_value_get_string (value));
+      break;
+    case PROP_ACTION_TARGET:
+      gtk_button_set_action_target_value (GTK_ACTIONABLE (button), g_value_get_variant (value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -766,10 +869,41 @@ gtk_button_get_property (GObject         *object,
     case PROP_ACTIVATABLE_USE_ACTION_APPEARANCE:
       g_value_set_boolean (value, priv->use_action_appearance);
       break;
+    case PROP_ACTION_NAME:
+      g_value_set_string (value, priv->action_name);
+      break;
+    case PROP_ACTION_TARGET:
+      g_value_set_variant (value, priv->action_target);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
+}
+
+static const gchar *
+gtk_button_get_action_name (GtkActionable *actionable)
+{
+  GtkButton *button = GTK_BUTTON (actionable);
+
+  return button->priv->action_name;
+}
+
+static GVariant *
+gtk_button_get_action_target_value (GtkActionable *actionable)
+{
+  GtkButton *button = GTK_BUTTON (actionable);
+
+  return button->priv->action_target;
+}
+
+static void
+gtk_button_actionable_iface_init (GtkActionableInterface *iface)
+{
+  iface->get_action_name = gtk_button_get_action_name;
+  iface->set_action_name = gtk_button_set_action_name;
+  iface->get_action_target_value = gtk_button_get_action_target_value;
+  iface->set_action_target_value = gtk_button_set_action_target_value;
 }
 
 static void 
@@ -905,6 +1039,8 @@ gtk_button_set_related_action (GtkButton *button,
 			       GtkAction *action)
 {
   GtkButtonPrivate *priv = button->priv;
+
+  g_return_if_fail (button->priv->action_name == NULL);
 
   if (priv->action == action)
     return;
@@ -1402,6 +1538,7 @@ gtk_button_get_props (GtkButton *button,
 		      GtkBorder *default_outside_border,
                       GtkBorder *inner_border,
                       GtkBorder *padding,
+                      GtkBorder *border,
 		      gboolean  *interior_focus)
 {
   GtkStyleContext *context;
@@ -1465,6 +1602,9 @@ gtk_button_get_props (GtkButton *button,
 
   if (padding)
     gtk_style_context_get_padding (context, state, padding);
+
+  if (border)
+    gtk_style_context_get_border (context, state, border);
 }
 
 static void
@@ -1479,12 +1619,14 @@ gtk_button_size_allocate (GtkWidget     *widget,
   GtkBorder default_border;
   GtkBorder inner_border;
   GtkBorder padding;
+  GtkBorder border;
   gint focus_width;
   gint focus_pad;
 
   context = gtk_widget_get_style_context (widget);
 
-  gtk_button_get_props (button, &default_border, NULL, &inner_border, &padding, NULL);
+  gtk_button_get_props (button, &default_border, NULL, &inner_border,
+                        &padding, &border, NULL);
   gtk_style_context_get_style (context,
                               "focus-line-width", &focus_width,
                               "focus-padding", &focus_pad,
@@ -1502,20 +1644,20 @@ gtk_button_size_allocate (GtkWidget     *widget,
   child = gtk_bin_get_child (GTK_BIN (button));
   if (child && gtk_widget_get_visible (child))
     {
-      child_allocation.x = allocation->x + inner_border.left + padding.left;
-      child_allocation.y = allocation->y + inner_border.top + padding.top;
+      child_allocation.x = allocation->x + inner_border.left + padding.left + border.left;
+      child_allocation.y = allocation->y + inner_border.top + padding.top + border.top;
 
       child_allocation.width =
 	allocation->width -
         (padding.left + padding.right) -
-	inner_border.left -
-	inner_border.right;
+	(border.left + border.right) -
+	(inner_border.left + inner_border.right);
 
       child_allocation.height = 
 	allocation->height -
         (padding.top + padding.bottom) -
-	inner_border.top -
-	inner_border.bottom;
+        (border.top + border.bottom) -
+	(inner_border.top + inner_border.bottom);
 
       if (gtk_widget_get_can_default (GTK_WIDGET (button)))
 	{
@@ -1576,8 +1718,9 @@ _gtk_button_paint (GtkButton          *button,
   context = gtk_widget_get_style_context (widget);
 
   gtk_style_context_save (context);
+  gtk_style_context_set_state (context, state);
 
-  gtk_button_get_props (button, &default_border, &default_outside_border, NULL, NULL, &interior_focus);
+  gtk_button_get_props (button, &default_border, &default_outside_border, NULL, NULL, NULL, &interior_focus);
   gtk_style_context_get_style (context,
                                "focus-line-width", &focus_width,
                                "focus-padding", &focus_pad,
@@ -1833,6 +1976,9 @@ gtk_real_button_clicked (GtkButton *button)
 {
   GtkButtonPrivate *priv = button->priv;
 
+  if (priv->action_observer)
+    g_simple_action_observer_activate (priv->action_observer);
+
   if (priv->action)
     gtk_action_activate (priv->action);
 }
@@ -1926,13 +2072,15 @@ gtk_button_get_size (GtkWidget      *widget,
   GtkBorder default_border;
   GtkBorder inner_border;
   GtkBorder padding;
+  GtkBorder border;
   gint focus_width;
   gint focus_pad;
   gint minimum, natural;
 
   context = gtk_widget_get_style_context (widget);
 
-  gtk_button_get_props (button, &default_border, NULL, &inner_border, &padding, NULL);
+  gtk_button_get_props (button, &default_border, NULL, &inner_border,
+                        &padding, &border, NULL);
   gtk_style_context_get_style (context,
                                "focus-line-width", &focus_width,
                                "focus-padding", &focus_pad,
@@ -1940,14 +2088,18 @@ gtk_button_get_size (GtkWidget      *widget,
 
   if (orientation == GTK_ORIENTATION_HORIZONTAL)
     {
-      minimum = inner_border.left + inner_border.right + padding.left + padding.right;
+      minimum = inner_border.left + inner_border.right +
+        padding.left + padding.right +
+        border.left + border.right;
 
       if (gtk_widget_get_can_default (GTK_WIDGET (widget)))
 	minimum += default_border.left + default_border.right;
     }
   else
     {
-      minimum = inner_border.top + inner_border.bottom + padding.top + padding.bottom;
+      minimum = inner_border.top + inner_border.bottom +
+        padding.top + padding.bottom +
+        border.top + border.bottom;
 
       if (gtk_widget_get_can_default (GTK_WIDGET (widget)))
 	minimum += default_border.top + default_border.bottom;
@@ -2424,6 +2576,28 @@ gtk_button_grab_notify (GtkWidget *widget,
     }
 }
 
+static void
+gtk_button_hierarchy_changed (GtkWidget *widget,
+                              GtkWidget *previous_toplevel)
+{
+  GtkButton *button = GTK_BUTTON (widget);
+  GtkWidgetClass *parent_class;
+
+  parent_class = GTK_WIDGET_CLASS (gtk_button_parent_class);
+  if (parent_class->hierarchy_changed)
+    parent_class->hierarchy_changed (widget, previous_toplevel);
+
+  if (button->priv->action_name)
+    {
+      GtkWidget *toplevel;
+
+      toplevel = gtk_widget_get_toplevel (widget);
+
+      if (toplevel != previous_toplevel)
+        gtk_button_update_action_observer (button);
+    }
+}
+
 /**
  * gtk_button_set_image:
  * @button: a #GtkButton
@@ -2532,7 +2706,6 @@ gtk_button_get_image_position (GtkButton *button)
   
   return button->priv->image_position;
 }
-
 
 /**
  * gtk_button_get_event_window:

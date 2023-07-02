@@ -41,9 +41,6 @@ typedef gboolean         (* GtkStyleParseFunc)             (GtkCssParser        
                                                             GValue                 *value);
 typedef void             (* GtkStylePrintFunc)             (const GValue           *value,
                                                             GString                *string);
-typedef void             (* GtkStyleDefaultValueFunc)      (GtkStyleProperties     *props,
-                                                            GtkStateFlags           state,
-                                                            GValue                 *value);
 typedef void             (* GtkStyleUnsetFunc)             (GtkStyleProperties     *props,
                                                             GtkStateFlags           state);
 
@@ -52,15 +49,19 @@ struct _GtkStyleProperty
 {
   GParamSpec               *pspec;
   GtkStylePropertyFlags     flags;
+  guint                     id;
+  GValue                    initial_value;
 
   GtkStylePropertyParser    property_parse_func;
   GtkStyleUnpackFunc        unpack_func;
   GtkStylePackFunc          pack_func;
   GtkStyleParseFunc         parse_func;
   GtkStylePrintFunc         print_func;
-  GtkStyleDefaultValueFunc  default_value_func;
   GtkStyleUnsetFunc         unset_func;
 };
+
+guint                    _gtk_style_property_get_count     (void);
+const GtkStyleProperty * _gtk_style_property_get           (guint                   id);
 
 const GtkStyleProperty * _gtk_style_property_lookup        (const char             *name);
 
@@ -71,15 +72,18 @@ void                     _gtk_style_property_register      (GParamSpec          
                                                             GtkStylePackFunc        pack_func,
                                                             GtkStyleParseFunc       parse_func,
                                                             GtkStylePrintFunc       print_func,
-                                                            GtkStyleDefaultValueFunc default_value_func,
+                                                            const GValue           *initial_value,
                                                             GtkStyleUnsetFunc       unset_func);
 
 gboolean                 _gtk_style_property_is_inherit    (const GtkStyleProperty *property);
+guint                    _gtk_style_property_get_id        (const GtkStyleProperty *property);
 
 void                     _gtk_style_property_default_value (const GtkStyleProperty *property,
                                                             GtkStyleProperties     *properties,
                                                             GtkStateFlags           state,
                                                             GValue                 *value);
+const GValue *           _gtk_style_property_get_initial_value
+                                                           (const GtkStyleProperty *property);
 
 void                     _gtk_style_property_resolve       (const GtkStyleProperty *property,
                                                             GtkStyleProperties     *properties,

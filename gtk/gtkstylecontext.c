@@ -32,11 +32,12 @@
 #include "gtkwidget.h"
 #include "gtkwindow.h"
 #include "gtkprivate.h"
-#include "gtksymboliccolor.h"
+#include "gtksymboliccolorprivate.h"
 #include "gtkanimationdescription.h"
 #include "gtktimeline.h"
 #include "gtkiconfactory.h"
 #include "gtkwidgetprivate.h"
+#include "gtkstyleproviderprivate.h"
 
 /**
  * SECTION:gtkstylecontext
@@ -367,10 +368,12 @@ struct _GtkStyleContextPrivate
   GList *providers;
   GList *providers_last;
 
+  GtkStyleContext *parent;
   GtkWidgetPath *widget_path;
   GHashTable *style_data;
   GSList *info_stack;
   StyleData *current_data;
+  GtkStateFlags current_state;
 
   GSList *animation_regions;
   GSList *animations;
@@ -386,7 +389,8 @@ struct _GtkStyleContextPrivate
 enum {
   PROP_0,
   PROP_SCREEN,
-  PROP_DIRECTION
+  PROP_DIRECTION,
+  PROP_PARENT
 };
 
 enum {
@@ -408,6 +412,9 @@ static void gtk_style_context_impl_get_property (GObject      *object,
                                                  guint         prop_id,
                                                  GValue       *value,
                                                  GParamSpec   *pspec);
+static GtkSymbolicColor *
+            gtk_style_context_color_lookup_func (gpointer      contextp,
+                                                 const char   *name);
 
 
 G_DEFINE_TYPE (GtkStyleContext, gtk_style_context, G_TYPE_OBJECT)
@@ -445,6 +452,21 @@ gtk_style_context_class_init (GtkStyleContextClass *klass)
                                                       GTK_TYPE_TEXT_DIRECTION,
                                                       GTK_TEXT_DIR_LTR,
                                                       GTK_PARAM_READWRITE));
+  /**
+   * GtkStyleContext:parent:
+   *
+   * Sets or gets the style context's parent. See gtk_style_context_set_parent()
+   * for details.
+   *
+   * Since: 3.4
+   */
+  g_object_class_install_property (object_class,
+                                   PROP_PARENT,
+                                   g_param_spec_object ("parent",
+                                                        P_("Parent"),
+                                                        P_("The parent style context"),
+                                                        GTK_TYPE_STYLE_CONTEXT,
+                                                        GTK_PARAM_READWRITE));
 
   g_type_class_add_private (object_class, sizeof (GtkStyleContextPrivate));
 }
@@ -513,7 +535,7 @@ style_info_hash (gconstpointer elem)
       hash <<= 5;
     }
 
-  return hash;
+  return hash ^ info->state_flags;
 }
 
 static gboolean
@@ -524,6 +546,9 @@ style_info_equal (gconstpointer elem1,
 
   info1 = elem1;
   info2 = elem2;
+
+  if (info1->state_flags != info2->state_flags)
+    return FALSE;
 
   if (info1->junction_sides != info2->junction_sides)
     return FALSE;
@@ -553,7 +578,6 @@ style_data_new (void)
   StyleData *data;
 
   data = g_slice_new0 (StyleData);
-  data->store = gtk_style_properties_new ();
 
   return data;
 }
@@ -584,8 +608,7 @@ style_data_free (StyleData *data)
   g_object_unref (data->store);
   clear_property_cache (data);
 
-  g_slist_foreach (data->icon_factories, (GFunc) g_object_unref, NULL);
-  g_slist_free (data->icon_factories);
+  g_slist_free_full (data->icon_factories, g_object_unref);
 
   g_slice_free (StyleData, data);
 }
@@ -801,16 +824,16 @@ gtk_style_context_finalize (GObject *object)
   style_context = GTK_STYLE_CONTEXT (object);
   priv = style_context->priv;
 
+  gtk_style_context_set_parent (style_context, NULL);
+
   if (priv->widget_path)
     gtk_widget_path_free (priv->widget_path);
 
   g_hash_table_destroy (priv->style_data);
 
-  g_list_foreach (priv->providers, (GFunc) style_provider_data_free, NULL);
-  g_list_free (priv->providers);
+  g_list_free_full (priv->providers, (GDestroyNotify) style_provider_data_free);
 
-  g_slist_foreach (priv->info_stack, (GFunc) style_info_free, NULL);
-  g_slist_free (priv->info_stack);
+  g_slist_free_full (priv->info_stack, (GDestroyNotify) style_info_free);
 
   g_slist_free (priv->animation_regions);
 
@@ -845,6 +868,10 @@ gtk_style_context_impl_set_property (GObject      *object,
       gtk_style_context_set_direction (style_context,
                                        g_value_get_enum (value));
       break;
+    case PROP_PARENT:
+      gtk_style_context_set_parent (style_context,
+                                    g_value_get_object (value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -870,6 +897,9 @@ gtk_style_context_impl_get_property (GObject    *object,
       break;
     case PROP_DIRECTION:
       g_value_set_enum (value, priv->direction);
+      break;
+    case PROP_PARENT:
+      g_value_set_object (value, priv->parent);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -905,18 +935,25 @@ find_next_candidate (GList    *local,
 static void
 build_properties (GtkStyleContext *context,
                   StyleData       *style_data,
-                  GtkWidgetPath   *path)
+                  GtkWidgetPath   *path,
+                  GtkStateFlags    state)
 {
   GtkStyleContextPrivate *priv;
   GList *elem, *list, *global_list = NULL;
+  GtkCssLookup *lookup;
 
   priv = context->priv;
-  list = priv->providers;
+  list = priv->providers_last;
 
   if (priv->screen)
-    global_list = g_object_get_qdata (G_OBJECT (priv->screen), provider_list_quark);
+    {
+      global_list = g_object_get_qdata (G_OBJECT (priv->screen), provider_list_quark);
+      global_list = g_list_last (global_list);
+    }
 
-  while ((elem = find_next_candidate (list, global_list, TRUE)) != NULL)
+  lookup = _gtk_css_lookup_new ();
+
+  while ((elem = find_next_candidate (list, global_list, FALSE)) != NULL)
     {
       GtkStyleProviderData *data;
       GtkStyleProperties *provider_style;
@@ -924,18 +961,37 @@ build_properties (GtkStyleContext *context,
       data = elem->data;
 
       if (elem == list)
-        list = list->next;
+        list = list->prev;
       else
-        global_list = global_list->next;
+        global_list = global_list->prev;
 
-      provider_style = gtk_style_provider_get_style (data->provider, path);
-
-      if (provider_style)
+      if (GTK_IS_STYLE_PROVIDER_PRIVATE (data->provider))
         {
-          gtk_style_properties_merge (style_data->store, provider_style, TRUE);
-          g_object_unref (provider_style);
+          _gtk_style_provider_private_lookup (GTK_STYLE_PROVIDER_PRIVATE (data->provider),
+                                              path,
+                                              state,
+                                              lookup);
+        }
+      else
+        {
+          provider_style = gtk_style_provider_get_style (data->provider, path);
+
+          if (provider_style)
+            {
+              _gtk_style_provider_private_lookup (GTK_STYLE_PROVIDER_PRIVATE (provider_style),
+                                                  path,
+                                                  state,
+                                                  lookup);
+              g_object_unref (provider_style);
+            }
         }
     }
+
+  style_data->store = _gtk_css_lookup_resolve (lookup, priv->parent);
+  _gtk_style_properties_set_color_lookup_func (style_data->store,
+                                               gtk_style_context_color_lookup_func,
+                                               context);
+  _gtk_css_lookup_free (lookup);
 }
 
 static void
@@ -1013,18 +1069,27 @@ create_query_path (GtkStyleContext *context)
 }
 
 static StyleData *
-style_data_lookup (GtkStyleContext *context)
+style_data_lookup (GtkStyleContext *context,
+                   GtkStateFlags    state)
 {
   GtkStyleContextPrivate *priv;
   StyleData *data;
+  gboolean state_mismatch;
 
   priv = context->priv;
+  state_mismatch = ((GtkStyleInfo *) priv->info_stack->data)->state_flags != state;
 
   /* Current data in use is cached, just return it */
-  if (priv->current_data)
+  if (priv->current_data && priv->current_state == state)
     return priv->current_data;
 
   g_assert (priv->widget_path != NULL);
+
+  if (G_UNLIKELY (state_mismatch))
+    {
+      gtk_style_context_save (context);
+      gtk_style_context_set_state (context, state);
+    }
 
   data = g_hash_table_lookup (priv->style_data, priv->info_stack->data);
 
@@ -1035,7 +1100,7 @@ style_data_lookup (GtkStyleContext *context)
       data = style_data_new ();
       path = create_query_path (context);
 
-      build_properties (context, data, path);
+      build_properties (context, data, path, state);
       build_icon_factories (context, data, path);
 
       g_hash_table_insert (priv->style_data,
@@ -1045,17 +1110,25 @@ style_data_lookup (GtkStyleContext *context)
       gtk_widget_path_free (path);
     }
 
+  if (G_UNLIKELY (state_mismatch))
+    {
+      gtk_style_context_restore (context);
+    }
+  else
+    {
+      if (priv->theming_engine)
+        g_object_unref (priv->theming_engine);
+
+      gtk_style_properties_get (data->store, 0,
+                                "engine", &priv->theming_engine,
+                                NULL);
+
+      if (!priv->theming_engine)
+        priv->theming_engine = g_object_ref (gtk_theming_engine_load (NULL));
+    }
+
   priv->current_data = data;
-
-  if (priv->theming_engine)
-    g_object_unref (priv->theming_engine);
-
-  gtk_style_properties_get (data->store, 0,
-                            "engine", &priv->theming_engine,
-                            NULL);
-
-  if (!priv->theming_engine)
-    priv->theming_engine = g_object_ref (gtk_theming_engine_load (NULL));
+  priv->current_state = state;
 
   return data;
 }
@@ -1363,8 +1436,8 @@ gtk_style_context_get_property (GtkStyleContext *context,
 
   g_return_if_fail (priv->widget_path != NULL);
 
-  data = style_data_lookup (context);
-  gtk_style_properties_get_property (data->store, property, state, value);
+  data = style_data_lookup (context, state);
+  gtk_style_properties_get_property (data->store, property, 0, value);
 }
 
 void
@@ -1381,8 +1454,8 @@ _gtk_style_context_get_valist (GtkStyleContext *context,
   priv = context->priv;
   g_return_if_fail (priv->widget_path != NULL);
 
-  data = style_data_lookup (context);
-  _gtk_style_properties_get_valist (data->store, state, property_context, args);
+  data = style_data_lookup (context, state);
+  _gtk_style_properties_get_valist (data->store, 0, property_context, args);
 }
 
 /**
@@ -1408,8 +1481,8 @@ gtk_style_context_get_valist (GtkStyleContext *context,
   priv = context->priv;
   g_return_if_fail (priv->widget_path != NULL);
 
-  data = style_data_lookup (context);
-  gtk_style_properties_get_valist (data->store, state, args);
+  data = style_data_lookup (context, state);
+  gtk_style_properties_get_valist (data->store, 0, args);
 }
 
 /**
@@ -1437,10 +1510,10 @@ gtk_style_context_get (GtkStyleContext *context,
   priv = context->priv;
   g_return_if_fail (priv->widget_path != NULL);
 
-  data = style_data_lookup (context);
+  data = style_data_lookup (context, state);
 
   va_start (args, state);
-  gtk_style_properties_get_valist (data->store, state, args);
+  gtk_style_properties_get_valist (data->store, 0, args);
   va_end (args);
 }
 
@@ -1612,6 +1685,66 @@ gtk_style_context_get_path (GtkStyleContext *context)
 
   priv = context->priv;
   return priv->widget_path;
+}
+
+/**
+ * gtk_style_context_set_parent:
+ * @context: a #GtkStyleContext
+ * @parent: (allow-none): the new parent or %NULL
+ *
+ * Sets the parent style context for @context. The parent style
+ * context is used to implement
+ * <ulink url="http://www.w3.org/TR/css3-cascade/#inheritance>
+ * inheritance</ulink> of properties.
+ *
+ * If you are using a #GtkStyleContext returned from
+ * gtk_widget_get_style_context(), the parent will be set for you.
+ *
+ * Since: 3.4
+ **/
+void
+gtk_style_context_set_parent (GtkStyleContext *context,
+                              GtkStyleContext *parent)
+{
+  GtkStyleContextPrivate *priv;
+
+  g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
+  g_return_if_fail (parent == NULL || GTK_IS_STYLE_CONTEXT (parent));
+
+  priv = context->priv;
+
+  if (priv->parent == parent)
+    return;
+
+  if (parent)
+    g_object_ref (parent);
+
+  if (priv->parent)
+    g_object_unref (priv->parent);
+
+  priv->parent = parent;
+
+  g_object_notify (G_OBJECT (context), "parent");
+  gtk_style_context_invalidate (context);
+}
+
+/**
+ * gtk_style_context_get_parent:
+ * @context: a #GtkStyleContext
+ *
+ * Gets the parent context set via gtk_style_context_set_parent().
+ * See that function for details.
+ *
+ * Returns: (transfer none): the parent context or %NULL
+ *
+ * Since: 3.4
+ **/
+GtkStyleContext *
+gtk_style_context_get_parent (GtkStyleContext *context)
+{
+  g_return_val_if_fail (GTK_IS_STYLE_CONTEXT (context), NULL);
+
+  return context->priv->parent;
 }
 
 /**
@@ -2195,7 +2328,7 @@ _gtk_style_context_peek_style_property (GtkStyleContext *context,
   guint i;
 
   priv = context->priv;
-  data = style_data_lookup (context);
+  data = style_data_lookup (context, state);
 
   key.widget_type = widget_type;
   key.state = state;
@@ -2496,7 +2629,7 @@ gtk_style_context_lookup_icon_set (GtkStyleContext *context,
   priv = context->priv;
   g_return_val_if_fail (priv->widget_path != NULL, NULL);
 
-  data = style_data_lookup (context);
+  data = style_data_lookup (context, 0);
 
   for (list = data->icon_factories; list; list = list->next)
     {
@@ -2671,6 +2804,51 @@ gtk_style_context_get_junction_sides (GtkStyleContext *context)
   return info->junction_sides;
 }
 
+static GtkSymbolicColor *
+gtk_style_context_color_lookup_func (gpointer    contextp,
+                                     const char *name)
+{
+  GtkSymbolicColor *sym_color;
+  GtkStyleContext *context = contextp;
+  GtkStyleContextPrivate *priv = context->priv;
+  GList *elem, *list, *global_list = NULL;
+
+  list = priv->providers_last;
+  if (priv->screen)
+    {
+      global_list = g_object_get_qdata (G_OBJECT (priv->screen), provider_list_quark);
+      global_list = g_list_last (global_list);
+    }
+
+  sym_color = NULL;
+  
+  while (sym_color == NULL &&
+         (elem = find_next_candidate (list, global_list, FALSE)) != NULL)
+    {
+      GtkStyleProviderData *data;
+
+      data = elem->data;
+
+      if (elem == list)
+        list = list->prev;
+      else
+        global_list = global_list->prev;
+
+      if (GTK_IS_STYLE_PROVIDER_PRIVATE (data->provider))
+        {
+          sym_color = _gtk_style_provider_private_get_color (GTK_STYLE_PROVIDER_PRIVATE (data->provider),
+                                                             name);
+        }
+      else
+        {
+          /* If somebody hits this code path, shout at them */
+          sym_color = NULL;
+        }
+    }
+
+  return sym_color;
+}
+
 /**
  * gtk_style_context_lookup_color:
  * @context: a #GtkStyleContext
@@ -2686,24 +2864,20 @@ gtk_style_context_lookup_color (GtkStyleContext *context,
                                 const gchar     *color_name,
                                 GdkRGBA         *color)
 {
-  GtkStyleContextPrivate *priv;
   GtkSymbolicColor *sym_color;
-  StyleData *data;
 
   g_return_val_if_fail (GTK_IS_STYLE_CONTEXT (context), FALSE);
   g_return_val_if_fail (color_name != NULL, FALSE);
   g_return_val_if_fail (color != NULL, FALSE);
 
-  priv = context->priv;
-  g_return_val_if_fail (priv->widget_path != NULL, FALSE);
-
-  data = style_data_lookup (context);
-  sym_color = gtk_style_properties_lookup_color (data->store, color_name);
-
-  if (!sym_color)
+  sym_color = gtk_style_context_color_lookup_func (context, color_name);
+  if (sym_color == NULL)
     return FALSE;
 
-  return gtk_symbolic_color_resolve (sym_color, data->store, color);
+  return _gtk_symbolic_color_resolve_full (sym_color,
+                                           gtk_style_context_color_lookup_func,
+                                           context,
+                                           color);
 }
 
 /**
@@ -2810,8 +2984,8 @@ gtk_style_context_notify_state_change (GtkStyleContext *context,
   /* Find out if there is any animation description for the given
    * state, it will fallback to the normal state as well if necessary.
    */
-  data = style_data_lookup (context);
-  gtk_style_properties_get (data->store, flags,
+  data = style_data_lookup (context, flags);
+  gtk_style_properties_get (data->store, 0,
                             "transition", &desc,
                             NULL);
 
@@ -3355,9 +3529,9 @@ gtk_style_context_get_border (GtkStyleContext *context,
   priv = context->priv;
   g_return_if_fail (priv->widget_path != NULL);
 
-  data = style_data_lookup (context);
+  data = style_data_lookup (context, state);
   gtk_style_properties_get (data->store,
-                            state,
+                            0,
 			    "border-style", &border_style,
                             "border-top-width", &top,
                             "border-top-width", &top,
@@ -3407,9 +3581,9 @@ gtk_style_context_get_padding (GtkStyleContext *context,
   priv = context->priv;
   g_return_if_fail (priv->widget_path != NULL);
 
-  data = style_data_lookup (context);
+  data = style_data_lookup (context, state);
   gtk_style_properties_get (data->store,
-                            state,
+                            0,
                             "padding-top", &top,
                             "padding-left", &left,
                             "padding-bottom", &bottom,
@@ -3448,9 +3622,9 @@ gtk_style_context_get_margin (GtkStyleContext *context,
   priv = context->priv;
   g_return_if_fail (priv->widget_path != NULL);
 
-  data = style_data_lookup (context);
+  data = style_data_lookup (context, state);
   gtk_style_properties_get (data->store,
-                            state,
+                            0,
                             "margin-top", &top,
                             "margin-left", &left,
                             "margin-bottom", &bottom,
@@ -3492,7 +3666,7 @@ gtk_style_context_get_font (GtkStyleContext *context,
   priv = context->priv;
   g_return_val_if_fail (priv->widget_path != NULL, NULL);
 
-  data = style_data_lookup (context);
+  data = style_data_lookup (context, state);
 
   /* Yuck, fonts are created on-demand but we don't return a ref.
    * Do bad things to achieve this requirement */
@@ -3513,7 +3687,7 @@ gtk_style_context_get_font (GtkStyleContext *context,
 
   if (description == NULL)
     {
-      gtk_style_properties_get (data->store, state, "font", &description, NULL);
+      gtk_style_properties_get (data->store, 0, "font", &description, NULL);
       g_hash_table_insert (font_cache, GUINT_TO_POINTER (state), description);
     }
 

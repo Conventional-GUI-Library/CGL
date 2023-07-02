@@ -1009,7 +1009,7 @@ gtk_spin_button_draw_arrow (GtkSpinButton   *spin_button,
 
   panel_height = gdk_window_get_height (priv->panel);
 
-  if (spin_button_at_limit (spin_button, arrow_type))
+  if (spin_button_at_limit (spin_button, arrow_type) || !gtk_editable_get_editable (GTK_EDITABLE (spin_button)))
     state = GTK_STATE_FLAG_INSENSITIVE;
   else
     {
@@ -1275,7 +1275,7 @@ gtk_spin_button_button_press (GtkWidget      *widget,
             gtk_widget_grab_focus (widget);
           priv->button = event->button;
 
-          if (gtk_editable_get_editable (GTK_EDITABLE (widget)))
+          if (gtk_editable_get_editable (GTK_EDITABLE (widget))) {
             gtk_spin_button_update (spin);
 
           gtk_widget_get_preferred_size (widget, &requisition, NULL);
@@ -1298,7 +1298,10 @@ gtk_spin_button_button_press (GtkWidget      *widget,
                 start_spinning (spin, GTK_ARROW_DOWN, gtk_adjustment_get_page_increment (priv->adjustment));
               else
                 priv->click_child = GTK_ARROW_DOWN;
-            }
+            } 
+		} else {
+            gtk_widget_error_bell (widget);
+		}
           return TRUE;
         }
       else
@@ -1481,6 +1484,12 @@ gtk_spin_button_real_change_value (GtkSpinButton *spin,
 {
   GtkSpinButtonPrivate *priv = spin->priv;
   gdouble old_value;
+
+  if (!gtk_editable_get_editable (GTK_EDITABLE (spin)))
+  {
+      gtk_widget_error_bell (GTK_WIDGET (spin));
+      return;
+  }
 
   /* When the key binding is activated, there may be an outstanding
    * value, so we first have to commit what is currently written in

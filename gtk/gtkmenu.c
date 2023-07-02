@@ -4836,10 +4836,9 @@ gtk_menu_position (GtkMenu  *menu,
           scroll_offset += monitor.y - y;
           y = monitor.y;
         }
-    }
 
-  /* FIXME: should this be done in the various position_funcs ? */
-  x = CLAMP (x, monitor.x, MAX (monitor.x, monitor.x + monitor.width - requisition.width));
+      x = CLAMP (x, monitor.x, MAX (monitor.x, monitor.x + monitor.width - requisition.width));
+    }
 
   if (GTK_MENU_SHELL (menu)->priv->active)
     {
@@ -4848,17 +4847,7 @@ gtk_menu_position (GtkMenu  *menu,
       priv->position_y = y;
     }
 
-  if (y + requisition.height > monitor.y + monitor.height)
-    requisition.height = (monitor.y + monitor.height) - y;
-
-  if (y < monitor.y)
-    {
-      scroll_offset += monitor.y - y;
-      requisition.height -= monitor.y - y;
-      y = monitor.y;
-    }
-
-  if (scroll_offset > 0)
+  if (scroll_offset != 0)
     {
       GtkBorder arrow_border;
 
@@ -4915,7 +4904,6 @@ gtk_menu_scroll_to (GtkMenu *menu,
                     gint    offset)
 {
   GtkMenuPrivate *priv = menu->priv;
-  GtkAllocation allocation;
   GtkBorder arrow_border, padding;
   GtkWidget *widget;
   gint x, y;
@@ -4932,9 +4920,8 @@ gtk_menu_scroll_to (GtkMenu *menu,
     gtk_adjustment_set_value (priv->tearoff_adjustment, offset);
 
   /* Move/resize the viewport according to arrows: */
-  gtk_widget_get_allocation (widget, &allocation);
-  view_width = allocation.width;
-  view_height = allocation.height;
+  view_width = gtk_widget_get_allocated_width (widget);
+  view_height = gtk_widget_get_allocated_height (widget);
 
   gtk_widget_style_get (GTK_WIDGET (menu),
                         "vertical-padding", &vertical_padding,

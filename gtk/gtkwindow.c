@@ -51,6 +51,7 @@
 #include "gtkintl.h"
 #include "gtktypebuiltins.h"
 #include "a11y/gtkwindowaccessible.h"
+#include "gtkstyle.h"
 
 #ifdef GDK_WINDOWING_X11
 #include "x11/gdkx.h"
@@ -3478,8 +3479,7 @@ gtk_window_realize_icon (GtkWindow *window)
     {
       GtkIconTheme *icon_theme;
 
-      g_list_foreach (icon_list, (GFunc) g_object_unref, NULL);
-      g_list_free (icon_list);
+      g_list_free_full (icon_list, g_object_unref);
  
       icon_theme = gtk_icon_theme_get_for_screen (gtk_widget_get_screen (GTK_WIDGET (window)));
       g_signal_connect (icon_theme, "changed",
@@ -3560,10 +3560,7 @@ gtk_window_set_icon_list (GtkWindow  *window,
   g_list_foreach (list,
                   (GFunc) g_object_ref, NULL);
 
-  g_list_foreach (info->icon_list,
-                  (GFunc) g_object_unref, NULL);
-
-  g_list_free (info->icon_list);
+  g_list_free_full (info->icon_list, g_object_unref);
 
   info->icon_list = g_list_copy (list);
 
@@ -3691,8 +3688,7 @@ gtk_window_set_icon_name (GtkWindow   *window,
   info->icon_name = g_strdup (name);
   g_free (tmp);
 
-  g_list_foreach (info->icon_list, (GFunc) g_object_unref, NULL);
-  g_list_free (info->icon_list);
+  g_list_free_full (info->icon_list, g_object_unref);
   info->icon_list = NULL;
   
   update_themed_icon (NULL, window);
@@ -3835,10 +3831,7 @@ gtk_window_set_default_icon_list (GList *list)
   g_list_foreach (list,
                   (GFunc) g_object_ref, NULL);
 
-  g_list_foreach (default_icon_list,
-                  (GFunc) g_object_unref, NULL);
-
-  g_list_free (default_icon_list);
+  g_list_free_full (default_icon_list, g_object_unref);
 
   default_icon_list = g_list_copy (list);
   
@@ -3907,10 +3900,7 @@ gtk_window_set_default_icon_name (const gchar *name)
   g_free (default_icon_name);
   default_icon_name = g_strdup (name);
 
-  g_list_foreach (default_icon_list,
-                  (GFunc) g_object_unref, NULL);
-
-  g_list_free (default_icon_list);
+  g_list_free_full (default_icon_list, g_object_unref);
   default_icon_list = NULL;
   
   /* Update all toplevels */
@@ -7520,26 +7510,18 @@ gtk_window_draw (GtkWidget *widget,
 
   context = gtk_widget_get_style_context (widget);
 
-  gtk_style_context_save (context);
-
   if (!gtk_widget_get_app_paintable (widget) &&
       gtk_cairo_should_draw_window (cr, gtk_widget_get_window (widget)))
     {
-      GtkStateFlags state;
+      gtk_style_context_save (context);
 
-      state = gtk_widget_get_state_flags (widget);
-
-      if (gtk_window_has_toplevel_focus (GTK_WINDOW (widget)))
-        state |= GTK_STATE_FLAG_FOCUSED;
-
-      gtk_style_context_set_state (context, state);
       gtk_style_context_add_class (context, GTK_STYLE_CLASS_BACKGROUND);
       gtk_render_background (context, cr, 0, 0,
 			     gtk_widget_get_allocated_width (widget),
 			     gtk_widget_get_allocated_height (widget));
-    }
 
-  gtk_style_context_restore (context);
+      gtk_style_context_restore (context);
+    }
 
   if (GTK_WIDGET_CLASS (gtk_window_parent_class)->draw)
     ret = GTK_WIDGET_CLASS (gtk_window_parent_class)->draw (widget, cr);

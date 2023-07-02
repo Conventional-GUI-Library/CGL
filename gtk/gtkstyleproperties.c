@@ -34,7 +34,9 @@
 #include "gtkcsstypesprivate.h"
 #include "gtkborderimageprivate.h"
 
+#include "gtkprivatetypebuiltins.h"
 #include "gtkstylepropertyprivate.h"
+#include "gtkstyleproviderprivate.h"
 #include "gtkintl.h"
 
 #include "gtkwin32themeprivate.h"
@@ -58,7 +60,6 @@
  * should use the APIs provided by #GtkThemingEngine instead.
  */
 
-typedef struct GtkStylePropertiesPrivate GtkStylePropertiesPrivate;
 typedef struct PropertyData PropertyData;
 typedef struct ValueData ValueData;
 
@@ -73,19 +74,24 @@ struct PropertyData
   GArray *values;
 };
 
-struct GtkStylePropertiesPrivate
+struct _GtkStylePropertiesPrivate
 {
   GHashTable *color_map;
   GHashTable *properties;
+  GtkSymbolicColorLookupFunc color_lookup_func;
+  gpointer color_lookup_data;
 };
 
-static void gtk_style_properties_provider_init (GtkStyleProviderIface *iface);
-static void gtk_style_properties_finalize      (GObject      *object);
+static void gtk_style_properties_provider_init         (GtkStyleProviderIface            *iface);
+static void gtk_style_properties_provider_private_init (GtkStyleProviderPrivateInterface *iface);
+static void gtk_style_properties_finalize              (GObject                          *object);
 
 
 G_DEFINE_TYPE_EXTENDED (GtkStyleProperties, gtk_style_properties, G_TYPE_OBJECT, 0,
                         G_IMPLEMENT_INTERFACE (GTK_TYPE_STYLE_PROVIDER,
-                                               gtk_style_properties_provider_init));
+                                               gtk_style_properties_provider_init)
+                        G_IMPLEMENT_INTERFACE (GTK_TYPE_STYLE_PROVIDER_PRIVATE,
+                                               gtk_style_properties_provider_private_init));
 
 static void
 gtk_style_properties_class_init (GtkStylePropertiesClass *klass)
@@ -294,6 +300,57 @@ gtk_style_properties_provider_init (GtkStyleProviderIface *iface)
   iface->get_style = gtk_style_properties_get_style;
 }
 
+static GtkSymbolicColor *
+gtk_style_properties_provider_get_color (GtkStyleProviderPrivate *provider,
+                                         const char              *name)
+{
+  return gtk_style_properties_lookup_color (GTK_STYLE_PROPERTIES (provider), name);
+}
+
+static void
+gtk_style_properties_provider_lookup (GtkStyleProviderPrivate *provider,
+                                      GtkWidgetPath           *path,
+                                      GtkStateFlags            state,
+                                      GtkCssLookup            *lookup)
+{
+  GtkStyleProperties *props;
+  GtkStylePropertiesPrivate *priv;
+  GHashTableIter iter;
+  gpointer key, value;
+
+  props = GTK_STYLE_PROPERTIES (provider);
+  priv = props->priv;
+
+  /* Merge symbolic style properties */
+  g_hash_table_iter_init (&iter, priv->properties);
+
+  while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+      GtkStyleProperty *prop = key;
+      PropertyData *data = value;
+      const GValue *value;
+      guint id;
+
+      id = _gtk_style_property_get_id (prop);
+
+      if (!_gtk_css_lookup_is_missing (lookup, id))
+          continue;
+
+      value = property_data_match_state (data, state);
+      if (value == NULL)
+        continue;
+
+      _gtk_css_lookup_set (lookup, id, value);
+    }
+}
+
+static void
+gtk_style_properties_provider_private_init (GtkStyleProviderPrivateInterface *iface)
+{
+  iface->get_color = gtk_style_properties_provider_get_color;
+  iface->lookup = gtk_style_properties_provider_lookup;
+}
+
 /* Property registration functions */
 
 /**
@@ -380,6 +437,23 @@ gtk_style_properties_new (void)
   return g_object_new (GTK_TYPE_STYLE_PROPERTIES, NULL);
 }
 
+void
+_gtk_style_properties_set_color_lookup_func (GtkStyleProperties         *props,
+                                             GtkSymbolicColorLookupFunc  func,
+                                             gpointer                    data)
+{
+  GtkStylePropertiesPrivate *priv;
+
+  g_return_if_fail (GTK_IS_STYLE_PROPERTIES (props));
+  g_return_if_fail (func != NULL);
+
+  priv = props->priv;
+  g_return_if_fail (priv->color_map == NULL);
+
+  priv->color_lookup_func = func;
+  priv->color_lookup_data = data;
+}
+
 /**
  * gtk_style_properties_map_color:
  * @props: a #GtkStyleProperties
@@ -403,6 +477,7 @@ gtk_style_properties_map_color (GtkStyleProperties *props,
   g_return_if_fail (color != NULL);
 
   priv = props->priv;
+  g_return_if_fail (priv->color_lookup_func == NULL);
 
   if (G_UNLIKELY (!priv->color_map))
     priv->color_map = g_hash_table_new_full (g_str_hash,
@@ -438,6 +513,9 @@ gtk_style_properties_lookup_color (GtkStyleProperties *props,
 
   priv = props->priv;
 
+  if (priv->color_lookup_func)
+    return priv->color_lookup_func (priv->color_lookup_data, name);
+
   if (!priv->color_map)
     return NULL;
 
@@ -460,9 +538,10 @@ _gtk_style_properties_set_property_by_property (GtkStyleProperties     *props,
   if (style_prop->pspec->value_type == GDK_TYPE_RGBA ||
       style_prop->pspec->value_type == GDK_TYPE_COLOR)
     {
-      /* Allow GtkSymbolicColor as well */
+      /* Allow GtkSymbolicColor and special values as well */
       g_return_if_fail (value_type == GDK_TYPE_RGBA ||
                         value_type == GDK_TYPE_COLOR ||
+                        value_type == GTK_TYPE_CSS_SPECIAL_VALUE ||
                         value_type == GTK_TYPE_SYMBOLIC_COLOR);
     }
   else if (style_prop->pspec->value_type == CAIRO_GOBJECT_TYPE_PATTERN)

@@ -1785,8 +1785,7 @@ read_headers (const gchar *start,
   return g_list_reverse (headers);
 
  error:
-  g_list_foreach (headers, (GFunc) g_free, NULL);
-  g_list_free (headers);
+  g_list_free_full (headers, g_free);
 
   g_set_error_literal (error,
                        G_MARKUP_ERROR,
@@ -1880,8 +1879,7 @@ _gtk_text_buffer_deserialize_rich_text (GtkTextBuffer *register_buffer,
 			     create_tags, error, headers->next);
 
  out:
-  g_list_foreach (headers, (GFunc)g_free, NULL);
-  g_list_free (headers);
+  g_list_free_full (headers, g_free);
 
   return retval;
 }

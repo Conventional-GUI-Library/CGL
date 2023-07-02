@@ -4556,17 +4556,10 @@ draw_empty_focus (GtkTreeView *tree_view, cairo_t *cr)
   if (w > 0 && h > 0)
     {
       GtkStyleContext *context;
-      GtkStateFlags state;
 
       context = gtk_widget_get_style_context (widget);
-      state = gtk_widget_get_state_flags (widget);
-
-      gtk_style_context_save (context);
-      gtk_style_context_set_state (context, state);
 
       gtk_render_focus (context, cr, 1, 1, w, h);
-
-      gtk_style_context_restore (context);
     }
 }
 
@@ -4708,12 +4701,10 @@ gtk_tree_view_bin_draw (GtkWidget      *widget,
   gint grid_line_width;
   gboolean draw_vgrid_lines, draw_hgrid_lines;
   GtkStyleContext *context;
-  GtkStateFlags state;
   gboolean parity;
 
   rtl = (gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL);
   context = gtk_widget_get_style_context (widget);
-  state = gtk_widget_get_state_flags (widget);
 
   gtk_widget_style_get (widget,
 			"horizontal-separator", &horizontal_separator,
@@ -4744,7 +4735,6 @@ gtk_tree_view_bin_draw (GtkWidget      *widget,
   if (tree_view->priv->height < bin_window_height)
     {
       gtk_style_context_save (context);
-      gtk_style_context_set_state (context, state);
       gtk_style_context_add_class (context, GTK_STYLE_CLASS_CELL);
 
       gtk_render_background (context, cr,
@@ -10062,7 +10052,7 @@ gtk_tree_view_draw_arrow (GtkTreeView *tree_view,
   gint x2;
   gint vertical_separator;
   gint expander_size;
-  GtkCellRendererState flags;
+  GtkCellRendererState flags = 0;
 
   widget = GTK_WIDGET (tree_view);
   context = gtk_widget_get_style_context (widget);
@@ -10084,24 +10074,19 @@ gtk_tree_view_draw_arrow (GtkTreeView *tree_view,
   area.height = gtk_tree_view_get_cell_area_height (tree_view, node,
                                                     vertical_separator);
 
-  if (!gtk_widget_get_sensitive (widget))
-    state |= GTK_STATE_FLAG_INSENSITIVE;
-  else
-    {
-      flags = 0;
+  if (GTK_RBNODE_FLAG_SET (node, GTK_RBNODE_IS_SELECTED))
+    flags |= GTK_CELL_RENDERER_SELECTED;
 
-      if (GTK_RBNODE_FLAG_SET (node, GTK_RBNODE_IS_SELECTED))
-        flags |= GTK_CELL_RENDERER_SELECTED;
+  if (node == tree_view->priv->prelight_node &&
+      tree_view->priv->arrow_prelit)
+    flags |= GTK_CELL_RENDERER_PRELIT;
 
-      state = gtk_cell_renderer_get_state (NULL, widget, flags);
-
-      if (node == tree_view->priv->prelight_node &&
-          tree_view->priv->arrow_prelit)
-	state |= GTK_STATE_FLAG_PRELIGHT;
-    }
+  state = gtk_cell_renderer_get_state (NULL, widget, flags);
 
   if (node->children != NULL)
     state |= GTK_STATE_FLAG_ACTIVE;
+  else
+    state &= ~(GTK_STATE_FLAG_ACTIVE);
 
   gtk_style_context_save (context);
 
@@ -10148,8 +10133,7 @@ gtk_tree_view_focus_to_cursor (GtkTreeView *tree_view)
       if (selected_rows)
 	{
           cursor_path = gtk_tree_path_copy((const GtkTreePath *)(selected_rows->data));
-	  g_list_foreach (selected_rows, (GFunc)gtk_tree_path_free, NULL);
-	  g_list_free (selected_rows);
+	  g_list_free_full (selected_rows, (GDestroyNotify) gtk_tree_path_free);
         }
       else
 	{
@@ -10736,8 +10720,6 @@ gtk_tree_view_real_toggle_cursor_row (GtkTreeView *tree_view)
 {
   GtkRBTree *new_tree = NULL;
   GtkRBNode *new_node = NULL;
-  GtkRBTree *cursor_tree = NULL;
-  GtkRBNode *cursor_node = NULL;
   GtkTreePath *cursor_path = NULL;
 
   if (!gtk_widget_has_focus (GTK_WIDGET (tree_view)))
@@ -10750,8 +10732,8 @@ gtk_tree_view_real_toggle_cursor_row (GtkTreeView *tree_view)
                                                 tree_view->priv->cursor_node);
 
   _gtk_tree_selection_internal_select_node (tree_view->priv->selection,
-					    cursor_node,
-					    cursor_tree,
+					    tree_view->priv->cursor_node,
+					    tree_view->priv->cursor_tree,
 					    cursor_path,
                                             GTK_TREE_SELECT_MODE_TOGGLE,
 					    FALSE);
@@ -12922,6 +12904,8 @@ gtk_tree_view_real_collapse_row (GtkTreeView *tree_view,
       cursor_changed = (node->children == tree_view->priv->cursor_tree)
                        || _gtk_rbtree_contains (node->children, tree_view->priv->cursor_tree);
     }
+  else
+    cursor_changed = FALSE;
 
   if (gtk_tree_row_reference_valid (tree_view->priv->anchor))
     {
@@ -14539,7 +14523,6 @@ gtk_tree_view_create_row_drag_icon (GtkTreeView  *tree_view,
   GtkRBTree    *tree;
   GtkRBNode    *node;
   GtkStyleContext *context;
-  GtkStateFlags state;
   gint cell_offset;
   GList *list;
   GdkRectangle background_area;
@@ -14579,9 +14562,6 @@ gtk_tree_view_create_row_drag_icon (GtkTreeView  *tree_view,
   context = gtk_widget_get_style_context (widget);
 
   gtk_style_context_save (context);
-
-  state = gtk_widget_get_state_flags (widget);
-  gtk_style_context_set_state (context, state);
 
   gtk_style_context_add_class (context, GTK_STYLE_CLASS_VIEW);
   gtk_style_context_add_region (context, GTK_STYLE_REGION_COLUMN, 0);

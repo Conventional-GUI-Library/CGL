@@ -5678,6 +5678,7 @@ gtk_style_context_add_provider_for_screen
 gtk_style_context_get
 gtk_style_context_get_direction
 gtk_style_context_get_junction_sides
+gtk_style_context_set_parent
 gtk_style_context_get_path
 gtk_style_context_get_property
 gtk_style_context_get_screen
@@ -5710,6 +5711,7 @@ gtk_style_context_restore
 gtk_style_context_save
 gtk_style_context_set_direction
 gtk_style_context_set_junction_sides
+gtk_style_context_set_parent
 gtk_style_context_set_path
 gtk_style_context_add_class
 gtk_style_context_remove_class
@@ -7003,6 +7005,15 @@ gtk_application_new
 gtk_application_add_window
 gtk_application_remove_window
 gtk_application_get_windows
+
+<SUBSECTION>
+gtk_application_quit_response
+GtkApplicationInhibitFlags
+gtk_application_inhibit
+gtk_application_uninhibit
+gtk_application_is_inhibited
+GtkApplicationEndStyle
+gtk_application_end_session
 
 <SUBSECTION>
 gtk_application_get_app_menu

@@ -27,6 +27,7 @@
 
 #include "gtkcssproviderprivate.h"
 
+#include "gtkbitmaskprivate.h"
 #include "gtkcssparserprivate.h"
 #include "gtkcsssectionprivate.h"
 #include "gtkcssselectorprivate.h"
@@ -35,6 +36,7 @@
 #include "gtkstylecontextprivate.h"
 #include "gtkstylepropertiesprivate.h"
 #include "gtkstylepropertyprivate.h"
+#include "gtkstyleproviderprivate.h"
 #include "gtkbindings.h"
 #include "gtkmarshalers.h"
 #include "gtkprivate.h"
@@ -960,8 +962,7 @@ struct GtkCssRuleset
   GtkCssSelector *selector;
   GHashTable *widget_style;
   GHashTable *style;
-
-  guint has_inherit :1;
+  GtkBitmask *set_styles;
 };
 
 struct _GtkCssScanner
@@ -993,6 +994,7 @@ static guint css_provider_signals[LAST_SIGNAL] = { 0 };
 
 static void gtk_css_provider_finalize (GObject *object);
 static void gtk_css_style_provider_iface_init (GtkStyleProviderIface *iface);
+static void gtk_css_style_provider_private_iface_init (GtkStyleProviderPrivateInterface *iface);
 
 static gboolean
 gtk_css_provider_load_internal (GtkCssProvider *css_provider,
@@ -1009,7 +1011,9 @@ gtk_css_provider_error_quark (void)
 
 G_DEFINE_TYPE_EXTENDED (GtkCssProvider, gtk_css_provider, G_TYPE_OBJECT, 0,
                         G_IMPLEMENT_INTERFACE (GTK_TYPE_STYLE_PROVIDER,
-                                               gtk_css_style_provider_iface_init));
+                                               gtk_css_style_provider_iface_init)
+                        G_IMPLEMENT_INTERFACE (GTK_TYPE_STYLE_PROVIDER_PRIVATE,
+                                               gtk_css_style_provider_private_iface_init));
 
 static void
 gtk_css_provider_parsing_error (GtkCssProvider  *provider,
@@ -1109,6 +1113,8 @@ gtk_css_ruleset_init_copy (GtkCssRuleset       *new,
     g_hash_table_ref (new->widget_style);
   if (new->style)
     g_hash_table_ref (new->style);
+  if (new->set_styles)
+    new->set_styles = _gtk_bitmask_copy (new->set_styles);
 }
 
 static void
@@ -1116,6 +1122,8 @@ gtk_css_ruleset_clear (GtkCssRuleset *ruleset)
 {
   if (ruleset->style)
     g_hash_table_unref (ruleset->style);
+  if (ruleset->set_styles)
+    _gtk_bitmask_free (ruleset->set_styles);
   if (ruleset->widget_style)
     g_hash_table_unref (ruleset->widget_style);
   if (ruleset->selector)
@@ -1173,10 +1181,13 @@ gtk_css_ruleset_add (GtkCssRuleset          *ruleset,
                      PropertyValue          *value)
 {
   if (ruleset->style == NULL)
-    ruleset->style = g_hash_table_new_full (g_direct_hash,
-                                            g_direct_equal,
-                                            NULL,
-                                            (GDestroyNotify) property_value_free);
+    {
+      ruleset->style = g_hash_table_new_full (g_direct_hash,
+                                              g_direct_equal,
+                                              NULL,
+                                              (GDestroyNotify) property_value_free);
+      ruleset->set_styles = _gtk_bitmask_new ();
+    }
 
   if (_gtk_style_property_is_shorthand (prop))
     {
@@ -1200,21 +1211,23 @@ gtk_css_ruleset_add (GtkCssRuleset          *ruleset,
       return;
     }
 
-  ruleset->has_inherit |= _gtk_style_property_is_inherit (prop);
+  _gtk_bitmask_set (ruleset->set_styles, _gtk_style_property_get_id (prop), TRUE);
   g_hash_table_insert (ruleset->style, (gpointer) prop, value);
 }
 
 static gboolean
 gtk_css_ruleset_matches (GtkCssRuleset *ruleset,
                          GtkWidgetPath *path,
-                         guint          length)
+                         GtkStateFlags  state)
 {
-  return _gtk_css_selector_matches (ruleset->selector, path, length);
+  return _gtk_css_selector_matches (ruleset->selector, path, state);
 }
 
 static void
 gtk_css_scanner_destroy (GtkCssScanner *scanner)
 {
+  if (scanner->section)
+    gtk_css_section_unref (scanner->section);
   g_object_unref (scanner->provider);
   if (scanner->file)
     g_object_unref (scanner->file);
@@ -1382,49 +1395,39 @@ gtk_css_provider_get_style (GtkStyleProvider *provider,
   GtkCssProvider *css_provider;
   GtkCssProviderPrivate *priv;
   GtkStyleProperties *props;
-  guint i, l, length;
+  guint i;
 
   css_provider = GTK_CSS_PROVIDER (provider);
   priv = css_provider->priv;
-  length = gtk_widget_path_length (path);
   props = gtk_style_properties_new ();
 
   css_provider_dump_symbolic_colors (css_provider, props);
 
-  for (l = 1; l <= length; l++)
+  for (i = 0; i < priv->rulesets->len; i++)
     {
-      for (i = 0; i < priv->rulesets->len; i++)
+      GtkCssRuleset *ruleset;
+      GHashTableIter iter;
+      gpointer key, val;
+
+      ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, i);
+
+      if (ruleset->style == NULL)
+        continue;
+
+      if (!gtk_css_ruleset_matches (ruleset, path, 0))
+        continue;
+
+      g_hash_table_iter_init (&iter, ruleset->style);
+
+      while (g_hash_table_iter_next (&iter, &key, &val))
         {
-          GtkCssRuleset *ruleset;
-          GHashTableIter iter;
-          gpointer key, val;
+          GtkStyleProperty *prop = key;
+          PropertyValue *value = val;
 
-          ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, i);
-
-          if (ruleset->style == NULL)
-            continue;
-
-          if (l < length && (!ruleset->has_inherit || _gtk_css_selector_get_state_flags (ruleset->selector)))
-            continue;
-
-          if (!gtk_css_ruleset_matches (ruleset, path, l))
-            continue;
-
-          g_hash_table_iter_init (&iter, ruleset->style);
-
-          while (g_hash_table_iter_next (&iter, &key, &val))
-            {
-              GtkStyleProperty *prop = key;
-              PropertyValue *value = val;
-
-              if (l != length && !_gtk_style_property_is_inherit (prop))
-                continue;
-
-              _gtk_style_properties_set_property_by_property (props,
-                                                              prop,
-                                                              _gtk_css_selector_get_state_flags (ruleset->selector),
-                                                              &value->value);
-            }
+          _gtk_style_properties_set_property_by_property (props,
+                                                          prop,
+                                                          _gtk_css_selector_get_state_flags (ruleset->selector),
+                                                          &value->value);
         }
     }
 
@@ -1452,24 +1455,18 @@ gtk_css_provider_get_style_property (GtkStyleProvider *provider,
   for (i = priv->rulesets->len - 1; i >= 0; i--)
     {
       GtkCssRuleset *ruleset;
-      GtkStateFlags selector_state;
 
       ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, i);
 
       if (ruleset->widget_style == NULL)
         continue;
 
-      if (!gtk_css_ruleset_matches (ruleset, path, gtk_widget_path_length (path)))
+      if (!gtk_css_ruleset_matches (ruleset, path, state))
         continue;
 
-      selector_state = _gtk_css_selector_get_state_flags (ruleset->selector);
       val = g_hash_table_lookup (ruleset->widget_style, prop_name);
 
-      if (val &&
-          (selector_state == 0 ||
-           selector_state == state ||
-           ((selector_state & state) != 0 &&
-            (selector_state & ~(state)) == 0)))
+      if (val)
         {
           GtkCssScanner *scanner;
 
@@ -1501,6 +1498,64 @@ gtk_css_style_provider_iface_init (GtkStyleProviderIface *iface)
 {
   iface->get_style = gtk_css_provider_get_style;
   iface->get_style_property = gtk_css_provider_get_style_property;
+}
+
+static GtkSymbolicColor *
+gtk_css_style_provider_get_color (GtkStyleProviderPrivate *provider,
+                                  const char              *name)
+{
+  GtkCssProvider *css_provider = GTK_CSS_PROVIDER (provider);
+
+  return g_hash_table_lookup (css_provider->priv->symbolic_colors, name);
+}
+
+static void
+gtk_css_style_provider_lookup (GtkStyleProviderPrivate *provider,
+                               GtkWidgetPath           *path,
+                               GtkStateFlags            state,
+                               GtkCssLookup            *lookup)
+{
+  GtkCssProvider *css_provider;
+  GtkCssProviderPrivate *priv;
+  int i;
+
+  css_provider = GTK_CSS_PROVIDER (provider);
+  priv = css_provider->priv;
+
+  for (i = priv->rulesets->len - 1; i >= 0; i--)
+    {
+      GtkCssRuleset *ruleset;
+      GHashTableIter iter;
+      gpointer key, val;
+
+      ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, i);
+
+      if (ruleset->style == NULL)
+        continue;
+
+      if (!gtk_css_ruleset_matches (ruleset, path, state))
+        continue;
+
+      g_hash_table_iter_init (&iter, ruleset->style);
+
+      while (g_hash_table_iter_next (&iter, &key, &val))
+        {
+          GtkStyleProperty *prop = key;
+          PropertyValue *value = val;
+
+          if (!_gtk_css_lookup_is_missing (lookup, _gtk_style_property_get_id (prop)))
+            continue;
+
+          _gtk_css_lookup_set (lookup, _gtk_style_property_get_id (prop), &value->value);
+        }
+    }
+}
+
+static void
+gtk_css_style_provider_private_iface_init (GtkStyleProviderPrivateInterface *iface)
+{
+  iface->get_color = gtk_css_style_provider_get_color;
+  iface->lookup = gtk_css_style_provider_lookup;
 }
 
 static void
@@ -3277,6 +3332,8 @@ gtk_css_provider_print_colors (GHashTable *colors,
  * this @provider.
  *
  * Returns: a new string representing the @provider.
+ *
+ * Since: 3.2
  **/
 char *
 gtk_css_provider_to_string (GtkCssProvider *provider)

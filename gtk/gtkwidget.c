@@ -3787,6 +3787,8 @@ gtk_widget_unparent (GtkWidget *widget)
 
   /* Unset window-unfocused since we are no longer inside a toplevel window */
   gtk_widget_unset_state_flags (widget, GTK_STATE_FLAG_WINDOW_UNFOCUSED);
+  if (priv->context)
+    gtk_style_context_set_parent (priv->context, NULL);
 
   g_signal_emit (widget, widget_signals[PARENT_SET], 0, old_parent);
   if (toplevel)
@@ -5726,6 +5728,19 @@ _gtk_widget_draw_internal (GtkWidget *widget,
       g_signal_emit (widget, widget_signals[DRAW],
                      0, cr,
                      &result);
+
+      if (cairo_status (cr) &&
+          _gtk_cairo_get_event (cr))
+        {
+          /* We check the event so we only warn about internal GTK calls.
+           * Errors might come from PDF streams having write failures and
+           * we don't want to spam stderr in that case.
+           * We do want to catch errors from
+           */
+          g_warning ("drawing failure for widget `%s': %s",
+                     G_OBJECT_TYPE_NAME (widget),
+                     cairo_status_to_string (cairo_status (cr)));
+        }
     }
 
   context = gtk_widget_get_style_context (widget);
@@ -7804,6 +7819,9 @@ gtk_widget_set_parent (GtkWidget *widget,
   data.operation = STATE_CHANGE_REPLACE;
   gtk_widget_propagate_state (widget, &data);
 
+  if (priv->context)
+    gtk_style_context_set_parent (priv->context,
+                                  gtk_widget_get_style_context (parent));
   gtk_widget_reset_style (widget);
 
   g_signal_emit (widget, widget_signals[PARENT_SET], 0, NULL);
@@ -12756,8 +12774,7 @@ gtk_widget_buildable_parser_finished (GtkBuildable *buildable,
 	}
       g_object_unref (relation_set);
 
-      g_slist_foreach (atk_relations, (GFunc)free_relation, NULL);
-      g_slist_free (atk_relations);
+      g_slist_free_full (atk_relations, (GDestroyNotify) free_relation);
       g_object_set_qdata (G_OBJECT (buildable), quark_builder_atk_relations,
 			  NULL);
     }
@@ -13164,8 +13181,7 @@ gtk_widget_buildable_custom_finished (GtkBuildable *buildable,
           else
             g_warning ("accessibility action on a widget that does not implement AtkAction");
 
-	  g_slist_foreach (a11y_data->actions, (GFunc)free_action, NULL);
-	  g_slist_free (a11y_data->actions);
+	  g_slist_free_full (a11y_data->actions, (GDestroyNotify) free_action);
 	}
 
       if (a11y_data->relations)
@@ -14595,6 +14611,9 @@ gtk_widget_get_style_context (GtkWidget *widget)
         gtk_style_context_set_screen (priv->context, screen);
 
       gtk_style_context_set_path (priv->context, path);
+      if (priv->parent)
+        gtk_style_context_set_parent (priv->context,
+                                      gtk_widget_get_style_context (priv->parent));
     }
 
   return widget->priv->context;

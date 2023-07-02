@@ -153,6 +153,7 @@ gtk_public_h_sources = 		\
 	gtkaccellabel.h		\
 	gtkaccelmap.h		\
 	gtkaccessible.h		\
+	gtkactionable.h		\
 	gtkaction.h		\
 	gtkactiongroup.h	\
 	gtkactivatable.h	\
@@ -390,6 +391,7 @@ gtk_private_type_h_sources = \
 # GTK+ header files that don't get installed
 gtk_private_h_sources =		\
 	gactionmuxer.h		\
+	gsimpleactionobserver.h	\
 	gactionobserver.h	\
 	gactionobservable.h	\
 	gtkapplicationprivate.h	\
@@ -400,12 +402,14 @@ gtk_private_h_sources =		\
 	gtkappchoosermodule.h	\
 	gtkappchooseronline.h	\
 	gtkbindingsprivate.h	\
+	gtkbitmaskprivate.h	\
 	gtkborderimageprivate.h \
 	gtkboxprivate.h         \
 	gtkbuilderprivate.h	\
 	gtkbuttonprivate.h	\
 	gtkcellareaboxcontextprivate.h	\
 	gtkcontainerprivate.h   \
+	gtkcsslookupprivate.h	\
 	gtkcssparserprivate.h	\
 	gtkcssproviderprivate.h	\
 	gtkcsssectionprivate.h 	\
@@ -462,6 +466,8 @@ gtk_private_h_sources =		\
 	gtkstylecontextprivate.h \
 	gtkstylepropertiesprivate.h \
 	gtkstylepropertyprivate.h \
+	gtkstyleproviderprivate.h \
+	gtksymboliccolorprivate.h \
 	gtktextbtree.h		\
 	gtktextbufferserialize.h \
 	gtktextchildprivate.h	\
@@ -488,8 +494,10 @@ gtk_private_h_sources =		\
 # GTK+ C sources to build the library from
 gtk_base_c_sources = 		\
 	gactionmuxer.c		\
+	gsimpleactionobserver.c	\
 	gactionobserver.c	\
 	gactionobservable.c	\
+	gtkactionable.c		\
  	gtkquery.c		\
  	gtksearchengine.c	\
  	gtksearchenginesimple.c	\
@@ -519,6 +527,7 @@ gtk_base_c_sources = 		\
 	gtkbbox.c		\
 	gtkbin.c		\
 	gtkbindings.c		\
+	gtkbitmask.c		\
 	gtkborder.c		\
 	gtkborderimage.c        \
 	gtkbox.c		\
@@ -551,6 +560,7 @@ gtk_base_c_sources = 		\
 	gtkcombobox.c		\
 	gtkcomboboxtext.c	\
 	gtkcontainer.c		\
+	gtkcsslookup.c		\
 	gtkcssparser.c		\
 	gtkcssprovider.c	\
 	gtkcsssection.c 	\
@@ -686,6 +696,7 @@ gtk_base_c_sources = 		\
 	gtkstyleproperties.c	\
 	gtkstyleproperty.c	\
 	gtkstyleprovider.c	\
+	gtkstyleproviderprivate.c	\
 	gtkstyle.c		\
 	gtkswitch.c		\
 	gtksymboliccolor.c	\

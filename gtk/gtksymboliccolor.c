@@ -18,7 +18,7 @@
  */
 
 #include "config.h"
-#include "gtksymboliccolor.h"
+#include "gtksymboliccolorprivate.h"
 #include "gtkstyleproperties.h"
 #include "gtkintl.h"
 #include "gtkwin32themeprivate.h"
@@ -502,6 +502,15 @@ _shade_color (GdkRGBA *color,
   *color = temp;
 }
 
+static GtkSymbolicColor *
+resolve_lookup_color (gpointer data, const char *name)
+{
+  if (data == NULL)
+    return NULL;
+
+  return gtk_style_properties_lookup_color (data, name);
+}
+
 /**
  * gtk_symbolic_color_resolve:
  * @color: a #GtkSymbolicColor
@@ -531,6 +540,22 @@ gtk_symbolic_color_resolve (GtkSymbolicColor   *color,
   g_return_val_if_fail (resolved_color != NULL, FALSE);
   g_return_val_if_fail (props == NULL || GTK_IS_STYLE_PROPERTIES (props), FALSE);
 
+  return _gtk_symbolic_color_resolve_full (color,
+                                           resolve_lookup_color,
+                                           props,
+                                           resolved_color);
+}
+
+gboolean
+_gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
+                                  GtkSymbolicColorLookupFunc  func,
+                                  gpointer                    data,
+                                  GdkRGBA                    *resolved_color)
+{
+  g_return_val_if_fail (color != NULL, FALSE);
+  g_return_val_if_fail (resolved_color != NULL, FALSE);
+  g_return_val_if_fail (func != NULL, FALSE);
+
   switch (color->type)
     {
     case COLOR_TYPE_LITERAL:
@@ -540,15 +565,12 @@ gtk_symbolic_color_resolve (GtkSymbolicColor   *color,
       {
         GtkSymbolicColor *named_color;
 
-        if (props == NULL)
-          return FALSE;
-
-        named_color = gtk_style_properties_lookup_color (props, color->name);
+        named_color = func (data, color->name);
 
         if (!named_color)
           return FALSE;
 
-        return gtk_symbolic_color_resolve (named_color, props, resolved_color);
+        return _gtk_symbolic_color_resolve_full (named_color, func, data, resolved_color);
       }
 
       break;
@@ -556,7 +578,7 @@ gtk_symbolic_color_resolve (GtkSymbolicColor   *color,
       {
         GdkRGBA shade;
 
-        if (!gtk_symbolic_color_resolve (color->shade.color, props, &shade))
+        if (!_gtk_symbolic_color_resolve_full (color->shade.color, func, data, &shade))
           return FALSE;
 
         _shade_color (&shade, color->shade.factor);
@@ -570,7 +592,7 @@ gtk_symbolic_color_resolve (GtkSymbolicColor   *color,
       {
         GdkRGBA alpha;
 
-        if (!gtk_symbolic_color_resolve (color->alpha.color, props, &alpha))
+        if (!_gtk_symbolic_color_resolve_full (color->alpha.color, func, data, &alpha))
           return FALSE;
 
         *resolved_color = alpha;
@@ -582,10 +604,10 @@ gtk_symbolic_color_resolve (GtkSymbolicColor   *color,
       {
         GdkRGBA color1, color2;
 
-        if (!gtk_symbolic_color_resolve (color->mix.color1, props, &color1))
+        if (!_gtk_symbolic_color_resolve_full (color->mix.color1, func, data, &color1))
           return FALSE;
 
-        if (!gtk_symbolic_color_resolve (color->mix.color2, props, &color2))
+        if (!_gtk_symbolic_color_resolve_full (color->mix.color2, func, data, &color2))
           return FALSE;
 
         resolved_color->red = CLAMP (color1.red + ((color2.red - color1.red) * color->mix.factor), 0, 1);
