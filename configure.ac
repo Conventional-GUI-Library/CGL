@@ -39,7 +39,7 @@ AC_CONFIG_AUX_DIR([build-aux])
 m4_define([gtk_binary_version], [3.0.0])
 
 # required versions of other packages
-m4_define([glib_required_version], [2.31.6])
+m4_define([glib_required_version], [2.31.10])
 m4_define([pango_required_version], [1.29.0])
 m4_define([atk_required_version], [2.1.5])
 m4_define([cairo_required_version], [1.10.0])
@@ -1557,6 +1557,13 @@ fi
 
 GLIB_GSETTINGS
 
+#############
+# Resources #
+#############
+
+GLIB_COMPILE_RESOURCES=`$PKG_CONFIG --variable glib_compile_resources gio-2.0`
+AC_SUBST(GLIB_COMPILE_RESOURCES)
+
 ##################################################
 # GObject introspection
 ##################################################
@@ -1761,6 +1768,7 @@ tests/a11y/Makefile
 tests/css/Makefile
 tests/css/parser/Makefile
 tests/reftests/Makefile
+tests/visuals/Makefile
 docs/Makefile
 docs/reference/Makefile
 docs/reference/gdk/Makefile

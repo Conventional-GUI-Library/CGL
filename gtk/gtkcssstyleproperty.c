@@ -117,13 +117,13 @@ _gtk_css_style_property_assign (GtkStyleProperty   *property,
 
 static void
 _gtk_css_style_property_query (GtkStyleProperty   *property,
-                               GtkStyleProperties *props,
-                               GtkStateFlags       state,
-                               GValue             *value)
+                               GValue             *value,
+                               GtkStyleQueryFunc   query_func,
+                               gpointer            query_data)
 {
   const GValue *val;
   
-  val = _gtk_style_properties_peek_property (props, GTK_CSS_STYLE_PROPERTY (property), state);
+  val = (* query_func) (GTK_CSS_STYLE_PROPERTY (property)->id, query_data);
   if (val)
     {
       /* Somebody make this a vfunc */
@@ -287,6 +287,12 @@ _gtk_css_style_property_get_n_properties (void)
   GtkCssStylePropertyClass *klass;
 
   klass = g_type_class_peek (GTK_TYPE_CSS_STYLE_PROPERTY);
+  if (G_UNLIKELY (klass == NULL))
+    {
+      _gtk_style_property_init_properties ();
+      klass = g_type_class_peek (GTK_TYPE_CSS_STYLE_PROPERTY);
+      g_assert (klass);
+    }
 
   return klass->style_properties->len;
 }
@@ -307,6 +313,13 @@ _gtk_css_style_property_lookup_by_id (guint id)
   GtkCssStylePropertyClass *klass;
 
   klass = g_type_class_peek (GTK_TYPE_CSS_STYLE_PROPERTY);
+  if (G_UNLIKELY (klass == NULL))
+    {
+      _gtk_style_property_init_properties ();
+      klass = g_type_class_peek (GTK_TYPE_CSS_STYLE_PROPERTY);
+      g_assert (klass);
+    }
+  g_return_val_if_fail (id < klass->style_properties->len, NULL);
 
   return g_ptr_array_index (klass->style_properties, id);
 }

@@ -39,11 +39,8 @@ typedef enum {
   GTK_STYLE_PROPERTY_INHERIT = (1 << 0)
 } GtkStylePropertyFlags;
 
-typedef GParameter *     (* GtkStyleUnpackFunc)            (const GValue           *value,
-                                                            guint                  *n_params);
-typedef void             (* GtkStylePackFunc)              (GValue                 *value,
-                                                            GtkStyleProperties     *props,
-                                                            GtkStateFlags           state);
+typedef const GValue *   (* GtkStyleQueryFunc)             (guint                   id,
+                                                            gpointer                data);
 
 struct _GtkStyleProperty
 {
@@ -51,9 +48,6 @@ struct _GtkStyleProperty
 
   char *name;
   GType value_type;
-
-  GtkStyleUnpackFunc        unpack_func;
-  GtkStylePackFunc          pack_func;
 };
 
 struct _GtkStylePropertyClass
@@ -65,9 +59,9 @@ struct _GtkStylePropertyClass
                                                             GtkStateFlags           state,
                                                             const GValue           *value);
   void              (* query)                              (GtkStyleProperty       *property,
-                                                            GtkStyleProperties     *props,
-                                                            GtkStateFlags           state,
-                                                            GValue                 *value);
+                                                            GValue                 *value,
+                                                            GtkStyleQueryFunc       query_func,
+                                                            gpointer                query_data);
   gboolean          (* parse_value)                        (GtkStyleProperty *      property,
                                                             GValue                 *value,
                                                             GtkCssParser           *parser,
@@ -77,6 +71,8 @@ struct _GtkStylePropertyClass
 };
 
 GType               _gtk_style_property_get_type             (void) G_GNUC_CONST;
+
+void                _gtk_style_property_init_properties      (void);
 
 GtkStyleProperty *       _gtk_style_property_lookup        (const char             *name);
 
@@ -89,9 +85,9 @@ gboolean                 _gtk_style_property_parse_value   (GtkStyleProperty *  
 
 GType                    _gtk_style_property_get_value_type(GtkStyleProperty *      property);
 void                     _gtk_style_property_query         (GtkStyleProperty *      property,
-                                                            GtkStyleProperties     *props,
-                                                            GtkStateFlags           state,
-                                                            GValue                 *value);
+                                                            GValue                 *value,
+                                                            GtkStyleQueryFunc       query_func,
+                                                            gpointer                query_data);
 void                     _gtk_style_property_assign        (GtkStyleProperty       *property,
                                                             GtkStyleProperties     *props,
                                                             GtkStateFlags           state,

@@ -707,9 +707,9 @@ gtk_button_update_action_observer (GtkButton *button)
     {
       GSimpleActionObserver *observer;
 
-      observer = gtk_application_window_get_observer (GTK_APPLICATION_WINDOW (window),
-                                                      button->priv->action_name,
-                                                      button->priv->action_target);
+      observer = gtk_application_window_create_observer (GTK_APPLICATION_WINDOW (window),
+                                                         button->priv->action_name,
+                                                         button->priv->action_target);
 
       _gtk_button_set_depressed (button, g_simple_action_observer_get_active (observer));
 
@@ -732,15 +732,12 @@ gtk_button_set_action_name (GtkActionable *actionable,
   g_return_if_fail (GTK_IS_BUTTON (button));
   g_return_if_fail (button->priv->action == NULL);
 
-  if (g_strcmp0 (action_name, button->priv->action_name) != 0)
-    {
-      g_free (button->priv->action_name);
-      button->priv->action_name = g_strdup (action_name);
+  g_free (button->priv->action_name);
+  button->priv->action_name = g_strdup (action_name);
 
-      gtk_button_update_action_observer (button);
+  gtk_button_update_action_observer (button);
 
-      g_object_notify (G_OBJECT (button), "action-name");
-    }
+  g_object_notify (G_OBJECT (button), "action-name");
 }
 
 static void

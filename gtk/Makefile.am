@@ -409,6 +409,7 @@ gtk_private_h_sources =		\
 	gtkbuttonprivate.h	\
 	gtkcellareaboxcontextprivate.h	\
 	gtkcontainerprivate.h   \
+	gtkcsscomputedvaluesprivate.h \
 	gtkcsscustompropertyprivate.h \
 	gtkcssimagegradientprivate.h	\
 	gtkcssimageprivate.h	\
@@ -423,7 +424,6 @@ gtk_private_h_sources =		\
 	gtkcssstylefuncsprivate.h \
 	gtkcssstylepropertyprivate.h \
 	gtkcustompaperunixdialog.h \
-	gtkdndcursors.h		\
 	gtkentryprivate.h	\
 	gtkfilechooserdefault.h	\
 	gtkfilechooserembed.h	\
@@ -462,6 +462,7 @@ gtk_private_h_sources =		\
 	gtkrecentchooserdefault.h \
 	gtkrecentchooserprivate.h \
 	gtkrecentchooserutils.h	\
+	gtkresources.h		\
 	gtkroundedboxprivate.h	\
 	gtkscaleprivate.h	\
 	gtksearchengine.h	\
@@ -568,6 +569,7 @@ gtk_base_c_sources = 		\
 	gtkcombobox.c		\
 	gtkcomboboxtext.c	\
 	gtkcontainer.c		\
+	gtkcsscomputedvalues.c	\
 	gtkcsscustomproperty.c	\
 	gtkcssimage.c		\
 	gtkcssimagegradient.c	\
@@ -690,6 +692,7 @@ gtk_base_c_sources = 		\
 	gtkrecentchooser.c	\
 	gtkrecentfilter.c	\
 	gtkrecentmanager.c	\
+	gtkresources.c		\
 	gtkroundedbox.c		\
 	gtkscale.c		\
 	gtkscalebutton.c	\
@@ -882,13 +885,16 @@ gtk_built_public_sources =			\
 
 # built headers that don't get installed
 gtk_built_private_headers =			\
-	gtkmarshalers.h				\
-	gtkbuiltincache.h
+	gtkresources.h				\
+ 	gtkmarshalers.h				\
+ 	gtkbuiltincache.h			\
+ 	gtkprivatetypebuiltins.h		
 
 gtk_built_sources =				\
-	gtktypebuiltins.c			\
-	gtktypefuncs.c				\
-	gtkmarshalers.c				\
+	gtkresources.c				\
+ 	gtktypebuiltins.c			\
+ 	gtktypefuncs.c				\
+ 	gtkmarshalers.c				\
 	${gtk_built_private_headers}		\
 	${gtk_built_public_sources}
 
@@ -906,6 +912,7 @@ gtk_extra_sources =				\
 	gen-paper-names.c			\
 	gtkstatusicon-quartz.c			\
 	gtk.symbols				\
+	gtk-win32.css				\	
 	gtkversion.h.in				\
 	gtkmarshalers.list			\
 	fallback-c89.c
@@ -923,6 +930,13 @@ EXTRA_HEADERS =
 EXTRA_DIST += $(gtk_private_h_sources) $(gtk_extra_sources)
 EXTRA_DIST += $(gtk_built_sources)
 EXTRA_DIST += $(STOCK_ICONS)
+
+DND_CURSORS = \
+	cursor_dnd_ask.png				\
+	cursor_dnd_copy.png				\
+	cursor_dnd_link.png				\
+	cursor_dnd_move.png				\
+	cursor_dnd_none.png
 
 #
 # rules to generate built sources
@@ -965,6 +979,13 @@ gtktypebuiltins.c: @REBUILD@ $(gtk_public_h_sources) gtktypebuiltins.c.template
 		$(gtk_public_h_sources) $(deprecated_h_sources) ) > xgen-gtbc \
 	&& cp xgen-gtbc gtktypebuiltins.c  \
 	&& rm -f xgen-gtbc
+
+gtkresources.h: gtk.gresource.xml
+	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) gtk.gresource.xml \
+		--target=$@ --sourcedir=$(srcdir) --c-name _gtk --generate-header --manual-register
+gtkresources.c: gtk.gresource.xml gtk-default.css gtk-win32.css $(DND_CURSORS)
+	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) gtk.gresource.xml \
+		--target=$@ --sourcedir=$(srcdir) --c-name _gtk --generate-source --manual-register
 
 
 gtkprivatetypebuiltins.h: stamp-gtkprivatetypebuiltins.h
@@ -1498,6 +1519,7 @@ endif
 
 EXTRA_DIST +=                   \
 	$(STOCK_ICONS)		\
+	$(DND_CURSORS)		\
 	$(GENERATED_ICONS)	\
 	gtk.def			\
 	gtk-win32.rc		\
@@ -1509,6 +1531,8 @@ EXTRA_DIST +=                   \
 	gtkprint-win32.c	\
 	gtksearchenginequartz.h \
 	gtk.css.raleigh		\
+	gtk.gresource.xml	\
+	gtk-default.css		\
 	gtk-keys.css.default	\
 	gtk-keys.css.emacs	\
 	gtk-keys.css.mac	\

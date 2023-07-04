@@ -337,7 +337,7 @@ struct GtkStyleInfo
 
 struct StyleData
 {
-  GtkStyleProperties *store;
+  GtkCssComputedValues *store;
   GSList *icon_factories;
   GArray *property_cache;
 };
@@ -987,10 +987,7 @@ build_properties (GtkStyleContext *context,
         }
     }
 
-  style_data->store = gtk_style_properties_new ();
-  _gtk_style_properties_set_color_lookup_func (style_data->store,
-                                               gtk_style_context_color_lookup_func,
-                                               context);
+  style_data->store = _gtk_css_computed_values_new ();
   _gtk_css_lookup_resolve (lookup, context, style_data->store);
   _gtk_css_lookup_free (lookup);
 }
@@ -1076,6 +1073,7 @@ style_data_lookup (GtkStyleContext *context,
   GtkStyleContextPrivate *priv;
   StyleData *data;
   gboolean state_mismatch;
+  const GValue *v;
 
   priv = context->priv;
   state_mismatch = ((GtkStyleInfo *) priv->info_stack->data)->state_flags != state;
@@ -1117,11 +1115,10 @@ style_data_lookup (GtkStyleContext *context,
   if (priv->theming_engine)
     g_object_unref (priv->theming_engine);
 
-  gtk_style_properties_get (priv->current_data->store, 0,
-                            "engine", &priv->theming_engine,
-                            NULL);
-
-  if (!priv->theming_engine)
+  v = _gtk_css_computed_values_get_value_by_name (priv->current_data->store, "engine");
+  if (v)
+    priv->theming_engine = g_value_dup_object (v);
+  else
     priv->theming_engine = g_object_ref (gtk_theming_engine_load (NULL));
 
   if (G_UNLIKELY (state_mismatch))
@@ -1403,6 +1400,55 @@ gtk_style_context_remove_provider_for_screen (GdkScreen        *screen,
 }
 
 /**
+ * gtk_style_context_get_section:
+ * @context: a #GtkStyleContext
+ * @property: style property name
+ *
+ * Queries the location in the CSS where @property was defined for the
+ * current @context. Note that the state to be queried is taken from
+ * gtk_style_context_get_state().
+ *
+ * If the location is not available, %NULL will be returned. The
+ * location might not be available for various reasons, such as the
+ * property being overridden, @property not naming a supported CSS
+ * property or tracking of definitions being disabled for performance
+ * reasons.
+ *
+ * Shorthand CSS properties cannot be queried for a location and will
+ * always return %NULL.
+ *
+ * Returns: %NULL or the section where value was defined
+ **/
+GtkCssSection *
+gtk_style_context_get_section (GtkStyleContext *context,
+                               const gchar     *property)
+{
+  GtkStyleContextPrivate *priv;
+  GtkStyleProperty *prop;
+  StyleData *data;
+
+  g_return_val_if_fail (GTK_IS_STYLE_CONTEXT (context), NULL);
+  g_return_val_if_fail (property != NULL, NULL);
+
+  priv = context->priv;
+  g_return_val_if_fail (priv->widget_path != NULL, NULL);
+
+  prop = _gtk_style_property_lookup (property);
+  if (!GTK_IS_CSS_STYLE_PROPERTY (prop))
+    return NULL;
+
+  data = style_data_lookup (context, gtk_style_context_get_state (context));
+  return _gtk_css_computed_values_get_section (data->store, _gtk_css_style_property_get_id (GTK_CSS_STYLE_PROPERTY (prop)));
+}
+
+static const GValue *
+gtk_style_context_query_func (guint    id,
+                              gpointer values)
+{
+  return _gtk_css_computed_values_get_value (values, id);
+}
+
+/**
  * gtk_style_context_get_property:
  * @context: a #GtkStyleContext
  * @property: style property name
@@ -1423,6 +1469,7 @@ gtk_style_context_get_property (GtkStyleContext *context,
                                 GValue          *value)
 {
   GtkStyleContextPrivate *priv;
+  GtkStyleProperty *prop;
   StyleData *data;
 
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
@@ -1430,11 +1477,22 @@ gtk_style_context_get_property (GtkStyleContext *context,
   g_return_if_fail (value != NULL);
 
   priv = context->priv;
-
   g_return_if_fail (priv->widget_path != NULL);
 
+  prop = _gtk_style_property_lookup (property);
+  if (prop == NULL)
+    {
+      g_warning ("Style property \"%s\" is not registered", property);
+      return;
+    }
+  if (_gtk_style_property_get_value_type (prop) == G_TYPE_NONE)
+    {
+      g_warning ("Style property \"%s\" is not gettable", property);
+      return;
+    }
+
   data = style_data_lookup (context, state);
-  gtk_style_properties_get_property (data->store, property, 0, value);
+  _gtk_style_property_query (prop, value, gtk_style_context_query_func, data->store);
 }
 
 /**
@@ -1452,16 +1510,34 @@ gtk_style_context_get_valist (GtkStyleContext *context,
                               GtkStateFlags    state,
                               va_list          args)
 {
-  GtkStyleContextPrivate *priv;
-  StyleData *data;
+  const gchar *property_name;
 
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
 
-  priv = context->priv;
-  g_return_if_fail (priv->widget_path != NULL);
+  property_name = va_arg (args, const gchar *);
 
-  data = style_data_lookup (context, state);
-  gtk_style_properties_get_valist (data->store, 0, args);
+  while (property_name)
+    {
+      gchar *error = NULL;
+      GValue value = G_VALUE_INIT;
+
+      gtk_style_context_get_property (context,
+                                      property_name,
+                                      state,
+                                      &value);
+
+      G_VALUE_LCOPY (&value, args, 0, &error);
+      g_value_unset (&value);
+
+      if (error)
+        {
+          g_warning ("Could not get style property \"%s\": %s", property_name, error);
+          g_free (error);
+          break;
+        }
+
+      property_name = va_arg (args, const gchar *);
+    }
 }
 
 /**
@@ -1480,19 +1556,12 @@ gtk_style_context_get (GtkStyleContext *context,
                        GtkStateFlags    state,
                        ...)
 {
-  GtkStyleContextPrivate *priv;
-  StyleData *data;
   va_list args;
 
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
 
-  priv = context->priv;
-  g_return_if_fail (priv->widget_path != NULL);
-
-  data = style_data_lookup (context, state);
-
   va_start (args, state);
-  gtk_style_properties_get_valist (data->store, 0, args);
+  gtk_style_context_get_valist (context, state, args);
   va_end (args);
 }
 
@@ -1673,8 +1742,8 @@ gtk_style_context_get_path (GtkStyleContext *context)
  *
  * Sets the parent style context for @context. The parent style
  * context is used to implement
- * <ulink url="http://www.w3.org/TR/css3-cascade/#inheritance>
- * inheritance</ulink> of properties.
+ * <ulink url="http://www.w3.org/TR/css3-cascade/#inheritance">inheritance</ulink>
+ * of properties.
  *
  * If you are using a #GtkStyleContext returned from
  * gtk_widget_get_style_context(), the parent will be set for you.
@@ -2298,21 +2367,9 @@ const GValue *
 _gtk_style_context_peek_property (GtkStyleContext *context,
                                   const char      *property_name)
 {
-  GtkStyleProperty *property;
-  StyleData *data;
+  StyleData *data = style_data_lookup (context, gtk_style_context_get_state (context));
 
-  property = _gtk_style_property_lookup (property_name);
-  if (!GTK_IS_CSS_STYLE_PROPERTY (property))
-    {
-      g_warning ("Style property \"%s\" does not exist", property_name);
-      return NULL;
-    }
-
-  data = style_data_lookup (context, gtk_style_context_get_state (context));
-
-  return _gtk_style_properties_peek_property (data->store,
-                                              GTK_CSS_STYLE_PROPERTY (property),
-                                              0);
+  return _gtk_css_computed_values_get_value_by_name (data->store, property_name);
 }
 
 const GValue *
@@ -2401,7 +2458,7 @@ _gtk_style_context_peek_style_property (GtkStyleContext *context,
                   else
                     g_value_init (&pcache->value, GDK_TYPE_COLOR);
 
-                  if (gtk_symbolic_color_resolve (color, data->store, &rgba))
+                  if (_gtk_style_context_resolve_color (context, color, &rgba))
                     {
                       if (G_PARAM_SPEC_VALUE_TYPE (pspec) == GDK_TYPE_RGBA)
                         g_value_set_boxed (&pcache->value, &rgba);
@@ -2956,6 +3013,7 @@ gtk_style_context_notify_state_change (GtkStyleContext *context,
   GtkAnimationDescription *desc;
   AnimationInfo *info;
   GtkStateFlags flags;
+  const GValue *v;
   StyleData *data;
 
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
@@ -2997,18 +3055,15 @@ gtk_style_context_notify_state_change (GtkStyleContext *context,
    * state, it will fallback to the normal state as well if necessary.
    */
   data = style_data_lookup (context, flags);
-  gtk_style_properties_get (data->store, 0,
-                            "transition", &desc,
-                            NULL);
-
+  v = _gtk_css_computed_values_get_value_by_name (data->store, "transition");
+  if (!v)
+    return;
+  desc = g_value_get_boxed (v);
   if (!desc)
     return;
 
   if (_gtk_animation_description_get_duration (desc) == 0)
-    {
-      _gtk_animation_description_unref (desc);
-      return;
-    }
+    return;
 
   info = animation_info_lookup (context, region_id, state);
 
@@ -3045,8 +3100,6 @@ gtk_style_context_notify_state_change (GtkStyleContext *context,
       priv->animations = g_slist_prepend (priv->animations, info);
       priv->animations_invalidated = TRUE;
     }
-
-  _gtk_animation_description_unref (desc);
 }
 
 /**
@@ -3530,24 +3583,18 @@ gtk_style_context_get_border (GtkStyleContext *context,
                               GtkStateFlags    state,
                               GtkBorder       *border)
 {
-  GtkStyleContextPrivate *priv;
-  StyleData *data;
   int top, left, bottom, right;
 
   g_return_if_fail (border != NULL);
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
 
-  priv = context->priv;
-  g_return_if_fail (priv->widget_path != NULL);
-
-  data = style_data_lookup (context, state);
-  gtk_style_properties_get (data->store,
-                            0,
-                            "border-top-width", &top,
-                            "border-left-width", &left,
-                            "border-bottom-width", &bottom,
-                            "border-right-width", &right,
-                            NULL);
+  gtk_style_context_get (context,
+                         state,
+                         "border-top-width", &top,
+                         "border-left-width", &left,
+                         "border-bottom-width", &bottom,
+                         "border-right-width", &right,
+                         NULL);
 
   border->top = top;
   border->left = left;
@@ -3571,24 +3618,18 @@ gtk_style_context_get_padding (GtkStyleContext *context,
                                GtkStateFlags    state,
                                GtkBorder       *padding)
 {
-  GtkStyleContextPrivate *priv;
-  StyleData *data;
   int top, left, bottom, right;
 
   g_return_if_fail (padding != NULL);
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
 
-  priv = context->priv;
-  g_return_if_fail (priv->widget_path != NULL);
-
-  data = style_data_lookup (context, state);
-  gtk_style_properties_get (data->store,
-                            0,
-                            "padding-top", &top,
-                            "padding-left", &left,
-                            "padding-bottom", &bottom,
-                            "padding-right", &right,
-                            NULL);
+  gtk_style_context_get (context,
+                         state,
+                         "padding-top", &top,
+                         "padding-left", &left,
+                         "padding-bottom", &bottom,
+                         "padding-right", &right,
+                         NULL);
 
   padding->top = top;
   padding->left = left;
@@ -3612,24 +3653,18 @@ gtk_style_context_get_margin (GtkStyleContext *context,
                               GtkStateFlags    state,
                               GtkBorder       *margin)
 {
-  GtkStyleContextPrivate *priv;
-  StyleData *data;
   int top, left, bottom, right;
 
   g_return_if_fail (margin != NULL);
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
 
-  priv = context->priv;
-  g_return_if_fail (priv->widget_path != NULL);
-
-  data = style_data_lookup (context, state);
-  gtk_style_properties_get (data->store,
-                            0,
-                            "margin-top", &top,
-                            "margin-left", &left,
-                            "margin-bottom", &bottom,
-                            "margin-right", &right,
-                            NULL);
+  gtk_style_context_get (context,
+                         state,
+                         "margin-top", &top,
+                         "margin-left", &left,
+                         "margin-bottom", &bottom,
+                         "margin-right", &right,
+                         NULL);
 
   margin->top = top;
   margin->left = left;
@@ -3658,7 +3693,6 @@ gtk_style_context_get_font (GtkStyleContext *context,
 {
   GtkStyleContextPrivate *priv;
   StyleData *data;
-  GHashTable *font_cache;
   PangoFontDescription *description;
 
   g_return_val_if_fail (GTK_IS_STYLE_CONTEXT (context), NULL);
@@ -3670,27 +3704,15 @@ gtk_style_context_get_font (GtkStyleContext *context,
 
   /* Yuck, fonts are created on-demand but we don't return a ref.
    * Do bad things to achieve this requirement */
-  font_cache = g_object_get_data (G_OBJECT (data->store), "font-cache-for-get_font");
-  if (font_cache)
-    {
-      description = g_hash_table_lookup (font_cache, GUINT_TO_POINTER (state));
-    }
-  else
-    {
-      font_cache = g_hash_table_new_full (NULL, NULL, NULL, (GDestroyNotify) pango_font_description_free);
-      g_object_set_data_full (G_OBJECT (data->store),
-                              "font-cache-for-get_font",
-                              font_cache,
-                              (GDestroyNotify) g_hash_table_unref);
-      description = NULL;
-    }
-
+  description = g_object_get_data (G_OBJECT (data->store), "font-cache-for-get_font");
   if (description == NULL)
     {
-      gtk_style_properties_get (data->store, 0, "font", &description, NULL);
-      g_hash_table_insert (font_cache, GUINT_TO_POINTER (state), description);
+      gtk_style_context_get (context, state, "font", &description, NULL);
+      g_object_set_data_full (G_OBJECT (data->store),
+                              "font-cache-for-get_font",
+                              description,
+                              (GDestroyNotify) pango_font_description_free);
     }
-
   return description;
 }
 

@@ -782,7 +782,7 @@ create_tree (void)
   GtkTreeIter iter;
   GtkWidget *box, *label, *scrolled_window;
 
-  Demo *d = testgtk_demos;
+  Demo *d = gtk_demos;
 
   model = gtk_tree_store_new (NUM_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER, G_TYPE_INT);
   tree_view = gtk_tree_view_new ();
@@ -1002,7 +1002,7 @@ main (int argc, char **argv)
   gtk_window_set_default_size (GTK_WINDOW (window), 600, 400);
   gtk_widget_show_all (window);
 
-  load_file (testgtk_demos[0].filename);
+  load_file (gtk_demos[0].filename);
 
   gtk_main ();
 

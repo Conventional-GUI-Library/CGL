@@ -59,8 +59,6 @@ struct _GtkApplicationClass
   void (*window_removed) (GtkApplication *application,
                           GtkWindow      *window);
 
-  void (*quit_requested) (GtkApplication *application);
-  void (*quit_cancelled) (GtkApplication *application);
   void (*quit)           (GtkApplication *application);
 
   /*< private >*/
@@ -95,10 +93,6 @@ void             gtk_application_remove_accelerator (GtkApplication *application
                                                      const gchar    *action_name,
                                                      GVariant       *parameter);
 
-void             gtk_application_quit_response      (GtkApplication *application,
-                                                     gboolean        will_quit,
-                                                     const gchar    *reason);
-
 typedef enum
 {
   GTK_APPLICATION_INHIBIT_LOGOUT  = (1 << 0),
@@ -120,11 +114,11 @@ typedef enum {
   GTK_APPLICATION_LOGOUT,
   GTK_APPLICATION_REBOOT,
   GTK_APPLICATION_SHUTDOWN
-} GtkApplicationEndStyle;
+} GtkApplicationEndSessionStyle;
 
-gboolean         gtk_application_end_session        (GtkApplication             *application,
-                                                     GtkApplicationEndStyle      style,
-                                                     gboolean                    request_confirmation);
+gboolean         gtk_application_end_session        (GtkApplication                *application,
+                                                     GtkApplicationEndSessionStyle  style,
+                                                     gboolean                       request_confirmation);
 
 G_END_DECLS
 

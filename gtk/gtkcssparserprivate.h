@@ -80,10 +80,11 @@ gboolean        _gtk_css_parser_try_enum          (GtkCssParser          *parser
 
 void            _gtk_css_parser_skip_whitespace   (GtkCssParser          *parser);
 char *          _gtk_css_parser_read_string       (GtkCssParser          *parser);
-char *          _gtk_css_parser_read_uri          (GtkCssParser          *parser);
 char *          _gtk_css_parser_read_value        (GtkCssParser          *parser);
 GtkSymbolicColor *_gtk_css_parser_read_symbolic_color
                                                   (GtkCssParser          *parser);
+GFile *         _gtk_css_parser_read_url          (GtkCssParser          *parser,
+                                                   GFile                 *base);
 
 void            _gtk_css_parser_resync            (GtkCssParser          *parser,
                                                    gboolean               sync_at_semicolon,

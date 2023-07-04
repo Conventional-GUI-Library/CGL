@@ -85,6 +85,13 @@ gtk_accessible_connect_widget_destroyed
 gtk_accessible_get_type
 gtk_accessible_get_widget
 gtk_accessible_set_widget
+gtk_actionable_get_action_name
+gtk_actionable_get_action_target_value
+gtk_actionable_get_type
+gtk_actionable_set_action_name
+gtk_actionable_set_action_target
+gtk_actionable_set_action_target_value
+gtk_actionable_set_detailed_action_name
 gtk_action_activate
 gtk_action_block_activate
 gtk_action_connect_accelerator
@@ -220,7 +227,7 @@ gtk_app_chooser_widget_set_show_recommended
 gtk_application_add_accelerator
 gtk_application_add_window
 gtk_application_end_session
-gtk_application_end_style_get_type
+gtk_application_end_session_style_get_type
 gtk_application_get_app_menu
 gtk_application_get_menubar
 gtk_application_get_type
@@ -229,7 +236,6 @@ gtk_application_inhibit
 gtk_application_inhibit_flags_get_type
 gtk_application_is_inhibited
 gtk_application_new
-gtk_application_quit_response
 gtk_application_remove_accelerator
 gtk_application_remove_window
 gtk_application_set_app_menu
@@ -318,8 +324,10 @@ gtk_buildable_parser_finished
 gtk_buildable_set_buildable_property
 gtk_buildable_set_name
 gtk_builder_add_from_file
+gtk_builder_add_from_resource
 gtk_builder_add_from_string
 gtk_builder_add_objects_from_file
+gtk_builder_add_objects_from_resource
 gtk_builder_add_objects_from_string
 gtk_builder_connect_signals
 gtk_builder_connect_signals_full
@@ -713,6 +721,7 @@ gtk_container_set_reallocate_redraws
 gtk_container_set_resize_mode
 gtk_container_unset_focus_chain
 gtk_corner_type_get_type
+gtk_css_image_get_parser_type
 gtk_css_provider_error_get_type
 gtk_css_provider_error_quark
 gtk_css_provider_get_default
@@ -748,6 +757,7 @@ gtk_gradient_new_linear
 gtk_gradient_new_radial
 gtk_gradient_ref
 gtk_gradient_resolve
+gtk_gradient_resolve_for_context
 gtk_gradient_to_string
 gtk_gradient_unref
 gtk_dialog_add_action_widget
@@ -1360,6 +1370,7 @@ gtk_image_new_from_gicon
 gtk_image_new_from_icon_name
 gtk_image_new_from_icon_set
 gtk_image_new_from_pixbuf
+gtk_image_new_from_resource
 gtk_image_new_from_stock
 gtk_image_set_from_animation
 gtk_image_set_from_file
@@ -1367,6 +1378,7 @@ gtk_image_set_from_gicon
 gtk_image_set_from_icon_name
 gtk_image_set_from_icon_set
 gtk_image_set_from_pixbuf
+gtk_image_set_from_resource
 gtk_image_set_from_stock
 gtk_image_set_pixel_size
 gtk_image_type_get_type
@@ -2545,6 +2557,7 @@ gtk_style_context_get_parent
 gtk_style_context_get_path
 gtk_style_context_get_property
 gtk_style_context_get_screen
+gtk_style_context_get_section
 gtk_style_context_get_state
 gtk_style_context_get_style
 gtk_style_context_get_style_property
@@ -3474,6 +3487,7 @@ gtk_tree_view_unset_rows_drag_source
 gtk_true
 gtk_ui_manager_add_ui
 gtk_ui_manager_add_ui_from_file
+gtk_ui_manager_add_ui_from_resource
 gtk_ui_manager_add_ui_from_string
 gtk_ui_manager_ensure_update
 gtk_ui_manager_get_accel_group
@@ -3813,6 +3827,7 @@ gtk_window_get_skip_pager_hint
 gtk_window_get_skip_taskbar_hint
 gtk_window_get_title
 gtk_window_get_transient_for
+gtk_window_get_attached_to
 gtk_window_get_type
 gtk_window_get_type_hint
 gtk_window_get_urgency_hint
@@ -3884,6 +3899,7 @@ gtk_window_set_skip_taskbar_hint
 gtk_window_set_startup_id
 gtk_window_set_title
 gtk_window_set_transient_for
+gtk_window_set_attached_to
 gtk_window_set_type_hint
 gtk_window_set_urgency_hint
 gtk_window_set_wmclass

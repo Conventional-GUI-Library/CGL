@@ -68,29 +68,20 @@ _gtk_css_shorthand_property_assign (GtkStyleProperty   *property,
                                     GtkStateFlags       state,
                                     const GValue       *value)
 {
-  GParameter *parameters;
-  guint i, n_parameters;
+  GtkCssShorthandProperty *shorthand = GTK_CSS_SHORTHAND_PROPERTY (property);
 
-  parameters = property->unpack_func (value, &n_parameters);
-
-  for (i = 0; i < n_parameters; i++)
-    {
-      _gtk_style_property_assign (_gtk_style_property_lookup (parameters[i].name),
-                                  props,
-                                  state,
-                                  &parameters[i].value);
-      g_value_unset (&parameters[i].value);
-    }
-  g_free (parameters);
+  shorthand->assign (shorthand, props, state, value);
 }
 
 static void
 _gtk_css_shorthand_property_query (GtkStyleProperty   *property,
-                                   GtkStyleProperties *props,
-                                   GtkStateFlags       state,
-                                   GValue             *value)
+                                   GValue             *value,
+                                   GtkStyleQueryFunc   query_func,
+                                   gpointer            query_data)
 {
-  property->pack_func (value, props, state);
+  GtkCssShorthandProperty *shorthand = GTK_CSS_SHORTHAND_PROPERTY (property);
+
+  shorthand->query (shorthand, value, query_func, query_data);
 }
 
 static gboolean
@@ -153,7 +144,7 @@ gtk_css_shorthand_property_parse_value (GtkStyleProperty *property,
     }
 
   g_value_init (value, G_TYPE_VALUE_ARRAY);
-  g_value_set_boxed (value, array);
+  g_value_take_boxed (value, array);
   return TRUE;
 }
 

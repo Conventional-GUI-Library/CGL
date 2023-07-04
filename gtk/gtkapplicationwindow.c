@@ -43,8 +43,8 @@
  * GtkApplicationWindow is a #GtkWindow subclass that offers some
  * extra functionality for better integration with #GtkApplication
  * features.  Notably, it can handle both the application menu as well
- * as the menubar. See g_application_set_app_menu() and
- * g_application_set_menubar().
+ * as the menubar. See gtk_application_set_app_menu() and
+ * gtk_application_set_menubar().
  *
  * This class implements the #GActionGroup and #GActionMap interfaces,
  * to let you add window-specific actions that will be exported by the
@@ -88,8 +88,8 @@
  *     "    </submenu>"
  *     "  </menu>"
  *     "</interface>");
- * g_application_set_menubar (G_APPLICATION (app),
- *                            G_MENU_MODEL (gtk_builder_get_object (builder, "menubar")));
+ * gtk_application_set_menubar (G_APPLICATION (app),
+ *                              G_MENU_MODEL (gtk_builder_get_object (builder, "menubar")));
  * g_object_unref (builder);
  *
  * ...
@@ -603,15 +603,21 @@ gtk_application_window_real_get_preferred_width_for_height (GtkWidget *widget,
                                                             gint      *natural_width)
 {
   GtkApplicationWindow *window = GTK_APPLICATION_WINDOW (widget);
+  gint menubar_height;
+
+  if (window->priv->menubar != NULL)
+    gtk_widget_get_preferred_height (window->priv->menubar, &menubar_height, NULL);
+  else
+    menubar_height = 0;
 
   GTK_WIDGET_CLASS (gtk_application_window_parent_class)
-    ->get_preferred_width_for_height (widget, height, minimum_width, natural_width);
+    ->get_preferred_width_for_height (widget, height - menubar_height, minimum_width, natural_width);
 
   if (window->priv->menubar != NULL)
     {
       gint menubar_min_width, menubar_nat_width;
 
-      gtk_widget_get_preferred_width_for_height (window->priv->menubar, height, &menubar_min_width, &menubar_nat_width);
+      gtk_widget_get_preferred_width_for_height (window->priv->menubar, menubar_height, &menubar_min_width, &menubar_nat_width);
       *minimum_width = MAX (*minimum_width, menubar_min_width);
       *natural_width = MAX (*natural_width, menubar_nat_width);
     }
@@ -626,12 +632,14 @@ gtk_application_window_real_size_allocate (GtkWidget     *widget,
   if (window->priv->menubar != NULL)
     {
       GtkAllocation menubar_allocation = *allocation;
-      gint menubar_min_height, menubar_nat_height;
+      gint menubar_height;
       GtkWidget *child;
 
-      gtk_widget_get_preferred_height_for_width (window->priv->menubar, allocation->width, &menubar_min_height, &menubar_nat_height);
+      gtk_widget_set_allocation (widget, allocation);
 
-      menubar_allocation.height = menubar_min_height;
+      gtk_widget_get_preferred_height_for_width (window->priv->menubar, allocation->width, &menubar_height, NULL);
+
+      menubar_allocation.height = menubar_height;
       gtk_widget_size_allocate (window->priv->menubar, &menubar_allocation);
 
       child = gtk_bin_get_child (GTK_BIN (window));
@@ -640,17 +648,14 @@ gtk_application_window_real_size_allocate (GtkWidget     *widget,
           GtkAllocation child_allocation = *allocation;
           gint border_width;
 
-          child_allocation.height = MAX (1, child_allocation.height - menubar_min_height);
-
           border_width = gtk_container_get_border_width (GTK_CONTAINER (window));
           child_allocation.x += border_width;
-          child_allocation.y += border_width + menubar_min_height;
-          child_allocation.width -= border_width * 2;
-          child_allocation.height -= border_width * 2 - menubar_min_height;
+          child_allocation.y += border_width + menubar_height;
+          child_allocation.width = MAX (1, child_allocation.width - border_width * 2);
+          child_allocation.height = MAX (1, child_allocation.height - border_width * 2 - menubar_height);
+
           gtk_widget_size_allocate (child, &child_allocation);
         }
-
-      gtk_widget_set_allocation (widget, allocation);
     }
   else
     GTK_WIDGET_CLASS (gtk_application_window_parent_class)
@@ -902,8 +907,8 @@ gtk_application_window_class_init (GtkApplicationWindowClass *class)
    *
    * If this property is %TRUE, the window will display a menubar
    * that includes the app menu and menubar, unless these are
-   * shown by the desktop shell. See g_application_set_app_menu()
-   * and g_application_set_menubar().
+   * shown by the desktop shell. See gtk_application_set_app_menu()
+   * and gtk_application_set_menubar().
    *
    * If %FALSE, the window will not display a menubar, regardless
    * of whether the desktop shell is showing the menus or not.
@@ -984,9 +989,9 @@ gtk_application_window_set_show_menubar (GtkApplicationWindow *window,
 }
 
 GSimpleActionObserver *
-gtk_application_window_get_observer (GtkApplicationWindow *window,
-                                     const gchar          *action_name,
-                                     GVariant             *target)
+gtk_application_window_create_observer (GtkApplicationWindow *window,
+                                        const gchar          *action_name,
+                                        GVariant             *target)
 {
   g_return_val_if_fail (GTK_IS_APPLICATION_WINDOW (window), NULL);
 

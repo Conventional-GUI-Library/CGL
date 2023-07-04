@@ -29,6 +29,7 @@
 #include "gtkcssstylefuncsprivate.h"
 #include "gtkcsstypesprivate.h"
 #include "gtkprivatetypebuiltins.h"
+#include "gtkstylepropertiesprivate.h"
 #include "gtktypebuiltins.h"
 
 /* this is in case round() is not provided by the compiler, 
@@ -158,12 +159,20 @@ parse_border_color (GtkCssShorthandProperty *shorthand,
 
   for (i = 0; i < 4; i++)
     {
-      symbolic = _gtk_css_parser_read_symbolic_color (parser);
-      if (symbolic == NULL)
-        return FALSE;
+      if (_gtk_css_parser_try (parser, "currentcolor", TRUE))
+        {
+          g_value_init (&values[i], GTK_TYPE_CSS_SPECIAL_VALUE);
+          g_value_set_enum (&values[i], GTK_CSS_CURRENT_COLOR);
+        }
+      else
+        {
+          symbolic = _gtk_css_parser_read_symbolic_color (parser);
+          if (symbolic == NULL)
+            return FALSE;
 
-      g_value_init (&values[i], GTK_TYPE_SYMBOLIC_COLOR);
-      g_value_set_boxed (&values[i], symbolic);
+          g_value_init (&values[i], GTK_TYPE_SYMBOLIC_COLOR);
+          g_value_set_boxed (&values[i], symbolic);
+        }
 
       if (value_is_done_parsing (parser))
         break;
@@ -171,7 +180,7 @@ parse_border_color (GtkCssShorthandProperty *shorthand,
 
   for (i++; i < 4; i++)
     {
-      g_value_init (&values[i], GTK_TYPE_SYMBOLIC_COLOR);
+      g_value_init (&values[i], G_VALUE_TYPE (&values[(i - 1) >> 1]));
       g_value_copy (&values[(i - 1) >> 1], &values[i]);
     }
 
@@ -510,175 +519,109 @@ parse_background (GtkCssShorthandProperty *shorthand,
 
 /*** PACKING ***/
 
-static GParameter *
-unpack_border (const GValue *value,
-               guint        *n_params,
-               const char   *top,
-               const char   *left,
-               const char   *bottom,
-               const char   *right)
+static void
+unpack_border (GtkCssShorthandProperty *shorthand,
+               GtkStyleProperties      *props,
+               GtkStateFlags            state,
+               const GValue            *value)
 {
-  GParameter *parameter = g_new0 (GParameter, 4);
+  GValue v = G_VALUE_INIT;
   GtkBorder *border = g_value_get_boxed (value);
 
-  parameter[0].name = top;
-  g_value_init (&parameter[0].value, G_TYPE_INT);
-  g_value_set_int (&parameter[0].value, border->top);
-  parameter[1].name = left;
-  g_value_init (&parameter[1].value, G_TYPE_INT);
-  g_value_set_int (&parameter[1].value, border->left);
-  parameter[2].name = bottom;
-  g_value_init (&parameter[2].value, G_TYPE_INT);
-  g_value_set_int (&parameter[2].value, border->bottom);
-  parameter[3].name = right;
-  g_value_init (&parameter[3].value, G_TYPE_INT);
-  g_value_set_int (&parameter[3].value, border->right);
+  g_value_init (&v, G_TYPE_INT);
 
-  *n_params = 4;
-  return parameter;
+  g_value_set_int (&v, border->top);
+  _gtk_style_property_assign (GTK_STYLE_PROPERTY (_gtk_css_shorthand_property_get_subproperty (shorthand, 0)), props, state, &v);
+  g_value_set_int (&v, border->right);
+  _gtk_style_property_assign (GTK_STYLE_PROPERTY (_gtk_css_shorthand_property_get_subproperty (shorthand, 1)), props, state, &v);
+  g_value_set_int (&v, border->bottom);
+  _gtk_style_property_assign (GTK_STYLE_PROPERTY (_gtk_css_shorthand_property_get_subproperty (shorthand, 2)), props, state, &v);
+  g_value_set_int (&v, border->left);
+  _gtk_style_property_assign (GTK_STYLE_PROPERTY (_gtk_css_shorthand_property_get_subproperty (shorthand, 3)), props, state, &v);
+
+  g_value_unset (&v);
 }
 
 static void
-pack_border (GValue             *value,
-             GtkStyleProperties *props,
-             GtkStateFlags       state,
-             const char         *top,
-             const char         *left,
-             const char         *bottom,
-             const char         *right)
+pack_border (GtkCssShorthandProperty *shorthand,
+             GValue                  *value,
+             GtkStyleQueryFunc        query_func,
+             gpointer                 query_data)
 {
+  GtkCssStyleProperty *prop;
   GtkBorder border;
-  int t, l, b, r;
+  const GValue *v;
 
-  gtk_style_properties_get (props,
-                            state,
-                            top, &t,
-                            left, &l,
-                            bottom, &b,
-                            right, &r,
-                            NULL);
-
-  border.top = t;
-  border.left = l;
-  border.bottom = b;
-  border.right = r;
+  prop = _gtk_css_shorthand_property_get_subproperty (shorthand, 0);
+  v = (* query_func) (_gtk_css_style_property_get_id (prop), query_data);
+  if (v)
+    border.top = g_value_get_int (v);
+  prop = _gtk_css_shorthand_property_get_subproperty (shorthand, 1);
+  v = (* query_func) (_gtk_css_style_property_get_id (prop), query_data);
+  if (v)
+    border.right = g_value_get_int (v);
+  prop = _gtk_css_shorthand_property_get_subproperty (shorthand, 2);
+  v = (* query_func) (_gtk_css_style_property_get_id (prop), query_data);
+  if (v)
+    border.bottom = g_value_get_int (v);
+  prop = _gtk_css_shorthand_property_get_subproperty (shorthand, 3);
+  v = (* query_func) (_gtk_css_style_property_get_id (prop), query_data);
+  if (v)
+    border.left = g_value_get_int (v);
 
   g_value_set_boxed (value, &border);
 }
 
-static GParameter *
-unpack_border_width (const GValue *value,
-                     guint        *n_params)
-{
-  return unpack_border (value, n_params,
-                        "border-top-width", "border-left-width",
-                        "border-bottom-width", "border-right-width");
-}
-
 static void
-pack_border_width (GValue             *value,
-                   GtkStyleProperties *props,
-                   GtkStateFlags       state)
+unpack_border_radius (GtkCssShorthandProperty *shorthand,
+                      GtkStyleProperties      *props,
+                      GtkStateFlags            state,
+                      const GValue            *value)
 {
-  pack_border (value, props, state,
-               "border-top-width", "border-left-width",
-               "border-bottom-width", "border-right-width");
-}
-
-static GParameter *
-unpack_padding (const GValue *value,
-                guint        *n_params)
-{
-  return unpack_border (value, n_params,
-                        "padding-top", "padding-left",
-                        "padding-bottom", "padding-right");
-}
-
-static void
-pack_padding (GValue             *value,
-              GtkStyleProperties *props,
-              GtkStateFlags       state)
-{
-  pack_border (value, props, state,
-               "padding-top", "padding-left",
-               "padding-bottom", "padding-right");
-}
-
-static GParameter *
-unpack_margin (const GValue *value,
-               guint        *n_params)
-{
-  return unpack_border (value, n_params,
-                        "margin-top", "margin-left",
-                        "margin-bottom", "margin-right");
-}
-
-static void
-pack_margin (GValue             *value,
-             GtkStyleProperties *props,
-             GtkStateFlags       state)
-{
-  pack_border (value, props, state,
-               "margin-top", "margin-left",
-               "margin-bottom", "margin-right");
-}
-
-static GParameter *
-unpack_border_radius (const GValue *value,
-                      guint        *n_params)
-{
-  GParameter *parameter = g_new0 (GParameter, 4);
   GtkCssBorderCornerRadius border;
+  GValue v = G_VALUE_INIT;
+  guint i;
   
   border.horizontal = border.vertical = g_value_get_int (value);
+  g_value_init (&v, GTK_TYPE_CSS_BORDER_CORNER_RADIUS);
+  g_value_set_boxed (&v, &border);
 
-  parameter[0].name = "border-top-left-radius";
-  g_value_init (&parameter[0].value, GTK_TYPE_CSS_BORDER_CORNER_RADIUS);
-  g_value_set_boxed (&parameter[0].value, &border);
-  parameter[1].name = "border-top-right-radius";
-  g_value_init (&parameter[1].value, GTK_TYPE_CSS_BORDER_CORNER_RADIUS);
-  g_value_set_boxed (&parameter[1].value, &border);
-  parameter[2].name = "border-bottom-right-radius";
-  g_value_init (&parameter[2].value, GTK_TYPE_CSS_BORDER_CORNER_RADIUS);
-  g_value_set_boxed (&parameter[2].value, &border);
-  parameter[3].name = "border-bottom-left-radius";
-  g_value_init (&parameter[3].value, GTK_TYPE_CSS_BORDER_CORNER_RADIUS);
-  g_value_set_boxed (&parameter[3].value, &border);
+  for (i = 0; i < 4; i++)
+    _gtk_style_property_assign (GTK_STYLE_PROPERTY (_gtk_css_shorthand_property_get_subproperty (shorthand, i)), props, state, &v);
 
-  *n_params = 4;
-  return parameter;
+  g_value_unset (&v);
 }
 
 static void
-pack_border_radius (GValue             *value,
-                    GtkStyleProperties *props,
-                    GtkStateFlags       state)
+pack_border_radius (GtkCssShorthandProperty *shorthand,
+                    GValue                  *value,
+                    GtkStyleQueryFunc        query_func,
+                    gpointer                 query_data)
 {
   GtkCssBorderCornerRadius *top_left;
+  GtkCssStyleProperty *prop;
+  const GValue *v;
 
-  /* NB: We are an int property, so we have to resolve to an int here.
-   * So we just resolve to an int. We pick one and stick to it.
-   * Lesson learned: Don't query border-radius shorthand, query the 
-   * real properties instead. */
-  gtk_style_properties_get (props,
-                            state,
-                            "border-top-left-radius", &top_left,
-                            NULL);
-
-  if (top_left)
-    g_value_set_int (value, top_left->horizontal);
-
-  g_free (top_left);
+  prop = GTK_CSS_STYLE_PROPERTY (_gtk_style_property_lookup ("border-top-left-radius"));
+  v = (* query_func) (_gtk_css_style_property_get_id (prop), query_data);
+  if (v)
+    {
+      top_left = g_value_get_boxed (v);
+      if (top_left)
+        g_value_set_int (value, top_left->horizontal);
+    }
 }
 
-static GParameter *
-unpack_font_description (const GValue *value,
-                         guint        *n_params)
+static void
+unpack_font_description (GtkCssShorthandProperty *shorthand,
+                         GtkStyleProperties      *props,
+                         GtkStateFlags            state,
+                         const GValue            *value)
 {
-  GParameter *parameter = g_new0 (GParameter, 5);
+  GtkStyleProperty *prop;
   PangoFontDescription *description;
   PangoFontMask mask;
-  guint n;
+  GValue v = G_VALUE_INIT;
   
   /* For backwards compat, we only unpack values that are indeed set.
    * For strict CSS conformance we need to unpack all of them.
@@ -688,7 +631,6 @@ unpack_font_description (const GValue *value,
    */
 
   description = g_value_get_boxed (value);
-  n = 0;
 
   if (description)
     mask = pango_font_description_get_set_fields (description);
@@ -701,181 +643,137 @@ unpack_font_description (const GValue *value,
 
       g_ptr_array_add (strv, g_strdup (pango_font_description_get_family (description)));
       g_ptr_array_add (strv, NULL);
-      parameter[n].name = "font-family";
-      g_value_init (&parameter[n].value, G_TYPE_STRV);
-      g_value_take_boxed (&parameter[n].value,
-                          g_ptr_array_free (strv, FALSE));
-      n++;
+      g_value_init (&v, G_TYPE_STRV);
+      g_value_take_boxed (&v, g_ptr_array_free (strv, FALSE));
+
+      prop = _gtk_style_property_lookup ("font-family");
+      _gtk_style_property_assign (prop, props, state, &v);
+      g_value_unset (&v);
     }
 
   if (mask & PANGO_FONT_MASK_STYLE)
     {
-      parameter[n].name = "font-style";
-      g_value_init (&parameter[n].value, PANGO_TYPE_STYLE);
-      g_value_set_enum (&parameter[n].value,
-                        pango_font_description_get_style (description));
-      n++;
+      g_value_init (&v, PANGO_TYPE_STYLE);
+      g_value_set_enum (&v, pango_font_description_get_style (description));
+
+      prop = _gtk_style_property_lookup ("font-style");
+      _gtk_style_property_assign (prop, props, state, &v);
+      g_value_unset (&v);
     }
 
   if (mask & PANGO_FONT_MASK_VARIANT)
     {
-      parameter[n].name = "font-variant";
-      g_value_init (&parameter[n].value, PANGO_TYPE_VARIANT);
-      g_value_set_enum (&parameter[n].value,
-                        pango_font_description_get_variant (description));
-      n++;
+      g_value_init (&v, PANGO_TYPE_VARIANT);
+      g_value_set_enum (&v, pango_font_description_get_variant (description));
+
+      prop = _gtk_style_property_lookup ("font-variant");
+      _gtk_style_property_assign (prop, props, state, &v);
+      g_value_unset (&v);
     }
 
   if (mask & PANGO_FONT_MASK_WEIGHT)
     {
-      parameter[n].name = "font-weight";
-      g_value_init (&parameter[n].value, PANGO_TYPE_WEIGHT);
-      g_value_set_enum (&parameter[n].value,
-                        pango_font_description_get_weight (description));
-      n++;
+      g_value_init (&v, PANGO_TYPE_WEIGHT);
+      g_value_set_enum (&v, pango_font_description_get_weight (description));
+
+      prop = _gtk_style_property_lookup ("font-weight");
+      _gtk_style_property_assign (prop, props, state, &v);
+      g_value_unset (&v);
     }
 
   if (mask & PANGO_FONT_MASK_SIZE)
     {
-      parameter[n].name = "font-size";
-      g_value_init (&parameter[n].value, G_TYPE_DOUBLE);
-      g_value_set_double (&parameter[n].value,
-                          (double) pango_font_description_get_size (description) / PANGO_SCALE);
-      n++;
+      g_value_init (&v, G_TYPE_DOUBLE);
+      g_value_set_double (&v, (double) pango_font_description_get_size (description) / PANGO_SCALE);
+
+      prop = _gtk_style_property_lookup ("font-size");
+      _gtk_style_property_assign (prop, props, state, &v);
+      g_value_unset (&v);
     }
-
-  *n_params = n;
-
-  return parameter;
 }
 
 static void
-pack_font_description (GValue             *value,
-                       GtkStyleProperties *props,
-                       GtkStateFlags       state)
+pack_font_description (GtkCssShorthandProperty *shorthand,
+                       GValue                  *value,
+                       GtkStyleQueryFunc        query_func,
+                       gpointer                 query_data)
 {
   PangoFontDescription *description;
-  char **families;
-  PangoStyle style;
-  PangoVariant variant;
-  PangoWeight weight;
-  double size;
-
-  gtk_style_properties_get (props,
-                            state,
-                            "font-family", &families,
-                            "font-style", &style,
-                            "font-variant", &variant,
-                            "font-weight", &weight,
-                            "font-size", &size,
-                            NULL);
+  const GValue *v;
 
   description = pango_font_description_new ();
-  /* xxx: Can we set all the families here somehow? */
-  if (families)
-    pango_font_description_set_family (description, families[0]);
-  pango_font_description_set_size (description, round (size * PANGO_SCALE));
-  pango_font_description_set_style (description, style);
-  pango_font_description_set_variant (description, variant);
-  pango_font_description_set_weight (description, weight);
 
-  g_strfreev (families);
+  v = (* query_func) (_gtk_css_style_property_get_id (GTK_CSS_STYLE_PROPERTY (_gtk_style_property_lookup ("font-family"))), query_data);
+  if (v)
+    {
+      const char **families = g_value_get_boxed (v);
+      /* xxx: Can we set all the families here somehow? */
+      if (families)
+        pango_font_description_set_family (description, families[0]);
+    }
+
+  v = (* query_func) (_gtk_css_style_property_get_id (GTK_CSS_STYLE_PROPERTY (_gtk_style_property_lookup ("font-size"))), query_data);
+  if (v)
+    pango_font_description_set_size (description, round (g_value_get_double (v) * PANGO_SCALE));
+
+  v = (* query_func) (_gtk_css_style_property_get_id (GTK_CSS_STYLE_PROPERTY (_gtk_style_property_lookup ("font-style"))), query_data);
+  if (v)
+    pango_font_description_set_style (description, g_value_get_enum (v));
+
+  v = (* query_func) (_gtk_css_style_property_get_id (GTK_CSS_STYLE_PROPERTY (_gtk_style_property_lookup ("font-variant"))), query_data);
+  if (v)
+    pango_font_description_set_variant (description, g_value_get_enum (v));
+
+  v = (* query_func) (_gtk_css_style_property_get_id (GTK_CSS_STYLE_PROPERTY (_gtk_style_property_lookup ("font-weight"))), query_data);
+  if (v)
+    pango_font_description_set_weight (description, g_value_get_enum (v));
 
   g_value_take_boxed (value, description);
 }
 
-static GParameter *
-unpack_border_color (const GValue *value,
-                     guint        *n_params)
+static void
+unpack_to_everything (GtkCssShorthandProperty *shorthand,
+                      GtkStyleProperties      *props,
+                      GtkStateFlags            state,
+                      const GValue            *value)
 {
-  GParameter *parameter = g_new0 (GParameter, 4);
-  GType type;
+  GtkCssStyleProperty *prop;
+  guint i, n;
   
-  type = G_VALUE_TYPE (value);
-  if (type == G_TYPE_PTR_ARRAY)
-    type = GTK_TYPE_SYMBOLIC_COLOR;
+  n = _gtk_css_shorthand_property_get_n_subproperties (shorthand);
 
-  parameter[0].name = "border-top-color";
-  g_value_init (&parameter[0].value, type);
-  parameter[1].name = "border-right-color";
-  g_value_init (&parameter[1].value, type);
-  parameter[2].name = "border-bottom-color";
-  g_value_init (&parameter[2].value, type);
-  parameter[3].name = "border-left-color";
-  g_value_init (&parameter[3].value, type);
-
-  if (G_VALUE_TYPE (value) == G_TYPE_PTR_ARRAY)
+  for (i = 0; i < n; i++)
     {
-      GPtrArray *array = g_value_get_boxed (value);
-      guint i;
-
-      for (i = 0; i < 4; i++)
-        g_value_set_boxed (&parameter[i].value, g_ptr_array_index (array, i));
+      prop = _gtk_css_shorthand_property_get_subproperty (shorthand, i);
+      _gtk_style_property_assign (GTK_STYLE_PROPERTY (prop), props, state, value);
     }
-  else
-    {
-      /* can be RGBA or symbolic color */
-      gpointer p = g_value_get_boxed (value);
-
-      g_value_set_boxed (&parameter[0].value, p);
-      g_value_set_boxed (&parameter[1].value, p);
-      g_value_set_boxed (&parameter[2].value, p);
-      g_value_set_boxed (&parameter[3].value, p);
-    }
-
-  *n_params = 4;
-  return parameter;
 }
 
 static void
-pack_border_color (GValue             *value,
-                   GtkStyleProperties *props,
-                   GtkStateFlags       state)
+pack_first_element (GtkCssShorthandProperty *shorthand,
+                    GValue                  *value,
+                    GtkStyleQueryFunc        query_func,
+                    gpointer                 query_data)
 {
-  /* NB: We are a color property, so we have to resolve to a color here.
-   * So we just resolve to a color. We pick one and stick to it.
-   * Lesson learned: Don't query border-color shorthand, query the 
+  GtkCssStyleProperty *prop;
+  const GValue *v;
+  guint i;
+
+  /* NB: This is a fallback for properties that originally were
+   * not used as shorthand. We just pick the first subproperty
+   * as a representative.
+   * Lesson learned: Don't query the shorthand, query the 
    * real properties instead. */
-  g_value_unset (value);
-  gtk_style_properties_get_property (props, "border-top-color", state, value);
-}
-
-static GParameter *
-unpack_border_style (const GValue *value,
-                     guint        *n_params)
-{
-  GParameter *parameter = g_new0 (GParameter, 4);
-  GtkBorderStyle style;
-
-  style = g_value_get_enum (value);
-
-  parameter[0].name = "border-top-style";
-  g_value_init (&parameter[0].value, GTK_TYPE_BORDER_STYLE);
-  g_value_set_enum (&parameter[0].value, style);
-  parameter[1].name = "border-right-style";
-  g_value_init (&parameter[1].value, GTK_TYPE_BORDER_STYLE);
-  g_value_set_enum (&parameter[1].value, style);
-  parameter[2].name = "border-bottom-style";
-  g_value_init (&parameter[2].value, GTK_TYPE_BORDER_STYLE);
-  g_value_set_enum (&parameter[2].value, style);
-  parameter[3].name = "border-left-style";
-  g_value_init (&parameter[3].value, GTK_TYPE_BORDER_STYLE);
-  g_value_set_enum (&parameter[3].value, style);
-
-  *n_params = 4;
-  return parameter;
-}
-
-static void
-pack_border_style (GValue             *value,
-                   GtkStyleProperties *props,
-                   GtkStateFlags       state)
-{
-  /* NB: We can just resolve to a style. We pick one and stick to it.
-   * Lesson learned: Don't query border-style shorthand, query the
-   * real properties instead. */
-  g_value_unset (value);
-  gtk_style_properties_get_property (props, "border-top-style", state, value);
+  for (i = 0; i < _gtk_css_shorthand_property_get_n_subproperties (shorthand); i++)
+    {
+      prop = _gtk_css_shorthand_property_get_subproperty (shorthand, 0);
+      v = (* query_func) (_gtk_css_style_property_get_id (prop), query_data);
+      if (v)
+        {
+          g_value_copy (v, value);
+          return;
+        }
+    }
 }
 
 static void
@@ -883,10 +781,10 @@ _gtk_css_shorthand_property_register (const char                        *name,
                                       GType                              value_type,
                                       const char                       **subproperties,
                                       GtkCssShorthandPropertyParseFunc   parse_func,
-                                      GtkStyleUnpackFunc                 unpack_func,
-                                      GtkStylePackFunc                   pack_func)
+                                      GtkCssShorthandPropertyAssignFunc  assign_func,
+                                      GtkCssShorthandPropertyQueryFunc   query_func)
 {
-  GtkStyleProperty *node;
+  GtkCssShorthandProperty *node;
 
   node = g_object_new (GTK_TYPE_CSS_SHORTHAND_PROPERTY,
                        "name", name,
@@ -894,9 +792,9 @@ _gtk_css_shorthand_property_register (const char                        *name,
                        "subproperties", subproperties,
                        NULL);
 
-  GTK_CSS_SHORTHAND_PROPERTY (node)->parse = parse_func;
-  node->pack_func = pack_func;
-  node->unpack_func = unpack_func;
+  node->parse = parse_func;
+  node->assign = assign_func;
+  node->query = query_func;
 }
 
 void
@@ -934,20 +832,20 @@ _gtk_css_shorthand_property_init_properties (void)
                                           GTK_TYPE_BORDER,
                                           margin_subproperties,
                                           parse_border_width,
-                                          unpack_margin,
-                                          pack_margin);
+                                          unpack_border,
+                                          pack_border);
   _gtk_css_shorthand_property_register   ("padding",
                                           GTK_TYPE_BORDER,
                                           padding_subproperties,
                                           parse_border_width,
-                                          unpack_padding,
-                                          pack_padding);
+                                          unpack_border,
+                                          pack_border);
   _gtk_css_shorthand_property_register   ("border-width",
                                           GTK_TYPE_BORDER,
                                           border_width_subproperties,
                                           parse_border_width,
-                                          unpack_border_width,
-                                          pack_border_width);
+                                          unpack_border,
+                                          pack_border);
   _gtk_css_shorthand_property_register   ("border-radius",
                                           G_TYPE_INT,
                                           border_radius_subproperties,
@@ -958,14 +856,14 @@ _gtk_css_shorthand_property_init_properties (void)
                                           GDK_TYPE_RGBA,
                                           border_color_subproperties,
                                           parse_border_color,
-                                          unpack_border_color,
-                                          pack_border_color);
+                                          unpack_to_everything,
+                                          pack_first_element);
   _gtk_css_shorthand_property_register   ("border-style",
                                           GTK_TYPE_BORDER_STYLE,
                                           border_style_subproperties,
                                           parse_border_style,
-                                          unpack_border_style,
-                                          pack_border_style);
+                                          unpack_to_everything,
+                                          pack_first_element);
   _gtk_css_shorthand_property_register   ("border-image",
                                           G_TYPE_NONE,
                                           border_image_subproperties,
