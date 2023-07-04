@@ -24,6 +24,7 @@
 #include "gtkapplicationwindow.h"
 
 #include "gtkapplicationprivate.h"
+#include "gtkwindowprivate.h"
 #include "gtkmodelmenu.h"
 #include "gactionmuxer.h"
 #include "gtkaccelgroup.h"
@@ -53,6 +54,10 @@
  * prefix and application-wide actions are prefixed with the "app."
  * prefix.  Actions must be addressed with the prefixed name when
  * referring to them from a #GMenuModel.
+ *
+ * Note that widgets that are placed inside a GtkApplicationWindow
+ * can also activate these actions, if they implement the
+ * GtkActionable interface.
  *
  * As with #GtkApplication, the GDK lock will be acquired when
  * processing actions arriving from other processes and should therefore
@@ -257,7 +262,14 @@ gtk_application_window_update_shell_shows_app_menu (GtkApplicationWindow *window
           app_menu = gtk_application_get_app_menu (gtk_window_get_application (GTK_WINDOW (window)));
 
           if (app_menu != NULL)
-            g_menu_append_submenu (window->priv->app_menu_section, _("Application"), app_menu);
+            {
+              const gchar *name;
+
+              name = g_get_application_name ();
+              if (name == g_get_prgname ())
+                name = _("Application");
+              g_menu_append_submenu (window->priv->app_menu_section, name, app_menu);
+            }
         }
     }
 }
@@ -367,10 +379,10 @@ add_accel_closure (gpointer         data,
   if (accel_key == 0)
     return;
 
-  if (!g_str_has_prefix (accel_path, "<Actions>/"))
+  if (!g_str_has_prefix (accel_path, "<GAction>/"))
     return;
 
-  path = accel_path + strlen ("<Actions>/");
+  path = accel_path + strlen ("<GAction>/");
   p = strchr (path, '/');
   if (p)
     {
@@ -635,7 +647,7 @@ gtk_application_window_real_size_allocate (GtkWidget     *widget,
       gint menubar_height;
       GtkWidget *child;
 
-      gtk_widget_set_allocation (widget, allocation);
+      _gtk_window_set_allocation (GTK_WINDOW (widget), allocation);
 
       gtk_widget_get_preferred_height_for_width (window->priv->menubar, allocation->width, &menubar_height, NULL);
 
@@ -700,16 +712,23 @@ gtk_application_window_real_realize (GtkWidget *widget)
 
     if (GDK_IS_X11_WINDOW (gdkwindow))
       {
-        const gchar *unique_id;
-        const gchar *app_id;
+        gdk_x11_window_set_utf8_property (gdkwindow, "_GTK_APPLICATION_ID",
+                                          g_application_get_application_id (G_APPLICATION (application)));
 
-        gdk_x11_window_set_utf8_property (gdkwindow, "_DBUS_OBJECT_PATH", window->priv->object_path);
+        gdk_x11_window_set_utf8_property (gdkwindow, "_GTK_UNIQUE_BUS_NAME",
+                                          g_dbus_connection_get_unique_name (window->priv->session));
 
-        unique_id = g_dbus_connection_get_unique_name (window->priv->session);
-        gdk_x11_window_set_utf8_property (gdkwindow, "_DBUS_UNIQUE_NAME", unique_id);
+        gdk_x11_window_set_utf8_property (gdkwindow, "_GTK_APPLICATION_OBJECT_PATH",
+                                          gtk_application_get_dbus_object_path (application));
 
-        app_id = g_application_get_application_id (G_APPLICATION (application));
-        gdk_x11_window_set_utf8_property (gdkwindow, "_DBUS_APPLICATION_ID", app_id);
+        gdk_x11_window_set_utf8_property (gdkwindow, "_GTK_WINDOW_OBJECT_PATH",
+                                          window->priv->object_path);
+
+        gdk_x11_window_set_utf8_property (gdkwindow, "_GTK_APP_MENU_OBJECT_PATH",
+                                          gtk_application_get_app_menu_object_path (application));
+
+        gdk_x11_window_set_utf8_property (gdkwindow, "_GTK_MENUBAR_OBJECT_PATH",
+                                          gtk_application_get_menubar_object_path (application));
       }
   }
 #endif
@@ -996,4 +1015,16 @@ gtk_application_window_create_observer (GtkApplicationWindow *window,
   g_return_val_if_fail (GTK_IS_APPLICATION_WINDOW (window), NULL);
 
   return g_simple_action_observer_new (window->priv->muxer, action_name, target);
+}
+
+GActionObservable *
+gtk_application_window_get_observable (GtkApplicationWindow *window)
+{
+  return G_ACTION_OBSERVABLE (window->priv->muxer);
+}
+
+GtkAccelGroup *
+gtk_application_window_get_accel_group (GtkApplicationWindow *window)
+{
+  return window->priv->accels;
 }

@@ -75,7 +75,7 @@
  *   if (event->type == GDK_BUTTON_PRESS)
  *     {
  *       event_button = (GdkEventButton *) event;
- *       if (event_button->button == 3)
+ *       if (event_button->button == GDK_BUTTON_SECONDARY)
  *         {
  *           gtk_menu_popup (menu, NULL, NULL, NULL, NULL, 
  *                           event_button->button, event_button->time);
@@ -1481,6 +1481,7 @@ popup_grab_on_window (GdkWindow *window,
  * be used instead.
  *
  * Since: 3.0
+ * Rename to: gtk_menu_popup
  */
 void
 gtk_menu_popup_for_device (GtkMenu             *menu,

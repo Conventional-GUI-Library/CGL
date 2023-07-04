@@ -1,6 +1,7 @@
 /* This list defines the GTK+ ABI. It is used to generate the gtk.def
  * file.
  */
+gtk_about_dialog_add_credit_section
 gtk_about_dialog_get_artists
 gtk_about_dialog_get_authors
 gtk_about_dialog_get_comments
@@ -1535,6 +1536,7 @@ gtk_menu_bar_get_child_pack_direction
 gtk_menu_bar_get_pack_direction
 gtk_menu_bar_get_type
 gtk_menu_bar_new
+gtk_menu_bar_new_from_model
 gtk_menu_bar_set_child_pack_direction
 gtk_menu_bar_set_pack_direction
 gtk_menu_detach
@@ -1571,6 +1573,7 @@ gtk_menu_item_set_use_underline
 gtk_menu_item_toggle_size_allocate
 gtk_menu_item_toggle_size_request
 gtk_menu_new
+gtk_menu_new_from_model
 gtk_menu_popdown
 gtk_menu_popup
 gtk_menu_popup_for_device

@@ -2396,13 +2396,13 @@ range_get_scroll_for_grab (GtkRange      *range)
     case MOUSE_STEPPER_C:
       switch (priv->grab_button)
         {
-        case 1:
+        case GDK_BUTTON_PRIMARY:
           return invert ? GTK_SCROLL_STEP_FORWARD : GTK_SCROLL_STEP_BACKWARD;
           break;
-        case 2:
+        case GDK_BUTTON_MIDDLE:
           return invert ? GTK_SCROLL_PAGE_FORWARD : GTK_SCROLL_PAGE_BACKWARD;
           break;
-        case 3:
+        case GDK_BUTTON_SECONDARY:
           return invert ? GTK_SCROLL_END : GTK_SCROLL_START;
           break;
         }
@@ -2413,13 +2413,13 @@ range_get_scroll_for_grab (GtkRange      *range)
     case MOUSE_STEPPER_D:
       switch (priv->grab_button)
         {
-        case 1:
+        case GDK_BUTTON_PRIMARY:
           return invert ? GTK_SCROLL_STEP_BACKWARD : GTK_SCROLL_STEP_FORWARD;
           break;
-        case 2:
+        case GDK_BUTTON_MIDDLE:
           return invert ? GTK_SCROLL_PAGE_BACKWARD : GTK_SCROLL_PAGE_FORWARD;
           break;
-        case 3:
+        case GDK_BUTTON_SECONDARY:
           return invert ? GTK_SCROLL_START : GTK_SCROLL_END;
           break;
        }
@@ -2545,7 +2545,7 @@ gtk_range_button_press (GtkWidget      *widget,
     gtk_widget_queue_draw (widget);
 
   if (priv->mouse_location == MOUSE_TROUGH  &&
-      event->button == 1)
+      event->button == GDK_BUTTON_PRIMARY)
     {
       /* button 1 steps by page increment, as with button 2 on a stepper
        */
@@ -2569,7 +2569,9 @@ gtk_range_button_press (GtkWidget      *widget,
             priv->mouse_location == MOUSE_STEPPER_B ||
             priv->mouse_location == MOUSE_STEPPER_C ||
             priv->mouse_location == MOUSE_STEPPER_D) &&
-           (event->button == 1 || event->button == 2 || event->button == 3))
+           (event->button == GDK_BUTTON_PRIMARY ||
+            event->button == GDK_BUTTON_MIDDLE ||
+            event->button == GDK_BUTTON_SECONDARY))
     {
       GtkAllocation allocation;
       GdkRectangle *stepper_area;
@@ -2593,7 +2595,7 @@ gtk_range_button_press (GtkWidget      *widget,
       return TRUE;
     }
   else if ((priv->mouse_location == MOUSE_TROUGH &&
-            event->button == 2) ||
+            event->button == GDK_BUTTON_MIDDLE) ||
            priv->mouse_location == MOUSE_SLIDER)
     {
       gboolean need_value_update = FALSE;
@@ -2603,7 +2605,7 @@ gtk_range_button_press (GtkWidget      *widget,
        * On button 2 press, we warp the slider to mouse position,
        * then begin the slider drag.
        */
-      if (event->button == 2)
+      if (event->button == GDK_BUTTON_MIDDLE)
         {
           gdouble slider_low_value, slider_high_value, new_value;
           

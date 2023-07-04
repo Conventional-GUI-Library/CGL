@@ -1283,18 +1283,18 @@ gtk_spin_button_button_press (GtkWidget      *widget,
 
           if (event->y <= req_height / 2)
             {
-              if (event->button == 1)
+              if (event->button == GDK_BUTTON_PRIMARY)
                 start_spinning (spin, GTK_ARROW_UP, gtk_adjustment_get_step_increment (priv->adjustment));
-              else if (event->button == 2)
+              else if (event->button == GDK_BUTTON_MIDDLE)
                 start_spinning (spin, GTK_ARROW_UP, gtk_adjustment_get_page_increment (priv->adjustment));
               else
                 priv->click_child = GTK_ARROW_UP;
             }
           else
             {
-              if (event->button == 1)
+              if (event->button == GDK_BUTTON_PRIMARY)
                 start_spinning (spin, GTK_ARROW_DOWN, gtk_adjustment_get_step_increment (priv->adjustment));
-              else if (event->button == 2)
+              else if (event->button == GDK_BUTTON_MIDDLE)
                 start_spinning (spin, GTK_ARROW_DOWN, gtk_adjustment_get_page_increment (priv->adjustment));
               else
                 priv->click_child = GTK_ARROW_DOWN;
@@ -1326,7 +1326,7 @@ gtk_spin_button_button_release (GtkWidget      *widget,
 
       gtk_spin_button_stop_spinning (spin);
 
-      if (event->button == 3)
+      if (event->button == GDK_BUTTON_SECONDARY)
         {
           GtkRequisition requisition;
           gint req_height;

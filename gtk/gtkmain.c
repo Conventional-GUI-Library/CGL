@@ -594,6 +594,7 @@ enum_locale_proc (LPTSTR locale)
   char iso3166[10];
   char *endptr;
 
+#include "a11y/gailutil.h"
 
   lcid = strtoul (locale, &endptr, 16);
   if (*endptr == '\0' &&
@@ -2320,6 +2321,8 @@ gtk_invoke_key_snoopers (GtkWidget *grab_widget,
 {
   GSList *slist;
   gint return_val = FALSE;
+
+  return_val = _gail_util_key_snooper (grab_widget, (GdkEventKey *) event);
 
   slist = key_snoopers;
   while (slist && !return_val)

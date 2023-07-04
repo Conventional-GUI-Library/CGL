@@ -543,6 +543,7 @@ gtk_base_c_sources = 		\
 	gtkbuildable.c		\
 	gtkbuilder.c		\
 	gtkbuilderparser.c	\
+	gtkbuilder-menus.c	\
 	gtkbutton.c		\
 	gtkcalendar.c		\
 	gtkcellarea.c		\
@@ -981,10 +982,10 @@ gtktypebuiltins.c: @REBUILD@ $(gtk_public_h_sources) gtktypebuiltins.c.template
 	&& rm -f xgen-gtbc
 
 gtkresources.h: gtk.gresource.xml
-	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) gtk.gresource.xml \
+	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) $(srcdir)/gtk.gresource.xml \
 		--target=$@ --sourcedir=$(srcdir) --c-name _gtk --generate-header --manual-register
 gtkresources.c: gtk.gresource.xml gtk-default.css gtk-win32.css $(DND_CURSORS)
-	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) gtk.gresource.xml \
+	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) $(srcdir)/gtk.gresource.xml \
 		--target=$@ --sourcedir=$(srcdir) --c-name _gtk --generate-source --manual-register
 
 

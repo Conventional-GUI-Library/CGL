@@ -572,7 +572,7 @@ theming_engine_value_parse (GtkCssParser *parser,
 
   if (engine == NULL)
     {
-      _gtk_css_parser_error (parser, "Themeing engine '%s' not found", str);
+      _gtk_css_parser_error (parser, "Theming engine '%s' not found", str);
       g_free (str);
       return FALSE;
     }
@@ -898,10 +898,10 @@ shadow_value_parse (GtkCssParser *parser,
   GtkShadow *shadow;
   guint i;
 
-  shadow = _gtk_shadow_new ();
-
   if (_gtk_css_parser_try (parser, "none", TRUE))
     return TRUE;
+
+  shadow = _gtk_shadow_new ();
 
   do
     {
