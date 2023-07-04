@@ -27,10 +27,7 @@
 
 #ifdef G_OS_WIN32
 
-#include <windows.h>
 #include <cairo-win32.h>
-
-typedef HANDLE HTHEME;
 
 #define UXTHEME_DLL "uxtheme.dll"
 
@@ -139,13 +136,15 @@ _gtk_win32_theme_init (void)
   hthemes_by_class = g_hash_table_new (g_str_hash, g_str_equal);
 }
 
-static HTHEME
-lookup_htheme_by_classname (const char *class)
+HTHEME
+_gtk_win32_lookup_htheme_by_classname (const char *class)
 {
   HTHEME theme;
   guint16 *wclass;
   char *lower;
   
+  _gtk_win32_theme_init ();
+
   lower = g_ascii_strdown (class, -1);
 
   theme = (HTHEME)  g_hash_table_lookup (hthemes_by_class, lower);
@@ -173,197 +172,26 @@ lookup_htheme_by_classname (const char *class)
 
 #else
 
-typedef void * HTHEME;
-
-static void
-_gtk_win32_theme_init (void)
-{
-}
-
-static HTHEME
-lookup_htheme_by_classname (const char *class)
+HTHEME
+_gtk_win32_lookup_htheme_by_classname (const char *class)
 {
   return NULL;
 }
 
 #endif /* G_OS_WIN32 */
 
-G_DEFINE_BOXED_TYPE_WITH_CODE (GtkWin32ThemePart, _gtk_win32_theme_part,
-			       _gtk_win32_theme_part_ref, _gtk_win32_theme_part_unref, 
-			       _gtk_win32_theme_init() )
-
-typedef enum {
-  RENDER_OVER,
-  RENDER_MIX
-} ThemePartRenderOps;
-
-struct _GtkWin32ThemePart {
-  HTHEME theme;
-  int part;
-  int state;
-  int part2;
-  int state2;
-  ThemePartRenderOps op;
-
-  gint ref_count;
-};
-
-GtkWin32ThemePart *
-_gtk_win32_theme_part_new (const char *class, 
-			   int xp_part, int state, 
-			   int xp_part2, int state2, 
-			   ThemePartRenderOps op)
-{
-  GtkWin32ThemePart *part;
-
-  part = g_slice_new0 (GtkWin32ThemePart);
-  part->ref_count = 1;
-
-  part->theme = lookup_htheme_by_classname (class);
-  part->part = xp_part;
-  part->state = state;
-  part->part2 = xp_part2;
-  part->state2 = state2;
-  part->op = op;
-
-  return part;
-}
-
-GtkWin32ThemePart *
-_gtk_win32_theme_part_ref (GtkWin32ThemePart *part)
-{
-  g_return_val_if_fail (part != NULL, NULL);
-
-  part->ref_count++;
-
-  return part;
-}
-
-void
-_gtk_win32_theme_part_unref (GtkWin32ThemePart *part)
-{
-  g_return_if_fail (part != NULL);
-
-  part->ref_count--;
-
-  if (part->ref_count == 0)
-    {
-      g_slice_free (GtkWin32ThemePart, part);
-    }
-}
-
-int
-_gtk_win32_theme_part_parse (GtkCssParser *parser, 
-			     GFile *base, 
-			     GValue *value)
-{
-  char *class;
-  int xp_part, state, xp_part2, state2;
-  ThemePartRenderOps op;
-  GtkWin32ThemePart *theme_part;
-
-  if (!_gtk_css_parser_try (parser, "-gtk-win32-theme-part", TRUE))
-    {
-      return -1;
-    }
-  
-  g_value_unset (value);
-  g_value_init (value, GTK_TYPE_WIN32_THEME_PART);
-
-  if (!_gtk_css_parser_try (parser, "(", TRUE))
-    {
-      _gtk_css_parser_error (parser,
-                             "Expected '(' after '-gtk-win32-theme-part'");
-      return 0;
-    }
-  
-  class = _gtk_css_parser_try_name (parser, TRUE);
-  if (class == NULL)
-    {
-      _gtk_css_parser_error (parser,
-                             "Expected name as first argument to  '-gtk-win32-theme-part'");
-      return 0;
-    }
-
-  if (! _gtk_css_parser_try (parser, ",", TRUE))
-    {
-      g_free (class);
-      _gtk_css_parser_error (parser,
-			     "Expected ','");
-      return 0;
-    }
-
-  if (!_gtk_css_parser_try_int (parser, &xp_part))
-    {
-      g_free (class);
-      _gtk_css_parser_error (parser, "Expected a valid integer value");
-      return 0;
-    }
-
-  if (!_gtk_css_parser_try_int (parser, &state))
-    {
-      g_free (class);
-      _gtk_css_parser_error (parser, "Expected a valid integer value");
-      return 0;
-    }
-  op = RENDER_OVER;
-  xp_part2 = -1;
-  state2 = -1;
-  if ( _gtk_css_parser_try (parser, ",", TRUE))
-    {
-
-      if ( _gtk_css_parser_try (parser, "over", TRUE))
-	{
-	  op = RENDER_OVER;
-	}
-      else if ( _gtk_css_parser_try (parser, "mix", TRUE))
-	{
-	  op = RENDER_MIX;
-	}
-
-      if (!_gtk_css_parser_try_int (parser, &xp_part2))
-	{
-	  g_free (class);
-	  _gtk_css_parser_error (parser, "Expected a valid integer value");
-	  return 0;
-	}
-
-      if (!_gtk_css_parser_try_int (parser, &state2))
-	{
-	  g_free (class);
-	  _gtk_css_parser_error (parser, "Expected a valid integer value");
-	  return 0;
-	}
-    }
-
-
-  if (!_gtk_css_parser_try (parser, ")", TRUE))
-    {
-      g_free (class);
-      _gtk_css_parser_error (parser,
-			     "Expected ')'");
-      return 0;
-    }
-  
-  theme_part = _gtk_win32_theme_part_new (class, 
-					  xp_part, state, 
-					  xp_part2, state2,
-					  op);
-  g_free (class);
-  
-  g_value_take_boxed (value, theme_part);
-  return 1;
-}
-
-#ifdef G_OS_WIN32
 cairo_surface_t *
-_gtk_win32_theme_part_create_surface  (GtkWin32ThemePart  *part,
-				       int                 xp_part,
-				       int                 state,
-				       int                 width,
-				       int                 height)
+_gtk_win32_theme_part_create_surface (HTHEME theme,
+                                      int    xp_part,
+				      int    state,
+				      int    margins[4],
+				      int    width,
+                                      int    height)
 {
   cairo_surface_t *surface;
+  GdkRGBA color;
+  cairo_t *cr;
+#ifdef G_OS_WIN32
   HDC hdc;
   RECT rect;
   HRESULT res;
@@ -371,91 +199,29 @@ _gtk_win32_theme_part_create_surface  (GtkWin32ThemePart  *part,
   surface = cairo_win32_surface_create_with_dib (CAIRO_FORMAT_ARGB32, width, height);
   hdc = cairo_win32_surface_get_dc (surface);
   
-  rect.left = 0;
-  rect.top = 0;
-  rect.right = width;
-  rect.bottom = height;
+  rect.left = margins[3];
+  rect.top = margins[0];
+  rect.right = width - margins[1];
+  rect.bottom = height - margins[2];
 
-  res = draw_theme_background (part->theme, hdc, xp_part, state, &rect, &rect);
-  return surface;
-}
-#endif
+  res = draw_theme_background (theme, hdc, xp_part, state, &rect, &rect);
+  if (res == S_OK)
+    return surface;
+#else /* !G_OS_WIN32 */
+  surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, width, height);
+#endif /* G_OS_WIN32 */
 
-
-cairo_pattern_t *
-_gtk_win32_theme_part_render  (GtkWin32ThemePart  *part,
-			       int                 width,
-			       int                 height)
-{
-#ifdef G_OS_WIN32
-  cairo_surface_t *surface, *surface2, *image;
-  cairo_pattern_t *pattern;
-  cairo_t *cr;
-  cairo_matrix_t matrix;
-  cairo_user_data_key_t key;
-
-  surface = _gtk_win32_theme_part_create_surface  (part, part->part, part->state, 
-						   width, height);
-  
-  if (part->state2 >= 0)
-    {
-      surface2 = _gtk_win32_theme_part_create_surface  (part, part->part2, part->state2, 
-							width, height);
-
-
-      if (part->op == RENDER_MIX)
-	{
-	  cr = cairo_create (surface);
-
-	  pattern = cairo_pattern_create_for_surface (surface2);
-	  cairo_set_source (cr, pattern);
-	  cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
-	  cairo_paint_with_alpha (cr, 0.5);
-      
-	  cairo_destroy (cr);
-	  cairo_pattern_destroy (pattern);
-	}
-      else  /* OVER */
-	{
-	  cr = cairo_create (surface);
-
-	  pattern = cairo_pattern_create_for_surface (surface2);
-	  cairo_set_source (cr, pattern);
-	  cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
-	  cairo_paint (cr);
-      
-	  cairo_destroy (cr);
-	  cairo_pattern_destroy (pattern);
-	}
-
-      cairo_surface_destroy (surface2);
-    }
-
-  /* We need to return an image surface, as that is what the code expects in order
-     to get the size */
-  image = cairo_win32_surface_get_image (surface);
-  pattern = cairo_pattern_create_for_surface (cairo_surface_reference (image));
-
-  cairo_matrix_init_scale (&matrix,
-			   width,
-			   height);
-  cairo_pattern_set_matrix (pattern, &matrix);
-
-  /* We can't immediately destroy the surface, because that would free the data
-     the image surface refers too. Instead we destroy it with the pattern. */
-  cairo_pattern_set_user_data (pattern,
-			       &key,
-			       surface, (cairo_destroy_func_t) cairo_surface_destroy);
-
-  return pattern;
-#else
-  GdkRGBA color;
-  
+  cr = cairo_create (surface);
+ 
+  /* XXX: Do something better here (like printing the theme parts) */
   gdk_rgba_parse (&color, "pink");
+  gdk_cairo_set_source_rgba (cr, &color);
+  cairo_paint (cr);
 
-  return cairo_pattern_create_rgb (color.red, color.green, color.blue);
-#endif
+  cairo_destroy (cr);
 }
+
+
 
 int
 _gtk_win32_theme_int_parse (GtkCssParser      *parser,
@@ -509,7 +275,7 @@ _gtk_win32_theme_int_parse (GtkCssParser      *parser,
 #ifdef G_OS_WIN32
       if (use_xp_theme && get_theme_sys_metric != NULL)
 	{
-	  HTHEME theme = lookup_htheme_by_classname (class);
+	  HTHEME theme = _gtk_win32_lookup_htheme_by_classname (class);
 
 	  /* If theme is NULL it will just return the GetSystemMetrics value */
 	  *value = get_theme_sys_metric (theme, arg);
@@ -573,7 +339,7 @@ _gtk_win32_theme_color_resolve (const char *theme_class,
 
   if (use_xp_theme && get_theme_sys_color != NULL)
     {
-      HTHEME theme = lookup_htheme_by_classname (theme_class);
+      HTHEME theme = _gtk_win32_lookup_htheme_by_classname (theme_class);
 
       /* if theme is NULL, it will just return the GetSystemColor()
          value */

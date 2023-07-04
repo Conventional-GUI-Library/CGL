@@ -30,10 +30,25 @@ typedef enum {
   GTK_CSS_CURRENT_COLOR /*< nick=currentColor >*/
 } GtkCssSpecialValue;
 
-typedef enum {
-  GTK_CSS_BACKGROUND_REPEAT_STYLE_REPEAT,
-  GTK_CSS_BACKGROUND_REPEAT_STYLE_NO_REPEAT,
-} GtkCssBackgroundRepeatStyle;
+/* We encode horizontal and vertical repeat in one enum value.
+ * This eases parsing and storage, but you need to be aware that
+ * you have to "unpack" this value.
+ */
+#define GTK_CSS_BACKGROUND_REPEAT_SHIFT (8)
+#define GTK_CSS_BACKGROUND_REPEAT_MASK ((1 << GTK_CSS_BACKGROUND_REPEAT_SHIFT) - 1)
+#define GTK_CSS_BACKGROUND_HORIZONTAL(repeat) ((repeat) & GTK_CSS_BACKGROUND_REPEAT_MASK)
+#define GTK_CSS_BACKGROUND_VERTICAL(repeat) (((repeat) >> GTK_CSS_BACKGROUND_REPEAT_SHIFT) & GTK_CSS_BACKGROUND_REPEAT_MASK)
+typedef enum /*< enum >*/
+{
+  GTK_CSS_BACKGROUND_INVALID, /*< skip >*/
+  GTK_CSS_BACKGROUND_REPEAT, /* start at one so we know if a value has been set */
+  GTK_CSS_BACKGROUND_SPACE,
+  GTK_CSS_BACKGROUND_ROUND,
+  GTK_CSS_BACKGROUND_NO_REPEAT,
+  /* need to hardcode the numer or glib-mkenums makes us into a flags type */
+  GTK_CSS_BACKGROUND_REPEAT_X = 1025,
+  GTK_CSS_BACKGROUND_REPEAT_Y = 260
+} GtkCssBackgroundRepeat;
 
 typedef enum {
   GTK_CSS_REPEAT_STYLE_STRETCH,
@@ -48,27 +63,27 @@ typedef enum {
   GTK_CSS_AREA_CONTENT_BOX
 } GtkCssArea;
 
-typedef struct _GtkCssBackgroundRepeat GtkCssBackgroundRepeat;
+/* for the order in arrays */
+typedef enum /*< skip >*/ {
+  GTK_CSS_TOP,
+  GTK_CSS_RIGHT,
+  GTK_CSS_BOTTOM,
+  GTK_CSS_LEFT
+} GtkCssSide;
+
+typedef enum /*< skip >*/ {
+  GTK_CSS_TOP_LEFT,
+  GTK_CSS_TOP_RIGHT,
+  GTK_CSS_BOTTOM_RIGHT,
+  GTK_CSS_BOTTOM_LEFT
+} GtkCssCorner;
 
 typedef struct _GtkCssBorderCornerRadius GtkCssBorderCornerRadius;
-typedef struct _GtkCssBorderRadius GtkCssBorderRadius;
 typedef struct _GtkCssBorderImageRepeat GtkCssBorderImageRepeat;
-
-struct _GtkCssBackgroundRepeat {
-  /* FIXME: will have vrepeat and hrepeat instead */
-  GtkCssBackgroundRepeatStyle repeat;
-};
 
 struct _GtkCssBorderCornerRadius {
   double horizontal;
   double vertical;
-};
-
-struct _GtkCssBorderRadius {
-  GtkCssBorderCornerRadius top_left;
-  GtkCssBorderCornerRadius top_right;
-  GtkCssBorderCornerRadius bottom_right;
-  GtkCssBorderCornerRadius bottom_left;
 };
 
 struct _GtkCssBorderImageRepeat {
@@ -76,13 +91,9 @@ struct _GtkCssBorderImageRepeat {
   GtkCssBorderRepeatStyle hrepeat;
 };
 
-#define GTK_TYPE_CSS_BACKGROUND_REPEAT _gtk_css_background_repeat_get_type ()
-
 #define GTK_TYPE_CSS_BORDER_CORNER_RADIUS _gtk_css_border_corner_radius_get_type ()
 #define GTK_TYPE_CSS_BORDER_RADIUS _gtk_css_border_radius_get_type ()
 #define GTK_TYPE_CSS_BORDER_IMAGE_REPEAT _gtk_css_border_image_repeat_get_type ()
-
-GType           _gtk_css_background_repeat_get_type             (void);
 
 GType           _gtk_css_border_corner_radius_get_type          (void);
 GType           _gtk_css_border_radius_get_type                 (void);

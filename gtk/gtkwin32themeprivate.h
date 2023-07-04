@@ -24,24 +24,30 @@
 
 #include "gtkcssparserprivate.h"
 
+#ifdef G_OS_WIN32
+
+#include <windows.h>
+
+typedef HANDLE HTHEME;
+
+#else /* !G_OS_WIN32 */
+
+typedef void * HTHEME;
+
+#endif /* G_OS_WIN32 */
+
 G_BEGIN_DECLS
 
 #define GTK_WIN32_THEME_SYMBOLIC_COLOR_NAME "-gtk-win32-color"
 
-typedef struct _GtkWin32ThemePart GtkWin32ThemePart;
+HTHEME             _gtk_win32_lookup_htheme_by_classname (const char  *classname);
+cairo_surface_t *  _gtk_win32_theme_part_create_surface  (HTHEME       theme,
+                                                          int          xp_part,
+                                                          int          state,
+                                                          int          margins[4],
+                                                          int          width,
+                                                          int          height);
 
-#define GTK_TYPE_WIN32_THEME_PART (_gtk_win32_theme_part_get_type ())
-
-GType              _gtk_win32_theme_part_get_type  (void) G_GNUC_CONST;
-
-GtkWin32ThemePart *_gtk_win32_theme_part_ref       (GtkWin32ThemePart *part);
-void               _gtk_win32_theme_part_unref     (GtkWin32ThemePart *part);
-int                _gtk_win32_theme_part_parse     (GtkCssParser      *parser, 
-						    GFile             *base, 
-						    GValue            *value);
-cairo_pattern_t   *_gtk_win32_theme_part_render   (GtkWin32ThemePart  *part,
-						   int                 width,
-						   int                 height);
 int                _gtk_win32_theme_int_parse     (GtkCssParser      *parser,
 						   GFile             *base,
 						   int               *value);

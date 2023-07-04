@@ -107,29 +107,28 @@ _gtk_css_lookup_set (GtkCssLookup  *lookup,
  * _gtk_css_lookup_resolve:
  * @lookup: the lookup
  * @context: the context the values are resolved for
+ * @props: a new #GtkStyleProperties to be filled with the new properties
  *
  * Resolves the current lookup into a styleproperties object. This is done
  * by converting from the "winning declaration" to the "computed value".
  *
  * XXX: This bypasses the notion of "specified value". If this ever becomes
  * an issue, go fix it.
- *
- * Returns: a new #GtkStyleProperties
  **/
-GtkStyleProperties *
-_gtk_css_lookup_resolve (GtkCssLookup    *lookup,
-                         GtkStyleContext *context)
+void
+_gtk_css_lookup_resolve (GtkCssLookup       *lookup,
+                         GtkStyleContext    *context,
+                         GtkStyleProperties *props)
 {
-  GtkStyleProperties *props;
   GtkStyleContext *parent;
   guint i, n;
 
-  g_return_val_if_fail (lookup != NULL, NULL);
-  g_return_val_if_fail (GTK_IS_STYLE_CONTEXT (context), NULL);
+  g_return_if_fail (lookup != NULL);
+  g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
+  g_return_if_fail (GTK_IS_STYLE_PROPERTIES (props));
 
   parent = gtk_style_context_get_parent (context);
   n = _gtk_css_style_property_get_n_properties ();
-  props = gtk_style_properties_new ();
 
   for (i = 0; i < n; i++)
     {
@@ -207,10 +206,10 @@ _gtk_css_lookup_resolve (GtkCssLookup    *lookup,
       else
         {
           /* Set NULL here and do the inheritance upon lookup? */
-          gtk_style_context_get_property (parent,
-                                          _gtk_style_property_get_name (GTK_STYLE_PROPERTY (prop)),
-                                          gtk_style_context_get_state (parent),
-                                          &value);
+          result = _gtk_style_context_peek_property (parent,
+                                                     _gtk_style_property_get_name (GTK_STYLE_PROPERTY (prop)));
+          g_value_init (&value, G_VALUE_TYPE (result));
+          g_value_copy (result, &value);
         }
 
       _gtk_style_properties_set_property_by_property (props,
@@ -219,6 +218,4 @@ _gtk_css_lookup_resolve (GtkCssLookup    *lookup,
                                                       &value);
       g_value_unset (&value);
     }
-
-  return props;
 }

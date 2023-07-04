@@ -987,10 +987,11 @@ build_properties (GtkStyleContext *context,
         }
     }
 
-  style_data->store = _gtk_css_lookup_resolve (lookup, context);
+  style_data->store = gtk_style_properties_new ();
   _gtk_style_properties_set_color_lookup_func (style_data->store,
                                                gtk_style_context_color_lookup_func,
                                                context);
+  _gtk_css_lookup_resolve (lookup, context, style_data->store);
   _gtk_css_lookup_free (lookup);
 }
 
@@ -1091,44 +1092,40 @@ style_data_lookup (GtkStyleContext *context,
       gtk_style_context_set_state (context, state);
     }
 
-  data = g_hash_table_lookup (priv->style_data, priv->info_stack->data);
+  priv->current_data = g_hash_table_lookup (priv->style_data, priv->info_stack->data);
+  priv->current_state = state;
 
-  if (!data)
+  if (!priv->current_data)
     {
       GtkWidgetPath *path;
 
-      data = style_data_new ();
-      path = create_query_path (context);
-
-      build_properties (context, data, path, state);
-      build_icon_factories (context, data, path);
-
+      priv->current_data = style_data_new ();
       g_hash_table_insert (priv->style_data,
                            style_info_copy (priv->info_stack->data),
-                           data);
+                           priv->current_data);
+
+      path = create_query_path (context);
+
+      build_properties (context, priv->current_data, path, state);
+      build_icon_factories (context, priv->current_data, path);
 
       gtk_widget_path_free (path);
     }
 
+  data = priv->current_data;
+
+  if (priv->theming_engine)
+    g_object_unref (priv->theming_engine);
+
+  gtk_style_properties_get (priv->current_data->store, 0,
+                            "engine", &priv->theming_engine,
+                            NULL);
+
+  if (!priv->theming_engine)
+    priv->theming_engine = g_object_ref (gtk_theming_engine_load (NULL));
+
   if (G_UNLIKELY (state_mismatch))
-    {
-      gtk_style_context_restore (context);
-    }
-  else
-    {
-      if (priv->theming_engine)
-        g_object_unref (priv->theming_engine);
-
-      gtk_style_properties_get (data->store, 0,
-                                "engine", &priv->theming_engine,
-                                NULL);
-
-      if (!priv->theming_engine)
-        priv->theming_engine = g_object_ref (gtk_theming_engine_load (NULL));
-    }
-
-  priv->current_data = data;
-  priv->current_state = state;
+    gtk_style_context_restore (context);
 
   return data;
 }
@@ -2295,6 +2292,27 @@ style_property_values_cmp (gconstpointer bsearch_node1,
     return val1->state < val2->state ? -1 : 1;
 
   return 0;
+}
+
+const GValue *
+_gtk_style_context_peek_property (GtkStyleContext *context,
+                                  const char      *property_name)
+{
+  GtkStyleProperty *property;
+  StyleData *data;
+
+  property = _gtk_style_property_lookup (property_name);
+  if (!GTK_IS_CSS_STYLE_PROPERTY (property))
+    {
+      g_warning ("Style property \"%s\" does not exist", property_name);
+      return NULL;
+    }
+
+  data = style_data_lookup (context, gtk_style_context_get_state (context));
+
+  return _gtk_style_properties_peek_property (data->store,
+                                              GTK_CSS_STYLE_PROPERTY (property),
+                                              0);
 }
 
 const GValue *
@@ -3515,7 +3533,6 @@ gtk_style_context_get_border (GtkStyleContext *context,
   GtkStyleContextPrivate *priv;
   StyleData *data;
   int top, left, bottom, right;
-  GtkBorderStyle border_style;
 
   g_return_if_fail (border != NULL);
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
@@ -3526,27 +3543,16 @@ gtk_style_context_get_border (GtkStyleContext *context,
   data = style_data_lookup (context, state);
   gtk_style_properties_get (data->store,
                             0,
-			    "border-style", &border_style,
-                            "border-top-width", &top,
                             "border-top-width", &top,
                             "border-left-width", &left,
                             "border-bottom-width", &bottom,
                             "border-right-width", &right,
                             NULL);
-  if (border_style == GTK_BORDER_STYLE_NONE)
-    {
-      border->top = 0;
-      border->left = 0;
-      border->bottom = 0;
-      border->right = 0;
-    }
-  else
-    {
-      border->top = top;
-      border->left = left;
-      border->bottom = bottom;
-      border->right = right;
-    }
+
+  border->top = top;
+  border->left = left;
+  border->bottom = bottom;
+  border->right = right;
 }
 
 /**

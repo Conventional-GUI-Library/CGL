@@ -30,6 +30,7 @@
 #include <cairo-gobject.h>
 
 #include "gtkanimationdescription.h"
+#include "gtkcssimagegradientprivate.h"
 #include "gtkcssprovider.h"
 #include "gtkcsstypesprivate.h"
 #include "gtkgradient.h"
@@ -172,6 +173,14 @@ rgba_value_parse (GtkCssParser *parser,
   GtkSymbolicColor *symbolic;
   GdkRGBA rgba;
 
+  if (_gtk_css_parser_try (parser, "currentcolor", TRUE))
+    {
+      g_value_unset (value);
+      g_value_init (value, GTK_TYPE_CSS_SPECIAL_VALUE);
+      g_value_set_enum (value, GTK_CSS_CURRENT_COLOR);
+      return TRUE;
+    }
+
   symbolic = _gtk_css_parser_read_symbolic_color (parser);
   if (symbolic == NULL)
     return FALSE;
@@ -214,7 +223,12 @@ rgba_value_compute (GValue          *computed,
 {
   GdkRGBA rgba, white = { 1, 1, 1, 1 };
 
-  if (G_VALUE_HOLDS (specified, GTK_TYPE_SYMBOLIC_COLOR))
+  if (G_VALUE_HOLDS (specified, GTK_TYPE_CSS_SPECIAL_VALUE))
+    {
+      g_assert (g_value_get_enum (specified) == GTK_CSS_CURRENT_COLOR);
+      g_value_copy (_gtk_style_context_peek_property (context, "color"), computed);
+    }
+  else if (G_VALUE_HOLDS (specified, GTK_TYPE_SYMBOLIC_COLOR))
     {
       if (_gtk_style_context_resolve_color (context,
                                             g_value_get_boxed (specified),
@@ -632,7 +646,8 @@ border_value_parse (GtkCssParser *parser,
                     GValue       *value)
 {
   GtkBorder border = { 0, };
-  guint i, numbers[4];
+  guint i;
+  int numbers[4];
 
   for (i = 0; i < G_N_ELEMENTS (numbers); i++)
     {
@@ -640,7 +655,7 @@ border_value_parse (GtkCssParser *parser,
 	{
 	  /* These are strictly speaking signed, but we want to be able to use them
 	     for unsigned types too, as the actual ranges of values make this safe */
-	  int res = _gtk_win32_theme_int_parse (parser, base, (int *)&numbers[i]);
+	  int res = _gtk_win32_theme_int_parse (parser, base, &numbers[i]);
 
 	  if (res == 0) /* Parse error, report */
 	    return FALSE;
@@ -649,13 +664,10 @@ border_value_parse (GtkCssParser *parser,
 	    break;
 	}
       else
-	{
-	  if (!_gtk_css_parser_try_uint (parser, &numbers[i]))
-	    break;
-
-	  /* XXX: shouldn't allow spaces here? */
-	  _gtk_css_parser_try (parser, "px", TRUE);
-	}
+        {
+          if (!_gtk_css_parser_try_length (parser, &numbers[i]))
+            break;
+        }
     }
 
   if (i == 0)
@@ -705,188 +717,10 @@ gradient_value_parse (GtkCssParser *parser,
                       GValue       *value)
 {
   GtkGradient *gradient;
-  cairo_pattern_type_t type;
-  gdouble coords[6];
-  guint i;
 
-  if (!_gtk_css_parser_try (parser, "-gtk-gradient", TRUE))
-    {
-      _gtk_css_parser_error (parser,
-                             "Expected '-gtk-gradient'");
-      return FALSE;
-    }
-
-  if (!_gtk_css_parser_try (parser, "(", TRUE))
-    {
-      _gtk_css_parser_error (parser,
-                             "Expected '(' after '-gtk-gradient'");
-      return FALSE;
-    }
-
-  /* Parse gradient type */
-  if (_gtk_css_parser_try (parser, "linear", TRUE))
-    type = CAIRO_PATTERN_TYPE_LINEAR;
-  else if (_gtk_css_parser_try (parser, "radial", TRUE))
-    type = CAIRO_PATTERN_TYPE_RADIAL;
-  else
-    {
-      _gtk_css_parser_error (parser,
-                             "Gradient type must be 'radial' or 'linear'");
-      return FALSE;
-    }
-
-  /* Parse start/stop position parameters */
-  for (i = 0; i < 2; i++)
-    {
-      if (! _gtk_css_parser_try (parser, ",", TRUE))
-        {
-          _gtk_css_parser_error (parser,
-                                 "Expected ','");
-          return FALSE;
-        }
-
-      if (_gtk_css_parser_try (parser, "left", TRUE))
-        coords[i * 3] = 0;
-      else if (_gtk_css_parser_try (parser, "right", TRUE))
-        coords[i * 3] = 1;
-      else if (_gtk_css_parser_try (parser, "center", TRUE))
-        coords[i * 3] = 0.5;
-      else if (!_gtk_css_parser_try_double (parser, &coords[i * 3]))
-        {
-          _gtk_css_parser_error (parser,
-                                 "Expected a valid X coordinate");
-          return FALSE;
-        }
-
-      if (_gtk_css_parser_try (parser, "top", TRUE))
-        coords[i * 3 + 1] = 0;
-      else if (_gtk_css_parser_try (parser, "bottom", TRUE))
-        coords[i * 3 + 1] = 1;
-      else if (_gtk_css_parser_try (parser, "center", TRUE))
-        coords[i * 3 + 1] = 0.5;
-      else if (!_gtk_css_parser_try_double (parser, &coords[i * 3 + 1]))
-        {
-          _gtk_css_parser_error (parser,
-                                 "Expected a valid Y coordinate");
-          return FALSE;
-        }
-
-      if (type == CAIRO_PATTERN_TYPE_RADIAL)
-        {
-          /* Parse radius */
-          if (! _gtk_css_parser_try (parser, ",", TRUE))
-            {
-              _gtk_css_parser_error (parser,
-                                     "Expected ','");
-              return FALSE;
-            }
-
-          if (! _gtk_css_parser_try_double (parser, &coords[(i * 3) + 2]))
-            {
-              _gtk_css_parser_error (parser,
-                                     "Expected a numer for the radius");
-              return FALSE;
-            }
-        }
-    }
-
-  if (type == CAIRO_PATTERN_TYPE_LINEAR)
-    gradient = gtk_gradient_new_linear (coords[0], coords[1], coords[3], coords[4]);
-  else
-    gradient = gtk_gradient_new_radial (coords[0], coords[1], coords[2],
-                                        coords[3], coords[4], coords[5]);
-
-  while (_gtk_css_parser_try (parser, ",", TRUE))
-    {
-      GtkSymbolicColor *color;
-      gdouble position;
-
-      if (_gtk_css_parser_try (parser, "from", TRUE))
-        {
-          position = 0;
-
-          if (!_gtk_css_parser_try (parser, "(", TRUE))
-            {
-              gtk_gradient_unref (gradient);
-              _gtk_css_parser_error (parser,
-                                     "Expected '('");
-              return FALSE;
-            }
-
-        }
-      else if (_gtk_css_parser_try (parser, "to", TRUE))
-        {
-          position = 1;
-
-          if (!_gtk_css_parser_try (parser, "(", TRUE))
-            {
-              gtk_gradient_unref (gradient);
-              _gtk_css_parser_error (parser,
-                                     "Expected '('");
-              return FALSE;
-            }
-
-        }
-      else if (_gtk_css_parser_try (parser, "color-stop", TRUE))
-        {
-          if (!_gtk_css_parser_try (parser, "(", TRUE))
-            {
-              gtk_gradient_unref (gradient);
-              _gtk_css_parser_error (parser,
-                                     "Expected '('");
-              return FALSE;
-            }
-
-          if (!_gtk_css_parser_try_double (parser, &position))
-            {
-              gtk_gradient_unref (gradient);
-              _gtk_css_parser_error (parser,
-                                     "Expected a valid number");
-              return FALSE;
-            }
-
-          if (!_gtk_css_parser_try (parser, ",", TRUE))
-            {
-              gtk_gradient_unref (gradient);
-              _gtk_css_parser_error (parser,
-                                     "Expected a comma");
-              return FALSE;
-            }
-        }
-      else
-        {
-          gtk_gradient_unref (gradient);
-          _gtk_css_parser_error (parser,
-                                 "Not a valid color-stop definition");
-          return FALSE;
-        }
-
-      color = _gtk_css_parser_read_symbolic_color (parser);
-      if (color == NULL)
-        {
-          gtk_gradient_unref (gradient);
-          return FALSE;
-        }
-
-      gtk_gradient_add_color_stop (gradient, position, color);
-      gtk_symbolic_color_unref (color);
-
-      if (!_gtk_css_parser_try (parser, ")", TRUE))
-        {
-          gtk_gradient_unref (gradient);
-          _gtk_css_parser_error (parser,
-                                 "Expected ')'");
-          return FALSE;
-        }
-    }
-
-  if (!_gtk_css_parser_try (parser, ")", TRUE))
-    {
-      gtk_gradient_unref (gradient);
-      _gtk_css_parser_error (parser,
-                             "Expected ')'");
-      return FALSE;
-    }
+  gradient = _gtk_gradient_parse (parser);
+  if (gradient == NULL)
+    return FALSE;
 
   g_value_take_boxed (value, gradient);
   return TRUE;
@@ -975,11 +809,6 @@ pattern_value_parse (GtkCssParser *parser,
     }
   else if (_gtk_css_parser_begins_with (parser, '-'))
     {
-      int res;
-      res = _gtk_win32_theme_part_parse (parser, base, value);
-      if (res >= 0)
-	return res > 0;
-      /* < 0 => continue */
       g_value_unset (value);
       g_value_init (value, GTK_TYPE_GRADIENT);
       return gradient_value_parse (parser, base, value);
@@ -1233,35 +1062,6 @@ shadow_value_compute (GValue          *computed,
 }
 
 static gboolean
-background_repeat_value_parse (GtkCssParser *parser,
-                               GFile *file,
-                               GValue *value)
-{
-  GtkCssBackgroundRepeat repeat;
-  int style;
-
-  if (!enum_parse (parser, GTK_TYPE_CSS_BACKGROUND_REPEAT_STYLE, &style))
-    return FALSE;
-
-  repeat.repeat = style;
-
-  g_value_set_boxed (value, &repeat);
-
-  return TRUE;
-}
-
-static void
-background_repeat_value_print (const GValue *value,
-                               GString      *string)
-{
-  GtkCssBackgroundRepeat *repeat;
-
-  repeat = g_value_get_boxed (value);
-
-  enum_print (repeat->repeat, GTK_TYPE_CSS_BACKGROUND_REPEAT_STYLE, string);
-}
-
-static gboolean
 border_image_repeat_value_parse (GtkCssParser *parser,
                                  GFile *file,
                                  GValue *value)
@@ -1489,10 +1289,6 @@ gtk_css_style_funcs_init (void)
   register_conversion_function (G_TYPE_FLAGS,
                                 flags_value_parse,
                                 flags_value_print,
-                                NULL);
-  register_conversion_function (GTK_TYPE_CSS_BACKGROUND_REPEAT,
-                                background_repeat_value_parse,
-                                background_repeat_value_print,
                                 NULL);
 }
 

@@ -25,9 +25,11 @@
 #include <cairo-gobject.h>
 #include <math.h>
 
-#include "gtkborderimageprivate.h"
+#include "gtkcssimageprivate.h"
 #include "gtkcssstylefuncsprivate.h"
 #include "gtkcsstypesprivate.h"
+#include "gtkprivatetypebuiltins.h"
+#include "gtktypebuiltins.h"
 
 /* this is in case round() is not provided by the compiler, 
  * such as in the case of C89 compilers, like MSVC
@@ -45,10 +47,10 @@ value_is_done_parsing (GtkCssParser *parser)
 }
 
 static gboolean
-parse_border (GtkCssShorthandProperty *shorthand,
-              GValue                  *values,
-              GtkCssParser            *parser,
-              GFile                   *base)
+parse_border_width (GtkCssShorthandProperty *shorthand,
+                    GValue                  *values,
+                    GtkCssParser            *parser,
+                    GFile                   *base)
 {
   GValue temp = G_VALUE_INIT;
   GtkBorder *border;
@@ -75,7 +77,7 @@ parse_border (GtkCssShorthandProperty *shorthand,
 
   return TRUE;
 }
-                    
+
 static gboolean 
 parse_border_radius (GtkCssShorthandProperty *shorthand,
                      GValue                  *values,
@@ -177,14 +179,56 @@ parse_border_color (GtkCssShorthandProperty *shorthand,
 }
 
 static gboolean
+parse_border_style (GtkCssShorthandProperty *shorthand,
+                    GValue                  *values,
+                    GtkCssParser            *parser,
+                    GFile                   *base)
+{
+  GtkBorderStyle styles[4];
+  guint i;
+
+  for (i = 0; i < 4; i++)
+    {
+      if (!_gtk_css_parser_try_enum (parser, GTK_TYPE_BORDER_STYLE, (int *)&styles[i]))
+        break;
+    }
+
+  if (i == 0)
+    {
+      _gtk_css_parser_error (parser, "Expected a border style");
+      return FALSE;
+    }
+
+  for (; i < G_N_ELEMENTS (styles); i++)
+    styles[i] = styles[(i - 1) >> 1];
+
+  for (i = 0; i < G_N_ELEMENTS (styles); i++)
+    {
+      g_value_init (&values[i], GTK_TYPE_BORDER_STYLE);
+      g_value_set_enum (&values[i], styles[i]);
+    }
+
+  return TRUE;
+}
+
+static gboolean
 parse_border_image (GtkCssShorthandProperty *shorthand,
                     GValue                  *values,
                     GtkCssParser            *parser,
                     GFile                   *base)
 {
-  g_value_init (&values[0], CAIRO_GOBJECT_TYPE_PATTERN);
-  if (!_gtk_css_style_parse_value (&values[0], parser, base))
-    return FALSE;
+  GtkCssImage *image;
+  
+  if (_gtk_css_parser_try (parser, "none", TRUE))
+    image = NULL;
+  else
+    {
+      image = _gtk_css_image_new_parse (parser, base);
+      if (!image)
+        return FALSE;
+    }
+  g_value_init (&values[0], GTK_TYPE_CSS_IMAGE);
+  g_value_set_object (&values[0], image);
 
   if (value_is_done_parsing (parser))
     return TRUE;
@@ -206,6 +250,121 @@ parse_border_image (GtkCssShorthandProperty *shorthand,
   g_value_init (&values[3], GTK_TYPE_CSS_BORDER_IMAGE_REPEAT);
   if (!_gtk_css_style_parse_value (&values[3], parser, base))
     return FALSE;
+
+  return TRUE;
+}
+
+static gboolean
+parse_border_side (GtkCssShorthandProperty *shorthand,
+                   GValue                  *values,
+                   GtkCssParser            *parser,
+                   GFile                   *base)
+{
+  int width;
+  int style;
+
+  do
+  {
+    if (!G_IS_VALUE (&values[0]) &&
+         _gtk_css_parser_try_length (parser, &width))
+      {
+        g_value_init (&values[0], G_TYPE_INT);
+        g_value_set_int (&values[0], width);
+      }
+    else if (!G_IS_VALUE (&values[1]) &&
+             _gtk_css_parser_try_enum (parser, GTK_TYPE_BORDER_STYLE, &style))
+      {
+        g_value_init (&values[1], GTK_TYPE_BORDER_STYLE);
+        g_value_set_enum (&values[1], style);
+      }
+    else if (!G_IS_VALUE (&values[2]))
+      {
+        GtkSymbolicColor *symbolic;
+
+        symbolic = _gtk_css_parser_read_symbolic_color (parser);
+        if (symbolic == NULL)
+          return FALSE;
+
+        g_value_init (&values[2], GTK_TYPE_SYMBOLIC_COLOR);
+        g_value_take_boxed (&values[2], symbolic);
+      }
+    else
+      {
+        /* We parsed everything and there's still stuff left?
+         * Pretend we didn't notice and let the normal code produce
+         * a 'junk at end of value' error */
+        break;
+      }
+  }
+  while (!value_is_done_parsing (parser));
+
+  return TRUE;
+}
+
+static gboolean
+parse_border (GtkCssShorthandProperty *shorthand,
+              GValue                  *values,
+              GtkCssParser            *parser,
+              GFile                   *base)
+{
+  int width;
+  int style;
+
+  do
+  {
+    if (!G_IS_VALUE (&values[0]) &&
+         _gtk_css_parser_try_length (parser, &width))
+      {
+        g_value_init (&values[0], G_TYPE_INT);
+        g_value_init (&values[1], G_TYPE_INT);
+        g_value_init (&values[2], G_TYPE_INT);
+        g_value_init (&values[3], G_TYPE_INT);
+        g_value_set_int (&values[0], width);
+        g_value_set_int (&values[1], width);
+        g_value_set_int (&values[2], width);
+        g_value_set_int (&values[3], width);
+      }
+    else if (!G_IS_VALUE (&values[4]) &&
+             _gtk_css_parser_try_enum (parser, GTK_TYPE_BORDER_STYLE, &style))
+      {
+        g_value_init (&values[4], GTK_TYPE_BORDER_STYLE);
+        g_value_init (&values[5], GTK_TYPE_BORDER_STYLE);
+        g_value_init (&values[6], GTK_TYPE_BORDER_STYLE);
+        g_value_init (&values[7], GTK_TYPE_BORDER_STYLE);
+        g_value_set_enum (&values[4], style);
+        g_value_set_enum (&values[5], style);
+        g_value_set_enum (&values[6], style);
+        g_value_set_enum (&values[7], style);
+      }
+    else if (!G_IS_VALUE (&values[8]))
+      {
+        GtkSymbolicColor *symbolic;
+
+        symbolic = _gtk_css_parser_read_symbolic_color (parser);
+        if (symbolic == NULL)
+          return FALSE;
+
+        g_value_init (&values[8], GTK_TYPE_SYMBOLIC_COLOR);
+        g_value_init (&values[9], GTK_TYPE_SYMBOLIC_COLOR);
+        g_value_init (&values[10], GTK_TYPE_SYMBOLIC_COLOR);
+        g_value_init (&values[11], GTK_TYPE_SYMBOLIC_COLOR);
+        g_value_set_boxed (&values[8], symbolic);
+        g_value_set_boxed (&values[9], symbolic);
+        g_value_set_boxed (&values[10], symbolic);
+        g_value_take_boxed (&values[11], symbolic);
+      }
+    else
+      {
+        /* We parsed everything and there's still stuff left?
+         * Pretend we didn't notice and let the normal code produce
+         * a 'junk at end of value' error */
+        break;
+      }
+  }
+  while (!value_is_done_parsing (parser));
+
+  /* Note that border-image values are not set: according to the spec
+     they just need to be reset when using the border shorthand */
 
   return TRUE;
 }
@@ -261,6 +420,90 @@ parse_font (GtkCssShorthandProperty *shorthand,
     }
 
   pango_font_description_free (desc);
+
+  return TRUE;
+}
+
+static gboolean
+parse_background (GtkCssShorthandProperty *shorthand,
+                  GValue                  *values,
+                  GtkCssParser            *parser,
+                  GFile                   *base)
+{
+  int enum_value;
+
+  do
+    {
+      /* the image part */
+      if (!G_IS_VALUE (&values[0]) &&
+          (_gtk_css_parser_has_prefix (parser, "none") ||
+           _gtk_css_image_can_parse (parser)))
+        {
+          GtkCssImage *image;
+
+          if (_gtk_css_parser_try (parser, "none", TRUE))
+            image = NULL;
+          else
+            {
+              image = _gtk_css_image_new_parse (parser, base);
+              if (image == NULL)
+                return FALSE;
+            }
+
+          g_value_init (&values[0], GTK_TYPE_CSS_IMAGE);
+          g_value_take_object (&values[0], image);
+        }
+      else if (!G_IS_VALUE (&values[1]) &&
+               _gtk_css_parser_try_enum (parser, GTK_TYPE_CSS_BACKGROUND_REPEAT, &enum_value))
+        {
+          if (enum_value <= GTK_CSS_BACKGROUND_REPEAT_MASK)
+            {
+              int vertical;
+
+              if (_gtk_css_parser_try_enum (parser, GTK_TYPE_CSS_BACKGROUND_REPEAT, &vertical))
+                {
+                  if (vertical >= GTK_CSS_BACKGROUND_REPEAT_MASK)
+                    {
+                      _gtk_css_parser_error (parser, "Not a valid 2nd value for border-repeat");
+                      return FALSE;
+                    }
+                  else
+                    enum_value |= vertical << GTK_CSS_BACKGROUND_REPEAT_SHIFT;
+                }
+              else
+                enum_value |= enum_value << GTK_CSS_BACKGROUND_REPEAT_SHIFT;
+            }
+
+          g_value_init (&values[1], GTK_TYPE_CSS_BACKGROUND_REPEAT);
+          g_value_set_enum (&values[1], enum_value);
+        }
+      else if ((!G_IS_VALUE (&values[2]) || !G_IS_VALUE (&values[3])) &&
+               _gtk_css_parser_try_enum (parser, GTK_TYPE_CSS_AREA, &enum_value))
+        {
+          guint idx = !G_IS_VALUE (&values[2]) ? 2 : 3;
+          g_value_init (&values[idx], GTK_TYPE_CSS_AREA);
+          g_value_set_enum (&values[idx], enum_value);
+        }
+      else if (!G_IS_VALUE (&values[4]))
+        {
+          GtkSymbolicColor *symbolic;
+          
+          symbolic = _gtk_css_parser_read_symbolic_color (parser);
+          if (symbolic == NULL)
+            return FALSE;
+
+          g_value_init (&values[4], GTK_TYPE_SYMBOLIC_COLOR);
+          g_value_take_boxed (&values[4], symbolic);
+        }
+      else
+        {
+          /* We parsed everything and there's still stuff left?
+           * Pretend we didn't notice and let the normal code produce
+           * a 'junk at end of value' error */
+          break;
+        }
+    }
+  while (!value_is_done_parsing (parser));
 
   return TRUE;
 }
@@ -597,6 +840,44 @@ pack_border_color (GValue             *value,
   gtk_style_properties_get_property (props, "border-top-color", state, value);
 }
 
+static GParameter *
+unpack_border_style (const GValue *value,
+                     guint        *n_params)
+{
+  GParameter *parameter = g_new0 (GParameter, 4);
+  GtkBorderStyle style;
+
+  style = g_value_get_enum (value);
+
+  parameter[0].name = "border-top-style";
+  g_value_init (&parameter[0].value, GTK_TYPE_BORDER_STYLE);
+  g_value_set_enum (&parameter[0].value, style);
+  parameter[1].name = "border-right-style";
+  g_value_init (&parameter[1].value, GTK_TYPE_BORDER_STYLE);
+  g_value_set_enum (&parameter[1].value, style);
+  parameter[2].name = "border-bottom-style";
+  g_value_init (&parameter[2].value, GTK_TYPE_BORDER_STYLE);
+  g_value_set_enum (&parameter[2].value, style);
+  parameter[3].name = "border-left-style";
+  g_value_init (&parameter[3].value, GTK_TYPE_BORDER_STYLE);
+  g_value_set_enum (&parameter[3].value, style);
+
+  *n_params = 4;
+  return parameter;
+}
+
+static void
+pack_border_style (GValue             *value,
+                   GtkStyleProperties *props,
+                   GtkStateFlags       state)
+{
+  /* NB: We can just resolve to a style. We pick one and stick to it.
+   * Lesson learned: Don't query border-style shorthand, query the
+   * real properties instead. */
+  g_value_unset (value);
+  gtk_style_properties_get_property (props, "border-top-style", state, value);
+}
+
 static void
 _gtk_css_shorthand_property_register (const char                        *name,
                                       GType                              value_type,
@@ -606,9 +887,6 @@ _gtk_css_shorthand_property_register (const char                        *name,
                                       GtkStylePackFunc                   pack_func)
 {
   GtkStyleProperty *node;
-
-  g_return_if_fail (pack_func != NULL);
-  g_return_if_fail (unpack_func != NULL);
 
   node = g_object_new (GTK_TYPE_CSS_SHORTHAND_PROPERTY,
                        "name", name,
@@ -632,7 +910,19 @@ _gtk_css_shorthand_property_init_properties (void)
   const char *border_radius_subproperties[] = { "border-top-left-radius", "border-top-right-radius",
                                                 "border-bottom-right-radius", "border-bottom-left-radius", NULL };
   const char *border_color_subproperties[] = { "border-top-color", "border-right-color", "border-bottom-color", "border-left-color", NULL };
+  const char *border_style_subproperties[] = { "border-top-style", "border-right-style", "border-bottom-style", "border-left-style", NULL };
   const char *border_image_subproperties[] = { "border-image-source", "border-image-slice", "border-image-width", "border-image-repeat", NULL };
+  const char *border_top_subproperties[] = { "border-top-width", "border-top-style", "border-top-color", NULL };
+  const char *border_right_subproperties[] = { "border-right-width", "border-right-style", "border-right-color", NULL };
+  const char *border_bottom_subproperties[] = { "border-bottom-width", "border-bottom-style", "border-bottom-color", NULL };
+  const char *border_left_subproperties[] = { "border-left-width", "border-left-style", "border-left-color", NULL };
+  const char *border_subproperties[] = { "border-top-width", "border-right-width", "border-bottom-width", "border-left-width",
+                                         "border-top-style", "border-right-style", "border-bottom-style", "border-left-style",
+                                         "border-top-color", "border-right-color", "border-bottom-color", "border-left-color",
+                                         "border-image-source", "border-image-slice", "border-image-width", "border-image-repeat", NULL };
+  const char *outline_subproperties[] = { "outline-width", "outline-style", "outline-color", NULL };
+  const char *background_subproperties[] = { "background-image", "background-repeat", "background-clip", "background-origin",
+                                             "background-color", NULL };
 
   _gtk_css_shorthand_property_register   ("font",
                                           PANGO_TYPE_FONT_DESCRIPTION,
@@ -643,19 +933,19 @@ _gtk_css_shorthand_property_init_properties (void)
   _gtk_css_shorthand_property_register   ("margin",
                                           GTK_TYPE_BORDER,
                                           margin_subproperties,
-                                          parse_border,
+                                          parse_border_width,
                                           unpack_margin,
                                           pack_margin);
   _gtk_css_shorthand_property_register   ("padding",
                                           GTK_TYPE_BORDER,
                                           padding_subproperties,
-                                          parse_border,
+                                          parse_border_width,
                                           unpack_padding,
                                           pack_padding);
   _gtk_css_shorthand_property_register   ("border-width",
                                           GTK_TYPE_BORDER,
                                           border_width_subproperties,
-                                          parse_border,
+                                          parse_border_width,
                                           unpack_border_width,
                                           pack_border_width);
   _gtk_css_shorthand_property_register   ("border-radius",
@@ -670,10 +960,58 @@ _gtk_css_shorthand_property_init_properties (void)
                                           parse_border_color,
                                           unpack_border_color,
                                           pack_border_color);
+  _gtk_css_shorthand_property_register   ("border-style",
+                                          GTK_TYPE_BORDER_STYLE,
+                                          border_style_subproperties,
+                                          parse_border_style,
+                                          unpack_border_style,
+                                          pack_border_style);
   _gtk_css_shorthand_property_register   ("border-image",
-                                          GTK_TYPE_BORDER_IMAGE,
+                                          G_TYPE_NONE,
                                           border_image_subproperties,
                                           parse_border_image,
-                                          _gtk_border_image_unpack,
-                                          _gtk_border_image_pack);
+                                          NULL,
+                                          NULL);
+  _gtk_css_shorthand_property_register   ("border-top",
+                                          G_TYPE_NONE,
+                                          border_top_subproperties,
+                                          parse_border_side,
+                                          NULL,
+                                          NULL);
+  _gtk_css_shorthand_property_register   ("border-right",
+                                          G_TYPE_NONE,
+                                          border_right_subproperties,
+                                          parse_border_side,
+                                          NULL,
+                                          NULL);
+  _gtk_css_shorthand_property_register   ("border-bottom",
+                                          G_TYPE_NONE,
+                                          border_bottom_subproperties,
+                                          parse_border_side,
+                                          NULL,
+                                          NULL);
+  _gtk_css_shorthand_property_register   ("border-left",
+                                          G_TYPE_NONE,
+                                          border_left_subproperties,
+                                          parse_border_side,
+                                          NULL,
+                                          NULL);
+  _gtk_css_shorthand_property_register   ("border",
+                                          G_TYPE_NONE,
+                                          border_subproperties,
+                                          parse_border,
+                                          NULL,
+                                          NULL);
+  _gtk_css_shorthand_property_register   ("outline",
+                                          G_TYPE_NONE,
+                                          outline_subproperties,
+                                          parse_border_side,
+                                          NULL,
+                                          NULL);
+  _gtk_css_shorthand_property_register   ("background",
+                                          G_TYPE_NONE,
+                                          background_subproperties,
+                                          parse_background,
+                                          NULL,
+                                          NULL);
 }
