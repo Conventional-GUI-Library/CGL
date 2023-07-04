@@ -64,9 +64,9 @@ _gtk_theming_background_apply_running_transformation (GtkThemingBackground *bg,
     other_flags = bg->flags | GTK_STATE_FLAG_PRELIGHT;
 
   gtk_theming_engine_get_background_color (bg->engine, other_flags, &other_bg);
-  _gtk_theming_engine_get (bg->engine, other_flags, &bg->prop_context,
-                           "background-image", &other_pattern,
-                           NULL);
+  gtk_theming_engine_get (bg->engine, other_flags,
+                          "background-image", &other_pattern,
+                          NULL);
 
   if (bg->pattern && other_pattern)
     {
@@ -258,8 +258,6 @@ _gtk_theming_background_apply_origin (GtkThemingBackground *bg)
   }
 
   bg->image_rect = image_rect;
-  bg->prop_context.width = image_rect.width;
-  bg->prop_context.height = image_rect.height;
 }
 
 static void
@@ -307,8 +305,7 @@ _gtk_theming_background_paint (GtkThemingBackground *bg,
       if (cairo_pattern_get_surface (bg->pattern, &surface) != CAIRO_STATUS_SUCCESS)
         surface = NULL;
 
-      if (surface && repeat &&
-          repeat->repeat != GTK_CSS_BACKGROUND_REPEAT_STYLE_NONE)
+      if (surface && repeat)
         {
           scale_width = cairo_image_surface_get_width (surface);
           scale_height = cairo_image_surface_get_height (surface);
@@ -390,9 +387,9 @@ _gtk_theming_background_init_engine (GtkThemingBackground *bg)
   _gtk_theming_background_apply_clip (bg);
   _gtk_theming_background_apply_origin (bg);
 
-  _gtk_theming_engine_get (bg->engine, bg->flags, &bg->prop_context, 
-                           "background-image", &bg->pattern,
-                           NULL);
+  gtk_theming_engine_get (bg->engine, bg->flags,
+                          "background-image", &bg->pattern,
+                          NULL);
 }
 
 void

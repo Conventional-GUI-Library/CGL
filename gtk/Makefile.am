@@ -409,11 +409,17 @@ gtk_private_h_sources =		\
 	gtkbuttonprivate.h	\
 	gtkcellareaboxcontextprivate.h	\
 	gtkcontainerprivate.h   \
+	gtkcsscustompropertyprivate.h \
+	gtkcssimageprivate.h	\
+	gtkcssimageurlprivate.h	\
 	gtkcsslookupprivate.h	\
 	gtkcssparserprivate.h	\
 	gtkcssproviderprivate.h	\
 	gtkcsssectionprivate.h 	\
 	gtkcssselectorprivate.h	\
+	gtkcssshorthandpropertyprivate.h \
+	gtkcssstylefuncsprivate.h \
+	gtkcssstylepropertyprivate.h \
 	gtkcustompaperunixdialog.h \
 	gtkdndcursors.h		\
 	gtkentryprivate.h	\
@@ -560,11 +566,19 @@ gtk_base_c_sources = 		\
 	gtkcombobox.c		\
 	gtkcomboboxtext.c	\
 	gtkcontainer.c		\
+	gtkcsscustomproperty.c	\
+	gtkcssimage.c		\
+	gtkcssimageurl.c	\
 	gtkcsslookup.c		\
 	gtkcssparser.c		\
 	gtkcssprovider.c	\
 	gtkcsssection.c 	\
 	gtkcssselector.c	\
+	gtkcssshorthandproperty.c \
+	gtkcssshorthandpropertyimpl.c \
+	gtkcssstylefuncs.c	\
+	gtkcssstyleproperty.c	\
+	gtkcssstylepropertyimpl.c \
 	gtkcsstypes.c		\
 	gtkdialog.c		\
 	gtkdrawingarea.c	\

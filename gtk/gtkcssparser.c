@@ -92,6 +92,15 @@ _gtk_css_parser_begins_with (GtkCssParser *parser,
   return *parser->data == c;
 }
 
+gboolean
+_gtk_css_parser_has_prefix (GtkCssParser *parser,
+                            const char   *prefix)
+{
+  g_return_val_if_fail (GTK_IS_CSS_PARSER (parser), FALSE);
+
+  return g_ascii_strncasecmp (parser->data, prefix, strlen (prefix)) == 0;
+}
+
 guint
 _gtk_css_parser_get_line (GtkCssParser *parser)
 {
@@ -830,6 +839,13 @@ _gtk_css_parser_read_symbolic_color (GtkCssParser *parser)
   char *name;
 
   g_return_val_if_fail (GTK_IS_CSS_PARSER (parser), NULL);
+
+  if (_gtk_css_parser_try (parser, "transparent", TRUE))
+    {
+      GdkRGBA transparent = { 0, 0, 0, 0 };
+      
+      return gtk_symbolic_color_new_literal (&transparent);
+    }
 
   if (_gtk_css_parser_try (parser, "@", FALSE))
     {

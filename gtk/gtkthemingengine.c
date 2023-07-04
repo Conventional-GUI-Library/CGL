@@ -339,65 +339,6 @@ _gtk_theming_engine_set_context (GtkThemingEngine *engine,
 }
 
 /**
- * gtk_theming_engine_register_property: (skip)
- * @name_space: namespace for the property name
- * @parse_func: parsing function to use, or %NULL
- * @pspec: the #GParamSpec for the new property
- *
- * Registers a property so it can be used in the CSS file format,
- * on the CSS file the property will look like
- * "-${@name_space}-${property_name}". being
- * ${property_name} the given to @pspec. @name_space will usually
- * be the theme engine name.
- *
- * For any type a @parse_func may be provided, being this function
- * used for turning any property value (between ':' and ';') in
- * CSS to the #GValue needed. For basic types there is already
- * builtin parsing support, so %NULL may be provided for these
- * cases.
- *
- * <note>
- * Engines must ensure property registration happens exactly once,
- * usually GTK+ deals with theming engines as singletons, so this
- * should be guaranteed to happen once, but bear this in mind
- * when creating #GtkThemeEngine<!-- -->s yourself.
- * </note>
- *
- * <note>
- * In order to make use of the custom registered properties in
- * the CSS file, make sure the engine is loaded first by specifying
- * the engine property, either in a previous rule or within the same
- * one.
- * <programlisting>
- * &ast; {
- *     engine: someengine;
- *     -SomeEngine-custom-property: 2;
- * }
- * </programlisting>
- * </note>
- *
- * Since: 3.0
- **/
-void
-gtk_theming_engine_register_property (const gchar            *name_space,
-                                      GtkStylePropertyParser  parse_func,
-                                      GParamSpec             *pspec)
-{
-  gchar *name;
-
-  g_return_if_fail (name_space != NULL);
-  g_return_if_fail (strchr (name_space, ' ') == NULL);
-  g_return_if_fail (G_IS_PARAM_SPEC (pspec));
-
-  /* FIXME: hack hack hack, replacing pspec->name to include namespace */
-  name = g_strdup_printf ("-%s-%s", name_space, pspec->name);
-  pspec->name = (char *)g_intern_string (name);
-  g_free (name);
-
-  gtk_style_properties_register_property (parse_func, pspec);
-}
-
-/**
  * gtk_theming_engine_get_property:
  * @engine: a #GtkThemingEngine
  * @property: the property name
@@ -450,25 +391,6 @@ gtk_theming_engine_get_valist (GtkThemingEngine *engine,
   priv = engine->priv;
   gtk_style_context_get_valist (priv->context, state, args);
 }
-
-void
-_gtk_theming_engine_get (GtkThemingEngine *engine,
-			 GtkStateFlags     state,
-			 GtkStylePropertyContext *property_context,
-			 ...)
-{
-  GtkThemingEnginePrivate *priv;
-  va_list args;
-
-  g_return_if_fail (GTK_IS_THEMING_ENGINE (engine));
-
-  priv = engine->priv;
-
-  va_start (args, property_context);
-  _gtk_style_context_get_valist (priv->context, state, property_context, args);
-  va_end (args);
-}
-
 
 /**
  * gtk_theming_engine_get:
@@ -1615,19 +1537,15 @@ gtk_theming_engine_render_frame (GtkThemingEngine *engine,
   GtkJunctionSides junction;
   GtkBorderImage *border_image;
   GtkBorder border;
-  GtkStylePropertyContext context;
 
   flags = gtk_theming_engine_get_state (engine);
   junction = gtk_theming_engine_get_junction_sides (engine);
   gtk_theming_engine_get_border (engine, flags, &border);
 
-  context.width = width;
-  context.height = height;
-
-  _gtk_theming_engine_get (engine, flags, &context,
-			   "border-image", &border_image,
-			   "border-style", &border_style,
-			   NULL);
+  gtk_theming_engine_get (engine, flags,
+			  "border-image", &border_image,
+			  "border-style", &border_style,
+			  NULL);
 
   if (border_image != NULL)
     {
@@ -1983,9 +1901,7 @@ gtk_theming_engine_render_frame_gap (GtkThemingEngine *engine,
   gint border_width;
   GtkCssBorderCornerRadius *top_left_radius, *top_right_radius;
   GtkCssBorderCornerRadius *bottom_left_radius, *bottom_right_radius;
-  GtkCssBorderRadius border_radius = { { 0, },  };
   gdouble x0, y0, x1, y1, xc, yc, wc, hc;
-  GtkStylePropertyContext context;
   GtkBorderImage *border_image;
   GtkBorder border;
 
@@ -1993,32 +1909,14 @@ gtk_theming_engine_render_frame_gap (GtkThemingEngine *engine,
   state = gtk_theming_engine_get_state (engine);
   junction = gtk_theming_engine_get_junction_sides (engine);
 
-  context.width = width;
-  context.height = height;
-
   gtk_theming_engine_get_border (engine, state, &border);
-  _gtk_theming_engine_get (engine, state, &context,
-			   "border-image", &border_image,
-			   /* Can't use border-radius as it's an int for
-			    * backwards compat */
-			   "border-top-left-radius", &top_left_radius,
-			   "border-top-right-radius", &top_right_radius,
-			   "border-bottom-right-radius", &bottom_right_radius,
-			   "border-bottom-left-radius", &bottom_left_radius,
-			   NULL);
-
-  if (top_left_radius)
-    border_radius.top_left = *top_left_radius;
-  g_free (top_left_radius);
-  if (top_right_radius)
-    border_radius.top_right = *top_right_radius;
-  g_free (top_right_radius);
-  if (bottom_right_radius)
-    border_radius.bottom_right = *bottom_right_radius;
-  g_free (bottom_right_radius);
-  if (bottom_left_radius)
-    border_radius.bottom_left = *bottom_left_radius;
-  g_free (bottom_left_radius);
+  gtk_theming_engine_get (engine, state,
+			  "border-image", &border_image,
+			  "border-top-left-radius", &top_left_radius,
+			  "border-top-right-radius", &top_right_radius,
+			  "border-bottom-right-radius", &bottom_right_radius,
+			  "border-bottom-left-radius", &bottom_left_radius,
+			  NULL);
 
   border_width = MIN (MIN (border.top, border.bottom),
                       MIN (border.left, border.right));
@@ -2033,10 +1931,10 @@ gtk_theming_engine_render_frame_gap (GtkThemingEngine *engine,
       wc = MAX (xy1_gap - xy0_gap - 2 * border_width, 0);
       hc = border_width;
 
-      if (xy0_gap < border_radius.top_left.horizontal)
+      if (xy0_gap < top_left_radius->horizontal)
         junction |= GTK_JUNCTION_CORNER_TOPLEFT;
 
-      if (xy1_gap > width - border_radius.top_right.horizontal)
+      if (xy1_gap > width - top_right_radius->horizontal)
         junction |= GTK_JUNCTION_CORNER_TOPRIGHT;
       break;
     case GTK_POS_BOTTOM:
@@ -2045,10 +1943,10 @@ gtk_theming_engine_render_frame_gap (GtkThemingEngine *engine,
       wc = MAX (xy1_gap - xy0_gap - 2 * border_width, 0);
       hc = border_width;
 
-      if (xy0_gap < border_radius.bottom_left.horizontal)
+      if (xy0_gap < bottom_left_radius->horizontal)
         junction |= GTK_JUNCTION_CORNER_BOTTOMLEFT;
 
-      if (xy1_gap > width - border_radius.bottom_right.horizontal)
+      if (xy1_gap > width - bottom_right_radius->horizontal)
         junction |= GTK_JUNCTION_CORNER_BOTTOMRIGHT;
 
       break;
@@ -2058,10 +1956,10 @@ gtk_theming_engine_render_frame_gap (GtkThemingEngine *engine,
       wc = border_width;
       hc = MAX (xy1_gap - xy0_gap - 2 * border_width, 0);
 
-      if (xy0_gap < border_radius.top_left.vertical)
+      if (xy0_gap < top_left_radius->vertical)
         junction |= GTK_JUNCTION_CORNER_TOPLEFT;
 
-      if (xy1_gap > height - border_radius.bottom_left.vertical)
+      if (xy1_gap > height - bottom_left_radius->vertical)
         junction |= GTK_JUNCTION_CORNER_BOTTOMLEFT;
 
       break;
@@ -2071,10 +1969,10 @@ gtk_theming_engine_render_frame_gap (GtkThemingEngine *engine,
       wc = border_width;
       hc = MAX (xy1_gap - xy0_gap - 2 * border_width, 0);
 
-      if (xy0_gap < border_radius.top_right.vertical)
+      if (xy0_gap < top_right_radius->vertical)
         junction |= GTK_JUNCTION_CORNER_TOPRIGHT;
 
-      if (xy1_gap > height - border_radius.bottom_right.vertical)
+      if (xy1_gap > height - bottom_right_radius->vertical)
         junction |= GTK_JUNCTION_CORNER_BOTTOMRIGHT;
 
       break;
@@ -2099,6 +1997,11 @@ gtk_theming_engine_render_frame_gap (GtkThemingEngine *engine,
 			   0, junction);
 
   cairo_restore (cr);
+
+  g_free (top_left_radius);
+  g_free (top_right_radius);
+  g_free (bottom_right_radius);
+  g_free (bottom_left_radius);
 }
 
 static void
