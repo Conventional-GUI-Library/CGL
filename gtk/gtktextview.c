@@ -3984,12 +3984,10 @@ gtk_text_view_realize (GtkWidget *widget)
   GtkTextView *text_view;
   GtkTextViewPrivate *priv;
   GtkStyleContext *context;
-  GtkStateFlags state;
   GdkWindow *window;
   GdkWindowAttr attributes;
   gint attributes_mask;
   GSList *tmp_list;
-  GdkRGBA color;
 
   text_view = GTK_TEXT_VIEW (widget);
   priv = text_view->priv;
@@ -4015,10 +4013,11 @@ gtk_text_view_realize (GtkWidget *widget)
   gdk_window_set_user_data (window, widget);
 
   context = gtk_widget_get_style_context (widget);
-  state = gtk_widget_get_state_flags (widget);
 
-  gtk_style_context_get_background_color (context, state, &color);
-  gdk_window_set_background_rgba (window, &color);
+  gtk_style_context_save (context);
+  gtk_style_context_add_class (context, GTK_STYLE_CLASS_VIEW);
+  gtk_style_context_set_background (context, window);
+  gtk_style_context_restore (context);
 
   text_window_realize (priv->text_window, widget);
 
@@ -4118,15 +4117,13 @@ gtk_text_view_set_background (GtkTextView *text_view)
   gtk_style_context_save (context);
   gtk_style_context_add_class (context, GTK_STYLE_CLASS_VIEW);
 
-  gtk_style_context_get_background_color (context, state, &color);
-  gdk_window_set_background_rgba (priv->text_window->bin_window, &color);
+  gtk_style_context_set_background (context, priv->text_window->bin_window);
+  gtk_style_context_set_background (context, gtk_widget_get_window (widget));
 
   gtk_style_context_restore (context);
 
   /* Set lateral panes background */
   gtk_style_context_get_background_color (context, state, &color);
-
-  gdk_window_set_background_rgba (gtk_widget_get_window (widget), &color);
 
   if (priv->left_window)
     gdk_window_set_background_rgba (priv->left_window->bin_window, &color);
@@ -4273,8 +4270,15 @@ gtk_text_view_grab_notify (GtkWidget *widget,
   if (priv->grab_device &&
       gtk_widget_device_is_shadowed (widget, priv->grab_device))
     {
+      if (priv->drag_start_x >= 0)
+        {
+          priv->drag_start_x = -1;
+          priv->drag_start_y = -1;
+        }
+
       gtk_text_view_end_selection_drag (GTK_TEXT_VIEW (widget));
       gtk_text_view_unobscure_mouse_cursor (GTK_TEXT_VIEW (widget));
+      priv->grab_device = NULL;
     }
 }
 
@@ -4575,6 +4579,7 @@ gtk_text_view_button_press_event (GtkWidget *widget, GdkEventButton *event)
                 gtk_widget_get_modifier_mask (widget,
                                               GDK_MODIFIER_INTENT_EXTEND_SELECTION)))
             {
+              priv->grab_device = event->device;
               priv->drag_start_x = event->x;
               priv->drag_start_y = event->y;
               priv->pending_place_cursor_button = event->button;

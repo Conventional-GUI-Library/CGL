@@ -90,9 +90,6 @@
  * An application can be informed when the session is about to end
  * by connecting to the #GtkApplication::quit signal.
  *
- * An application can request the session to be ended by calling
- * gtk_application_end_session().
- *
  * An application can block various ways to end the session with
  * the gtk_application_inhibit() function. Typical use cases for
  * this kind of inhibiting are long-running, uninterruptible operations,
@@ -105,7 +102,6 @@
 enum {
   WINDOW_ADDED,
   WINDOW_REMOVED,
-  QUIT,
   LAST_SIGNAL
 };
 
@@ -661,13 +657,6 @@ gtk_application_set_property (GObject      *object,
 }
 
 static void
-gtk_application_quit (GtkApplication *app)
-{
-  /* we are asked to quit, so don't linger */
-  g_application_set_inactivity_timeout (G_APPLICATION (app), 0);
-}
-
-static void
 gtk_application_finalize (GObject *object)
 {
   GtkApplication *application = GTK_APPLICATION (object);
@@ -697,7 +686,6 @@ gtk_application_class_init (GtkApplicationClass *class)
 
   class->window_added = gtk_application_window_added;
   class->window_removed = gtk_application_window_removed;
-  class->quit = gtk_application_quit;
 
   g_type_class_add_private (class, sizeof (GtkApplicationPrivate));
 
@@ -735,32 +723,6 @@ gtk_application_class_init (GtkApplicationClass *class)
                   NULL, NULL,
                   g_cclosure_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1, GTK_TYPE_WINDOW);
-
-  /**
-   * GtkApplication::quit:
-   * @application: the #GtkApplication
-   *
-   * Emitted when the session manager wants the application to quit
-   * (generally because the user is logging out). The application
-   * should exit as soon as possible after receiving this signal; if
-   * it does not, the session manager may choose to forcibly kill it.
-   *
-   * Normally, an application would only be sent a ::quit if there
-   * are no inhibitors (see gtk_application_inhibit()).
-   * However, this is not guaranteed; in some situations the
-   * session manager may decide to end the session without giving
-   * applications a chance to object.
-   *
-   * To receive this signal, you need to set the
-   * #GtkApplication:register-session property
-   * when creating the application object.
-   *
-   * Since: 3.4
-   */
-  gtk_application_signals[QUIT] =
-    g_signal_new ("quit", GTK_TYPE_APPLICATION, G_SIGNAL_RUN_FIRST,
-                  G_STRUCT_OFFSET (GtkApplicationClass, quit),
-                  NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 
   /**
    * GtkApplication:register-session:
@@ -1208,13 +1170,13 @@ client_proxy_signal (GDBusProxy     *proxy,
       g_debug ("Received EndSession");
       gtk_application_quit_response (app, TRUE, NULL);
       unregister_client (app);
-      g_signal_emit (app, gtk_application_signals[QUIT], 0);
+      g_application_quit (G_APPLICATION (app));
     }
   else if (strcmp (signal_name, "Stop") == 0)
     {
       g_debug ("Received Stop");
       unregister_client (app);
-      g_signal_emit (app, gtk_application_signals[QUIT], 0);
+      g_application_quit (G_APPLICATION (app));
     }
 }
 
@@ -1475,67 +1437,6 @@ gtk_application_is_inhibited (GtkApplication             *application,
   return inhibited;
 }
 
-/**
- * GtkApplicationEndSessionStyle:
- * @GTK_APPLICATION_LOGOUT: End the session by logging out
- * @GTK_APPLICATION_REBOOT: Restart the computer
- * @GTK_APPLICATION_SHUTDOWN: Shut the computer down
- *
- * Different ways to end a user session, for use with
- * gtk_application_end_session().
- */
-
-/**
- * gtk_application_end_session:
- * @application: the #GtkApplication
- * @style: the desired kind of session end
- * @request_confirmation: whether or not the user should get a chance
- *     to confirm the action
- *
- * Requests that the session manager end the current session.
- * @style indicates how the session should be ended, and
- * @request_confirmation indicates whether or not the user should be
- * given a chance to confirm the action. Both of these parameters are
- * merely hints though; the session manager may choose to ignore them.
- *
- * Return value: %TRUE if the request was sent; %FALSE if it could not
- *     be sent (eg, because it could not connect to the session manager)
- *
- * Since: 3.4
- */
-gboolean
-gtk_application_end_session (GtkApplication                *application,
-                             GtkApplicationEndSessionStyle  style,
-                             gboolean                       request_confirmation)
-{
-  g_return_val_if_fail (GTK_IS_APPLICATION (application), FALSE);
-  g_return_val_if_fail (!g_application_get_is_remote (G_APPLICATION (application)), FALSE);
-  g_return_val_if_fail (application->priv->sm_proxy != NULL, FALSE);
-
-  switch (style)
-    {
-    case GTK_APPLICATION_LOGOUT:
-      g_dbus_proxy_call (application->priv->sm_proxy,
-                         "Logout",
-                         g_variant_new ("(u)", request_confirmation ? 0 : 1),
-                         G_DBUS_CALL_FLAGS_NONE,
-                         G_MAXINT,
-                         NULL, NULL, NULL);
-      break;
-    case GTK_APPLICATION_REBOOT:
-    case GTK_APPLICATION_SHUTDOWN:
-      g_dbus_proxy_call (application->priv->sm_proxy,
-                         "Shutdown",
-                         NULL,
-                         G_DBUS_CALL_FLAGS_NONE,
-                         G_MAXINT,
-                         NULL, NULL, NULL);
-      break;
-    }
-
-  return TRUE;
-}
-
 #elif defined(GDK_WINDOWING_QUARTZ)
 
 /* OS X implementation copied from EggSMClient, but simplified since
@@ -1548,7 +1449,7 @@ idle_will_quit (gpointer data)
   GtkApplication *app = data;
 
   if (app->priv->quit_inhibit == 0)
-    g_signal_emit (app, gtk_application_signals[QUIT], 0);
+    g_application_quit (G_APPLICATION (app));
   else
     {
       GtkApplicationQuartzInhibitor *inhibitor;
@@ -1570,8 +1471,11 @@ idle_will_quit (gpointer data)
 				       _("%s cannot quit at this time:\n\n%s"),
 				       g_get_application_name (),
 				       inhibitor->reason);
-      gtk_dialog_run (GTK_DIALOG (dialog));
-      gtk_widget_destroy (dialog);
+      g_signal_connect_swapped (dialog,
+                                "response",
+                                G_CALLBACK (gtk_widget_destroy),
+                                dialog);
+      gtk_widget_show_all (dialog);
     }
 
   return G_SOURCE_REMOVE;
@@ -1659,58 +1563,6 @@ gtk_application_is_inhibited (GtkApplication             *application,
   return FALSE;
 }
 
-gboolean
-gtk_application_end_session (GtkApplication                *application,
-                             GtkApplicationEndSessionStyle  style,
-                             gboolean                       request_confirmation)
-{
-  static const ProcessSerialNumber loginwindow_psn = { 0, kSystemProcess };
-  AppleEvent event = { typeNull, NULL };
-  AppleEvent reply = { typeNull, NULL };
-  AEAddressDesc target;
-  AEEventID id;
-  OSErr err;
-
-  switch (style)
-    {
-    case GTK_APPLICATION_LOGOUT:
-      id = request_confirmation ? kAELogOut : kAEReallyLogOut;
-      break;
-    case GTK_APPLICATION_REBOOT:
-      id = request_confirmation ? kAEShowRestartDialog : kAERestart;
-      break;
-    case GTK_APPLICATION_SHUTDOWN:
-      id = request_confirmation ? kAEShowShutdownDialog : kAEShutDown;
-      break;
-    }
-
-  err = AECreateDesc (typeProcessSerialNumber, &loginwindow_psn,
-                      sizeof (loginwindow_psn), &target);
-  if (err != noErr)
-    {
-      g_warning ("Could not create descriptor for loginwindow: %d", err);
-      return FALSE;
-    }
-
-  err = AECreateAppleEvent (kCoreEventClass, id, &target,
-                            kAutoGenerateReturnID, kAnyTransactionID,
-                            &event);
-  AEDisposeDesc (&target);
-  if (err != noErr)
-    {
-      g_warning ("Could not create logout AppleEvent: %d", err);
-      return FALSE;
-    }
-
-  err = AESend (&event, &reply, kAENoReply, kAENormalPriority,
-                kAEDefaultTimeout, NULL, NULL);
-  AEDisposeDesc (&event);
- if (err == noErr)
-    AEDisposeDesc (&reply);
-
-  return err == noErr;
-}
-
 #else
 
 /* Trivial implementation.
@@ -1737,14 +1589,6 @@ gtk_application_uninhibit (GtkApplication *application,
 gboolean
 gtk_application_is_inhibited (GtkApplication             *application,
                               GtkApplicationInhibitFlags  flags)
-{
-  return FALSE;
-}
-
-gboolean
-gtk_application_end_session (GtkApplication                *application,
-                             GtkApplicationEndSessionStyle  style,
-                             gboolean                       request_confirmation)
 {
   return FALSE;
 }

@@ -55,13 +55,11 @@ static void gtk_cell_renderer_accel_set_property (GObject         *object,
                                                   guint            param_id,
                                                   const GValue    *value,
                                                   GParamSpec      *pspec);
-static void gtk_cell_renderer_accel_get_size     (GtkCellRenderer    *cell,
-                                                  GtkWidget          *widget,
-                                                  const GdkRectangle *cell_area,
-                                                  gint               *x_offset,
-                                                  gint               *y_offset,
-                                                  gint               *width,
-                                                  gint               *height);
+static void gtk_cell_renderer_accel_get_preferred_width 
+                                                 (GtkCellRenderer *cell,
+                                                  GtkWidget       *widget,
+                                                  gint            *minimum_size,
+                                                  gint            *natural_size);
 static GtkCellEditable *
            gtk_cell_renderer_accel_start_editing (GtkCellRenderer      *cell,
                                                   GdkEvent             *event,
@@ -136,7 +134,7 @@ gtk_cell_renderer_accel_class_init (GtkCellRendererAccelClass *cell_accel_class)
   object_class->set_property = gtk_cell_renderer_accel_set_property;
   object_class->get_property = gtk_cell_renderer_accel_get_property;
 
-  cell_renderer_class->get_size      = gtk_cell_renderer_accel_get_size;
+  cell_renderer_class->get_preferred_width = gtk_cell_renderer_accel_get_preferred_width;
   cell_renderer_class->start_editing = gtk_cell_renderer_accel_start_editing;
 
   /**
@@ -407,31 +405,28 @@ gtk_cell_renderer_accel_set_property  (GObject      *object,
 }
 
 static void
-gtk_cell_renderer_accel_get_size (GtkCellRenderer    *cell,
-                                  GtkWidget          *widget,
-                                  const GdkRectangle *cell_area,
-                                  gint               *x_offset,
-                                  gint               *y_offset,
-                                  gint               *width,
-                                  gint               *height)
+gtk_cell_renderer_accel_get_preferred_width (GtkCellRenderer    *cell,
+                                             GtkWidget          *widget,
+                                             gint               *minimum_size,
+                                             gint               *natural_size)
 
 {
   GtkCellRendererAccelPrivate *priv = GTK_CELL_RENDERER_ACCEL (cell)->priv;
-  GtkRequisition requisition;
+  GtkRequisition min_req, nat_req;
 
   if (priv->sizing_label == NULL)
     priv->sizing_label = gtk_label_new (_("New accelerator..."));
 
-  gtk_widget_get_preferred_size (priv->sizing_label, &requisition, NULL);
+  gtk_widget_get_preferred_size (priv->sizing_label, &min_req, &nat_req);
 
-  GTK_CELL_RENDERER_CLASS (gtk_cell_renderer_accel_parent_class)->get_size (cell, widget, cell_area,
-                                                                            x_offset, y_offset, width, height);
+  GTK_CELL_RENDERER_CLASS (gtk_cell_renderer_accel_parent_class)->get_preferred_width (cell, widget,
+                                                                                       minimum_size, natural_size);
 
   /* FIXME: need to take the cell_area et al. into account */
-  if (width)
-    *width = MAX (*width, requisition.width);
-  if (height)
-    *height = MAX (*height, requisition.height);
+  if (minimum_size)
+    *minimum_size = MAX (*minimum_size, min_req.width);
+  if (natural_size)
+    *natural_size = MAX (*natural_size, nat_req.width);
 }
 
 static gboolean
@@ -732,7 +727,7 @@ gtk_cell_renderer_accel_start_editing (GtkCellRenderer      *cell,
   gtk_widget_set_valign (label, GTK_ALIGN_CENTER);
 
   gtk_style_context_get_background_color (context, GTK_STATE_FLAG_SELECTED, &color);
-  gtk_widget_override_background_color (label, 0, &color);
+  gtk_widget_override_background_color (eventbox, 0, &color);
 
   gtk_style_context_get_color (context, GTK_STATE_FLAG_SELECTED, &color);
   gtk_widget_override_color (label, 0, &color);

@@ -832,6 +832,34 @@ gtk_widget_draw_marshaller (GClosure     *closure,
 }
 
 static void
+gtk_widget_draw_marshallerv (GClosure     *closure,
+			     GValue       *return_value,
+			     gpointer      instance,
+			     va_list       args,
+			     gpointer      marshal_data,
+			     int           n_params,
+			     GType        *param_types)
+{
+  cairo_t *cr;
+  va_list args_copy;
+
+  va_copy (args_copy, args);
+  cr = va_arg (args_copy, gpointer);
+
+  cairo_save (cr);
+
+  _gtk_marshal_BOOLEAN__BOXEDv (closure,
+				return_value,
+				instance,
+				args,
+				marshal_data,
+				n_params,
+				param_types);
+
+  cairo_restore (cr);
+}
+
+static void
 gtk_widget_class_init (GtkWidgetClass *klass)
 {
   static GObjectNotifyContext cpn_context = { 0, NULL, NULL };
@@ -1705,6 +1733,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
                    gtk_widget_draw_marshaller,
 		   G_TYPE_BOOLEAN, 1,
 		   CAIRO_GOBJECT_TYPE_CONTEXT);
+  g_signal_set_va_marshaller (widget_signals[DRAW], G_TYPE_FROM_CLASS (klass),
+                              gtk_widget_draw_marshallerv);
 
   /**
    * GtkWidget::mnemonic-activate:
@@ -1817,6 +1847,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::event-after:
@@ -1837,6 +1869,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_VOID__BOXED,
 		  G_TYPE_NONE, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[EVENT_AFTER], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::button-press-event:
@@ -1864,6 +1898,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[BUTTON_PRESS_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::button-release-event:
@@ -1891,6 +1927,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[BUTTON_RELEASE_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::scroll-event:
@@ -1919,6 +1957,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[SCROLL_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::motion-notify-event:
@@ -1946,6 +1986,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[MOTION_NOTIFY_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::composited-changed:
@@ -1987,6 +2029,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[DELETE_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::destroy-event:
@@ -2014,6 +2058,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[DESTROY_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::key-press-event:
@@ -2040,6 +2086,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[KEY_PRESS_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::key-release-event:
@@ -2065,6 +2113,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[KEY_RELEASE_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::enter-notify-event:
@@ -2092,6 +2142,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[ENTER_NOTIFY_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::leave-notify-event:
@@ -2119,6 +2171,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[LEAVE_NOTIFY_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::configure-event:
@@ -2145,6 +2199,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[CONFIGURE_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::focus-in-event:
@@ -2170,6 +2226,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[FOCUS_IN_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::focus-out-event:
@@ -2195,6 +2253,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[FOCUS_OUT_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::map-event:
@@ -2220,6 +2280,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[MAP_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::unmap-event:
@@ -2245,6 +2307,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[UNMAP_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::property-notify-event:
@@ -2270,6 +2334,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[PROPERTY_NOTIFY_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::selection-clear-event:
@@ -2292,6 +2358,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[SELECTION_CLEAR_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::selection-request-event:
@@ -2315,6 +2383,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[SELECTION_REQUEST_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::selection-notify-event:
@@ -2332,6 +2402,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[SELECTION_NOTIFY_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::selection-received:
@@ -2392,6 +2464,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[PROXIMITY_IN_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::proximity-out-event:
@@ -2416,6 +2490,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[PROXIMITY_OUT_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::drag-leave:
@@ -2824,6 +2900,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[WINDOW_STATE_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::damage-event:
@@ -2848,6 +2926,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[DAMAGE_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
 /**
    * GtkWidget::grab-broken-event:
@@ -2875,6 +2955,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 		  _gtk_marshal_BOOLEAN__BOXED,
 		  G_TYPE_BOOLEAN, 1,
 		  GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
+  g_signal_set_va_marshaller (widget_signals[GRAB_BROKEN_EVENT], G_TYPE_FROM_CLASS (klass),
+                              _gtk_marshal_BOOLEAN__BOXEDv);
 
   /**
    * GtkWidget::query-tooltip:

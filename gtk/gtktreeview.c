@@ -2193,6 +2193,7 @@ gtk_tree_view_ensure_background (GtkTreeView *tree_view)
   gtk_style_context_save (context);
   gtk_style_context_add_class (context, GTK_STYLE_CLASS_VIEW);
   gtk_style_context_set_background (context, tree_view->priv->bin_window);
+  gtk_style_context_set_background (context, gtk_widget_get_window (GTK_WIDGET (tree_view)));
   gtk_style_context_restore (context);
 
   gtk_style_context_set_background (context, tree_view->priv->header_window);
@@ -11929,7 +11930,7 @@ _gtk_tree_view_reset_header_styles (GtkTreeView *tree_view)
       GtkTreeViewColumn *column = columns->data;
       GtkWidget *header_widget;
 
-      if (gtk_tree_view_column_get_visible (column))
+      if (!gtk_tree_view_column_get_visible (column))
         continue;
 
       header_widget = gtk_tree_view_column_get_widget (column);

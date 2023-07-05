@@ -5631,6 +5631,7 @@ GTK_STYLE_CLASS_MENU
 GTK_STYLE_CLASS_RADIO
 GTK_STYLE_CLASS_RUBBERBAND
 GTK_STYLE_CLASS_SCROLLBAR
+GTK_STYLE_CLASS_SCROLLBARS_JUNCTION
 GTK_STYLE_CLASS_SLIDER
 GTK_STYLE_CLASS_TOOLTIP
 GTK_STYLE_CLASS_TROUGH
@@ -7017,8 +7018,6 @@ GtkApplicationInhibitFlags
 gtk_application_inhibit
 gtk_application_uninhibit
 gtk_application_is_inhibited
-GtkApplicationEndSessionStyle
-gtk_application_end_session
 
 <SUBSECTION>
 gtk_application_get_app_menu

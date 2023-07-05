@@ -22,30 +22,20 @@
 
 #include <gtk/gtkenums.h>
 #include <gtk/gtkwidgetpath.h>
+#include "gtk/gtkcssparserprivate.h"
 
 G_BEGIN_DECLS
 
-typedef enum {
-  GTK_CSS_COMBINE_DESCANDANT,
-  GTK_CSS_COMBINE_CHILD
-} GtkCssCombinator;
-
 typedef struct _GtkCssSelector GtkCssSelector;
 
-GtkCssSelector *  _gtk_css_selector_new             (GtkCssSelector         *previous,
-                                                     GtkCssCombinator        combine,
-                                                     const char *            name,
-                                                     GQuark *                ids,
-                                                     GQuark *                classes,
-                                                     GtkRegionFlags          pseudo_classes,
-                                                     GtkStateFlags           state);
+GtkCssSelector *  _gtk_css_selector_parse           (GtkCssParser           *parser);
 void              _gtk_css_selector_free            (GtkCssSelector         *selector);
 
 char *            _gtk_css_selector_to_string       (const GtkCssSelector   *selector);
 void              _gtk_css_selector_print           (const GtkCssSelector   *selector,
                                                      GString                *str);
 
-GtkStateFlags     _gtk_css_selector_get_state_flags (GtkCssSelector         *selector);
+GtkStateFlags     _gtk_css_selector_get_state_flags (const GtkCssSelector   *selector);
 
 gboolean          _gtk_css_selector_matches         (const GtkCssSelector   *selector,
                                                      const GtkWidgetPath    *path,

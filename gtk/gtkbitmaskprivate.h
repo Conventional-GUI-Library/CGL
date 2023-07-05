@@ -25,43 +25,47 @@
 
 G_BEGIN_DECLS
 
-#ifdef GTK_INSIDE_BITMASK_C
-typedef GArray GtkBitmask;
-#else
 typedef struct _GtkBitmask           GtkBitmask;
-#endif
 
 
-GtkBitmask *   _gtk_bitmask_new                  (void);
-GtkBitmask *   _gtk_bitmask_copy                 (const GtkBitmask  *mask);
-void           _gtk_bitmask_free                 (GtkBitmask        *mask);
+static inline GtkBitmask *      _gtk_bitmask_new                  (void);
+static inline GtkBitmask *      _gtk_bitmask_copy                 (const GtkBitmask  *mask);
+static inline void              _gtk_bitmask_free                 (GtkBitmask        *mask);
 
-char *         _gtk_bitmask_to_string            (const GtkBitmask  *mask);
-void           _gtk_bitmask_print                (const GtkBitmask  *mask,
-                                                  GString           *string);
+static inline char *            _gtk_bitmask_to_string            (const GtkBitmask  *mask);
+static inline void              _gtk_bitmask_print                (const GtkBitmask  *mask,
+                                                                   GString           *string);
 
-void           _gtk_bitmask_intersect            (GtkBitmask        *mask,
-                                                  const GtkBitmask  *other);
-void           _gtk_bitmask_union                (GtkBitmask        *mask,
-                                                  const GtkBitmask  *other);
-void           _gtk_bitmask_subtract             (GtkBitmask        *mask,
-                                                  const GtkBitmask  *other);
+static inline GtkBitmask *      _gtk_bitmask_intersect            (GtkBitmask        *mask,
+                                                                   const GtkBitmask  *other) G_GNUC_WARN_UNUSED_RESULT;
+static inline GtkBitmask *      _gtk_bitmask_union                (GtkBitmask        *mask,
+                                                                   const GtkBitmask  *other) G_GNUC_WARN_UNUSED_RESULT;
+static inline GtkBitmask *      _gtk_bitmask_subtract             (GtkBitmask        *mask,
+                                                                   const GtkBitmask  *other) G_GNUC_WARN_UNUSED_RESULT;
 
-gboolean       _gtk_bitmask_get                  (const GtkBitmask  *mask,
-                                                  guint              index_);
-void           _gtk_bitmask_set                  (GtkBitmask        *mask,
-                                                  guint              index_,
-                                                  gboolean           value);
+static inline gboolean          _gtk_bitmask_get                  (const GtkBitmask  *mask,
+                                                                   guint              index_);
+static inline GtkBitmask *      _gtk_bitmask_set                  (GtkBitmask        *mask,
+                                                                   guint              index_,
+                                                                   gboolean           value) G_GNUC_WARN_UNUSED_RESULT;
 
-void           _gtk_bitmask_invert_range         (GtkBitmask        *mask,
-                                                  guint              start,
-                                                  guint              end);
+static inline GtkBitmask *      _gtk_bitmask_invert_range         (GtkBitmask        *mask,
+                                                                   guint              start,
+                                                                   guint              end) G_GNUC_WARN_UNUSED_RESULT;
 
-gboolean       _gtk_bitmask_is_empty             (const GtkBitmask  *mask);
-gboolean       _gtk_bitmask_equals               (const GtkBitmask  *mask,
-                                                  const GtkBitmask  *other);
-gboolean       _gtk_bitmask_intersects           (const GtkBitmask  *mask,
-                                                  const GtkBitmask  *other);
+static inline gboolean          _gtk_bitmask_is_empty             (const GtkBitmask  *mask);
+static inline gboolean          _gtk_bitmask_equals               (const GtkBitmask  *mask,
+                                                                   const GtkBitmask  *other);
+static inline gboolean          _gtk_bitmask_intersects           (const GtkBitmask  *mask,
+                                                                   const GtkBitmask  *other);
+
+
+/* This is the actual implementation of the functions declared above.
+ * We put it in a separate file so people don't get scared from looking at this
+ * file when reading source code.
+ */
+#include "gtkbitmaskprivateimpl.h"
+
 
 G_END_DECLS
 

@@ -147,6 +147,8 @@ struct _GtkEntryPrivate
   GtkShadowType          shadow_type;
   GtkWidget             *popup_menu;
 
+  GdkDevice             *device;
+
   GdkDevice             *completion_device;
   GdkWindow             *text_area;
 
@@ -547,6 +549,8 @@ static void         gtk_entry_do_popup                 (GtkEntry       *entry,
 							GdkEventButton *event);
 static gboolean     gtk_entry_mnemonic_activate        (GtkWidget      *widget,
 							gboolean        group_cycling);
+static void         gtk_entry_grab_notify              (GtkWidget      *widget,
+                                                        gboolean        was_grabbed);
 static void         gtk_entry_check_cursor_blink       (GtkEntry       *entry);
 static void         gtk_entry_pend_cursor_blink        (GtkEntry       *entry);
 static void         gtk_entry_reset_blink_time         (GtkEntry       *entry);
@@ -691,6 +695,7 @@ gtk_entry_class_init (GtkEntryClass *class)
   widget_class->state_flags_changed = gtk_entry_state_flags_changed;
   widget_class->screen_changed = gtk_entry_screen_changed;
   widget_class->mnemonic_activate = gtk_entry_mnemonic_activate;
+  widget_class->grab_notify = gtk_entry_grab_notify;
 
   widget_class->drag_drop = gtk_entry_drag_drop;
   widget_class->drag_motion = gtk_entry_drag_motion;
@@ -3793,7 +3798,8 @@ gtk_entry_button_press (GtkWidget      *widget,
   gtk_entry_reset_blink_time (entry);
 
   priv->button = event->button;
-  
+  priv->device = gdk_event_get_device ((GdkEvent *) event);
+
   if (!gtk_widget_has_focus (widget))
     {
       priv->in_click = TRUE;
@@ -3807,6 +3813,7 @@ gtk_entry_button_press (GtkWidget      *widget,
     {
       gtk_entry_do_popup (entry, event);
       priv->button = 0; /* Don't wait for release, since the menu will gtk_grab_add */
+      priv->device = NULL;
 
       return TRUE;
     }
@@ -3984,9 +3991,10 @@ gtk_entry_button_release (GtkWidget      *widget,
 
       priv->in_drag = 0;
     }
-  
+
   priv->button = 0;
-  
+  priv->device = NULL;
+
   gtk_entry_update_primary_selection (entry);
 	      
   return TRUE;
@@ -4095,7 +4103,8 @@ gtk_entry_motion_notify (GtkWidget      *widget,
 
           priv->in_drag = FALSE;
           priv->button = 0;
-	  
+          priv->device = NULL;
+
           gtk_target_list_unref (target_list);
         }
     }
@@ -5860,12 +5869,14 @@ gtk_entry_draw_cursor (GtkEntry  *entry,
   gboolean block_at_line_end;
   PangoLayout *layout;
   const char *text;
+  gint x, y;
 
   context = gtk_widget_get_style_context (widget);
 
   layout = gtk_entry_ensure_layout (entry, TRUE);
   text = pango_layout_get_text (layout);
   cursor_index = g_utf8_offset_to_pointer (text, priv->current_pos + priv->preedit_cursor) - text;
+  get_layout_position (entry, &x, &y);
 
   if (!priv->overwrite_mode)
     block = FALSE;
@@ -8552,6 +8563,26 @@ gtk_entry_mnemonic_activate (GtkWidget *widget,
 {
   gtk_widget_grab_focus (widget);
   return TRUE;
+}
+
+static void
+gtk_entry_grab_notify (GtkWidget *widget,
+                       gboolean   was_grabbed)
+{
+  GtkEntryPrivate *priv;
+
+  priv = GTK_ENTRY (widget)->priv;
+
+  if (priv->device &&
+      gtk_widget_device_is_shadowed (widget, priv->device))
+    {
+      /* Unset button so we don't expect
+       * a button release anymore
+       */
+      priv->button = 0;
+      priv->device = NULL;
+      priv->in_drag = FALSE;
+    }
 }
 
 static void
