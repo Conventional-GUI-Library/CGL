@@ -985,6 +985,7 @@ struct _GtkCssProviderPrivate
   GHashTable *symbolic_colors;
 
   GArray *rulesets;
+  GResource *resource;
 };
 
 enum {
@@ -1212,6 +1213,9 @@ gtk_css_ruleset_add (GtkCssRuleset    *ruleset,
     }
   else if (GTK_IS_CSS_STYLE_PROPERTY (prop))
     {
+      g_return_if_fail (_gtk_css_style_property_is_specified_type (GTK_CSS_STYLE_PROPERTY (prop),
+                                                                   G_VALUE_TYPE (&value->value)));
+
       _gtk_bitmask_set (ruleset->set_styles,
                         _gtk_css_style_property_get_id (GTK_CSS_STYLE_PROPERTY (prop)),
                         TRUE);
@@ -1588,6 +1592,13 @@ gtk_css_provider_finalize (GObject *object)
   if (priv->symbolic_colors)
     g_hash_table_destroy (priv->symbolic_colors);
 
+  if (priv->resource)
+    {
+      g_resources_unregister (priv->resource);
+      g_resource_unref (priv->resource);
+      priv->resource = NULL;
+    }
+
   G_OBJECT_CLASS (gtk_css_provider_parent_class)->finalize (object);
 }
 
@@ -1700,6 +1711,13 @@ gtk_css_provider_reset (GtkCssProvider *css_provider)
   guint i;
 
   priv = css_provider->priv;
+
+  if (priv->resource)
+    {
+      g_resources_unregister (priv->resource);
+      g_resource_unref (priv->resource);
+      priv->resource = NULL;
+    }
 
   g_hash_table_remove_all (priv->symbolic_colors);
 
@@ -2789,7 +2807,6 @@ gtk_css_provider_get_default (void)
 
   if (G_UNLIKELY (!provider))
     {
-
       provider = gtk_css_provider_new ();
       if (!_gtk_css_provider_load_from_resource (provider, "/org/gtk/libgtk/gtk-default.css"))
         {
@@ -2899,15 +2916,33 @@ gtk_css_provider_get_named (const gchar *name,
 
       if (path)
         {
+	  char *dir, *resource_file;
+	  GResource *resource;
+
           provider = gtk_css_provider_new ();
+
+	  dir = g_path_get_dirname (path);
+	  resource_file = g_build_filename (dir, "gtk.gresource", NULL);
+	  resource = g_resource_load (resource_file, NULL);
+	  if (resource != NULL)
+	    g_resources_register (resource);
 
           if (!gtk_css_provider_load_from_path (provider, path, NULL))
             {
+	      if (resource != NULL)
+		{
+		  g_resources_unregister (resource);
+		  g_resource_unref (resource);
+		}
               g_object_unref (provider);
               provider = NULL;
             }
           else
-            g_hash_table_insert (themes, g_strdup (key), provider);
+	    {
+	      /* Only set this after load success, as load_from_path will clear it */
+	      provider->priv->resource = resource;
+	      g_hash_table_insert (themes, g_strdup (key), provider);
+	    }
 
           g_free (path);
         }

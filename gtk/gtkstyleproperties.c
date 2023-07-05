@@ -339,7 +339,7 @@ gtk_style_properties_provider_lookup (GtkStyleProviderPrivate *provider,
       if (value == NULL)
         continue;
 
-      _gtk_css_lookup_set (lookup, id, NULL, value);
+      _gtk_css_lookup_set_computed (lookup, id, NULL, value);
     }
 }
 
@@ -438,6 +438,8 @@ _gtk_style_properties_set_property_by_property (GtkStyleProperties  *props,
   GtkStylePropertiesPrivate *priv;
   PropertyData *prop;
   GValue *val;
+
+  g_return_if_fail (G_VALUE_TYPE (value) == _gtk_css_style_property_get_computed_type (style_prop));
 
   priv = props->priv;
   prop = g_hash_table_lookup (priv->properties, style_prop);

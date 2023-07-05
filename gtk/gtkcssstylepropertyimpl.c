@@ -24,6 +24,7 @@
 #include <gobject/gvaluecollector.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <cairo-gobject.h>
+#include <math.h>
 
 #include "gtkcssparserprivate.h"
 #include "gtkcssstylefuncsprivate.h"
@@ -33,12 +34,18 @@
 #include "gtkprivatetypebuiltins.h"
 #include "gtkstylepropertiesprivate.h"
 
+/* this is in case round() is not provided by the compiler, 
+ * such as in the case of C89 compilers, like MSVC
+ */
+#include "fallback-c89.c"
+
 /* the actual parsers we have */
 #include "gtkanimationdescription.h"
 #include "gtkbindings.h"
 #include "gtkcssimageprivate.h"
 #include "gtkgradient.h"
 #include "gtkshadowprivate.h"
+#include "gtksymboliccolorprivate.h"
 #include "gtkthemingengine.h"
 #include "gtktypebuiltins.h"
 #include "gtkwin32themeprivate.h"
@@ -46,99 +53,23 @@
 /*** REGISTRATION ***/
 
 static void
-color_compute (GtkCssStyleProperty    *property,
-               GValue                 *computed,
-               GtkStyleContext        *context,
-               const GValue           *specified)
-{
-  g_value_init (computed, GDK_TYPE_RGBA);
-
-  /* for when resolvage fails */
-restart:
-
-  if (G_VALUE_HOLDS (specified, GTK_TYPE_CSS_SPECIAL_VALUE))
-    {
-      g_assert (g_value_get_enum (specified) == GTK_CSS_CURRENT_COLOR);
-
-      /* The computed value of the ‘currentColor’ keyword is the computed
-       * value of the ‘color’ property. If the ‘currentColor’ keyword is
-       * set on the ‘color’ property itself, it is treated as ‘color: inherit’. 
-       */
-      if (g_str_equal (_gtk_style_property_get_name (GTK_STYLE_PROPERTY (property)), "color"))
-        {
-          GtkStyleContext *parent = gtk_style_context_get_parent (context);
-
-          if (parent)
-            g_value_copy (_gtk_style_context_peek_property (parent, "color"), computed);
-          else
-            _gtk_css_style_compute_value (computed,
-                                          context,
-                                          _gtk_css_style_property_get_initial_value (property));
-        }
-      else
-        {
-          g_value_copy (_gtk_style_context_peek_property (context, "color"), computed);
-        }
-    }
-  else if (G_VALUE_HOLDS (specified, GTK_TYPE_SYMBOLIC_COLOR))
-    {
-      GdkRGBA rgba;
-
-      if (!_gtk_style_context_resolve_color (context,
-                                             g_value_get_boxed (specified),
-                                             &rgba))
-        {
-          specified = _gtk_css_style_property_get_initial_value (property);
-          goto restart;
-        }
-
-      g_value_set_boxed (computed, &rgba);
-    }
-  else
-    g_value_copy (specified, computed);
-}
-
-static void
-_gtk_style_property_register (const char *                   name,
-                              GType                          value_type,
-                              GtkStylePropertyFlags          flags,
-                              GtkCssStylePropertyParseFunc   parse_value,
-                              GtkCssStylePropertyPrintFunc   print_value,
-                              GtkCssStylePropertyComputeFunc compute_value,
-                              const GValue *                 initial_value)
+gtk_css_style_property_register (const char *                   name,
+                                 GType                          specified_type,
+                                 GType                          computed_type,
+                                 GType                          value_type,
+                                 GtkStylePropertyFlags          flags,
+                                 GtkCssStylePropertyParseFunc   parse_value,
+                                 GtkCssStylePropertyPrintFunc   print_value,
+                                 GtkCssStylePropertyComputeFunc compute_value,
+                                 ...)
 {
   GtkCssStyleProperty *node;
-
-  node = g_object_new (GTK_TYPE_CSS_STYLE_PROPERTY,
-                       "inherit", (flags & GTK_STYLE_PROPERTY_INHERIT) ? TRUE : FALSE,
-                       "initial-value", initial_value,
-                       "name", name,
-                       "value-type", value_type,
-                       NULL);
-  
-  if (parse_value)
-    node->parse_value = parse_value;
-  if (print_value)
-    node->print_value = print_value;
-  if (compute_value)
-    node->compute_value = compute_value;
-}
-
-static void
-gtk_style_property_register (const char *                   name,
-                             GType                          value_type,
-                             GtkStylePropertyFlags          flags,
-                             GtkCssStylePropertyParseFunc   parse_value,
-                             GtkCssStylePropertyPrintFunc   print_value,
-                             GtkCssStylePropertyComputeFunc compute_value,
-                             ...)
-{
   GValue initial_value = G_VALUE_INIT;
   char *error = NULL;
   va_list args;
 
   va_start (args, compute_value);
-  G_VALUE_COLLECT_INIT (&initial_value, value_type,
+  G_VALUE_COLLECT_INIT (&initial_value, specified_type,
                         args, 0, &error);
   if (error)
     {
@@ -149,28 +80,25 @@ gtk_style_property_register (const char *                   name,
 
   va_end (args);
 
-  _gtk_style_property_register (name,
-                                value_type,
-                                flags,
-                                parse_value,
-                                print_value,
-                                compute_value,
-                                &initial_value);
+  node = g_object_new (GTK_TYPE_CSS_STYLE_PROPERTY,
+                       "value-type", value_type,
+                       "computed-type", computed_type,
+                       "inherit", (flags & GTK_STYLE_PROPERTY_INHERIT) ? TRUE : FALSE,
+                       "initial-value", &initial_value,
+                       "name", name,
+                       NULL);
+  
+  if (parse_value)
+    node->parse_value = parse_value;
+  if (print_value)
+    node->print_value = print_value;
+  if (compute_value)
+    node->compute_value = compute_value;
 
   g_value_unset (&initial_value);
 }
 
 /*** HELPERS ***/
-
-static void
-string_append_double (GString *string,
-                      double   d)
-{
-  char buf[G_ASCII_DTOSTR_BUF_SIZE];
-
-  g_ascii_dtostr (buf, sizeof (buf), d);
-  g_string_append (string, buf);
-}
 
 static void
 string_append_string (GString    *str,
@@ -210,6 +138,52 @@ string_append_string (GString    *str,
 }
 
 /*** IMPLEMENTATIONS ***/
+
+static void
+color_compute (GtkCssStyleProperty    *property,
+               GValue                 *computed,
+               GtkStyleContext        *context,
+               const GValue           *specified)
+{
+  GtkSymbolicColor *symbolic = g_value_get_boxed (specified);
+  GdkRGBA rgba;
+
+  if (symbolic == _gtk_symbolic_color_get_current_color ())
+    {
+      /* The computed value of the ‘currentColor’ keyword is the computed
+       * value of the ‘color’ property. If the ‘currentColor’ keyword is
+       * set on the ‘color’ property itself, it is treated as ‘color: inherit’. 
+       */
+      if (g_str_equal (_gtk_style_property_get_name (GTK_STYLE_PROPERTY (property)), "color"))
+        {
+          GtkStyleContext *parent = gtk_style_context_get_parent (context);
+
+          if (parent)
+            g_value_copy (_gtk_style_context_peek_property (parent, "color"), computed);
+          else
+            _gtk_css_style_compute_value (computed,
+                                          context,
+                                          _gtk_css_style_property_get_initial_value (property));
+        }
+      else
+        {
+          g_value_copy (_gtk_style_context_peek_property (context, "color"), computed);
+        }
+    }
+  else if (_gtk_style_context_resolve_color (context,
+                                             symbolic,
+                                             &rgba))
+    {
+      g_value_set_boxed (computed, &rgba);
+    }
+  else
+    {
+      color_compute (property,
+                     computed,
+                     context,
+                     _gtk_css_style_property_get_initial_value (property));
+    }
+}
 
 static gboolean
 font_family_parse (GtkCssStyleProperty *property,
@@ -349,25 +323,26 @@ border_corner_radius_value_parse (GtkCssStyleProperty *property,
 {
   GtkCssBorderCornerRadius corner;
 
-  if (!_gtk_css_parser_try_double (parser, &corner.horizontal))
-    {
-      _gtk_css_parser_error (parser, "Expected a number");
-      return FALSE;
-    }
-  else if (corner.horizontal < 0)
-    goto negative;
+  if (!_gtk_css_parser_read_number (parser,
+                                    &corner.horizontal,
+                                    GTK_CSS_POSITIVE_ONLY
+                                    | GTK_CSS_PARSE_PERCENT
+                                    | GTK_CSS_NUMBER_AS_PIXELS
+                                    | GTK_CSS_PARSE_LENGTH))
+    return FALSE;
 
-  if (!_gtk_css_parser_try_double (parser, &corner.vertical))
+  if (!_gtk_css_parser_has_number (parser))
     corner.vertical = corner.horizontal;
-  else if (corner.vertical < 0)
-    goto negative;
+  else if (!_gtk_css_parser_read_number (parser,
+                                         &corner.vertical,
+                                         GTK_CSS_POSITIVE_ONLY
+                                         | GTK_CSS_PARSE_PERCENT
+                                         | GTK_CSS_NUMBER_AS_PIXELS
+                                         | GTK_CSS_PARSE_LENGTH))
+    return FALSE;
 
   g_value_set_boxed (value, &corner);
   return TRUE;
-
-negative:
-  _gtk_css_parser_error (parser, "Border radius values cannot be negative");
-  return FALSE;
 }
 
 static void
@@ -379,17 +354,12 @@ border_corner_radius_value_print (GtkCssStyleProperty *property,
 
   corner = g_value_get_boxed (value);
 
-  if (corner == NULL)
-    {
-      g_string_append (string, "none");
-      return;
-    }
+  _gtk_css_number_print (&corner->horizontal, string);
 
-  string_append_double (string, corner->horizontal);
-  if (corner->horizontal != corner->vertical)
+  if (!_gtk_css_number_equal (&corner->horizontal, &corner->vertical))
     {
       g_string_append_c (string, ' ');
-      string_append_double (string, corner->vertical);
+      _gtk_css_number_print (&corner->vertical, string);
     }
 }
 
@@ -410,8 +380,6 @@ css_image_value_parse (GtkCssStyleProperty *property,
         return FALSE;
     }
 
-  g_value_unset (value);
-  g_value_init (value, GTK_TYPE_CSS_IMAGE);
   g_value_take_object (value, image);
   return TRUE;
 }
@@ -440,8 +408,91 @@ css_image_value_compute (GtkCssStyleProperty    *property,
   if (image)
     image = _gtk_css_image_compute (image, context);
 
-  g_value_init (computed, GTK_TYPE_CSS_IMAGE);
   g_value_take_object (computed, image);
+}
+
+static gboolean 
+parse_margin (GtkCssStyleProperty *property,
+              GValue              *value,
+              GtkCssParser        *parser,
+              GFile               *base)
+{
+  GtkCssNumber number;
+
+  if (!_gtk_css_parser_read_number (parser,
+                                    &number, 
+                                    GTK_CSS_NUMBER_AS_PIXELS
+                                    | GTK_CSS_PARSE_LENGTH))
+    return FALSE;
+
+  g_value_set_boxed (value, &number);
+  return TRUE;
+}
+
+static void
+compute_margin (GtkCssStyleProperty *property,
+                GValue              *computed,
+                GtkStyleContext     *context,
+                const GValue        *specified)
+{
+  GtkCssNumber number;
+  
+  _gtk_css_number_compute (&number,
+                           g_value_get_boxed (specified),
+                           context);
+  g_value_set_boxed (computed, &number);
+}
+
+static gboolean 
+parse_padding (GtkCssStyleProperty *property,
+               GValue              *value,
+               GtkCssParser        *parser,
+               GFile               *base)
+{
+  GtkCssNumber number;
+
+  if (!_gtk_css_parser_read_number (parser,
+                                    &number, 
+                                    GTK_CSS_POSITIVE_ONLY
+                                    | GTK_CSS_NUMBER_AS_PIXELS
+                                    | GTK_CSS_PARSE_LENGTH))
+    return FALSE;
+
+  g_value_set_boxed (value, &number);
+  return TRUE;
+}
+
+static void
+compute_padding (GtkCssStyleProperty *property,
+                 GValue              *computed,
+                 GtkStyleContext     *context,
+                 const GValue        *specified)
+{
+  GtkCssNumber number;
+  
+  _gtk_css_number_compute (&number,
+                           g_value_get_boxed (specified),
+                           context);
+  g_value_set_boxed (computed, &number);
+}
+
+static gboolean 
+parse_border_width (GtkCssStyleProperty *property,
+                    GValue              *value,
+                    GtkCssParser        *parser,
+                    GFile               *base)
+{
+  GtkCssNumber number;
+
+  if (!_gtk_css_parser_read_number (parser,
+                                    &number, 
+                                    GTK_CSS_POSITIVE_ONLY
+                                    | GTK_CSS_NUMBER_AS_PIXELS
+                                    | GTK_CSS_PARSE_LENGTH))
+    return FALSE;
+
+  g_value_set_boxed (value, &number);
+  return TRUE;
 }
 
 static void
@@ -452,6 +503,7 @@ compute_border_width (GtkCssStyleProperty    *property,
 {
   GtkCssStyleProperty *style;
   GtkBorderStyle border_style;
+  GtkCssNumber number;
   
   /* The -1 is magic that is only true because we register the style
    * properties directly after the width properties.
@@ -459,12 +511,17 @@ compute_border_width (GtkCssStyleProperty    *property,
   style = _gtk_css_style_property_lookup_by_id (_gtk_css_style_property_get_id (property) - 1);
   border_style = g_value_get_enum (_gtk_style_context_peek_property (context, _gtk_style_property_get_name (GTK_STYLE_PROPERTY (style))));
 
-  g_value_init (computed, G_TYPE_INT);
   if (border_style == GTK_BORDER_STYLE_NONE ||
       border_style == GTK_BORDER_STYLE_HIDDEN)
-    g_value_set_int (computed, 0);
-  else
-    g_value_copy (specified, computed);
+    {
+      g_value_set_int (computed, 0);
+      return;
+    }
+
+  _gtk_css_number_compute (&number,
+                           g_value_get_boxed (specified),
+                           context);
+  g_value_set_int (computed, round (number.value));
 }
 
 static gboolean
@@ -533,21 +590,116 @@ background_repeat_value_print (GtkCssStyleProperty *property,
   g_type_class_unref (enum_class);
 }
 
+static gboolean
+background_size_parse (GtkCssStyleProperty *property,
+                       GValue              *value,
+                       GtkCssParser        *parser,
+                       GFile               *base)
+{
+  GtkCssBackgroundSize size = { GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX), GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX), FALSE, FALSE};
+
+  if (_gtk_css_parser_try (parser, "cover", TRUE))
+    size.cover = TRUE;
+  else if (_gtk_css_parser_try (parser, "contain", TRUE))
+    size.contain = TRUE;
+  else
+    {
+      if (_gtk_css_parser_try (parser, "auto", TRUE))
+        _gtk_css_number_init (&size.width, 0, GTK_CSS_PX);
+      else if (!_gtk_css_parser_read_number (parser,
+                                             &size.width,
+                                             GTK_CSS_POSITIVE_ONLY
+                                             | GTK_CSS_PARSE_PERCENT
+                                             | GTK_CSS_PARSE_LENGTH))
+        return FALSE;
+
+      if (_gtk_css_parser_try (parser, "auto", TRUE))
+        _gtk_css_number_init (&size.height, 0, GTK_CSS_PX);
+      else if (_gtk_css_parser_has_number (parser))
+        {
+          if (!_gtk_css_parser_read_number (parser,
+                                            &size.height,
+                                            GTK_CSS_POSITIVE_ONLY
+                                            | GTK_CSS_PARSE_PERCENT
+                                            | GTK_CSS_PARSE_LENGTH))
+            return FALSE;
+        }
+      else
+        _gtk_css_number_init (&size.height, 0, GTK_CSS_PX);
+    }
+
+  g_value_set_boxed (value, &size);
+  return TRUE;
+}
+
+static void
+background_size_print (GtkCssStyleProperty *property,
+                       const GValue        *value,
+                       GString             *string)
+{
+  GtkCssBackgroundSize *size = g_value_get_boxed (value);
+
+  if (size->cover)
+    g_string_append (string, "cover");
+  else if (size->contain)
+    g_string_append (string, "contain");
+  else
+    {
+      if (size->width.value == 0)
+        g_string_append (string, "auto");
+      else
+        _gtk_css_number_print (&size->width, string);
+
+      if (size->height.value != 0)
+        {
+          g_string_append (string, " ");
+          _gtk_css_number_print (&size->height, string);
+        }
+    }
+}
+
+static void
+background_size_compute (GtkCssStyleProperty    *property,
+                         GValue                 *computed,
+                         GtkStyleContext        *context,
+                         const GValue           *specified)
+{
+  GtkCssBackgroundSize *ssize = g_value_get_boxed (specified);
+  GtkCssBackgroundSize csize;
+
+  csize.cover = ssize->cover;
+  csize.contain = ssize->contain;
+  _gtk_css_number_compute (&csize.width,
+                           &ssize->width,
+                           context);
+  _gtk_css_number_compute (&csize.height,
+                           &ssize->height,
+                           context);
+
+  g_value_set_boxed (computed, &csize);
+}
+
 /*** REGISTRATION ***/
 
-#define rgba_init(rgba, r, g, b, a) G_STMT_START{ \
-  (rgba)->red = (r); \
-  (rgba)->green = (g); \
-  (rgba)->blue = (b); \
-  (rgba)->alpha = (a); \
-}G_STMT_END
+static GtkSymbolicColor *
+gtk_symbolic_color_new_rgba (double red,
+                             double green,
+                             double blue,
+                             double alpha)
+{
+  GdkRGBA rgba = { red, green, blue, alpha };
+
+  return gtk_symbolic_color_new_literal (&rgba);
+}
+
 void
 _gtk_css_style_property_init_properties (void)
 {
-  GValue value = { 0, };
   char *default_font_family[] = { "Sans", NULL };
-  GdkRGBA rgba;
-  GtkCssBorderCornerRadius no_corner_radius = { 0, };
+  GtkCssNumber number;
+  GtkSymbolicColor *symbolic;
+  GtkCssBackgroundSize default_background_size = { GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX), GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX), FALSE, FALSE };
+  GtkCssBorderCornerRadius no_corner_radius = { GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX), GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX) };
   GtkBorder border_of_ones = { 1, 1, 1, 1 };
   GtkCssBorderImageRepeat border_image_repeat = { GTK_CSS_REPEAT_STYLE_STRETCH, GTK_CSS_REPEAT_STYLE_STRETCH };
 
@@ -555,15 +707,20 @@ _gtk_css_style_property_init_properties (void)
    * so that when computing values later they are
    * done first. That way, 'currentColor' and font
    * sizes in em can be looked up properly */
-  rgba_init (&rgba, 1, 1, 1, 1);
-  gtk_style_property_register            ("color",
+  symbolic = gtk_symbolic_color_new_rgba (1, 1, 1, 1);
+  gtk_css_style_property_register        ("color",
+                                          GTK_TYPE_SYMBOLIC_COLOR,
+                                          GDK_TYPE_RGBA,
                                           GDK_TYPE_RGBA,
                                           GTK_STYLE_PROPERTY_INHERIT,
                                           NULL,
                                           NULL,
                                           color_compute,
-                                          &rgba);
-  gtk_style_property_register            ("font-size",
+                                          symbolic);
+  gtk_symbolic_color_unref (symbolic);
+  gtk_css_style_property_register        ("font-size",
+                                          G_TYPE_DOUBLE,
+                                          G_TYPE_DOUBLE,
                                           G_TYPE_DOUBLE,
                                           GTK_STYLE_PROPERTY_INHERIT,
                                           NULL,
@@ -573,30 +730,39 @@ _gtk_css_style_property_init_properties (void)
 
   /* properties that aren't referenced when computing values
    * start here */
-  rgba_init (&rgba, 0, 0, 0, 0);
-  gtk_style_property_register            ("background-color",
+  symbolic = gtk_symbolic_color_new_rgba (0, 0, 0, 0);
+  gtk_css_style_property_register        ("background-color",
+                                          GTK_TYPE_SYMBOLIC_COLOR,
+                                          GDK_TYPE_RGBA,
                                           GDK_TYPE_RGBA,
                                           0,
                                           NULL,
                                           NULL,
                                           color_compute,
-                                          &rgba);
+                                          symbolic);
+  gtk_symbolic_color_unref (symbolic);
 
-  gtk_style_property_register            ("font-family",
+  gtk_css_style_property_register        ("font-family",
+                                          G_TYPE_STRV,
+                                          G_TYPE_STRV,
                                           G_TYPE_STRV,
                                           GTK_STYLE_PROPERTY_INHERIT,
                                           font_family_parse,
                                           font_family_value_print,
                                           NULL,
                                           default_font_family);
-  gtk_style_property_register            ("font-style",
+  gtk_css_style_property_register        ("font-style",
+                                          PANGO_TYPE_STYLE,
+                                          PANGO_TYPE_STYLE,
                                           PANGO_TYPE_STYLE,
                                           GTK_STYLE_PROPERTY_INHERIT,
                                           NULL,
                                           NULL,
                                           NULL,
                                           PANGO_STYLE_NORMAL);
-  gtk_style_property_register            ("font-variant",
+  gtk_css_style_property_register        ("font-variant",
+                                          PANGO_TYPE_VARIANT,
+                                          PANGO_TYPE_VARIANT,
                                           PANGO_TYPE_VARIANT,
                                           GTK_STYLE_PROPERTY_INHERIT,
                                           NULL,
@@ -604,7 +770,9 @@ _gtk_css_style_property_init_properties (void)
                                           NULL,
                                           PANGO_VARIANT_NORMAL);
   /* xxx: need to parse this properly, ie parse the numbers */
-  gtk_style_property_register            ("font-weight",
+  gtk_css_style_property_register        ("font-weight",
+                                          PANGO_TYPE_WEIGHT,
+                                          PANGO_TYPE_WEIGHT,
                                           PANGO_TYPE_WEIGHT,
                                           GTK_STYLE_PROPERTY_INHERIT,
                                           NULL,
@@ -612,7 +780,9 @@ _gtk_css_style_property_init_properties (void)
                                           NULL,
                                           PANGO_WEIGHT_NORMAL);
 
-  gtk_style_property_register            ("text-shadow",
+  gtk_css_style_property_register        ("text-shadow",
+                                          GTK_TYPE_SHADOW,
+                                          GTK_TYPE_SHADOW,
                                           GTK_TYPE_SHADOW,
                                           GTK_STYLE_PROPERTY_INHERIT,
                                           NULL,
@@ -620,7 +790,9 @@ _gtk_css_style_property_init_properties (void)
                                           NULL,
                                           NULL);
 
-  gtk_style_property_register            ("icon-shadow",
+  gtk_css_style_property_register        ("icon-shadow",
+                                          GTK_TYPE_SHADOW,
+                                          GTK_TYPE_SHADOW,
                                           GTK_TYPE_SHADOW,
                                           GTK_STYLE_PROPERTY_INHERIT,
                                           NULL,
@@ -628,7 +800,9 @@ _gtk_css_style_property_init_properties (void)
                                           NULL,
                                           NULL);
 
-  gtk_style_property_register            ("box-shadow",
+  gtk_css_style_property_register        ("box-shadow",
+                                          GTK_TYPE_SHADOW,
+                                          GTK_TYPE_SHADOW,
                                           GTK_TYPE_SHADOW,
                                           0,
                                           NULL,
@@ -636,253 +810,325 @@ _gtk_css_style_property_init_properties (void)
                                           NULL,
                                           NULL);
 
-  gtk_style_property_register            ("margin-top",
+  _gtk_css_number_init (&number, 0, GTK_CSS_PX);
+  gtk_css_style_property_register        ("margin-top",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          GTK_TYPE_CSS_NUMBER,
                                           G_TYPE_INT,
                                           0,
+                                          parse_margin,
                                           NULL,
-                                          NULL,
-                                          NULL,
-                                          0);
-  gtk_style_property_register            ("margin-left",
+                                          compute_margin,
+                                          &number);
+  gtk_css_style_property_register        ("margin-left",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          GTK_TYPE_CSS_NUMBER,
                                           G_TYPE_INT,
                                           0,
+                                          parse_margin,
                                           NULL,
-                                          NULL,
-                                          NULL,
-                                          0);
-  gtk_style_property_register            ("margin-bottom",
+                                          compute_margin,
+                                          &number);
+  gtk_css_style_property_register        ("margin-bottom",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          GTK_TYPE_CSS_NUMBER,
                                           G_TYPE_INT,
                                           0,
+                                          parse_margin,
                                           NULL,
-                                          NULL,
-                                          NULL,
-                                          0);
-  gtk_style_property_register            ("margin-right",
+                                          compute_margin,
+                                          &number);
+  gtk_css_style_property_register        ("margin-right",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          GTK_TYPE_CSS_NUMBER,
                                           G_TYPE_INT,
                                           0,
+                                          parse_margin,
                                           NULL,
-                                          NULL,
-                                          NULL,
-                                          0);
-  gtk_style_property_register            ("padding-top",
+                                          compute_margin,
+                                          &number);
+  gtk_css_style_property_register        ("padding-top",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          GTK_TYPE_CSS_NUMBER,
                                           G_TYPE_INT,
                                           0,
+                                          parse_padding,
                                           NULL,
-                                          NULL,
-                                          NULL,
-                                          0);
-  gtk_style_property_register            ("padding-left",
+                                          compute_padding,
+                                          &number);
+  gtk_css_style_property_register        ("padding-left",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          GTK_TYPE_CSS_NUMBER,
                                           G_TYPE_INT,
                                           0,
+                                          parse_padding,
                                           NULL,
-                                          NULL,
-                                          NULL,
-                                          0);
-  gtk_style_property_register            ("padding-bottom",
+                                          compute_padding,
+                                          &number);
+  gtk_css_style_property_register        ("padding-bottom",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          GTK_TYPE_CSS_NUMBER,
                                           G_TYPE_INT,
                                           0,
+                                          parse_padding,
                                           NULL,
-                                          NULL,
-                                          NULL,
-                                          0);
-  gtk_style_property_register            ("padding-right",
+                                          compute_padding,
+                                          &number);
+  gtk_css_style_property_register        ("padding-right",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          GTK_TYPE_CSS_NUMBER,
                                           G_TYPE_INT,
                                           0,
+                                          parse_padding,
                                           NULL,
-                                          NULL,
-                                          NULL,
-                                          0);
+                                          compute_padding,
+                                          &number);
   /* IMPORTANT: compute_border_width() requires that the border-width
    * properties be immeditaly followed by the border-style properties
    */
-  gtk_style_property_register            ("border-top-style",
+  gtk_css_style_property_register        ("border-top-style",
+                                          GTK_TYPE_BORDER_STYLE,
+                                          GTK_TYPE_BORDER_STYLE,
                                           GTK_TYPE_BORDER_STYLE,
                                           0,
                                           NULL,
                                           NULL,
                                           NULL,
                                           GTK_BORDER_STYLE_NONE);
-  gtk_style_property_register            ("border-top-width",
+  gtk_css_style_property_register        ("border-top-width",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          G_TYPE_INT,
                                           G_TYPE_INT,
                                           0,
-                                          NULL,
+                                          parse_border_width,
                                           NULL,
                                           compute_border_width,
-                                          0);
-  gtk_style_property_register            ("border-left-style",
+                                          &number);
+  gtk_css_style_property_register        ("border-left-style",
+                                          GTK_TYPE_BORDER_STYLE,
+                                          GTK_TYPE_BORDER_STYLE,
                                           GTK_TYPE_BORDER_STYLE,
                                           0,
                                           NULL,
                                           NULL,
                                           NULL,
                                           GTK_BORDER_STYLE_NONE);
-  gtk_style_property_register            ("border-left-width",
+  gtk_css_style_property_register        ("border-left-width",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          G_TYPE_INT,
                                           G_TYPE_INT,
                                           0,
-                                          NULL,
+                                          parse_border_width,
                                           NULL,
                                           compute_border_width,
-                                          0);
-  gtk_style_property_register            ("border-bottom-style",
+                                          &number);
+  gtk_css_style_property_register        ("border-bottom-style",
+                                          GTK_TYPE_BORDER_STYLE,
+                                          GTK_TYPE_BORDER_STYLE,
                                           GTK_TYPE_BORDER_STYLE,
                                           0,
                                           NULL,
                                           NULL,
                                           NULL,
                                           GTK_BORDER_STYLE_NONE);
-  gtk_style_property_register            ("border-bottom-width",
+  gtk_css_style_property_register        ("border-bottom-width",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          G_TYPE_INT,
                                           G_TYPE_INT,
                                           0,
-                                          NULL,
+                                          parse_border_width,
                                           NULL,
                                           compute_border_width,
-                                          0);
-  gtk_style_property_register            ("border-right-style",
+                                          &number);
+  gtk_css_style_property_register        ("border-right-style",
+                                          GTK_TYPE_BORDER_STYLE,
+                                          GTK_TYPE_BORDER_STYLE,
                                           GTK_TYPE_BORDER_STYLE,
                                           0,
                                           NULL,
                                           NULL,
                                           NULL,
                                           GTK_BORDER_STYLE_NONE);
-  gtk_style_property_register            ("border-right-width",
+  gtk_css_style_property_register        ("border-right-width",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          G_TYPE_INT,
+                                          G_TYPE_INT,
+                                          0,
+                                          parse_border_width,
+                                          NULL,
+                                          compute_border_width,
+                                          &number);
+
+  gtk_css_style_property_register        ("border-top-left-radius",
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          0,
+                                          border_corner_radius_value_parse,
+                                          border_corner_radius_value_print,
+                                          NULL,
+                                          &no_corner_radius);
+  gtk_css_style_property_register        ("border-top-right-radius",
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          0,
+                                          border_corner_radius_value_parse,
+                                          border_corner_radius_value_print,
+                                          NULL,
+                                          &no_corner_radius);
+  gtk_css_style_property_register        ("border-bottom-right-radius",
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          0,
+                                          border_corner_radius_value_parse,
+                                          border_corner_radius_value_print,
+                                          NULL,
+                                          &no_corner_radius);
+  gtk_css_style_property_register        ("border-bottom-left-radius",
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
+                                          0,
+                                          border_corner_radius_value_parse,
+                                          border_corner_radius_value_print,
+                                          NULL,
+                                          &no_corner_radius);
+
+  gtk_css_style_property_register        ("outline-style",
+                                          GTK_TYPE_BORDER_STYLE,
+                                          GTK_TYPE_BORDER_STYLE,
+                                          GTK_TYPE_BORDER_STYLE,
+                                          0,
+                                          NULL,
+                                          NULL,
+                                          NULL,
+                                          GTK_BORDER_STYLE_NONE);
+  gtk_css_style_property_register        ("outline-width",
+                                          GTK_TYPE_CSS_NUMBER,
+                                          G_TYPE_INT,
+                                          G_TYPE_INT,
+                                          0,
+                                          parse_border_width,
+                                          NULL,
+                                          compute_border_width,
+                                          &number);
+  gtk_css_style_property_register        ("outline-offset",
+                                          G_TYPE_INT,
+                                          G_TYPE_INT,
                                           G_TYPE_INT,
                                           0,
                                           NULL,
                                           NULL,
-                                          compute_border_width,
+                                          NULL,
                                           0);
 
-  gtk_style_property_register            ("border-top-left-radius",
-                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
-                                          0,
-                                          border_corner_radius_value_parse,
-                                          border_corner_radius_value_print,
-                                          NULL,
-                                          &no_corner_radius);
-  gtk_style_property_register            ("border-top-right-radius",
-                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
-                                          0,
-                                          border_corner_radius_value_parse,
-                                          border_corner_radius_value_print,
-                                          NULL,
-                                          &no_corner_radius);
-  gtk_style_property_register            ("border-bottom-right-radius",
-                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
-                                          0,
-                                          border_corner_radius_value_parse,
-                                          border_corner_radius_value_print,
-                                          NULL,
-                                          &no_corner_radius);
-  gtk_style_property_register            ("border-bottom-left-radius",
-                                          GTK_TYPE_CSS_BORDER_CORNER_RADIUS,
-                                          0,
-                                          border_corner_radius_value_parse,
-                                          border_corner_radius_value_print,
-                                          NULL,
-                                          &no_corner_radius);
-
-  gtk_style_property_register            ("outline-style",
-                                          GTK_TYPE_BORDER_STYLE,
-                                          0,
-                                          NULL,
-                                          NULL,
-                                          NULL,
-                                          GTK_BORDER_STYLE_NONE);
-  gtk_style_property_register            ("outline-width",
-                                          G_TYPE_INT,
-                                          0,
-                                          NULL,
-                                          NULL,
-                                          compute_border_width,
-                                          0);
-  gtk_style_property_register            ("outline-offset",
-                                          G_TYPE_INT,
-                                          0,
-                                          NULL,
-                                          NULL,
-                                          NULL,
-                                          0);
-
-  gtk_style_property_register            ("background-clip",
+  gtk_css_style_property_register        ("background-clip",
+                                          GTK_TYPE_CSS_AREA,
+                                          GTK_TYPE_CSS_AREA,
                                           GTK_TYPE_CSS_AREA,
                                           0,
                                           NULL,
                                           NULL,
                                           NULL,
                                           GTK_CSS_AREA_BORDER_BOX);
-                                        
-  gtk_style_property_register            ("background-origin",
+  gtk_css_style_property_register        ("background-origin",
+                                          GTK_TYPE_CSS_AREA,
+                                          GTK_TYPE_CSS_AREA,
                                           GTK_TYPE_CSS_AREA,
                                           0,
                                           NULL,
                                           NULL,
                                           NULL,
                                           GTK_CSS_AREA_PADDING_BOX);
+  gtk_css_style_property_register        ("background-size",
+                                          GTK_TYPE_CSS_BACKGROUND_SIZE,
+                                          GTK_TYPE_CSS_BACKGROUND_SIZE,
+                                          G_TYPE_NONE,
+                                          0,
+                                          background_size_parse,
+                                          background_size_print,
+                                          background_size_compute,
+                                          &default_background_size);
 
-  g_value_init (&value, GTK_TYPE_CSS_SPECIAL_VALUE);
-  g_value_set_enum (&value, GTK_CSS_CURRENT_COLOR);
-  _gtk_style_property_register           ("border-top-color",
+  gtk_css_style_property_register        ("border-top-color",
+                                          GTK_TYPE_SYMBOLIC_COLOR,
+                                          GDK_TYPE_RGBA,
                                           GDK_TYPE_RGBA,
                                           0,
                                           NULL,
                                           NULL,
                                           color_compute,
-                                          &value);
-  _gtk_style_property_register           ("border-right-color",
+                                          _gtk_symbolic_color_get_current_color ());
+  gtk_css_style_property_register        ("border-right-color",
+                                          GTK_TYPE_SYMBOLIC_COLOR,
+                                          GDK_TYPE_RGBA,
                                           GDK_TYPE_RGBA,
                                           0,
                                           NULL,
                                           NULL,
                                           color_compute,
-                                          &value);
-  _gtk_style_property_register           ("border-bottom-color",
+                                          _gtk_symbolic_color_get_current_color ());
+  gtk_css_style_property_register        ("border-bottom-color",
+                                          GTK_TYPE_SYMBOLIC_COLOR,
+                                          GDK_TYPE_RGBA,
                                           GDK_TYPE_RGBA,
                                           0,
                                           NULL,
                                           NULL,
                                           color_compute,
-                                          &value);
-  _gtk_style_property_register           ("border-left-color",
+                                          _gtk_symbolic_color_get_current_color ());
+  gtk_css_style_property_register        ("border-left-color",
+                                          GTK_TYPE_SYMBOLIC_COLOR,
+                                          GDK_TYPE_RGBA,
                                           GDK_TYPE_RGBA,
                                           0,
                                           NULL,
                                           NULL,
                                           color_compute,
-                                          &value);
-  _gtk_style_property_register           ("outline-color",
+                                          _gtk_symbolic_color_get_current_color ());
+  gtk_css_style_property_register        ("outline-color",
+                                          GTK_TYPE_SYMBOLIC_COLOR,
+                                          GDK_TYPE_RGBA,
                                           GDK_TYPE_RGBA,
                                           0,
                                           NULL,
                                           NULL,
                                           color_compute,
-                                          &value);
-  g_value_unset (&value);
+                                          _gtk_symbolic_color_get_current_color ());
 
-  gtk_style_property_register            ("background-repeat",
+  gtk_css_style_property_register        ("background-repeat",
+                                          GTK_TYPE_CSS_BACKGROUND_REPEAT,
+                                          GTK_TYPE_CSS_BACKGROUND_REPEAT,
                                           GTK_TYPE_CSS_BACKGROUND_REPEAT,
                                           0,
                                           background_repeat_value_parse,
                                           background_repeat_value_print,
                                           NULL,
                                           GTK_CSS_BACKGROUND_REPEAT | (GTK_CSS_BACKGROUND_REPEAT << GTK_CSS_BACKGROUND_REPEAT_SHIFT));
-  g_value_init (&value, GTK_TYPE_CSS_IMAGE);
-  _gtk_style_property_register           ("background-image",
+  gtk_css_style_property_register        ("background-image",
+                                          GTK_TYPE_CSS_IMAGE,
+                                          GTK_TYPE_CSS_IMAGE,
                                           CAIRO_GOBJECT_TYPE_PATTERN,
                                           0,
                                           css_image_value_parse,
                                           css_image_value_print,
                                           css_image_value_compute,
-                                          &value);
+                                          NULL);
 
-  _gtk_style_property_register           ("border-image-source",
+  gtk_css_style_property_register        ("border-image-source",
+                                          GTK_TYPE_CSS_IMAGE,
+                                          GTK_TYPE_CSS_IMAGE,
                                           CAIRO_GOBJECT_TYPE_PATTERN,
                                           0,
                                           css_image_value_parse,
                                           css_image_value_print,
                                           css_image_value_compute,
-                                          &value);
-  g_value_unset (&value);
-  gtk_style_property_register            ("border-image-repeat",
+                                          NULL);
+  gtk_css_style_property_register        ("border-image-repeat",
+                                          GTK_TYPE_CSS_BORDER_IMAGE_REPEAT,
+                                          GTK_TYPE_CSS_BORDER_IMAGE_REPEAT,
                                           GTK_TYPE_CSS_BORDER_IMAGE_REPEAT,
                                           0,
                                           NULL,
@@ -890,29 +1136,37 @@ _gtk_css_style_property_init_properties (void)
                                           NULL,
                                           &border_image_repeat);
 
-  /* XXX: The initial vaue is wrong, it should be 100% */
-  gtk_style_property_register            ("border-image-slice",
+  /* XXX: The initial value is wrong, it should be 100% */
+  gtk_css_style_property_register        ("border-image-slice",
+                                          GTK_TYPE_BORDER,
+                                          GTK_TYPE_BORDER,
                                           GTK_TYPE_BORDER,
                                           0,
                                           NULL,
                                           NULL,
                                           NULL,
                                           &border_of_ones);
-  gtk_style_property_register            ("border-image-width",
+  gtk_css_style_property_register        ("border-image-width",
+                                          GTK_TYPE_BORDER,
+                                          GTK_TYPE_BORDER,
                                           GTK_TYPE_BORDER,
                                           0,
                                           NULL,
                                           NULL,
                                           NULL,
                                           NULL);
-  gtk_style_property_register            ("engine",
+  gtk_css_style_property_register        ("engine",
+                                          GTK_TYPE_THEMING_ENGINE,
+                                          GTK_TYPE_THEMING_ENGINE,
                                           GTK_TYPE_THEMING_ENGINE,
                                           0,
                                           NULL,
                                           NULL,
                                           NULL,
                                           gtk_theming_engine_load (NULL));
-  gtk_style_property_register            ("transition",
+  gtk_css_style_property_register        ("transition",
+                                          GTK_TYPE_ANIMATION_DESCRIPTION,
+                                          GTK_TYPE_ANIMATION_DESCRIPTION,
                                           GTK_TYPE_ANIMATION_DESCRIPTION,
                                           0,
                                           NULL,
@@ -921,7 +1175,9 @@ _gtk_css_style_property_init_properties (void)
                                           NULL);
 
   /* Private property holding the binding sets */
-  gtk_style_property_register            ("gtk-key-bindings",
+  gtk_css_style_property_register        ("gtk-key-bindings",
+                                          G_TYPE_PTR_ARRAY,
+                                          G_TYPE_PTR_ARRAY,
                                           G_TYPE_PTR_ARRAY,
                                           0,
                                           bindings_value_parse,

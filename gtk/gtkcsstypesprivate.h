@@ -21,13 +21,13 @@
 #define __GTK_CSS_TYPES_PRIVATE_H__
 
 #include <glib-object.h>
+#include <gtk/gtkstylecontext.h>
 
 G_BEGIN_DECLS
 
 typedef enum {
   GTK_CSS_INHERIT,
-  GTK_CSS_INITIAL,
-  GTK_CSS_CURRENT_COLOR /*< nick=currentColor >*/
+  GTK_CSS_INITIAL
 } GtkCssSpecialValue;
 
 /* We encode horizontal and vertical repeat in one enum value.
@@ -78,12 +78,47 @@ typedef enum /*< skip >*/ {
   GTK_CSS_BOTTOM_LEFT
 } GtkCssCorner;
 
+typedef enum /*< skip >*/ {
+  /* CSS term: <number> */
+  GTK_CSS_NUMBER,
+  /* CSS term: <percentage> */
+  GTK_CSS_PERCENT,
+  /* CSS term: <length> */
+  GTK_CSS_PX,
+  GTK_CSS_PT,
+  GTK_CSS_EM,
+  GTK_CSS_EX,
+  GTK_CSS_PC,
+  GTK_CSS_IN,
+  GTK_CSS_CM,
+  GTK_CSS_MM,
+  /* CSS term: <angle> */
+  GTK_CSS_RAD,
+  GTK_CSS_DEG,
+  GTK_CSS_GRAD,
+  GTK_CSS_TURN
+} GtkCssUnit;
+
+typedef struct _GtkCssNumber GtkCssNumber;
+typedef struct _GtkCssBackgroundSize GtkCssBackgroundSize;
 typedef struct _GtkCssBorderCornerRadius GtkCssBorderCornerRadius;
 typedef struct _GtkCssBorderImageRepeat GtkCssBorderImageRepeat;
 
+struct _GtkCssNumber {
+  gdouble        value;
+  GtkCssUnit     unit;
+};
+
+struct _GtkCssBackgroundSize {
+  GtkCssNumber width;  /* 0 means auto here */
+  GtkCssNumber height; /* 0 means auto here */
+  guint cover :1;
+  guint contain :1;
+};
+
 struct _GtkCssBorderCornerRadius {
-  double horizontal;
-  double vertical;
+  GtkCssNumber horizontal;
+  GtkCssNumber vertical;
 };
 
 struct _GtkCssBorderImageRepeat {
@@ -91,13 +126,30 @@ struct _GtkCssBorderImageRepeat {
   GtkCssBorderRepeatStyle hrepeat;
 };
 
+#define GTK_TYPE_CSS_BACKGROUND_SIZE _gtk_css_background_size_get_type ()
 #define GTK_TYPE_CSS_BORDER_CORNER_RADIUS _gtk_css_border_corner_radius_get_type ()
-#define GTK_TYPE_CSS_BORDER_RADIUS _gtk_css_border_radius_get_type ()
 #define GTK_TYPE_CSS_BORDER_IMAGE_REPEAT _gtk_css_border_image_repeat_get_type ()
+#define GTK_TYPE_CSS_NUMBER _gtk_css_number_get_type ()
 
+GType           _gtk_css_background_size_get_type               (void);
 GType           _gtk_css_border_corner_radius_get_type          (void);
-GType           _gtk_css_border_radius_get_type                 (void);
 GType           _gtk_css_border_image_repeat_get_type           (void);
+GType           _gtk_css_number_get_type                        (void);
+
+#define GTK_CSS_NUMBER_INIT(_value,_unit) { (_value), (_unit) }
+void            _gtk_css_number_init                            (GtkCssNumber       *number,
+                                                                 double              value,
+                                                                 GtkCssUnit          unit);
+gboolean        _gtk_css_number_equal                           (const GtkCssNumber *one,
+                                                                 const GtkCssNumber *two);
+double          _gtk_css_number_get                             (const GtkCssNumber *number,
+                                                                 double              one_hundred_percent);
+void            _gtk_css_number_compute                         (GtkCssNumber       *dest,
+                                                                 const GtkCssNumber *src,
+                                                                 GtkStyleContext    *context);
+void            _gtk_css_number_print                           (const GtkCssNumber *number,
+                                                                 GString            *string);
+
 
 G_END_DECLS
 
