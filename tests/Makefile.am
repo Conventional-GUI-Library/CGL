@@ -1,7 +1,7 @@
 ## Makefile.am for gtk+/tests
 include $(top_srcdir)/Makefile.decl
 
-SUBDIRS = css reftests a11y
+SUBDIRS = css reftests a11y visuals
 
 INCLUDES =				\
 	-I$(top_srcdir)			\
@@ -121,8 +121,7 @@ noinst_PROGRAMS =  $(TEST_PROGS)	\
 	testanimation			\
 	testpixbuf-save			\
 	testpixbuf-color		\
-	testpixbuf-scale		\
-	widget-factory
+	testpixbuf-scale		
 
 if USE_X11
 noinst_PROGRAMS += testerrors
@@ -233,7 +232,6 @@ testanimation_DEPENDENCIES = $(TEST_DEPS)
 testpixbuf_save_DEPENDENCIES = $(TEST_DEPS)
 testpixbuf_color_DEPENDENCIES = $(TEST_DEPS)
 testpixbuf_scale_DEPENDENCIES = $(TEST_DEPS)
-widget_factory_DEPENDENCIES = $(TEST_DEPS)
 
 testboxcss_SOURCES =	\
 	testboxcss.c	\
@@ -409,8 +407,6 @@ testpixbuf_color_SOURCES = testpixbuf-color.c
 
 testpixbuf_save_SOURCES = testpixbuf-save.c
 
-widget_factory_SOURCES = widget-factory.c
-
 
 EXTRA_DIST += 			\
 	gradient1.png		\
@@ -432,8 +428,7 @@ EXTRA_DIST += 			\
 	merge-2.ui		\
 	merge-3.ui		\
 	gnome-textfile.png	\
-	makefile.msc		\
-	widget-factory.ui
+	makefile.msc
 
 
 -include $(top_srcdir)/git.mk

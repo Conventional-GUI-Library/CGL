@@ -25,32 +25,25 @@
 #define __GTK_BORDER_IMAGE_H__
 
 #include "gtkborder.h"
-#include "gtkgradient.h"
-#include "gtkstyleproperties.h"
+#include "gtkcssimageprivate.h"
 #include "gtkthemingengine.h"
 #include "gtkcsstypesprivate.h"
-#include "gtkstylecontextprivate.h"
 
 G_BEGIN_DECLS
 
 typedef struct _GtkBorderImage GtkBorderImage;
 
-#define GTK_TYPE_BORDER_IMAGE (_gtk_border_image_get_type ())
+struct _GtkBorderImage {
+  GtkCssImage *source;
 
-GType             _gtk_border_image_get_type         (void) G_GNUC_CONST;
+  GtkBorder slice;
+  gboolean has_width;
+  GtkBorder width;
+  GtkCssBorderImageRepeat repeat;
+};
 
-GtkBorderImage *  _gtk_border_image_new              (cairo_pattern_t      *source,
-                                                      GtkBorder            *slice,
-                                                      GtkBorder            *width,
-                                                      GtkCssBorderImageRepeat *repeat);
-GtkBorderImage *  _gtk_border_image_new_for_boxed    (GType                 boxed_type,
-						      gpointer              boxed,
-                                                      GtkBorder            *slice,
-                                                      GtkBorder            *width,
-                                                      GtkCssBorderImageRepeat *repeat);
-
-GtkBorderImage *  _gtk_border_image_ref              (GtkBorderImage       *image);
-void              _gtk_border_image_unref            (GtkBorderImage       *image);
+gboolean          _gtk_border_image_init             (GtkBorderImage       *image,
+                                                      GtkThemingEngine     *engine);
 
 void              _gtk_border_image_render           (GtkBorderImage       *image,
                                                       GtkBorder            *border_width,
@@ -59,13 +52,6 @@ void              _gtk_border_image_render           (GtkBorderImage       *imag
                                                       gdouble               y,
                                                       gdouble               width,
                                                       gdouble               height);
-
-GParameter *      _gtk_border_image_unpack           (const GValue         *value,
-                                                      guint                *n_params);
-void              _gtk_border_image_pack             (GValue               *value,
-                                                      GtkStyleProperties   *props,
-                                                      GtkStateFlags         state,
-						      GtkStylePropertyContext *context);
 
 G_END_DECLS
 

@@ -28,20 +28,13 @@
 #include <gio/gio.h>
 
 G_GNUC_INTERNAL
-void                    gtk_model_menu_bind                             (GtkMenuShell      *shell,
-                                                                         GMenuModel        *model,
-                                                                         GActionObservable *actions,
-                                                                         GtkAccelGroup     *accels,
-                                                                         gboolean           with_separators);
+GtkWidget * gtk_model_menu_create_menu_bar (GMenuModel        *model,
+                                            GActionObservable *actions,
+                                            GtkAccelGroup     *accels);
 
 G_GNUC_INTERNAL
-GtkWidget *             gtk_model_menu_create_menu_bar                  (GMenuModel        *model,
-                                                                         GActionObservable *actions,
-                                                                         GtkAccelGroup     *accels);
-
-G_GNUC_INTERNAL
-GtkWidget *             gtk_model_menu_create_menu                      (GMenuModel        *model,
-                                                                         GActionObservable *actions,
-                                                                         GtkAccelGroup     *accels);
+GtkWidget * gtk_model_menu_create_menu     (GMenuModel        *model,
+                                            GActionObservable *actions,
+                                            GtkAccelGroup     *accels);
 
 #endif /* __GTK_MODEL_MENU_H__ */

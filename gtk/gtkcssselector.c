@@ -153,7 +153,8 @@ _gtk_css_selector_print (const GtkCssSelector *selector,
         "selected",
         "insensitive",
         "inconsistent",
-        "focus"
+        "focus",
+        "backdrop"
       };
       guint i;
 

@@ -4847,7 +4847,7 @@ msgid "The number of digits to round the value to."
 msgstr "The number of digits to round the value to."
 
 #: ../gtk/gtkrange.c:526
-#: ../gtk/gtkswitch.c:817
+#: ../gtk/gtkswitch.c:970
 msgid "Slider Width"
 msgstr "Slider Width"
 
@@ -6436,7 +6436,7 @@ msgstr "Error underline color"
 msgid "Color with which to draw error-indication underlines"
 msgstr "Color with which to draw error-indication underlines"
 
-#: ../gtk/gtkthemingengine.c:259
+#: ../gtk/gtkthemingengine.c:251
 msgid "Theming engine name"
 msgstr "Theming engine name"
 
@@ -6597,63 +6597,63 @@ msgstr "Spacing in pixels between the icon and label"
 msgid "Whether the toolbar item is considered important. When TRUE, toolbar buttons show text in GTK_TOOLBAR_BOTH_HORIZ mode"
 msgstr "Whether the toolbar item is considered important. When TRUE, toolbar buttons show text in GTK_TOOLBAR_BOTH_HORIZ mode"
 
-#: ../gtk/gtktoolitemgroup.c:1593
+#: ../gtk/gtktoolitemgroup.c:1594
 msgid "The human-readable title of this item group"
 msgstr "The human-readable title of this item group"
 
-#: ../gtk/gtktoolitemgroup.c:1600
+#: ../gtk/gtktoolitemgroup.c:1601
 msgid "A widget to display in place of the usual label"
 msgstr "A widget to display in place of the usual label"
 
-#: ../gtk/gtktoolitemgroup.c:1606
+#: ../gtk/gtktoolitemgroup.c:1607
 msgid "Collapsed"
 msgstr "Collapsed"
 
-#: ../gtk/gtktoolitemgroup.c:1607
+#: ../gtk/gtktoolitemgroup.c:1608
 msgid "Whether the group has been collapsed and items are hidden"
 msgstr "Whether the group has been collapsed and items are hidden"
 
-#: ../gtk/gtktoolitemgroup.c:1613
+#: ../gtk/gtktoolitemgroup.c:1614
 msgid "ellipsize"
 msgstr "ellipsize"
 
-#: ../gtk/gtktoolitemgroup.c:1614
+#: ../gtk/gtktoolitemgroup.c:1615
 msgid "Ellipsize for item group headers"
 msgstr "Ellipsize for item group headers"
 
-#: ../gtk/gtktoolitemgroup.c:1620
+#: ../gtk/gtktoolitemgroup.c:1621
 msgid "Header Relief"
 msgstr "Header Relief"
 
-#: ../gtk/gtktoolitemgroup.c:1621
+#: ../gtk/gtktoolitemgroup.c:1622
 msgid "Relief of the group header button"
 msgstr "Relief of the group header button"
 
-#: ../gtk/gtktoolitemgroup.c:1636
+#: ../gtk/gtktoolitemgroup.c:1637
 msgid "Header Spacing"
 msgstr "Header Spacing"
 
-#: ../gtk/gtktoolitemgroup.c:1637
+#: ../gtk/gtktoolitemgroup.c:1638
 msgid "Spacing between expander arrow and caption"
 msgstr "Spacing between expander arrow and caption"
 
-#: ../gtk/gtktoolitemgroup.c:1653
+#: ../gtk/gtktoolitemgroup.c:1654
 msgid "Whether the item should receive extra space when the group grows"
 msgstr "Whether the item should receive extra space when the group grows"
 
-#: ../gtk/gtktoolitemgroup.c:1660
+#: ../gtk/gtktoolitemgroup.c:1661
 msgid "Whether the item should fill the available space"
 msgstr "Whether the item should fill the available space"
 
-#: ../gtk/gtktoolitemgroup.c:1666
+#: ../gtk/gtktoolitemgroup.c:1667
 msgid "New Row"
 msgstr "New Row"
 
-#: ../gtk/gtktoolitemgroup.c:1667
+#: ../gtk/gtktoolitemgroup.c:1668
 msgid "Whether the item should start a new row"
 msgstr "Whether the item should start a new row"
 
-#: ../gtk/gtktoolitemgroup.c:1674
+#: ../gtk/gtktoolitemgroup.c:1675
 msgid "Position of the item within this group"
 msgstr "Position of the item within this group"
 
@@ -7799,9 +7799,6 @@ msgstr "The title of the color profile to use"
 
 #~ msgid "Metric"
 #~ msgstr "Metric"
-
-#~ msgid "The metric used for the ruler"
-#~ msgstr "The metric used for the ruler"
 
 #~ msgid "Whether the statusbar has a grip for resizing the toplevel"
 #~ msgstr "Whether the statusbar has a grip for resizing the toplevel"

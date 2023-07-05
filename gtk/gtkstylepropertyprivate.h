@@ -25,90 +25,73 @@
 
 G_BEGIN_DECLS
 
-typedef struct _GtkStyleProperty GtkStyleProperty;
+#define GTK_TYPE_STYLE_PROPERTY           (_gtk_style_property_get_type ())
+#define GTK_STYLE_PROPERTY(obj)           (G_TYPE_CHECK_INSTANCE_CAST (obj, GTK_TYPE_STYLE_PROPERTY, GtkStyleProperty))
+#define GTK_STYLE_PROPERTY_CLASS(cls)     (G_TYPE_CHECK_CLASS_CAST (cls, GTK_TYPE_STYLE_PROPERTY, GtkStylePropertyClass))
+#define GTK_IS_STYLE_PROPERTY(obj)        (G_TYPE_CHECK_INSTANCE_TYPE (obj, GTK_TYPE_STYLE_PROPERTY))
+#define GTK_IS_STYLE_PROPERTY_CLASS(obj)  (G_TYPE_CHECK_CLASS_TYPE (obj, GTK_TYPE_STYLE_PROPERTY))
+#define GTK_STYLE_PROPERTY_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_STYLE_PROPERTY, GtkStylePropertyClass))
+
+typedef struct _GtkStyleProperty           GtkStyleProperty;
+typedef struct _GtkStylePropertyClass      GtkStylePropertyClass;
+
 typedef enum {
   GTK_STYLE_PROPERTY_INHERIT = (1 << 0)
 } GtkStylePropertyFlags;
 
-typedef GParameter *     (* GtkStyleUnpackFunc)            (const GValue           *value,
-                                                            guint                  *n_params);
-typedef void             (* GtkStylePackFunc)              (GValue                 *value,
-                                                            GtkStyleProperties     *props,
-                                                            GtkStateFlags           state,
-							    GtkStylePropertyContext *context);
-typedef gboolean         (* GtkStyleParseFunc)             (GtkCssParser           *parser,
-                                                            GFile                  *base,
-                                                            GValue                 *value);
-typedef void             (* GtkStylePrintFunc)             (const GValue           *value,
-                                                            GString                *string);
-typedef void             (* GtkStyleUnsetFunc)             (GtkStyleProperties     *props,
-                                                            GtkStateFlags           state);
-
+typedef const GValue *   (* GtkStyleQueryFunc)             (guint                   id,
+                                                            gpointer                data);
 
 struct _GtkStyleProperty
 {
-  GParamSpec               *pspec;
-  GtkStylePropertyFlags     flags;
-  guint                     id;
-  GValue                    initial_value;
+  GObject parent;
 
-  GtkStylePropertyParser    property_parse_func;
-  GtkStyleUnpackFunc        unpack_func;
-  GtkStylePackFunc          pack_func;
-  GtkStyleParseFunc         parse_func;
-  GtkStylePrintFunc         print_func;
-  GtkStyleUnsetFunc         unset_func;
+  char *name;
+  GType value_type;
 };
 
-guint                    _gtk_style_property_get_count     (void);
-const GtkStyleProperty * _gtk_style_property_get           (guint                   id);
-
-const GtkStyleProperty * _gtk_style_property_lookup        (const char             *name);
-
-void                     _gtk_style_property_register      (GParamSpec             *pspec,
-                                                            GtkStylePropertyFlags   flags,
-                                                            GtkStylePropertyParser  property_parse_func,
-                                                            GtkStyleUnpackFunc      unpack_func,
-                                                            GtkStylePackFunc        pack_func,
-                                                            GtkStyleParseFunc       parse_func,
-                                                            GtkStylePrintFunc       print_func,
-                                                            const GValue           *initial_value,
-                                                            GtkStyleUnsetFunc       unset_func);
-
-gboolean                 _gtk_style_property_is_inherit    (const GtkStyleProperty *property);
-guint                    _gtk_style_property_get_id        (const GtkStyleProperty *property);
-
-void                     _gtk_style_property_default_value (const GtkStyleProperty *property,
-                                                            GtkStyleProperties     *properties,
-                                                            GtkStateFlags           state,
-                                                            GValue                 *value);
-const GValue *           _gtk_style_property_get_initial_value
-                                                           (const GtkStyleProperty *property);
-
-void                     _gtk_style_property_resolve       (const GtkStyleProperty *property,
-                                                            GtkStyleProperties     *properties,
-                                                            GtkStateFlags           state,
-							    GtkStylePropertyContext *context,
-                                                            GValue                 *orig_value,
-                                                            GValue                 *out_value);
-
-gboolean                 _gtk_style_property_is_shorthand  (const GtkStyleProperty *property);
-GParameter *             _gtk_style_property_unpack        (const GtkStyleProperty *property,
-                                                            const GValue           *value,
-                                                            guint                  *n_params);
-void                     _gtk_style_property_pack          (const GtkStyleProperty *property,
+struct _GtkStylePropertyClass
+{
+  GObjectClass  parent_class;
+  
+  void              (* assign)                             (GtkStyleProperty       *property,
                                                             GtkStyleProperties     *props,
                                                             GtkStateFlags           state,
-							    GtkStylePropertyContext *context,
-                                                            GValue                 *value);
-
-gboolean                 _gtk_style_property_parse_value   (const GtkStyleProperty *property,
+                                                            const GValue           *value);
+  void              (* query)                              (GtkStyleProperty       *property,
+                                                            GValue                 *value,
+                                                            GtkStyleQueryFunc       query_func,
+                                                            gpointer                query_data);
+  gboolean          (* parse_value)                        (GtkStyleProperty *      property,
                                                             GValue                 *value,
                                                             GtkCssParser           *parser,
                                                             GFile                  *base);
-void                     _gtk_style_property_print_value   (const GtkStyleProperty *property,
-                                                            const GValue           *value,
-                                                            GString                *string);
+
+  GHashTable   *properties;
+};
+
+GType               _gtk_style_property_get_type             (void) G_GNUC_CONST;
+
+void                _gtk_style_property_init_properties      (void);
+
+GtkStyleProperty *       _gtk_style_property_lookup        (const char             *name);
+
+const char *             _gtk_style_property_get_name      (GtkStyleProperty       *property);
+
+gboolean                 _gtk_style_property_parse_value   (GtkStyleProperty *      property,
+                                                            GValue                 *value,
+                                                            GtkCssParser           *parser,
+                                                            GFile                  *base);
+
+GType                    _gtk_style_property_get_value_type(GtkStyleProperty *      property);
+void                     _gtk_style_property_query         (GtkStyleProperty *      property,
+                                                            GValue                 *value,
+                                                            GtkStyleQueryFunc       query_func,
+                                                            gpointer                query_data);
+void                     _gtk_style_property_assign        (GtkStyleProperty       *property,
+                                                            GtkStyleProperties     *props,
+                                                            GtkStateFlags           state,
+                                                            const GValue           *value);
 
 G_END_DECLS
 

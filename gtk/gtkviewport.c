@@ -328,8 +328,13 @@ viewport_get_view_allocation (GtkViewport   *viewport,
 
   context = gtk_widget_get_style_context (widget);
   state = gtk_widget_get_state_flags (widget);
+  gtk_style_context_save (context);
+  gtk_style_context_add_class (context, GTK_STYLE_CLASS_FRAME);
+
   gtk_style_context_get_padding (context, state, &padding);
   gtk_style_context_get_border (context, state, &border);
+
+  gtk_style_context_restore (context);
 
   if (priv->shadow_type != GTK_SHADOW_NONE)
     {
@@ -750,7 +755,8 @@ gtk_viewport_draw (GtkWidget *widget,
 
   context = gtk_widget_get_style_context (widget);
 
-  if (gtk_cairo_should_draw_window (cr, gtk_widget_get_window (widget)))
+  if (gtk_cairo_should_draw_window (cr, gtk_widget_get_window (widget)) &&
+      priv->shadow_type != GTK_SHADOW_NONE)
     {
       gtk_style_context_save (context);
       gtk_style_context_add_class (context, GTK_STYLE_CLASS_FRAME);

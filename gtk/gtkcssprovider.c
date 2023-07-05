@@ -28,9 +28,11 @@
 #include "gtkcssproviderprivate.h"
 
 #include "gtkbitmaskprivate.h"
+#include "gtkcssstylefuncsprivate.h"
 #include "gtkcssparserprivate.h"
 #include "gtkcsssectionprivate.h"
 #include "gtkcssselectorprivate.h"
+#include "gtkcssshorthandpropertyprivate.h"
 #include "gtksymboliccolor.h"
 #include "gtkstyleprovider.h"
 #include "gtkstylecontextprivate.h"
@@ -983,6 +985,7 @@ struct _GtkCssProviderPrivate
   GHashTable *symbolic_colors;
 
   GArray *rulesets;
+  GResource *resource;
 };
 
 enum {
@@ -1176,9 +1179,9 @@ gtk_css_ruleset_add_style (GtkCssRuleset *ruleset,
 }
 
 static void
-gtk_css_ruleset_add (GtkCssRuleset          *ruleset,
-                     const GtkStyleProperty *prop,
-                     PropertyValue          *value)
+gtk_css_ruleset_add (GtkCssRuleset    *ruleset,
+                     GtkStyleProperty *prop,
+                     PropertyValue    *value)
 {
   if (ruleset->style == NULL)
     {
@@ -1189,30 +1192,39 @@ gtk_css_ruleset_add (GtkCssRuleset          *ruleset,
       ruleset->set_styles = _gtk_bitmask_new ();
     }
 
-  if (_gtk_style_property_is_shorthand (prop))
+  if (GTK_IS_CSS_SHORTHAND_PROPERTY (prop))
     {
-      GParameter *parameters;
-      guint i, n_parameters;
+      GtkCssShorthandProperty *shorthand = GTK_CSS_SHORTHAND_PROPERTY (prop);
+      GArray *array = g_value_get_boxed (&value->value);
+      guint i;
 
-      parameters = _gtk_style_property_unpack (prop, &value->value, &n_parameters);
-
-      for (i = 0; i < n_parameters; i++)
+      for (i = 0; i < _gtk_css_shorthand_property_get_n_subproperties (shorthand); i++)
         {
-          const GtkStyleProperty *child;
+          GtkCssStyleProperty *child = _gtk_css_shorthand_property_get_subproperty (shorthand, i);
+          const GValue *sub = &g_array_index (array, GValue, i);
           PropertyValue *val;
-
-          child = _gtk_style_property_lookup (parameters[i].name);
+          
           val = property_value_new (value->section);
-          memcpy (&val->value, &parameters[i].value, sizeof (GValue));
-          gtk_css_ruleset_add (ruleset, child, val);
+          g_value_init (&val->value, G_VALUE_TYPE (sub));
+          g_value_copy (sub, &val->value);
+          gtk_css_ruleset_add (ruleset, GTK_STYLE_PROPERTY (child), val);
         }
-      g_free (parameters);
       property_value_free (value);
-      return;
     }
+  else if (GTK_IS_CSS_STYLE_PROPERTY (prop))
+    {
+      g_return_if_fail (_gtk_css_style_property_is_specified_type (GTK_CSS_STYLE_PROPERTY (prop),
+                                                                   G_VALUE_TYPE (&value->value)));
 
-  _gtk_bitmask_set (ruleset->set_styles, _gtk_style_property_get_id (prop), TRUE);
-  g_hash_table_insert (ruleset->style, (gpointer) prop, value);
+      _gtk_bitmask_set (ruleset->set_styles,
+                        _gtk_css_style_property_get_id (GTK_CSS_STYLE_PROPERTY (prop)),
+                        TRUE);
+      g_hash_table_insert (ruleset->style, prop, value);
+    }
+  else
+    {
+      g_assert_not_reached ();
+    }
 }
 
 static gboolean
@@ -1421,7 +1433,7 @@ gtk_css_provider_get_style (GtkStyleProvider *provider,
 
       while (g_hash_table_iter_next (&iter, &key, &val))
         {
-          GtkStyleProperty *prop = key;
+          GtkCssStyleProperty *prop = key;
           PropertyValue *value = val;
 
           _gtk_style_properties_set_property_by_property (props,
@@ -1476,10 +1488,9 @@ gtk_css_provider_get_style_property (GtkStyleProvider *provider,
                                          gtk_css_section_get_file (val->section),
                                          g_value_get_string (&val->value));
 
-          found = _gtk_style_property_parse_value (NULL,
-                                                   value,
-                                                   scanner->parser,
-                                                   NULL);
+          found = _gtk_css_style_parse_value (value,
+                                              scanner->parser,
+                                              NULL);
 
           gtk_css_scanner_destroy (scanner);
 
@@ -1533,6 +1544,10 @@ gtk_css_style_provider_lookup (GtkStyleProviderPrivate *provider,
       if (ruleset->style == NULL)
         continue;
 
+      if (!_gtk_bitmask_intersects (_gtk_css_lookup_get_missing (lookup),
+                                    ruleset->set_styles))
+        continue;
+
       if (!gtk_css_ruleset_matches (ruleset, path, state))
         continue;
 
@@ -1540,13 +1555,14 @@ gtk_css_style_provider_lookup (GtkStyleProviderPrivate *provider,
 
       while (g_hash_table_iter_next (&iter, &key, &val))
         {
-          GtkStyleProperty *prop = key;
+          GtkCssStyleProperty *prop = key;
           PropertyValue *value = val;
+          guint id = _gtk_css_style_property_get_id (prop);
 
-          if (!_gtk_css_lookup_is_missing (lookup, _gtk_style_property_get_id (prop)))
+          if (!_gtk_css_lookup_is_missing (lookup, id))
             continue;
 
-          _gtk_css_lookup_set (lookup, _gtk_style_property_get_id (prop), &value->value);
+          _gtk_css_lookup_set (lookup, id, value->section, &value->value);
         }
     }
 }
@@ -1575,6 +1591,13 @@ gtk_css_provider_finalize (GObject *object)
 
   if (priv->symbolic_colors)
     g_hash_table_destroy (priv->symbolic_colors);
+
+  if (priv->resource)
+    {
+      g_resources_unregister (priv->resource);
+      g_resource_unref (priv->resource);
+      priv->resource = NULL;
+    }
 
   G_OBJECT_CLASS (gtk_css_provider_parent_class)->finalize (object);
 }
@@ -1689,6 +1712,13 @@ gtk_css_provider_reset (GtkCssProvider *css_provider)
 
   priv = css_provider->priv;
 
+  if (priv->resource)
+    {
+      g_resources_unregister (priv->resource);
+      g_resource_unref (priv->resource);
+      priv->resource = NULL;
+    }
+
   g_hash_table_remove_all (priv->symbolic_colors);
 
   for (i = 0; i < priv->rulesets->len; i++)
@@ -1749,7 +1779,6 @@ static gboolean
 parse_import (GtkCssScanner *scanner)
 {
   GFile *file;
-  char *uri;
 
   gtk_css_scanner_push_section (scanner, GTK_CSS_SECTION_IMPORT);
 
@@ -1760,21 +1789,32 @@ parse_import (GtkCssScanner *scanner)
     }
 
   if (_gtk_css_parser_is_string (scanner->parser))
-    uri = _gtk_css_parser_read_string (scanner->parser);
-  else
-    uri = _gtk_css_parser_read_uri (scanner->parser);
+    {
+      char *uri;
 
-  if (uri == NULL)
+      uri = _gtk_css_parser_read_string (scanner->parser);
+      file = g_file_resolve_relative_path (gtk_css_scanner_get_base_url (scanner), uri);
+      g_free (uri);
+    }
+  else
+    {
+      file = _gtk_css_parser_read_url (scanner->parser,
+                                       gtk_css_scanner_get_base_url (scanner));
+    }
+
+  if (file == NULL)
     {
       _gtk_css_parser_resync (scanner->parser, TRUE, 0);
       gtk_css_scanner_pop_section (scanner, GTK_CSS_SECTION_IMPORT);
       return TRUE;
     }
 
-  file = g_file_resolve_relative_path (gtk_css_scanner_get_base_url (scanner), uri);
-  g_free (uri);
-
-  if (gtk_css_scanner_would_recurse (scanner, file))
+  if (!_gtk_css_parser_try (scanner->parser, ";", FALSE))
+    {
+      gtk_css_provider_invalid_token (scanner->provider, scanner, "semicolon");
+      _gtk_css_parser_resync (scanner->parser, TRUE, 0);
+    }
+  else if (gtk_css_scanner_would_recurse (scanner, file))
     {
        char *path = g_file_get_path (file);
        gtk_css_provider_error (scanner->provider,
@@ -1794,15 +1834,11 @@ parse_import (GtkCssScanner *scanner)
                                       NULL);
     }
 
-  if (!_gtk_css_parser_try (scanner->parser, ";", TRUE))
-    {
-      gtk_css_provider_invalid_token (scanner->provider, scanner, "semicolon");
-      _gtk_css_parser_resync (scanner->parser, TRUE, 0);
-    }
-
   g_object_unref (file);
 
   gtk_css_scanner_pop_section (scanner, GTK_CSS_SECTION_IMPORT);
+  _gtk_css_parser_skip_whitespace (scanner->parser);
+
   return TRUE;
 }
 
@@ -2062,6 +2098,7 @@ parse_selector_pseudo_class (GtkCssScanner  *scanner,
     { "inconsistent", 0, GTK_STATE_FLAG_INCONSISTENT },
     { "focused",      0, GTK_STATE_FLAG_FOCUSED },
     { "focus",        0, GTK_STATE_FLAG_FOCUSED },
+    { "backdrop",     0, GTK_STATE_FLAG_BACKDROP },
     { NULL, }
   }, nth_child_classes[] = {
     { "first",        GTK_REGION_FIRST, 0 },
@@ -2299,7 +2336,7 @@ static void
 parse_declaration (GtkCssScanner *scanner,
                    GtkCssRuleset *ruleset)
 {
-  const GtkStyleProperty *property;
+  GtkStyleProperty *property;
   char *name;
 
   gtk_css_scanner_push_section (scanner, GTK_CSS_SECTION_DECLARATION);
@@ -2341,7 +2378,6 @@ parse_declaration (GtkCssScanner *scanner,
       gtk_css_scanner_push_section (scanner, GTK_CSS_SECTION_VALUE);
 
       val = property_value_new (scanner->section);
-      g_value_init (&val->value, property->pspec->value_type);
 
       if (_gtk_style_property_parse_value (property,
                                            &val->value,
@@ -2729,6 +2765,32 @@ gtk_css_provider_load_from_path (GtkCssProvider  *css_provider,
   return result;
 }
 
+static gboolean
+_gtk_css_provider_load_from_resource (GtkCssProvider  *css_provider,
+				      const gchar     *resource_path)
+{
+  GFile *file;
+  char *uri, *escaped;
+  gboolean result;
+
+  g_return_val_if_fail (GTK_IS_CSS_PROVIDER (css_provider), FALSE);
+  g_return_val_if_fail (resource_path != NULL, FALSE);
+
+  escaped = g_uri_escape_string (resource_path,
+				 G_URI_RESERVED_CHARS_ALLOWED_IN_PATH, FALSE);
+  uri = g_strconcat ("resource://", escaped, NULL);
+  g_free (escaped);
+
+  file = g_file_new_for_uri (uri);
+  g_free (uri);
+
+  result = gtk_css_provider_load_from_file (css_provider, file, NULL);
+
+  g_object_unref (file);
+
+  return result;
+}
+
 /**
  * gtk_css_provider_get_default:
  *
@@ -2745,377 +2807,7 @@ gtk_css_provider_get_default (void)
 
   if (G_UNLIKELY (!provider))
     {
-      const gchar *str =
-        "@define-color fg_color #000; \n"
-        "@define-color bg_color #dcdad5; \n"
-        "@define-color text_color #000; \n"
-        "@define-color base_color #fff; \n"
-        "@define-color selected_bg_color #4b6983; \n"
-        "@define-color selected_fg_color #fff; \n"
-        "@define-color tooltip_bg_color #eee1b3; \n"
-        "@define-color tooltip_fg_color #000; \n"
-        "@define-color placeholder_text_color #808080; \n"
-        "\n"
-        "@define-color info_fg_color rgb (181, 171, 156);\n"
-        "@define-color info_bg_color rgb (252, 252, 189);\n"
-        "@define-color warning_fg_color rgb (173, 120, 41);\n"
-        "@define-color warning_bg_color rgb (250, 173, 61);\n"
-        "@define-color question_fg_color rgb (97, 122, 214);\n"
-        "@define-color question_bg_color rgb (138, 173, 212);\n"
-        "@define-color error_fg_color rgb (166, 38, 38);\n"
-        "@define-color error_bg_color rgb (237, 54, 54);\n"
-        "\n"
-        "* {\n"
-        "  background-color: @bg_color;\n"
-        "  color: @fg_color;\n"
-        "  border-color: shade (@bg_color, 0.6);\n"
-        "  padding: 2;\n"
-        "  border-width: 0;\n"
-        "}\n"
-        "\n"
-        "*:prelight {\n"
-        "  background-color: shade (@bg_color, 1.05);\n"
-        "  color: shade (@fg_color, 1.3);\n"
-        "}\n"
-        "\n"
-        "*:selected {\n"
-        "  background-color: @selected_bg_color;\n"
-        "  color: @selected_fg_color;\n"
-        "}\n"
-        "\n"
-        ".expander, GtkTreeView.view.expander {\n"
-        "  color: #fff;\n"
-        "}\n"
-        "\n"
-        ".expander:prelight,\n"
-        "GtkTreeView.view.expander:selected:prelight {\n"
-        "  color: @text_color;\n"
-        "}\n"
-        "\n"
-        ".expander:active {\n"
-        "  transition: 200ms linear;\n"
-        "}\n"
-        "\n"
-        "*:insensitive {\n"
-        "  border-color: shade (@bg_color, 0.7);\n"
-        "  background-color: shade (@bg_color, 0.9);\n"
-        "  color: shade (@bg_color, 0.7);\n"
-        "}\n"
-        "\n"
-        ".view {\n"
-        "  border-width: 0;\n"
-        "  border-radius: 0;\n"
-        "  background-color: @base_color;\n"
-        "  color: @text_color;\n"
-        "}\n"
-        ".view:selected {\n"
-        "  background-color: shade (@bg_color, 0.9);\n"
-        "  color: @fg_color;\n"
-        "}\n"
-        "\n"
-        ".view:selected:focused {\n"
-        "  background-color: @selected_bg_color;\n"
-        "  color: @selected_fg_color;\n"
-        "}\n"
-        "\n"
-        ".view column:sorted row,\n"
-        ".view column:sorted row:prelight {\n"
-        "  background-color: shade (@bg_color, 0.85);\n"
-        "}\n"
-        "\n"
-        ".view column:sorted row:nth-child(odd),\n"
-        ".view column:sorted row:nth-child(odd):prelight {\n"
-        "  background-color: shade (@bg_color, 0.8);\n"
-        "}\n"
-        "\n"
-        ".view row,\n"
-        ".view row:prelight {\n"
-        "  background-color: @base_color;\n"
-        "  color: @text_color;\n"
-        "}\n"
-        "\n"
-        ".view row:nth-child(odd),\n"
-        ".view row:nth-child(odd):prelight {\n"
-        "  background-color: shade (@base_color, 0.93); \n"
-        "}\n"
-        "\n"
-        ".view row:selected:focused {\n"
-        "  background-color: @selected_bg_color;\n"
-        "}\n"
-        "\n"
-        ".view row:selected {\n"
-        "  background-color: darker (@bg_color);\n"
-        "  color: @selected_fg_color;\n"
-        "}\n"
-        "\n"
-        ".view.cell.trough,\n"
-        ".view.cell.trough:hover,\n"
-        ".view.cell.trough:selected,\n"
-        ".view.cell.trough:selected:focused {\n"
-        "  background-color: @bg_color;\n"
-        "  color: @fg_color;\n"
-        "}\n"
-        "\n"
-        ".view.cell.progressbar,\n"
-        ".view.cell.progressbar:hover,\n"
-        ".view.cell.progressbar:selected,\n"
-        ".view.cell.progressbar:selected:focused {\n"
-        "  background-color: @selected_bg_color;\n"
-        "  color: @selected_fg_color;\n"
-        "}\n"
-        "\n"
-        ".rubberband {\n"
-        "  background-color: alpha (@fg_color, 0.25);\n"
-        "  border-color: @fg_color;\n"
-        "  border-style: solid;\n"
-        "  border-width: 1;\n"
-        "}\n"
-        "\n"
-        ".tooltip,\n"
-        ".tooltip * {\n"
-        "  background-color: @tooltip_bg_color; \n"
-        "  color: @tooltip_fg_color; \n"
-        "  border-color: @tooltip_fg_color; \n"
-        "  border-width: 1;\n"
-        "  border-style: solid;\n"
-        "}\n"
-        "\n"
-        ".button,\n"
-        ".slider {\n"
-        "  border-style: outset; \n"
-        "  border-width: 2; \n"
-        "}\n"
-        "\n"
-        ".button:active {\n"
-        "  background-color: shade (@bg_color, 0.7);\n"
-        "  border-style: inset; \n"
-        "}\n"
-        "\n"
-        ".button:prelight,\n"
-        ".slider:prelight {\n"
-        "  background-color: @selected_bg_color;\n"
-        "  color: @selected_fg_color;\n"
-        "  border-color: shade (@selected_bg_color, 0.7);\n"
-        "}\n"
-        "\n"
-        ".trough {\n"
-        "  background-color: darker (@bg_color);\n"
-        "  border-style: inset;\n"
-        "  border-width: 1;\n"
-        "  padding: 0;\n"
-        "}\n"
-        "\n"
-        ".entry {\n"
-        "  border-style: inset;\n"
-        "  border-width: 2;\n"
-        "  background-color: @base_color;\n"
-        "  color: @text_color;\n"
-        "}\n"
-        "\n"
-        ".entry:insensitive {\n"
-        "  background-color: shade (@base_color, 0.9);\n"
-        "  color: shade (@base_color, 0.7);\n"
-        "}\n"
-        ".entry:active {\n"
-        "  background-color: #c4c2bd;\n"
-        "  color: #000;\n"
-        "}\n"
-        "\n"
-        ".progressbar,\n"
-        ".entry.progressbar, \n"
-        ".cell.progressbar {\n"
-        "  background-color: @selected_bg_color;\n"
-        "  border-color: shade (@selected_bg_color, 0.7);\n"
-        "  color: @selected_fg_color;\n"
-        "  border-style: outset;\n"
-        "  border-width: 1;\n"
-        "}\n"
-        "\n"
-        "GtkCheckButton:hover,\n"
-        "GtkCheckButton:selected,\n"
-        "GtkRadioButton:hover,\n"
-        "GtkRadioButton:selected {\n"
-        "  background-color: shade (@bg_color, 1.05);\n"
-        "}\n"
-        "\n"
-        ".check, .radio,"
-        ".cell.check, .cell.radio,\n"
-        ".cell.check:hover, .cell.radio:hover {\n"
-        "  border-style: solid;\n"
-        "  border-width: 1;\n"
-        "  background-color: @base_color;\n"
-        "  border-color: @fg_color;\n"
-        "}\n"
-        "\n"
-        ".check:active, .radio:active,\n"
-        ".check:hover, .radio:hover {\n"
-        "  background-color: @base_color;\n"
-        "  border-color: @fg_color;\n"
-        "  color: @text_color;\n"
-        "}\n"
-        "\n"
-        ".check:selected, .radio:selected {\n"
-        "  background-color: darker (@bg_color);\n"
-        "  color: @selected_fg_color;\n"
-        "  border-color: @selected_fg_color;\n"
-        "}\n"
-        "\n"
-        ".check:selected:focused, .radio:selected:focused {\n"
-        "  background-color: @selected_bg_color;\n"
-        "}\n"
-        "\n"
-        ".menuitem.check, .menuitem.radio {\n"
-        "  color: @fg_color;\n"
-        "  border-style: none;\n"
-        "  border-width: 0;\n"
-        "}\n"
-        "\n"
-        ".popup {\n"
-        "  border-style: outset;\n"
-        "  border-width: 1;\n"
-        "}\n"
-        "\n"
-        ".viewport {\n"
-        "  border-style: inset;\n"
-        "  border-width: 2;\n"
-        "}\n"
-        "\n"
-        ".notebook {\n"
-        "  border-style: outset;\n"
-        "  border-width: 1;\n"
-        "}\n"
-        "\n"
-        ".frame {\n"
-        "  border-style: inset;\n"
-        "  border-width: 1;\n"
-        "}\n"
-        "\n"
-        "GtkScrolledWindow.frame {\n"
-        "  padding: 0;\n"
-        "}\n"
-        "\n"
-        ".menu,\n"
-        ".menubar,\n"
-        ".toolbar {\n"
-        "  border-style: outset;\n"
-        "  border-width: 1;\n"
-        "}\n"
-        "\n"
-        ".menu:hover,\n"
-        ".menubar:hover,\n"
-        ".menuitem:hover,\n"
-        ".menuitem.check:hover,\n"
-        ".menuitem.radio:hover {\n"
-        "  background-color: @selected_bg_color;\n"
-        "  color: @selected_fg_color;\n"
-        "}\n"
-        "\n"
-        "GtkSpinButton.button {\n"
-        "  border-width: 1;\n"
-        "}\n"
-        "\n"
-        ".scale.slider:hover,\n"
-        "GtkSpinButton.button:hover {\n"
-        "  background-color: shade (@bg_color, 1.05);\n"
-        "  border-color: shade (@bg_color, 0.8);\n"
-        "}\n"
-        "\n"
-        "GtkSwitch.trough:active {\n"
-        "  background-color: @selected_bg_color;\n"
-        "  color: @selected_fg_color;\n"
-        "}\n"
-        "\n"
-        "GtkToggleButton.button:inconsistent {\n"
-        "  border-style: outset;\n"
-        "  border-width: 1px;\n"
-        "  background-color: shade (@bg_color, 0.9);\n"
-        "  border-color: shade (@bg_color, 0.7);\n"
-        "}\n"
-        "\n"
-        "GtkLabel:selected {\n"
-        "  background-color: shade (@bg_color, 0.9);\n"
-        "}\n"
-        "\n"
-        "GtkLabel:selected:focused {\n"
-        "  background-color: @selected_bg_color;\n"
-        "}\n"
-        "\n"
-        ".spinner:active {\n"
-        "  transition: 750ms linear loop;\n"
-        "}\n"
-        "\n"
-        ".info {\n"
-        "  background-color: @info_bg_color;\n"
-        "  color: @info_fg_color;\n"
-        "}\n"
-        "\n"
-        ".warning {\n"
-        "  background-color: @warning_bg_color;\n"
-        "  color: @warning_fg_color;\n"
-        "}\n"
-        "\n"
-        ".question {\n"
-        "  background-color: @question_bg_color;\n"
-        "  color: @question_fg_color;\n"
-        "}\n"
-        "\n"
-        ".error {\n"
-        "  background-color: @error_bg_color;\n"
-        "  color: @error_fg_color;\n"
-        "}\n"
-        "\n"
-        ".highlight {\n"
-        "  background-color: @selected_bg_color;\n"
-        "  color: @selected_fg_color;\n"
-        "}\n"
-        "\n"
-        ".light-area-focus {\n"
-        "  color: #000;\n"
-        "}\n"
-        "\n"
-        ".dark-area-focus {\n"
-        "  color: #fff;\n"
-        "}\n"
-        "GtkCalendar.view {\n"
-        "  border-width: 1;\n"
-        "  border-style: inset;\n"
-        "  padding: 1;\n"
-        "}\n"
-        "\n"
-        "GtkCalendar.view:inconsistent {\n"
-        "  color: darker (@bg_color);\n"
-        "}\n"
-        "\n"
-        "GtkCalendar.header {\n"
-        "  background-color: @bg_color;\n"
-        "  border-style: outset;\n"
-        "  border-width: 2;\n"
-        "}\n"
-        "\n"
-        "GtkCalendar.highlight {\n"
-        "  border-width: 0;\n"
-        "}\n"
-        "\n"
-        "GtkCalendar.button {\n"
-        "  background-color: @bg_color;\n"
-        "}\n"
-        "\n"
-        "GtkCalendar.button:hover {\n"
-        "  background-color: lighter (@bg_color);\n"
-        "  color: @fg_color;\n"
-        "}\n"
-        "\n"
-        ".menu * {\n"
-        "  border-width: 0;\n"
-        "  padding: 2;\n"
-        "}\n"
-        "\n";
-
       provider = gtk_css_provider_new ();
-      if (!gtk_css_provider_load_from_data (provider, str, -1, NULL))
-        {
-          g_error ("Failed to load the internal default CSS.");
-        }
     }
 
   return provider;
@@ -3156,15 +2848,36 @@ gtk_css_provider_get_named (const gchar *name,
   GtkCssProvider *provider;
   gchar *key;
 
-  if (G_UNLIKELY (!themes))
-    themes = g_hash_table_new (g_str_hash, g_str_equal);
-
   if (variant == NULL)
     key = (gchar *)name;
   else
     key = g_strconcat (name, "-", variant, NULL);
 
+  if (G_UNLIKELY (!themes))
+    themes = g_hash_table_new (g_str_hash, g_str_equal);
+
   provider = g_hash_table_lookup (themes, key);
+
+  if (!provider)
+    {
+      gchar *resource_path = NULL;
+
+      if (variant)
+        resource_path = g_strdup_printf ("/org/gtk/libgtk/%s-%s.css", name, variant);
+      else
+        resource_path = g_strdup_printf ("/org/gtk/libgtk/%s.css", name);
+
+      if (g_resources_get_info (resource_path, 0, NULL, NULL, NULL))
+	{
+	  provider = gtk_css_provider_new ();
+	  if (!_gtk_css_provider_load_from_resource (provider, resource_path))
+	    {
+	      g_object_unref (provider);
+	      provider = NULL;
+	    }
+	}
+      g_free (resource_path);
+    }
 
   if (!provider)
     {
@@ -3209,17 +2922,36 @@ gtk_css_provider_get_named (const gchar *name,
 
       if (path)
         {
+	  char *dir, *resource_file;
+	  GResource *resource;
+
           provider = gtk_css_provider_new ();
+
+	  dir = g_path_get_dirname (path);
+	  resource_file = g_build_filename (dir, "gtk.gresource", NULL);
+	  resource = g_resource_load (resource_file, NULL);
+	  if (resource != NULL)
+	    g_resources_register (resource);
 
           if (!gtk_css_provider_load_from_path (provider, path, NULL))
             {
+	      if (resource != NULL)
+		{
+		  g_resources_unregister (resource);
+		  g_resource_unref (resource);
+		}
               g_object_unref (provider);
               provider = NULL;
             }
           else
-            g_hash_table_insert (themes, g_strdup (key), provider);
+	    {
+	      /* Only set this after load success, as load_from_path will clear it */
+	      provider->priv->resource = resource;
+	      g_hash_table_insert (themes, g_strdup (key), provider);
+	    }
 
           g_free (path);
+          g_free (dir);
         }
     }
 
@@ -3232,8 +2964,8 @@ gtk_css_provider_get_named (const gchar *name,
 static int
 compare_properties (gconstpointer a, gconstpointer b)
 {
-  return strcmp (((const GtkStyleProperty *) a)->pspec->name,
-                 ((const GtkStyleProperty *) b)->pspec->name);
+  return strcmp (_gtk_style_property_get_name ((GtkStyleProperty *) a),
+                 _gtk_style_property_get_name ((GtkStyleProperty *) b));
 }
 
 static void
@@ -3254,13 +2986,13 @@ gtk_css_ruleset_print (const GtkCssRuleset *ruleset,
 
       for (walk = keys; walk; walk = walk->next)
         {
-          GtkStyleProperty *prop = walk->data;
+          GtkCssStyleProperty *prop = walk->data;
           const PropertyValue *value = g_hash_table_lookup (ruleset->style, prop);
 
           g_string_append (str, "  ");
-          g_string_append (str, prop->pspec->name);
+          g_string_append (str, _gtk_style_property_get_name (GTK_STYLE_PROPERTY (prop)));
           g_string_append (str, ": ");
-          _gtk_style_property_print_value (prop, &value->value, str);
+          _gtk_css_style_property_print_value (prop, &value->value, str);
           g_string_append (str, ";\n");
         }
 

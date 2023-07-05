@@ -35,8 +35,21 @@ G_GNUC_INTERNAL
 void                    gtk_application_window_unpublish                (GtkApplicationWindow *window);
 
 G_GNUC_INTERNAL
-GSimpleActionObserver * gtk_application_window_get_observer             (GtkApplicationWindow *window,
+GSimpleActionObserver * gtk_application_window_create_observer          (GtkApplicationWindow *window,
                                                                          const gchar          *action_name,
                                                                          GVariant             *target);
+
+G_GNUC_INTERNAL
+GActionObservable     * gtk_application_window_get_observable           (GtkApplicationWindow *window);
+
+G_GNUC_INTERNAL
+GtkAccelGroup         * gtk_application_window_get_accel_group          (GtkApplicationWindow *window);
+
+G_GNUC_INTERNAL
+const gchar *           gtk_application_get_dbus_object_path            (GtkApplication       *application);
+G_GNUC_INTERNAL
+const gchar *           gtk_application_get_app_menu_object_path        (GtkApplication       *application);
+G_GNUC_INTERNAL
+const gchar *           gtk_application_get_menubar_object_path         (GtkApplication       *application);
 
 #endif /* __GTK_APPLICATION_PRIVATE_H__ */

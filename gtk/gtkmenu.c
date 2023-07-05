@@ -75,7 +75,7 @@
  *   if (event->type == GDK_BUTTON_PRESS)
  *     {
  *       event_button = (GdkEventButton *) event;
- *       if (event_button->button == 3)
+ *       if (event_button->button == GDK_BUTTON_SECONDARY)
  *         {
  *           gtk_menu_popup (menu, NULL, NULL, NULL, NULL, 
  *                           event_button->button, event_button->time);
@@ -1239,9 +1239,8 @@ gtk_menu_attach_to_widget (GtkMenu           *menu,
   if (gtk_widget_get_state_flags (GTK_WIDGET (menu)) != 0)
     gtk_widget_set_state_flags (GTK_WIDGET (menu), 0, TRUE);
 
-  /* we don't need to set the style here, since
-   * we are a toplevel widget.
-   */
+  /* Attach the widget to the toplevel window. */
+  gtk_window_set_attached_to (GTK_WINDOW (menu->priv->toplevel), attach_widget);
 
   /* Fallback title for menu comes from attach widget */
   gtk_menu_update_title (menu);
@@ -1294,6 +1293,9 @@ gtk_menu_detach (GtkMenu *menu)
       return;
     }
   g_object_set_data (G_OBJECT (menu), I_(attach_data_key), NULL);
+
+  /* Detach the toplevel window. */
+  gtk_window_set_attached_to (GTK_WINDOW (menu->priv->toplevel), NULL);
 
   g_signal_handlers_disconnect_by_func (data->attach_widget,
                                         (gpointer) attach_widget_screen_changed,
@@ -1479,6 +1481,7 @@ popup_grab_on_window (GdkWindow *window,
  * be used instead.
  *
  * Since: 3.0
+ * Rename to: gtk_menu_popup
  */
 void
 gtk_menu_popup_for_device (GtkMenu             *menu,

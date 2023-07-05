@@ -26,15 +26,15 @@
 
 /**
  * SECTION:gtkbutton
- * @Short_description: A widget that creates a signal when clicked on
+ * @Short_description: A widget that emits a signal when clicked on
  * @Title: GtkButton
  *
- * The #GtkButton widget is generally used to attach a function to that is
+ * The #GtkButton widget is generally used to trigger a callback function that is
  * called when the button is pressed.  The various signals and how to use them
  * are outlined below.
  *
- * The #GtkButton widget can hold any valid child widget.  That is it can hold
- * most any other standard #GtkWidget.  The most commonly used child is the
+ * The #GtkButton widget can hold any valid child widget.  That is, it can hold
+ * almost any other standard #GtkWidget.  The most commonly used child is the
  * #GtkLabel.
  */
 
@@ -707,9 +707,9 @@ gtk_button_update_action_observer (GtkButton *button)
     {
       GSimpleActionObserver *observer;
 
-      observer = gtk_application_window_get_observer (GTK_APPLICATION_WINDOW (window),
-                                                      button->priv->action_name,
-                                                      button->priv->action_target);
+      observer = gtk_application_window_create_observer (GTK_APPLICATION_WINDOW (window),
+                                                         button->priv->action_name,
+                                                         button->priv->action_target);
 
       _gtk_button_set_depressed (button, g_simple_action_observer_get_active (observer));
 
@@ -732,15 +732,12 @@ gtk_button_set_action_name (GtkActionable *actionable,
   g_return_if_fail (GTK_IS_BUTTON (button));
   g_return_if_fail (button->priv->action == NULL);
 
-  if (g_strcmp0 (action_name, button->priv->action_name) != 0)
-    {
-      g_free (button->priv->action_name);
-      button->priv->action_name = g_strdup (action_name);
+  g_free (button->priv->action_name);
+  button->priv->action_name = g_strdup (action_name);
 
-      gtk_button_update_action_observer (button);
+  gtk_button_update_action_observer (button);
 
-      g_object_notify (G_OBJECT (button), "action-name");
-    }
+  g_object_notify (G_OBJECT (button), "action-name");
 }
 
 static void
@@ -1841,7 +1838,7 @@ gtk_button_button_press (GtkWidget      *widget,
       if (priv->focus_on_click && !gtk_widget_has_focus (widget))
 	gtk_widget_grab_focus (widget);
 
-      if (event->button == 1)
+      if (event->button == GDK_BUTTON_PRIMARY)
 	gtk_button_pressed (button);
     }
 
@@ -1854,7 +1851,7 @@ gtk_button_button_release (GtkWidget      *widget,
 {
   GtkButton *button;
 
-  if (event->button == 1)
+  if (event->button == GDK_BUTTON_PRIMARY)
     {
       button = GTK_BUTTON (widget);
       gtk_button_released (button);

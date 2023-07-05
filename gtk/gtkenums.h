@@ -854,7 +854,7 @@ typedef enum
   GTK_STATE_FLAG_INSENSITIVE  = 1 << 3,
   GTK_STATE_FLAG_INCONSISTENT = 1 << 4,
   GTK_STATE_FLAG_FOCUSED      = 1 << 5,
-  GTK_STATE_FLAG_WINDOW_UNFOCUSED = 1 << 6
+  GTK_STATE_FLAG_BACKDROP     = 1 << 6
 } GtkStateFlags;
 
 /**
@@ -906,9 +906,15 @@ typedef enum {
 /**
  * GtkBorderStyle:
  * @GTK_BORDER_STYLE_NONE: No visible border
- * @GTK_BORDER_STYLE_SOLID: A solid border
- * @GTK_BORDER_STYLE_INSET: An inset border
- * @GTK_BORDER_STYLE_OUTSET: An outset border
+ * @GTK_BORDER_STYLE_SOLID: A single line segment
+ * @GTK_BORDER_STYLE_INSET: Looks as if the content is sunken into the canvas
+ * @GTK_BORDER_STYLE_OUTSET: Looks as if the content is coming out of the canvas
+ * @GTK_BORDER_STYLE_HIDDEN: Same as @GTK_BORDER_STYLE_NONE
+ * @GTK_BORDER_STYLE_DOTTED: A series of round dots
+ * @GTK_BORDER_STYLE_DASHED: A series of square-ended dashes
+ * @GTK_BORDER_STYLE_DOUBLE: Two parrallel lines with some space between them
+ * @GTK_BORDER_STYLE_GROOVE: Looks as if it were carved in the canvas
+ * @GTK_BORDER_STYLE_RIDGE: Looks as if it were coming out of the canvas
  *
  * Describes how the border of a UI element should be rendered.
  */
@@ -916,7 +922,13 @@ typedef enum {
   GTK_BORDER_STYLE_NONE,
   GTK_BORDER_STYLE_SOLID,
   GTK_BORDER_STYLE_INSET,
-  GTK_BORDER_STYLE_OUTSET
+  GTK_BORDER_STYLE_OUTSET,
+  GTK_BORDER_STYLE_HIDDEN,
+  GTK_BORDER_STYLE_DOTTED,
+  GTK_BORDER_STYLE_DASHED,
+  GTK_BORDER_STYLE_DOUBLE,
+  GTK_BORDER_STYLE_GROOVE,
+  GTK_BORDER_STYLE_RIDGE
 } GtkBorderStyle;
 
 G_END_DECLS

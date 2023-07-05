@@ -815,7 +815,7 @@ gtk_spin_button_get_preferred_width (GtkWidget *widget,
       gint digit_width;
       gboolean interior_focus;
       gint focus_width;
-      gint xborder, yborder;
+      GtkBorder borders;
       GtkBorder inner_border;
 
       gtk_widget_style_get (widget,
@@ -848,10 +848,10 @@ gtk_spin_button_get_preferred_width (GtkWidget *widget,
       w = PANGO_PIXELS (MIN (string_len, max_string_len) * digit_width);
       width = MAX (width, w);
 
-      _gtk_entry_get_borders (entry, &xborder, &yborder);
+      _gtk_entry_get_borders (entry, &borders);
       _gtk_entry_effective_inner_border (entry, &inner_border);
 
-      width += xborder * 2 + inner_border.left + inner_border.right;
+      width += borders.left + borders.right + inner_border.left + inner_border.right;
 
       *minimum = width;
       *natural = width;
@@ -1283,18 +1283,18 @@ gtk_spin_button_button_press (GtkWidget      *widget,
 
           if (event->y <= req_height / 2)
             {
-              if (event->button == 1)
+              if (event->button == GDK_BUTTON_PRIMARY)
                 start_spinning (spin, GTK_ARROW_UP, gtk_adjustment_get_step_increment (priv->adjustment));
-              else if (event->button == 2)
+              else if (event->button == GDK_BUTTON_MIDDLE)
                 start_spinning (spin, GTK_ARROW_UP, gtk_adjustment_get_page_increment (priv->adjustment));
               else
                 priv->click_child = GTK_ARROW_UP;
             }
           else
             {
-              if (event->button == 1)
+              if (event->button == GDK_BUTTON_PRIMARY)
                 start_spinning (spin, GTK_ARROW_DOWN, gtk_adjustment_get_step_increment (priv->adjustment));
-              else if (event->button == 2)
+              else if (event->button == GDK_BUTTON_MIDDLE)
                 start_spinning (spin, GTK_ARROW_DOWN, gtk_adjustment_get_page_increment (priv->adjustment));
               else
                 priv->click_child = GTK_ARROW_DOWN;
@@ -1326,7 +1326,7 @@ gtk_spin_button_button_release (GtkWidget      *widget,
 
       gtk_spin_button_stop_spinning (spin);
 
-      if (event->button == 3)
+      if (event->button == GDK_BUTTON_SECONDARY)
         {
           GtkRequisition requisition;
           gint req_height;

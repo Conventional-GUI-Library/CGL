@@ -140,7 +140,7 @@ window1
                 "table cell"
                 parent: unnamed-GtkTreeViewAccessible-5
                 index: 1
-                state: enabled focusable focused selectable sensitive transient visible
+                state: enabled focusable selectable sensitive showing transient visible
                 <AtkComponent>
                 layer: widget
                 alpha: 1
@@ -153,9 +153,10 @@ window1
                 action 2 description: activate the cell
                 
                   "table cell"
+                  parent: unnamed-GtkContainerCellAccessible-7
                   index: 0
                   name: 
-                  state: enabled focusable focused selectable sensitive single-line transient visible
+                  state: enabled focusable selectable sensitive showing single-line transient visible
                   <AtkComponent>
                   layer: widget
                   alpha: 1
@@ -197,10 +198,11 @@ window1
                 No applications available to open "(null)" files
 Click "Show other applications", for more options, or "Find applications online" to install a new application
                   "table cell"
+                  parent: unnamed-GtkContainerCellAccessible-7
                   index: 1
                   name: No applications available to open "(null)" files
 Click "Show other applications", for more options, or "Find applications online" to install a new application
-                  state: enabled focusable focused selectable sensitive single-line transient visible
+                  state: enabled focusable selectable sensitive showing single-line transient visible
                   <AtkComponent>
                   layer: widget
                   alpha: 1
@@ -242,9 +244,10 @@ Click "Show other applications", for more options, or "Find applications online"
                   action 2 description: activate the cell
                 
                   "table cell"
+                  parent: unnamed-GtkContainerCellAccessible-7
                   index: 2
                   name: 
-                  state: enabled focusable focused selectable sensitive single-line transient visible
+                  state: enabled focusable selectable sensitive showing single-line transient visible
                   <AtkComponent>
                   layer: widget
                   alpha: 1
@@ -285,8 +288,9 @@ Click "Show other applications", for more options, or "Find applications online"
                   action 2 description: activate the cell
                 unnamed-GtkImageCellAccessible-8
                   "table cell"
+                  parent: unnamed-GtkContainerCellAccessible-7
                   index: 3
-                  state: enabled focusable focused selectable sensitive transient visible
+                  state: enabled focusable selectable sensitive showing transient visible
                   <AtkComponent>
                   layer: widget
                   alpha: 1
@@ -302,9 +306,10 @@ Click "Show other applications", for more options, or "Find applications online"
                   action 2 description: activate the cell
                 
                   "table cell"
+                  parent: unnamed-GtkContainerCellAccessible-7
                   index: 4
                   name: 
-                  state: enabled focusable focused selectable sensitive single-line transient visible
+                  state: enabled focusable selectable sensitive showing single-line transient visible
                   <AtkComponent>
                   layer: widget
                   alpha: 1

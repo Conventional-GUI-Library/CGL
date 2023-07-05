@@ -149,7 +149,17 @@ gboolean  _gtk_builder_flags_from_string (GType       type,
 gchar * _gtk_builder_parser_translate (const gchar *domain,
 				       const gchar *context,
 				       const gchar *text);
+gchar *   _gtk_builder_get_resource_path (GtkBuilder *builder,
+					  const gchar *string);
 gchar *   _gtk_builder_get_absolute_filename (GtkBuilder *builder,
 					      const gchar *string);
+
+void      _gtk_builder_menu_start (ParserData   *parser_data,
+                                   const gchar  *element_name,
+                                   const gchar **attribute_names,
+                                   const gchar **attribute_values,
+                                   GError      **error);
+void      _gtk_builder_menu_end   (ParserData  *parser_data);
+
 
 #endif /* __GTK_BUILDER_PRIVATE_H__ */

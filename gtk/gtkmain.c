@@ -122,6 +122,7 @@
 #include "gtkmodulesprivate.h"
 #include "gtkprivate.h"
 #include "gtkrecentmanager.h"
+#include "gtkresources.h"
 #include "gtkselectionprivate.h"
 #include "gtksettingsprivate.h"
 #include "gtktooltip.h"
@@ -593,6 +594,7 @@ enum_locale_proc (LPTSTR locale)
   char iso3166[10];
   char *endptr;
 
+#include "a11y/gailutil.h"
 
   lcid = strtoul (locale, &endptr, 16);
   if (*endptr == '\0' &&
@@ -829,6 +831,8 @@ do_post_parse_initialization (int    *argc,
     else if (strcmp (e, "default:LTR"))
       g_warning ("Whoever translated default:LTR did so wrongly.\n");
   }
+
+  _gtk_register_resource ();
 
   /* do what the call to gtk_type_init() used to do */
   g_type_init ();
@@ -1757,11 +1761,8 @@ gtk_main_do_event (GdkEvent *event)
 
     case GDK_KEY_PRESS:
     case GDK_KEY_RELEASE:
-      if (key_snoopers)
-        {
-          if (gtk_invoke_key_snoopers (grab_widget, event))
-            break;
-        }
+      if (gtk_invoke_key_snoopers (grab_widget, event))
+        break;
 
       /* make focus visible in a window that receives a key event */
       {
@@ -2317,6 +2318,8 @@ gtk_invoke_key_snoopers (GtkWidget *grab_widget,
 {
   GSList *slist;
   gint return_val = FALSE;
+
+  return_val = _gail_util_key_snooper (grab_widget, (GdkEventKey *) event);
 
   slist = key_snoopers;
   while (slist && !return_val)

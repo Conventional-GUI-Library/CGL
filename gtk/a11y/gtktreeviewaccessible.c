@@ -45,13 +45,6 @@ struct _GtkTreeViewAccessibleCellInfo
   GtkTreeViewAccessible *view;
 };
 
-/* signal handling */
-
-static void     cursor_changed       (GtkTreeView      *tree_view,
-                                      GtkTreeViewAccessible *accessible);
-static gboolean focus_in             (GtkWidget        *widget);
-static gboolean focus_out            (GtkWidget        *widget);
-
 /* Misc */
 
 static int              cell_info_get_index             (GtkTreeView                     *tree_view,
@@ -59,25 +52,13 @@ static int              cell_info_get_index             (GtkTreeView            
 static gboolean         is_cell_showing                 (GtkTreeView            *tree_view,
                                                          GdkRectangle           *cell_rect);
 
-static void             cell_destroyed                  (gpointer               data);
-static void             cell_info_new                   (GtkTreeViewAccessible           *accessible,
-                                                         GtkTreeModel           *tree_model,
+static void             cell_info_new                   (GtkTreeViewAccessible  *accessible,
                                                          GtkRBTree              *tree,
                                                          GtkRBNode              *node,
                                                          GtkTreeViewColumn      *tv_col,
                                                          GtkCellAccessible      *cell);
 static gint             get_column_number               (GtkTreeView            *tree_view,
                                                          GtkTreeViewColumn      *column);
-static gint             get_focus_index                 (GtkTreeView            *tree_view);
-static gint             get_index                       (GtkTreeView            *tree_view,
-                                                         GtkTreePath            *path,
-                                                         gint                   actual_column);
-static void             count_rows                      (GtkTreeModel           *model,
-                                                         GtkTreeIter            *iter,
-                                                         GtkTreePath            *end_path,
-                                                         gint                   *count,
-                                                         gint                   level,
-                                                         gint                   depth);
 
 static gboolean         get_rbtree_column_from_index    (GtkTreeView            *tree_view,
                                                          gint                   index,
@@ -116,12 +97,8 @@ gtk_tree_view_accessible_get_data_quark (void)
 static void
 cell_info_free (GtkTreeViewAccessibleCellInfo *cell_info)
 {
-  if (cell_info->cell)
-    {
-      g_object_steal_qdata (G_OBJECT (cell_info->cell),
-                            gtk_tree_view_accessible_get_data_quark ());
-      gtk_accessible_set_widget (GTK_ACCESSIBLE (cell_info->cell), NULL);
-    }
+  gtk_accessible_set_widget (GTK_ACCESSIBLE (cell_info->cell), NULL);
+  g_object_unref (cell_info->cell);
 
   g_free (cell_info);
 }
@@ -166,7 +143,6 @@ gtk_tree_view_accessible_initialize (AtkObject *obj,
   ATK_OBJECT_CLASS (_gtk_tree_view_accessible_parent_class)->initialize (obj, data);
 
   accessible = GTK_TREE_VIEW_ACCESSIBLE (obj);
-  accessible->focus_cell = NULL;
 
   accessible->cell_infos = g_hash_table_new_full (cell_info_hash,
       cell_info_equal, NULL, (GDestroyNotify) cell_info_free);
@@ -174,13 +150,6 @@ gtk_tree_view_accessible_initialize (AtkObject *obj,
   widget = GTK_WIDGET (data);
   tree_view = GTK_TREE_VIEW (widget);
   tree_model = gtk_tree_view_get_model (tree_view);
-
-  g_signal_connect (tree_view, "cursor-changed",
-                    G_CALLBACK (cursor_changed), accessible);
-  g_signal_connect (tree_view, "focus-in-event",
-                    G_CALLBACK (focus_in), NULL);
-  g_signal_connect (tree_view, "focus-out-event",
-                    G_CALLBACK (focus_out), NULL);
 
   if (tree_model)
     {
@@ -248,11 +217,7 @@ gtk_tree_view_accessible_widget_unset (GtkAccessible *gtkaccessible)
 {
   GtkTreeViewAccessible *accessible = GTK_TREE_VIEW_ACCESSIBLE (gtkaccessible);
 
-  if (accessible->focus_cell)
-    {
-      g_object_unref (accessible->focus_cell);
-      accessible->focus_cell = NULL;
-    }
+  g_hash_table_remove_all (accessible->cell_infos);
 
   GTK_ACCESSIBLE_CLASS (_gtk_tree_view_accessible_parent_class)->widget_unset (gtkaccessible);
 }
@@ -387,6 +352,94 @@ peek_cell (GtkTreeViewAccessible *accessible,
   return cell_info->cell;
 }
 
+static GtkCellAccessible *
+create_cell (GtkTreeView           *treeview,
+             GtkTreeViewAccessible *accessible,
+             GtkRBTree             *tree,
+             GtkRBNode             *node,
+             GtkTreeViewColumn     *column)
+{
+  GtkCellRenderer *renderer;
+  AtkObject *parent;
+  GList *renderer_list;
+  GList *l;
+  GtkContainerCellAccessible *container = NULL;
+  GtkCellAccessible *cell;
+
+  renderer_list = gtk_cell_layout_get_cells (GTK_CELL_LAYOUT (column));
+
+  /* If there is not exactly one renderer in the list,
+   * make a container
+   */
+  if (renderer_list == NULL || renderer_list->next)
+    {
+      GtkCellAccessible *container_cell;
+
+      container = _gtk_container_cell_accessible_new ();
+
+      container_cell = GTK_CELL_ACCESSIBLE (container);
+      _gtk_cell_accessible_initialise (container_cell, GTK_WIDGET (treeview), ATK_OBJECT (accessible));
+
+      /* The GtkTreeViewAccessibleCellInfo structure for the container will
+       * be before the ones for the cells so that the first one we find for
+       * a position will be for the container
+       */
+      cell_info_new (accessible, tree, node, column, container_cell);
+      parent = ATK_OBJECT (container);
+    }
+  else
+    parent = ATK_OBJECT (accessible);
+
+  cell = NULL;
+
+  for (l = renderer_list; l; l = l->next)
+    {
+      renderer = GTK_CELL_RENDERER (l->data);
+
+      cell = GTK_CELL_ACCESSIBLE (_gtk_renderer_cell_accessible_new (renderer));
+
+      /* Create the GtkTreeViewAccessibleCellInfo for this cell */
+      if (parent == ATK_OBJECT (accessible))
+        cell_info_new (accessible, tree, node, column, cell);
+
+      _gtk_cell_accessible_initialise (cell, GTK_WIDGET (treeview), parent);
+
+      if (container)
+        _gtk_container_cell_accessible_add_child (container, cell);
+    }
+  g_list_free (renderer_list);
+  if (container)
+    cell = GTK_CELL_ACCESSIBLE (container);
+
+  set_cell_data (treeview, accessible, cell);
+  _gtk_cell_accessible_update_cache (cell);
+
+  if (gtk_tree_view_get_expander_column (treeview) == column)
+    {
+      AtkRelationSet *relation_set;
+      AtkRelation* relation;
+      AtkObject *parent_node;
+
+      relation_set = atk_object_ref_relation_set (ATK_OBJECT (cell));
+
+      if (tree->parent_tree)
+        {
+          parent_node = ATK_OBJECT (peek_cell (accessible, tree->parent_tree, tree->parent_node, column));
+          if (parent_node == NULL)
+            parent_node = ATK_OBJECT (create_cell (treeview, accessible, tree->parent_tree, tree->parent_node, column));
+        }
+      else
+        parent_node = ATK_OBJECT (accessible);
+      relation = atk_relation_new (&parent_node, 1, ATK_RELATION_NODE_CHILD_OF);
+      atk_relation_set_add (relation_set, relation);
+      atk_object_add_relationship (parent_node, ATK_RELATION_NODE_PARENT_OF, ATK_OBJECT (cell));
+      g_object_unref (relation);
+      g_object_unref (relation_set);
+    }
+
+  return cell;
+}
+
 static AtkObject *
 gtk_tree_view_accessible_ref_child (AtkObject *obj,
                                     gint       i)
@@ -395,18 +448,10 @@ gtk_tree_view_accessible_ref_child (AtkObject *obj,
   GtkTreeViewAccessible *accessible;
   GtkCellAccessible *cell;
   GtkTreeView *tree_view;
-  GtkTreeModel *tree_model;
-  GtkCellRenderer *renderer;
   GtkTreeViewColumn *tv_col;
-  GtkTreePath *path;
   GtkRBTree *tree;
   GtkRBNode *node;
   AtkObject *child;
-  AtkObject *parent;
-  GList *renderer_list;
-  GList *l;
-  GtkContainerCellAccessible *container = NULL;
-  gint focus_index;
 
   widget = gtk_accessible_get_widget (GTK_ACCESSIBLE (obj));
   if (widget == NULL)
@@ -431,109 +476,10 @@ gtk_tree_view_accessible_ref_child (AtkObject *obj,
     return NULL;
 
   cell = peek_cell (accessible, tree, node, tv_col);
-  if (cell)
-    return g_object_ref (cell);
+  if (cell == NULL)
+    cell = create_cell (tree_view, accessible, tree, node, tv_col);
 
-  if (accessible->focus_cell == NULL)
-      focus_index = get_focus_index (tree_view);
-  else
-      focus_index = -1;
-
-  path = _gtk_tree_path_new_from_rbtree (tree, node);
-  tree_model = gtk_tree_view_get_model (tree_view);
-
-  renderer_list = gtk_cell_layout_get_cells (GTK_CELL_LAYOUT (tv_col));
-
-  /* If there is not exactly one renderer in the list,
-   * make a container
-   */
-  if (renderer_list == NULL || renderer_list->next)
-    {
-      GtkCellAccessible *container_cell;
-
-      container = _gtk_container_cell_accessible_new ();
-
-      container_cell = GTK_CELL_ACCESSIBLE (container);
-      _gtk_cell_accessible_initialise (container_cell, widget, ATK_OBJECT (accessible));
-
-      /* The GtkTreeViewAccessibleCellInfo structure for the container will
-       * be before the ones for the cells so that the first one we find for
-       * a position will be for the container
-       */
-      cell_info_new (accessible, tree_model, tree, node, tv_col, container_cell);
-      parent = ATK_OBJECT (container);
-    }
-  else
-    parent = ATK_OBJECT (accessible);
-
-  child = NULL;
-
-  for (l = renderer_list; l; l = l->next)
-    {
-      renderer = GTK_CELL_RENDERER (l->data);
-
-      child = _gtk_renderer_cell_accessible_new (renderer);
-
-      cell = GTK_CELL_ACCESSIBLE (child);
-
-      /* Create the GtkTreeViewAccessibleCellInfo for this cell */
-      if (parent == ATK_OBJECT (accessible))
-        cell_info_new (accessible, tree_model, tree, node, tv_col, cell);
-
-      _gtk_cell_accessible_initialise (cell, widget, parent);
-
-      if (container)
-        _gtk_container_cell_accessible_add_child (container, cell);
-
-      _gtk_cell_accessible_add_state (cell, ATK_STATE_FOCUSABLE, FALSE);
-      if (focus_index == i)
-        {
-          accessible->focus_cell = g_object_ref (cell);
-          _gtk_cell_accessible_add_state (cell, ATK_STATE_FOCUSED, FALSE);
-          g_signal_emit_by_name (accessible, "active-descendant-changed", cell);
-        }
-    }
-  g_list_free (renderer_list);
-  if (container)
-    child = ATK_OBJECT (container);
-
-  set_cell_data (tree_view, accessible, GTK_CELL_ACCESSIBLE (child));
-  _gtk_cell_accessible_update_cache (GTK_CELL_ACCESSIBLE (child));
-
-  if (gtk_tree_view_get_expander_column (tree_view) == tv_col)
-    {
-      AtkRelationSet *relation_set;
-      AtkObject *accessible_array[1];
-      AtkRelation* relation;
-      AtkObject *parent_node;
-
-      relation_set = atk_object_ref_relation_set (ATK_OBJECT (child));
-
-      gtk_tree_path_up (path);
-      if (gtk_tree_path_get_depth (path) == 0)
-        parent_node = obj;
-      else
-        {
-          gint parent_index;
-
-          parent_index = get_index (tree_view, path, i % get_n_columns (tree_view));
-          parent_node = atk_object_ref_accessible_child (obj, parent_index);
-        }
-      accessible_array[0] = parent_node;
-      relation = atk_relation_new (accessible_array, 1,
-                                   ATK_RELATION_NODE_CHILD_OF);
-      atk_relation_set_add (relation_set, relation);
-      atk_object_add_relationship (parent_node, ATK_RELATION_NODE_PARENT_OF, child);
-      g_object_unref (relation);
-      g_object_unref (relation_set);
-    }
-  gtk_tree_path_free (path);
-
-  /* We do not increase the reference count here; when g_object_unref()
-   * is called for the cell then cell_destroyed() is called and this
-   * removes the cell from the cache.
-   */
-  return child;
+  return g_object_ref (cell);
 }
 
 static AtkStateSet*
@@ -584,46 +530,6 @@ _gtk_tree_view_accessible_init (GtkTreeViewAccessible *view)
 {
 }
 
-gint
-get_focus_index (GtkTreeView *tree_view)
-{
-  GtkTreePath *focus_path;
-  GtkTreeViewColumn *focus_column;
-  gint index;
-
-  gtk_tree_view_get_cursor (tree_view, &focus_path, &focus_column);
-  if (focus_path && focus_column)
-    index = get_index (tree_view, focus_path,
-                       get_column_number (tree_view, focus_column));
-  else
-    index = -1;
-
-  if (focus_path)
-    gtk_tree_path_free (focus_path);
-
-  return index;
-}
-
-/* This function returns a reference to the accessible object
- * for the cell in the treeview which has focus, if any
- */
-static AtkObject *
-gtk_tree_view_accessible_ref_focus_cell (GtkTreeView *tree_view)
-{
-  AtkObject *focus_cell = NULL;
-  AtkObject *atk_obj;
-  gint focus_index;
-
-  focus_index = get_focus_index (tree_view);
-  if (focus_index >= 0)
-    {
-      atk_obj = gtk_widget_get_accessible (GTK_WIDGET (tree_view));
-      focus_cell = atk_object_ref_accessible_child (atk_obj, focus_index);
-    }
-
-  return focus_cell;
-}
-
 /* atkcomponent.h */
 
 static AtkObject *
@@ -635,10 +541,12 @@ gtk_tree_view_accessible_ref_accessible_at_point (AtkComponent *component,
   GtkWidget *widget;
   GtkTreeView *tree_view;
   GtkTreePath *path;
-  GtkTreeViewColumn *tv_column;
+  GtkTreeViewColumn *column;
   gint x_pos, y_pos;
   gint bx, by;
-  gboolean ret_val;
+  GtkCellAccessible *cell;
+  GtkRBTree *tree;
+  GtkRBNode *node;
 
   widget = gtk_accessible_get_widget (GTK_ACCESSIBLE (component));
   if (widget == NULL)
@@ -648,21 +556,22 @@ gtk_tree_view_accessible_ref_accessible_at_point (AtkComponent *component,
 
   atk_component_get_extents (component, &x_pos, &y_pos, NULL, NULL, coord_type);
   gtk_tree_view_convert_widget_to_bin_window_coords (tree_view, x, y, &bx, &by);
-  ret_val = gtk_tree_view_get_path_at_pos (tree_view,
-                                           bx - x_pos, by - y_pos,
-                                           &path, &tv_column, NULL, NULL);
-  if (ret_val)
+  if (!gtk_tree_view_get_path_at_pos (tree_view,
+                                      bx - x_pos, by - y_pos,
+                                      &path, &column, NULL, NULL))
+    return NULL;
+
+  if (_gtk_tree_view_find_node (tree_view, path, &tree, &node))
     {
-      gint index, column;
-
-      column = get_column_number (tree_view, tv_column);
-      index = get_index (tree_view, path, column);
       gtk_tree_path_free (path);
-
-      return gtk_tree_view_accessible_ref_child (ATK_OBJECT (component), index);
+      return NULL;
     }
 
-  return NULL;
+  cell = peek_cell (GTK_TREE_VIEW_ACCESSIBLE (component), tree, node, column);
+  if (cell == NULL)
+    cell = create_cell (tree_view, GTK_TREE_VIEW_ACCESSIBLE (component), tree, node, column);
+
+  return g_object_ref (cell);
 }
 
 static void
@@ -1434,89 +1343,6 @@ gtk_cell_accessible_parent_interface_init (GtkCellAccessibleParentIface *iface)
   iface->edit = gtk_tree_view_accessible_edit;
 }
 
-/* signal handling */
-
-static void
-cursor_changed (GtkTreeView           *tree_view,
-                GtkTreeViewAccessible *accessible)
-{
-  AtkObject *cell;
-
-  cell = gtk_tree_view_accessible_ref_focus_cell (tree_view);
-  if (cell)
-    {
-      if (cell != accessible->focus_cell)
-        {
-          if (accessible->focus_cell)
-            {
-              _gtk_cell_accessible_remove_state (GTK_CELL_ACCESSIBLE (accessible->focus_cell), ATK_STATE_ACTIVE, FALSE);
-              _gtk_cell_accessible_remove_state (GTK_CELL_ACCESSIBLE (accessible->focus_cell), ATK_STATE_FOCUSED, FALSE);
-              g_object_unref (accessible->focus_cell);
-              accessible->focus_cell = cell;
-            }
-
-          if (gtk_widget_has_focus (GTK_WIDGET (tree_view)))
-            {
-              _gtk_cell_accessible_add_state (GTK_CELL_ACCESSIBLE (cell), ATK_STATE_ACTIVE, FALSE);
-              _gtk_cell_accessible_add_state (GTK_CELL_ACCESSIBLE (cell), ATK_STATE_FOCUSED, FALSE);
-            }
-
-          g_signal_emit_by_name (accessible, "active-descendant-changed", cell);
-        }
-      else
-        g_object_unref (cell);
-    }
-}
-
-static gboolean
-focus_in (GtkWidget *widget)
-{
-  GtkTreeView *tree_view;
-  GtkTreeViewAccessible *accessible;
-  AtkStateSet *state_set;
-  AtkObject *cell;
-
-  tree_view = GTK_TREE_VIEW (widget);
-  accessible = GTK_TREE_VIEW_ACCESSIBLE (gtk_widget_get_accessible (widget));
-
-  if (accessible->focus_cell == NULL)
-    {
-      cell = gtk_tree_view_accessible_ref_focus_cell (tree_view);
-      if (cell)
-        {
-          state_set = atk_object_ref_state_set (cell);
-          if (state_set)
-            {
-              if (!atk_state_set_contains_state (state_set, ATK_STATE_FOCUSED))
-                {
-                  _gtk_cell_accessible_add_state (GTK_CELL_ACCESSIBLE (cell), ATK_STATE_ACTIVE, FALSE);
-                  accessible->focus_cell = cell;
-                  _gtk_cell_accessible_add_state (GTK_CELL_ACCESSIBLE (cell), ATK_STATE_FOCUSED, FALSE);
-                  g_signal_emit_by_name (accessible, "active-descendant-changed", cell);
-                }
-              g_object_unref (state_set);
-            }
-        }
-    }
-  return FALSE;
-}
-
-static gboolean
-focus_out (GtkWidget *widget)
-{
-  GtkTreeViewAccessible *accessible;
-
-  accessible = GTK_TREE_VIEW_ACCESSIBLE (gtk_widget_get_accessible (widget));
-  if (accessible->focus_cell)
-    {
-      _gtk_cell_accessible_remove_state (GTK_CELL_ACCESSIBLE (accessible->focus_cell), ATK_STATE_ACTIVE, FALSE);
-      _gtk_cell_accessible_remove_state (GTK_CELL_ACCESSIBLE (accessible->focus_cell), ATK_STATE_FOCUSED, FALSE);
-      g_object_unref (accessible->focus_cell);
-      accessible->focus_cell = NULL;
-    }
-  return FALSE;
-}
-
 void
 _gtk_tree_view_accessible_reorder (GtkTreeView *treeview)
 {
@@ -1571,16 +1397,6 @@ is_cell_showing (GtkTreeView  *tree_view,
 
 /* Misc Private */
 
-static void
-cell_destroyed (gpointer data)
-{
-  GtkTreeViewAccessibleCellInfo *cell_info = data;
-
-  cell_info->cell = NULL;
-
-  g_hash_table_remove (cell_info->view->cell_infos, cell_info);
-}
-
 static int
 cell_info_get_index (GtkTreeView                     *tree_view,
                      GtkTreeViewAccessibleCellInfo   *info)
@@ -1596,7 +1412,6 @@ cell_info_get_index (GtkTreeView                     *tree_view,
 
 static void
 cell_info_new (GtkTreeViewAccessible *accessible,
-               GtkTreeModel          *tree_model,
                GtkRBTree             *tree,
                GtkRBNode             *node,
                GtkTreeViewColumn     *tv_col,
@@ -1609,13 +1424,12 @@ cell_info_new (GtkTreeViewAccessible *accessible,
   cell_info->tree = tree;
   cell_info->node = node;
   cell_info->cell_col_ref = tv_col;
-  cell_info->cell = cell;
+  cell_info->cell = g_object_ref (cell);
   cell_info->view = accessible;
 
-  g_object_set_qdata_full (G_OBJECT (cell), 
-                           gtk_tree_view_accessible_get_data_quark (),
-                           cell_info,
-                           cell_destroyed);
+  g_object_set_qdata (G_OBJECT (cell), 
+                      gtk_tree_view_accessible_get_data_quark (),
+                      cell_info);
 
   g_hash_table_replace (accessible->cell_infos, cell_info, cell_info);
 }
@@ -1648,93 +1462,6 @@ get_column_number (GtkTreeView       *treeview,
   g_return_val_if_fail (i < gtk_tree_view_get_n_columns (treeview), 0);
 
   return number;
-}
-
-static gint
-get_index (GtkTreeView *tree_view,
-           GtkTreePath *path,
-           gint         actual_column)
-{
-  gint depth = 0;
-  gint index = 1;
-  gint *indices = NULL;
-
-  if (path)
-    {
-      depth = gtk_tree_path_get_depth (path);
-      indices = gtk_tree_path_get_indices (path);
-    }
-
-  if (depth > 1)
-    {
-      GtkTreePath *copy_path;
-      GtkTreeModel *model;
-
-      model = gtk_tree_view_get_model (tree_view);
-      copy_path = gtk_tree_path_copy (path);
-      gtk_tree_path_up (copy_path);
-      count_rows (model, NULL, copy_path, &index, 0, depth);
-      gtk_tree_path_free (copy_path);
-    }
-
-  if (path)
-    index += indices[depth - 1];
-  index *= get_n_columns (tree_view);
-  index +=  actual_column;
-  return index;
-}
-
-/* The function count_rows counts the number of rows starting at iter
- * and ending at end_path. The value of level is the depth of iter and
- * the value of depth is the depth of end_path. Rows at depth before
- * end_path are counted. This functions counts rows which are not visible
- * because an ancestor is collapsed.
- */
-static void
-count_rows (GtkTreeModel *model,
-            GtkTreeIter  *iter,
-            GtkTreePath  *end_path,
-            gint         *count,
-            gint          level,
-            gint          depth)
-{
-  GtkTreeIter child_iter;
-
-  if (!model)
-    return;
-
-  level++;
-  *count += gtk_tree_model_iter_n_children (model, iter);
-
-  if (gtk_tree_model_get_flags (model) & GTK_TREE_MODEL_LIST_ONLY)
-    return;
-
-  if (level >= depth)
-    return;
-
-  if (gtk_tree_model_iter_children (model, &child_iter, iter))
-    {
-      gboolean ret_val = TRUE;
-
-      while (ret_val)
-        {
-          if (level == depth - 1)
-            {
-              GtkTreePath *iter_path;
-              gboolean finished = FALSE;
-
-              iter_path = gtk_tree_model_get_path (model, &child_iter);
-              if (end_path && gtk_tree_path_compare (iter_path, end_path) >= 0)
-                finished = TRUE;
-              gtk_tree_path_free (iter_path);
-              if (finished)
-                break;
-            }
-          if (gtk_tree_model_iter_has_child (model, &child_iter))
-            count_rows (model, &child_iter, end_path, count, level, depth);
-          ret_val = gtk_tree_model_iter_next (model, &child_iter);
-        }
-    }
 }
 
 static gboolean
@@ -2080,6 +1807,60 @@ _gtk_tree_view_accessible_toggle_visibility (GtkTreeView       *treeview,
                                                 id);
 }
 
+GtkTreeViewColumn *
+get_effective_focus_column (GtkTreeView       *treeview,
+                            GtkTreeViewColumn *column)
+{
+  if (column == NULL)
+    column = get_visible_column (treeview, 0);
+
+  return column;
+}
+
+void
+_gtk_tree_view_accessible_update_focus_column (GtkTreeView       *treeview,
+                                               GtkTreeViewColumn *old_focus,
+                                               GtkTreeViewColumn *new_focus)
+{
+  GtkTreeViewAccessible *accessible;
+  AtkObject *obj;
+  GtkRBTree *cursor_tree;
+  GtkRBNode *cursor_node;
+  GtkCellAccessible *cell;
+
+  old_focus = get_effective_focus_column (treeview, old_focus);
+  new_focus = get_effective_focus_column (treeview, new_focus);
+  if (old_focus == new_focus)
+    return;
+
+  obj = _gtk_widget_peek_accessible (GTK_WIDGET (treeview));
+  if (obj == NULL)
+    return;
+
+  accessible = GTK_TREE_VIEW_ACCESSIBLE (obj);
+
+  if (!_gtk_tree_view_get_cursor_node (treeview, &cursor_tree, &cursor_node))
+    return;
+
+  if (old_focus)
+    {
+      cell = peek_cell (accessible, cursor_tree, cursor_node, old_focus);
+      if (cell != NULL)
+        _gtk_cell_accessible_state_changed (cell, GTK_CELL_RENDERER_FOCUSED, 0);
+    }
+
+  if (new_focus)
+    {
+      cell = peek_cell (accessible, cursor_tree, cursor_node, new_focus);
+      if (cell != NULL)
+        _gtk_cell_accessible_state_changed (cell, 0, GTK_CELL_RENDERER_FOCUSED);
+      else
+        cell = create_cell (treeview, accessible, cursor_tree, cursor_node, new_focus);
+      
+      g_signal_emit_by_name (accessible, "active-descendant-changed", cell);
+    }
+}
+
 void
 _gtk_tree_view_accessible_add_state (GtkTreeView          *treeview,
                                      GtkRBTree            *tree,
@@ -2095,6 +1876,28 @@ _gtk_tree_view_accessible_add_state (GtkTreeView          *treeview,
     return;
 
   accessible = GTK_TREE_VIEW_ACCESSIBLE (obj);
+
+  if (state == GTK_CELL_RENDERER_FOCUSED)
+    {
+      GtkTreeViewColumn *focus_column;
+      
+      focus_column = get_effective_focus_column (treeview, _gtk_tree_view_get_focus_column (treeview));
+
+      if (focus_column)
+        {
+          GtkCellAccessible *cell;
+          
+          cell = peek_cell (accessible, tree, node, focus_column);
+          if (cell != NULL)
+            _gtk_cell_accessible_state_changed (cell, 0, state);
+          else
+            cell = create_cell (treeview, accessible, tree, node, focus_column);
+          
+          g_signal_emit_by_name (accessible, "active-descendant-changed", cell);
+        }
+
+      return;
+    }
 
   for (i = 0; i < gtk_tree_view_get_n_columns (treeview); i++)
     {
@@ -2127,6 +1930,25 @@ _gtk_tree_view_accessible_remove_state (GtkTreeView          *treeview,
     return;
 
   accessible = GTK_TREE_VIEW_ACCESSIBLE (obj);
+
+  if (state == GTK_CELL_RENDERER_FOCUSED)
+    {
+      GtkTreeViewColumn *focus_column;
+      
+      focus_column = get_effective_focus_column (treeview, _gtk_tree_view_get_focus_column (treeview));
+
+      if (focus_column)
+        {
+          GtkCellAccessible *cell = peek_cell (accessible,
+                                               tree, node,
+                                               focus_column);
+
+          if (cell != NULL)
+            _gtk_cell_accessible_state_changed (cell, 0, state);
+        }
+
+      return;
+    }
 
   for (i = 0; i < gtk_tree_view_get_n_columns (treeview); i++)
     {
