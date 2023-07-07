@@ -6376,63 +6376,63 @@ msgstr "Paragraph background set"
 msgid "Whether this tag affects the paragraph background color"
 msgstr "Whether this tag affects the paragraph background color"
 
-#: ../gtk/gtktextview.c:656
+#: ../gtk/gtktextview.c:654
 msgid "Pixels Above Lines"
 msgstr "Pixels Above Lines"
 
-#: ../gtk/gtktextview.c:666
+#: ../gtk/gtktextview.c:664
 msgid "Pixels Below Lines"
 msgstr "Pixels Below Lines"
 
-#: ../gtk/gtktextview.c:676
+#: ../gtk/gtktextview.c:674
 msgid "Pixels Inside Wrap"
 msgstr "Pixels Inside Wrap"
 
-#: ../gtk/gtktextview.c:694
+#: ../gtk/gtktextview.c:692
 msgid "Wrap Mode"
 msgstr "Wrap Mode"
 
-#: ../gtk/gtktextview.c:712
+#: ../gtk/gtktextview.c:710
 msgid "Left Margin"
 msgstr "Left Margin"
 
-#: ../gtk/gtktextview.c:722
+#: ../gtk/gtktextview.c:720
 msgid "Right Margin"
 msgstr "Right Margin"
 
-#: ../gtk/gtktextview.c:750
+#: ../gtk/gtktextview.c:748
 msgid "Cursor Visible"
 msgstr "Cursor Visible"
 
-#: ../gtk/gtktextview.c:751
+#: ../gtk/gtktextview.c:749
 msgid "If the insertion cursor is shown"
 msgstr "If the insertion cursor is shown"
 
-#: ../gtk/gtktextview.c:758
+#: ../gtk/gtktextview.c:756
 msgid "Buffer"
 msgstr "Buffer"
 
-#: ../gtk/gtktextview.c:759
+#: ../gtk/gtktextview.c:757
 msgid "The buffer which is displayed"
 msgstr "The buffer which is displayed"
 
-#: ../gtk/gtktextview.c:767
+#: ../gtk/gtktextview.c:765
 msgid "Whether entered text overwrites existing contents"
 msgstr "Whether entered text overwrites existing contents"
 
-#: ../gtk/gtktextview.c:774
+#: ../gtk/gtktextview.c:772
 msgid "Accepts tab"
 msgstr "Accepts tab"
 
-#: ../gtk/gtktextview.c:775
+#: ../gtk/gtktextview.c:773
 msgid "Whether Tab will result in a tab character being entered"
 msgstr "Whether Tab will result in a tab character being entered"
 
-#: ../gtk/gtktextview.c:810
+#: ../gtk/gtktextview.c:808
 msgid "Error underline color"
 msgstr "Error underline color"
 
-#: ../gtk/gtktextview.c:811
+#: ../gtk/gtktextview.c:809
 msgid "Color with which to draw error-indication underlines"
 msgstr "Color with which to draw error-indication underlines"
 

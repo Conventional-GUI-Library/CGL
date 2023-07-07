@@ -1180,8 +1180,8 @@ msgid ""
 "The folder could not be created, as a file with the same name already "
 "exists.  Try using a different name for the folder, or rename the file first."
 msgstr ""
-"تعذّر إنشاء المجلد بسبب وجود ملف يحمل نفس الاسم. حاول استخدام اسم آخر للمجلد، "
-"أو غيّر اسم الملف أولا."
+"تعذّر إنشاء المجلد بسبب وجود ملف يحمل نفس الاسم. حاول استخدام اسم آخر "
+"للمجلد، أو غيّر اسم الملف أولا."
 
 #: gtk/gtkfilechooserdefault.c:1027
 msgid "You need to choose a valid filename."
