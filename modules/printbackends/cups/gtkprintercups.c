@@ -278,6 +278,8 @@ colord_client_profile_connect_cb (GObject *source_object,
 
   /* update the UI */
   colord_update_ui_from_settings (printer);
+
+  g_object_unref (printer);
 }
 
 static void
@@ -305,10 +307,12 @@ colord_client_device_get_profile_for_qualifiers_cb (GObject *source_object,
   cd_profile_connect (printer->colord_profile,
                       printer->colord_cancellable,
                       colord_client_profile_connect_cb,
-                      printer);
+                      g_object_ref (printer));
 out:
   /* update the UI */
   colord_update_ui_from_settings (printer);
+
+  g_object_unref (printer);
 }
 
 void
@@ -366,7 +370,7 @@ gtk_printer_cups_update_settings (GtkPrinterCups *printer,
                                         (const gchar **) qualifiers,
                                         printer->colord_cancellable,
                                         colord_client_device_get_profile_for_qualifiers_cb,
-                                        printer);
+                                        g_object_ref (printer));
 
   /* save for the future */
   g_free (printer->colord_qualifier);
@@ -400,6 +404,8 @@ colord_client_device_connect_cb (GObject *source_object,
 out:
   /* update the UI */
   colord_update_ui_from_settings (printer);
+
+  g_object_unref (printer);
 }
 
 static void
@@ -427,10 +433,12 @@ colord_client_find_device_cb (GObject *source_object,
   cd_device_connect (printer->colord_device,
                      printer->colord_cancellable,
                      colord_client_device_connect_cb,
-                     printer);
+                     g_object_ref (printer));
 out:
   /* update the UI */
   colord_update_ui_from_settings (printer);
+
+  g_object_unref (printer);
 }
 
 static void
@@ -468,7 +476,7 @@ colord_update_device (GtkPrinterCups *printer)
                          colord_device_id,
                          printer->colord_cancellable,
                          colord_client_find_device_cb,
-                         printer);
+                         g_object_ref (printer));
 out:
   g_free (colord_device_id);
 
@@ -495,6 +503,8 @@ colord_client_connect_cb (GObject *source_object,
 
   /* refresh the device */
   colord_update_device (printer);
+
+  g_object_unref (printer);
 }
 #endif
 
@@ -539,7 +549,7 @@ gtk_printer_cups_new (const char      *name,
       cd_client_connect (printer->colord_client,
                          printer->colord_cancellable,
                          colord_client_connect_cb,
-                         printer);
+                         g_object_ref (printer));
     }
 #endif
   return printer;

@@ -164,10 +164,12 @@ _gtk_theming_background_paint (GtkThemingBackground *bg,
     {
       GtkCssBackgroundRepeat hrepeat, vrepeat;
       GtkCssBackgroundSize *size;
+      GtkCssBackgroundPosition *pos;
       double image_width, image_height;
       double width, height;
 
-      size = g_value_get_boxed (_gtk_style_context_peek_property (bg->context, "background-size"));
+      size = _gtk_css_value_get_background_size (_gtk_style_context_peek_property (bg->context, "background-size"));
+      pos = _gtk_css_value_get_background_position (_gtk_style_context_peek_property (bg->context, "background-position"));
       gtk_style_context_get (bg->context, bg->flags,
                              "background-repeat", &hrepeat,
                              NULL);
@@ -201,6 +203,9 @@ _gtk_theming_background_paint (GtkThemingBackground *bg,
 
       if (hrepeat == GTK_CSS_BACKGROUND_NO_REPEAT && vrepeat == GTK_CSS_BACKGROUND_NO_REPEAT)
         {
+	  cairo_translate (cr,
+			   _gtk_css_number_get (&pos->x, bg->image_rect.width - image_width),
+			   _gtk_css_number_get (&pos->y, bg->image_rect.height - image_height));
           /* shortcut for normal case */
           _gtk_css_image_draw (bg->image, cr, image_width, image_height);
         }
@@ -278,8 +283,8 @@ _gtk_theming_background_paint (GtkThemingBackground *bg,
           cairo_destroy (cr2);
 
           cairo_set_source_surface (cr, surface,
-                                    /* background-position goes here */
-                                    0, 0);
+				    _gtk_css_number_get (&pos->x, bg->image_rect.width - image_width),
+				    _gtk_css_number_get (&pos->y, bg->image_rect.height - image_height));
           cairo_pattern_set_extend (cairo_get_source (cr), CAIRO_EXTEND_REPEAT);
           cairo_surface_destroy (surface);
 
@@ -340,7 +345,7 @@ _gtk_theming_background_init_context (GtkThemingBackground *bg)
   _gtk_theming_background_apply_clip (bg);
   _gtk_theming_background_apply_origin (bg);
 
-  bg->image = g_value_get_object (_gtk_style_context_peek_property (bg->context, "background-image"));
+  bg->image = _gtk_css_value_get_image (_gtk_style_context_peek_property (bg->context, "background-image"));
 }
 
 void

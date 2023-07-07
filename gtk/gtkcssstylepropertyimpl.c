@@ -64,27 +64,30 @@ gtk_css_style_property_register (const char *                   name,
                                  ...)
 {
   GtkCssStyleProperty *node;
-  GValue initial_value = G_VALUE_INIT;
+  GValue initial_gvalue = G_VALUE_INIT;
+  GtkCssValue *initial_value;
   char *error = NULL;
   va_list args;
 
   va_start (args, compute_value);
-  G_VALUE_COLLECT_INIT (&initial_value, specified_type,
+  G_VALUE_COLLECT_INIT (&initial_gvalue, specified_type,
                         args, 0, &error);
   if (error)
     {
       g_error ("property `%s' initial value is broken: %s", name, error);
-      g_value_unset (&initial_value);
+      g_value_unset (&initial_gvalue);
       return;
     }
 
   va_end (args);
 
+  initial_value = _gtk_css_value_new_take_gvalue (&initial_gvalue);
+
   node = g_object_new (GTK_TYPE_CSS_STYLE_PROPERTY,
                        "value-type", value_type,
                        "computed-type", computed_type,
                        "inherit", (flags & GTK_STYLE_PROPERTY_INHERIT) ? TRUE : FALSE,
-                       "initial-value", &initial_value,
+                       "initial-value", initial_value,
                        "name", name,
                        NULL);
   
@@ -95,7 +98,7 @@ gtk_css_style_property_register (const char *                   name,
   if (compute_value)
     node->compute_value = compute_value;
 
-  g_value_unset (&initial_value);
+  _gtk_css_value_unref (initial_value);
 }
 
 /*** HELPERS ***/
@@ -139,14 +142,13 @@ string_append_string (GString    *str,
 
 /*** IMPLEMENTATIONS ***/
 
-static void
+static GtkCssValue *
 color_compute (GtkCssStyleProperty    *property,
-               GValue                 *computed,
                GtkStyleContext        *context,
-               const GValue           *specified)
+               GtkCssValue            *specified)
 {
-  GtkSymbolicColor *symbolic = g_value_get_boxed (specified);
-  GdkRGBA rgba;
+  GtkSymbolicColor *symbolic = _gtk_css_value_get_symbolic_color (specified);
+  GtkCssValue *resolved;
 
   if (symbolic == _gtk_symbolic_color_get_current_color ())
     {
@@ -159,29 +161,27 @@ color_compute (GtkCssStyleProperty    *property,
           GtkStyleContext *parent = gtk_style_context_get_parent (context);
 
           if (parent)
-            g_value_copy (_gtk_style_context_peek_property (parent, "color"), computed);
+            return _gtk_css_value_ref (_gtk_style_context_peek_property (parent, "color"));
           else
-            _gtk_css_style_compute_value (computed,
-                                          context,
-                                          _gtk_css_style_property_get_initial_value (property));
+            return _gtk_css_style_compute_value (context,
+						 GDK_TYPE_RGBA,
+						 _gtk_css_style_property_get_initial_value (property));
         }
       else
         {
-          g_value_copy (_gtk_style_context_peek_property (context, "color"), computed);
+          return _gtk_css_value_ref (_gtk_style_context_peek_property (context, "color"));
         }
     }
-  else if (_gtk_style_context_resolve_color (context,
-                                             symbolic,
-                                             &rgba))
+  else if ((resolved = _gtk_style_context_resolve_color_value (context,
+							       symbolic)) != NULL)
     {
-      g_value_set_boxed (computed, &rgba);
+      return resolved;
     }
   else
     {
-      color_compute (property,
-                     computed,
-                     context,
-                     _gtk_css_style_property_get_initial_value (property));
+      return color_compute (property,
+			    context,
+			    _gtk_css_style_property_get_initial_value (property));
     }
 }
 
@@ -397,18 +397,17 @@ css_image_value_print (GtkCssStyleProperty *property,
     g_string_append (string, "none");
 }
 
-static void
+static GtkCssValue *
 css_image_value_compute (GtkCssStyleProperty    *property,
-                         GValue                 *computed,
                          GtkStyleContext        *context,
-                         const GValue           *specified)
+                         GtkCssValue            *specified)
 {
-  GtkCssImage *image = g_value_get_object (specified);
+  GtkCssImage *image = _gtk_css_value_get_image (specified);
 
   if (image)
     image = _gtk_css_image_compute (image, context);
 
-  g_value_take_object (computed, image);
+  return _gtk_css_value_new_take_image (image);
 }
 
 static gboolean 
@@ -429,18 +428,20 @@ parse_margin (GtkCssStyleProperty *property,
   return TRUE;
 }
 
-static void
+static GtkCssValue *
 compute_margin (GtkCssStyleProperty *property,
-                GValue              *computed,
                 GtkStyleContext     *context,
-                const GValue        *specified)
+                GtkCssValue         *specified)
 {
   GtkCssNumber number;
   
-  _gtk_css_number_compute (&number,
-                           g_value_get_boxed (specified),
-                           context);
-  g_value_set_boxed (computed, &number);
+  if (_gtk_css_number_compute (&number,
+			       _gtk_css_value_get_number (specified),
+			       context))
+    {
+      return _gtk_css_value_new_from_number (&number);
+    }
+  return  _gtk_css_value_ref (specified);
 }
 
 static gboolean 
@@ -462,18 +463,18 @@ parse_padding (GtkCssStyleProperty *property,
   return TRUE;
 }
 
-static void
+static GtkCssValue *
 compute_padding (GtkCssStyleProperty *property,
-                 GValue              *computed,
                  GtkStyleContext     *context,
-                 const GValue        *specified)
+                 GtkCssValue         *specified)
 {
   GtkCssNumber number;
-  
-  _gtk_css_number_compute (&number,
-                           g_value_get_boxed (specified),
-                           context);
-  g_value_set_boxed (computed, &number);
+
+  if (_gtk_css_number_compute (&number,
+			       _gtk_css_value_get_number (specified),
+			       context))
+    return _gtk_css_value_new_from_number (&number);
+  return _gtk_css_value_ref (specified);
 }
 
 static gboolean 
@@ -495,33 +496,36 @@ parse_border_width (GtkCssStyleProperty *property,
   return TRUE;
 }
 
-static void
+static GtkCssValue *
 compute_border_width (GtkCssStyleProperty    *property,
-                      GValue                 *computed,
                       GtkStyleContext        *context,
-                      const GValue           *specified)
+                      GtkCssValue            *specified)
 {
   GtkCssStyleProperty *style;
   GtkBorderStyle border_style;
   GtkCssNumber number;
+  int value = 0;
   
   /* The -1 is magic that is only true because we register the style
    * properties directly after the width properties.
    */
   style = _gtk_css_style_property_lookup_by_id (_gtk_css_style_property_get_id (property) - 1);
-  border_style = g_value_get_enum (_gtk_style_context_peek_property (context, _gtk_style_property_get_name (GTK_STYLE_PROPERTY (style))));
+  
+  border_style = _gtk_css_value_get_border_style (_gtk_style_context_peek_property (context, _gtk_style_property_get_name (GTK_STYLE_PROPERTY (style))));
 
   if (border_style == GTK_BORDER_STYLE_NONE ||
       border_style == GTK_BORDER_STYLE_HIDDEN)
     {
-      g_value_set_int (computed, 0);
-      return;
+      value = 0;
     }
-
-  _gtk_css_number_compute (&number,
-                           g_value_get_boxed (specified),
-                           context);
-  g_value_set_int (computed, round (number.value));
+  else
+    {
+      _gtk_css_number_compute (&number,
+			       _gtk_css_value_get_number (specified),
+			       context);
+      value = round (number.value);
+    }
+  return _gtk_css_value_new_from_int (value);
 }
 
 static gboolean
@@ -658,25 +662,201 @@ background_size_print (GtkCssStyleProperty *property,
     }
 }
 
-static void
+static GtkCssValue *
 background_size_compute (GtkCssStyleProperty    *property,
-                         GValue                 *computed,
                          GtkStyleContext        *context,
-                         const GValue           *specified)
+                         GtkCssValue            *specified)
 {
-  GtkCssBackgroundSize *ssize = g_value_get_boxed (specified);
+  GtkCssBackgroundSize *ssize = _gtk_css_value_get_background_size (specified);
   GtkCssBackgroundSize csize;
+  gboolean changed;
 
   csize.cover = ssize->cover;
   csize.contain = ssize->contain;
-  _gtk_css_number_compute (&csize.width,
-                           &ssize->width,
-                           context);
-  _gtk_css_number_compute (&csize.height,
-                           &ssize->height,
-                           context);
+  changed = _gtk_css_number_compute (&csize.width,
+				     &ssize->width,
+				     context);
+  changed |= _gtk_css_number_compute (&csize.height,
+				      &ssize->height,
+				      context);
+  if (changed)
+    return _gtk_css_value_new_from_background_size (&csize);
+  return _gtk_css_value_ref (specified);
+}
 
-  g_value_set_boxed (computed, &csize);
+static gboolean
+background_position_parse (GtkCssStyleProperty *property,
+			   GValue              *value,
+			   GtkCssParser        *parser,
+			   GFile               *base)
+{
+  static const struct {
+    const char *name;
+    guint       percentage;
+    gboolean    horizontal;
+    gboolean    vertical;
+  } names[] = {
+    { "left",     0, TRUE,  FALSE },
+    { "right",  100, TRUE,  FALSE },
+    { "center",  50, TRUE,  TRUE  },
+    { "top",      0, FALSE, TRUE  },
+    { "bottom", 100, FALSE, TRUE  },
+    { NULL    ,   0, TRUE,  FALSE }, /* used for numbers */
+    { NULL    ,  50, TRUE,  TRUE  }  /* used for no value */
+  };
+  GtkCssBackgroundPosition pos;
+  GtkCssNumber *missing;
+  guint first, second;
+
+  for (first = 0; names[first].name != NULL; first++)
+    {
+      if (_gtk_css_parser_try (parser, names[first].name, TRUE))
+        {
+          if (names[first].horizontal)
+            {
+	      _gtk_css_number_init (&pos.x, names[first].percentage, GTK_CSS_PERCENT);
+              missing = &pos.y;
+            }
+          else
+            {
+	      _gtk_css_number_init (&pos.y, names[first].percentage, GTK_CSS_PERCENT);
+              missing = &pos.x;
+            }
+          break;
+        }
+    }
+  if (names[first].name == NULL)
+    {
+      missing = &pos.y;
+      if (!_gtk_css_parser_read_number (parser,
+					&pos.x,
+					GTK_CSS_PARSE_PERCENT
+					| GTK_CSS_PARSE_LENGTH))
+	return FALSE;
+    }
+
+  for (second = 0; names[second].name != NULL; second++)
+    {
+      if (_gtk_css_parser_try (parser, names[second].name, TRUE))
+        {
+	  _gtk_css_number_init (missing, names[second].percentage, GTK_CSS_PERCENT);
+          break;
+        }
+    }
+
+  if (names[second].name == NULL)
+    {
+      if (_gtk_css_parser_has_number (parser))
+        {
+          if (missing != &pos.y)
+            {
+              _gtk_css_parser_error (parser, "Invalid combination of values");
+              return FALSE;
+            }
+          if (!_gtk_css_parser_read_number (parser,
+                                            missing,
+                                            GTK_CSS_PARSE_PERCENT
+                                            | GTK_CSS_PARSE_LENGTH))
+	    return FALSE;
+        }
+      else
+        {
+          second++;
+          _gtk_css_number_init (missing, 50, GTK_CSS_PERCENT);
+        }
+    }
+  else
+    {
+      if ((names[first].horizontal && !names[second].vertical) ||
+          (!names[first].horizontal && !names[second].horizontal))
+        {
+          _gtk_css_parser_error (parser, "Invalid combination of values");
+          return FALSE;
+        }
+    }
+
+  g_value_set_boxed (value, &pos);
+  return TRUE;
+}
+
+static void
+background_position_print (GtkCssStyleProperty *property,
+			   const GValue        *value,
+			   GString             *string)
+{
+  GtkCssBackgroundPosition *pos = g_value_get_boxed (value);
+  static const GtkCssNumber center = GTK_CSS_NUMBER_INIT (50, GTK_CSS_PERCENT);
+  static const struct {
+    const char *x_name;
+    const char *y_name;
+    GtkCssNumber number;
+  } values[] = { 
+    { "left",   "top",    GTK_CSS_NUMBER_INIT (0,   GTK_CSS_PERCENT) },
+    { "right",  "bottom", GTK_CSS_NUMBER_INIT (100, GTK_CSS_PERCENT) }
+  };
+  guint i;
+
+  if (_gtk_css_number_equal (&pos->x, &center))
+    {
+      if (_gtk_css_number_equal (&pos->y, &center))
+        {
+          g_string_append (string, "center");
+          return;
+        }
+    }
+  else
+    {
+      for (i = 0; i < G_N_ELEMENTS (values); i++)
+        {
+          if (_gtk_css_number_equal (&pos->x, &values[i].number))
+            {
+              g_string_append (string, values[i].x_name);
+              break;
+            }
+        }
+      if (i == G_N_ELEMENTS (values))
+        _gtk_css_number_print (&pos->x, string);
+
+      if (_gtk_css_number_equal (&pos->y, &center))
+        return;
+
+      g_string_append_c (string, ' ');
+    }
+
+  for (i = 0; i < G_N_ELEMENTS (values); i++)
+    {
+      if (_gtk_css_number_equal (&pos->y, &values[i].number))
+        {
+          g_string_append (string, values[i].y_name);
+          break;
+        }
+    }
+  if (i == G_N_ELEMENTS (values))
+    {
+      if (_gtk_css_number_equal (&pos->x, &center))
+        g_string_append (string, "center ");
+      _gtk_css_number_print (&pos->y, string);
+    }
+}
+
+static GtkCssValue *
+background_position_compute (GtkCssStyleProperty    *property,
+			     GtkStyleContext        *context,
+			     GtkCssValue            *specified)
+{
+  GtkCssBackgroundPosition *spos = _gtk_css_value_get_background_position (specified);
+  GtkCssBackgroundPosition cpos;
+  gboolean changed;
+
+  changed = _gtk_css_number_compute (&cpos.x,
+				     &spos->x,
+				     context);
+  changed |= _gtk_css_number_compute (&cpos.y,
+				      &spos->y,
+				      context);
+  if (changed)
+    return _gtk_css_value_new_from_background_position (&cpos);
+  return _gtk_css_value_ref (specified);
 }
 
 /*** REGISTRATION ***/
@@ -699,6 +879,7 @@ _gtk_css_style_property_init_properties (void)
   GtkCssNumber number;
   GtkSymbolicColor *symbolic;
   GtkCssBackgroundSize default_background_size = { GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX), GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX), FALSE, FALSE };
+  GtkCssBackgroundPosition default_background_position = { GTK_CSS_NUMBER_INIT (0, GTK_CSS_PERCENT), GTK_CSS_NUMBER_INIT (0, GTK_CSS_PERCENT)};
   GtkCssBorderCornerRadius no_corner_radius = { GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX), GTK_CSS_NUMBER_INIT (0, GTK_CSS_PX) };
   GtkBorder border_of_ones = { 1, 1, 1, 1 };
   GtkCssBorderImageRepeat border_image_repeat = { GTK_CSS_REPEAT_STYLE_STRETCH, GTK_CSS_REPEAT_STYLE_STRETCH };
@@ -1051,6 +1232,15 @@ _gtk_css_style_property_init_properties (void)
                                           background_size_print,
                                           background_size_compute,
                                           &default_background_size);
+  gtk_css_style_property_register        ("background-position",
+                                          GTK_TYPE_CSS_BACKGROUND_POSITION,
+                                          GTK_TYPE_CSS_BACKGROUND_POSITION,
+                                          G_TYPE_NONE,
+                                          0,
+                                          background_position_parse,
+                                          background_position_print,
+                                          background_position_compute,
+                                          &default_background_position);
 
   gtk_css_style_property_register        ("border-top-color",
                                           GTK_TYPE_SYMBOLIC_COLOR,
