@@ -429,6 +429,28 @@ gdk_owner_change_get_type (void)
     return etype;
 }
 
+/* enumerations from "gdkframeclock.h" */
+GType
+gdk_frame_clock_phase_get_type (void)
+{
+    static GType etype = 0;
+    if (G_UNLIKELY(etype == 0)) {
+        static const GFlagsValue values[] = {
+            { GDK_FRAME_CLOCK_PHASE_NONE, "GDK_FRAME_CLOCK_PHASE_NONE", "none" },
+            { GDK_FRAME_CLOCK_PHASE_FLUSH_EVENTS, "GDK_FRAME_CLOCK_PHASE_FLUSH_EVENTS", "flush-events" },
+            { GDK_FRAME_CLOCK_PHASE_BEFORE_PAINT, "GDK_FRAME_CLOCK_PHASE_BEFORE_PAINT", "before-paint" },
+            { GDK_FRAME_CLOCK_PHASE_UPDATE, "GDK_FRAME_CLOCK_PHASE_UPDATE", "update" },
+            { GDK_FRAME_CLOCK_PHASE_LAYOUT, "GDK_FRAME_CLOCK_PHASE_LAYOUT", "layout" },
+            { GDK_FRAME_CLOCK_PHASE_PAINT, "GDK_FRAME_CLOCK_PHASE_PAINT", "paint" },
+            { GDK_FRAME_CLOCK_PHASE_RESUME_EVENTS, "GDK_FRAME_CLOCK_PHASE_RESUME_EVENTS", "resume-events" },
+            { GDK_FRAME_CLOCK_PHASE_AFTER_PAINT, "GDK_FRAME_CLOCK_PHASE_AFTER_PAINT", "after-paint" },
+            { 0, NULL, NULL }
+        };
+        etype = g_flags_register_static (g_intern_static_string ("GdkFrameClockPhase"), values);
+    }
+    return etype;
+}
+
 /* enumerations from "gdkproperty.h" */
 GType
 gdk_prop_mode_get_type (void)
@@ -819,6 +841,21 @@ gdk_window_edge_get_type (void)
             { 0, NULL, NULL }
         };
         etype = g_enum_register_static (g_intern_static_string ("GdkWindowEdge"), values);
+    }
+    return etype;
+}
+
+GType
+gdk_fullscreen_mode_get_type (void)
+{
+    static GType etype = 0;
+    if (G_UNLIKELY(etype == 0)) {
+        static const GEnumValue values[] = {
+            { GDK_FULLSCREEN_ON_CURRENT_MONITOR, "GDK_FULLSCREEN_ON_CURRENT_MONITOR", "current-monitor" },
+            { GDK_FULLSCREEN_ON_ALL_MONITORS, "GDK_FULLSCREEN_ON_ALL_MONITORS", "all-monitors" },
+            { 0, NULL, NULL }
+        };
+        etype = g_enum_register_static (g_intern_static_string ("GdkFullscreenMode"), values);
     }
     return etype;
 }

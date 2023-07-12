@@ -4806,8 +4806,6 @@ gtk_text_view_paint (GtkWidget      *widget,
 {
   GtkTextView *text_view;
   GtkTextViewPrivate *priv;
-  GList *child_exposes;
-  GList *tmp_list;
   
   text_view = GTK_TEXT_VIEW (widget);
   priv = text_view->priv;
@@ -4835,33 +4833,15 @@ gtk_text_view_paint (GtkWidget      *widget,
           area->width, area->height);
 #endif
 
-  child_exposes = NULL;
-
   cairo_save (cr);
   cairo_translate (cr, -priv->xoffset, -priv->yoffset);
 
   gtk_text_layout_draw (priv->layout,
                         widget,
                         cr,
-                        &child_exposes);
+                        NULL);
 
   cairo_restore (cr);
-
-  tmp_list = child_exposes;
-  while (tmp_list != NULL)
-    {
-      GtkWidget *child = tmp_list->data;
-  
-      gtk_container_propagate_draw (GTK_CONTAINER (text_view),
-                                    child,
-                                    cr);
-
-      g_object_unref (child);
-      
-      tmp_list = tmp_list->next;
-    }
-
-  g_list_free (child_exposes);
 }
 
 static gboolean
@@ -4896,10 +4876,9 @@ gtk_text_view_draw (GtkWidget *widget,
       /* propagate_draw checks that event->window matches
        * child->window
        */
-      if (!vc->anchor)
-        gtk_container_propagate_draw (GTK_CONTAINER (widget),
-                                      vc->widget,
-                                      cr);
+      gtk_container_propagate_draw (GTK_CONTAINER (widget),
+                                    vc->widget,
+                                    cr);
       
       tmp_list = tmp_list->next;
     }
@@ -7702,26 +7681,6 @@ gtk_text_view_value_changed (GtkAdjustment *adjustment,
    */
   gtk_text_view_validate_onscreen (text_view);
   
-  /* process exposes */
-  if (gtk_widget_get_realized (GTK_WIDGET (text_view)))
-    {
-      DV (g_print ("Processing updates (%s)\n", G_STRLOC));
-      
-      if (priv->left_window)
-        gdk_window_process_updates (priv->left_window->bin_window, TRUE);
-
-      if (priv->right_window)
-        gdk_window_process_updates (priv->right_window->bin_window, TRUE);
-
-      if (priv->top_window)
-        gdk_window_process_updates (priv->top_window->bin_window, TRUE);
-      
-      if (priv->bottom_window)
-        gdk_window_process_updates (priv->bottom_window->bin_window, TRUE);
-  
-      gdk_window_process_updates (priv->text_window->bin_window, TRUE);
-    }
-
   /* If this got installed, get rid of it, it's just a waste of time. */
   if (priv->first_validate_idle != 0)
     {

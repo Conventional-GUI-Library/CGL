@@ -1461,8 +1461,7 @@ gtk_settings_style_provider_get_color (GtkStyleProviderPrivate *provider,
 
 static void
 gtk_settings_style_provider_lookup (GtkStyleProviderPrivate *provider,
-                                    GtkWidgetPath           *path,
-                                    GtkStateFlags            state,
+                                    const GtkCssMatcher     *matcher,
                                     GtkCssLookup            *lookup)
 {
   GtkSettings *settings = GTK_SETTINGS (provider);
@@ -1470,9 +1469,20 @@ gtk_settings_style_provider_lookup (GtkStyleProviderPrivate *provider,
   settings_ensure_style (settings);
 
   _gtk_style_provider_private_lookup (GTK_STYLE_PROVIDER_PRIVATE (settings->priv->style),
-                                      path,
-                                      state,
+                                      matcher,
                                       lookup);
+}
+
+static GtkCssChange
+gtk_settings_style_provider_get_change (GtkStyleProviderPrivate *provider,
+                                        const GtkCssMatcher     *matcher)
+{
+  GtkSettings *settings = GTK_SETTINGS (provider);
+
+  settings_ensure_style (settings);
+
+  return _gtk_style_provider_private_get_change (GTK_STYLE_PROVIDER_PRIVATE (settings->priv->style),
+                                                 matcher);
 }
 
 static void
@@ -1480,6 +1490,7 @@ gtk_settings_provider_private_init (GtkStyleProviderPrivateInterface *iface)
 {
   iface->get_color = gtk_settings_style_provider_get_color;
   iface->lookup = gtk_settings_style_provider_lookup;
+  iface->get_change = gtk_settings_style_provider_get_change;
 }
 
 static void
@@ -1719,6 +1730,8 @@ settings_invalidate_style (GtkSettings *settings)
       g_object_unref (priv->style);
       priv->style = NULL;
     }
+
+  _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (settings));
 }
 
 static void

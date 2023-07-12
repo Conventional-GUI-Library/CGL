@@ -3229,19 +3229,19 @@ gtk_menu_get_preferred_width (GtkWidget *widget,
       !priv->no_toggle_size)
     {
       GtkStyleContext *context;
-      GtkWidgetPath *menu_path, *check_path;
+      GtkWidgetPath *check_path;
       guint toggle_spacing;
       guint indicator_size;
 
-      context = gtk_widget_get_style_context (widget);
-      menu_path = gtk_widget_path_copy (gtk_style_context_get_path (context));
+      context = gtk_style_context_new ();
 
       /* Create a GtkCheckMenuItem path, only to query indicator spacing */
-      check_path = gtk_widget_path_copy (menu_path);
+      check_path = _gtk_widget_create_path (widget);
       gtk_widget_path_append_type (check_path, GTK_TYPE_CHECK_MENU_ITEM);
 
       gtk_style_context_set_path (context, check_path);
       gtk_widget_path_free (check_path);
+      gtk_style_context_set_screen (context, gtk_widget_get_screen (widget));
 
       gtk_style_context_get_style (context,
                                    "toggle-spacing", &toggle_spacing,
@@ -3250,9 +3250,7 @@ gtk_menu_get_preferred_width (GtkWidget *widget,
 
       max_toggle_size = indicator_size + toggle_spacing;
 
-      /* Restore real widget path */
-      gtk_style_context_set_path (context, menu_path);
-      gtk_widget_path_free (menu_path);
+      g_object_unref (context);
     }
 
   min_width += 2 * max_toggle_size + max_accel_width;
@@ -5612,15 +5610,13 @@ static gint
 get_menu_height (GtkMenu *menu)
 {
   GtkMenuPrivate *priv = menu->priv;
-  GtkAllocation allocation;
   GtkWidget *widget = GTK_WIDGET (menu);
   GtkBorder padding;
   gint height;
 
-  gtk_widget_get_allocation (widget, &allocation);
   get_menu_padding (widget, &padding);
 
-  height = allocation.height;
+  height = priv->requested_height;
   height -= (gtk_container_get_border_width (GTK_CONTAINER (widget)) * 2) +
     padding.top + padding.bottom;
 
@@ -5684,6 +5680,7 @@ gtk_menu_real_move_scroll (GtkMenu       *menu,
             GtkWidget *new_child;
             gboolean new_upper_arrow_visible = priv->upper_arrow_visible && !priv->tearoff_active;
             GtkBorder arrow_border;
+
             get_arrows_border (menu, &arrow_border);
 
             if (priv->scroll_offset != old_offset)
@@ -5700,13 +5697,11 @@ gtk_menu_real_move_scroll (GtkMenu       *menu,
     case GTK_SCROLL_START:
       /* Ignore the enter event we might get if the pointer is on the menu */
       menu_shell->priv->ignore_enter = TRUE;
-      gtk_menu_scroll_to (menu, 0);
       gtk_menu_shell_select_first (menu_shell, TRUE);
       break;
     case GTK_SCROLL_END:
       /* Ignore the enter event we might get if the pointer is on the menu */
       menu_shell->priv->ignore_enter = TRUE;
-      gtk_menu_scroll_to (menu, end_position - page_size);
       _gtk_menu_shell_select_last (menu_shell, TRUE);
       break;
     default:

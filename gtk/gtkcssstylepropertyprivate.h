@@ -35,28 +35,34 @@ G_BEGIN_DECLS
 typedef struct _GtkCssStyleProperty           GtkCssStyleProperty;
 typedef struct _GtkCssStylePropertyClass      GtkCssStylePropertyClass;
 
-typedef gboolean         (* GtkCssStylePropertyParseFunc)  (GtkCssStyleProperty    *property,
-                                                            GValue                 *value,
+typedef GtkCssValue *    (* GtkCssStylePropertyParseFunc)  (GtkCssStyleProperty    *property,
                                                             GtkCssParser           *parser,
                                                             GFile                  *base);
 typedef void             (* GtkCssStylePropertyPrintFunc)  (GtkCssStyleProperty    *property,
-                                                            const GValue           *value,
+                                                            const GtkCssValue      *value,
                                                             GString                *string);
 typedef GtkCssValue  *   (* GtkCssStylePropertyComputeFunc)(GtkCssStyleProperty    *property,
                                                             GtkStyleContext        *context,
                                                             GtkCssValue            *specified);
+typedef void             (* GtkCssStylePropertyQueryFunc)  (GtkCssStyleProperty    *property,
+                                                            const GtkCssValue      *cssvalue,
+                                                            GValue                 *value);
+typedef GtkCssValue *    (* GtkCssStylePropertyAssignFunc) (GtkCssStyleProperty    *property,
+                                                            const GValue           *value);
 struct _GtkCssStyleProperty
 {
   GtkStyleProperty parent;
 
-  GType computed_type;
   GtkCssValue *initial_value;
   guint id;
   guint inherit :1;
+  guint animated :1;
 
   GtkCssStylePropertyParseFunc parse_value;
   GtkCssStylePropertyPrintFunc print_value;
   GtkCssStylePropertyComputeFunc compute_value;
+  GtkCssStylePropertyQueryFunc query_value;
+  GtkCssStylePropertyAssignFunc assign_value;
 };
 
 struct _GtkCssStylePropertyClass
@@ -74,13 +80,10 @@ guint                   _gtk_css_style_property_get_n_properties(void);
 GtkCssStyleProperty *   _gtk_css_style_property_lookup_by_id    (guint                   id);
 
 gboolean                _gtk_css_style_property_is_inherit      (GtkCssStyleProperty    *property);
+gboolean                _gtk_css_style_property_is_animated     (GtkCssStyleProperty    *property);
 guint                   _gtk_css_style_property_get_id          (GtkCssStyleProperty    *property);
 GtkCssValue  *          _gtk_css_style_property_get_initial_value
                                                                 (GtkCssStyleProperty    *property);
-GType                   _gtk_css_style_property_get_computed_type (GtkCssStyleProperty *property);
-GType                   _gtk_css_style_property_get_specified_type (GtkCssStyleProperty *property);
-gboolean                _gtk_css_style_property_is_specified_type (GtkCssStyleProperty  *property,
-                                                                 GType                   type);
 
 GtkCssValue *           _gtk_css_style_property_compute_value   (GtkCssStyleProperty    *property,
                                                                  GtkStyleContext        *context,

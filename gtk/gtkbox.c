@@ -85,6 +85,7 @@
 #include "gtksizerequest.h"
 #include "gtktypebuiltins.h"
 #include "gtkprivate.h"
+#include "gtkwidgetprivate.h"
 #include "gtkintl.h"
 #include "a11y/gtkboxaccessible.h"
 
@@ -899,7 +900,7 @@ gtk_box_get_path_for_child (GtkContainer *container,
   box = GTK_BOX (container);
   private = box->priv;
 
-  path = gtk_widget_path_copy (gtk_widget_get_path (GTK_WIDGET (container)));
+  path = _gtk_widget_create_path (GTK_WIDGET (container));
 
   if (gtk_widget_get_visible (child))
     {
@@ -939,10 +940,16 @@ gtk_box_get_path_for_child (GtkContainer *container,
 }
 
 static void
+gtk_box_invalidate_order_foreach (GtkWidget *widget)
+{
+  _gtk_widget_invalidate_style_context (widget, GTK_CSS_CHANGE_POSITION | GTK_CSS_CHANGE_SIBLING_POSITION);
+}
+
+static void
 gtk_box_invalidate_order (GtkBox *box)
 {
   gtk_container_foreach (GTK_CONTAINER (box),
-                         (GtkCallback) gtk_widget_reset_style,
+                         (GtkCallback) gtk_box_invalidate_order_foreach,
                          NULL);
 }
 

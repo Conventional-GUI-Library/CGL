@@ -28,10 +28,9 @@
 #include "gtkstyleprovider.h"
 #include "gtksymboliccolor.h"
 #include "gtkthemingengine.h"
-#include "gtkanimationdescription.h"
 #include "gtkgradient.h"
-#include "gtkshadowprivate.h"
 #include "gtkcssshorthandpropertyprivate.h"
+#include "gtkcsstypedvalueprivate.h"
 #include "gtkcsstypesprivate.h"
 #include "gtkborderimageprivate.h"
 
@@ -305,8 +304,7 @@ gtk_style_properties_provider_get_color (GtkStyleProviderPrivate *provider,
 
 static void
 gtk_style_properties_provider_lookup (GtkStyleProviderPrivate *provider,
-                                      GtkWidgetPath           *path,
-                                      GtkStateFlags            state,
+                                      const GtkCssMatcher     *matcher,
                                       GtkCssLookup            *lookup)
 {
   GtkStyleProperties *props;
@@ -332,7 +330,7 @@ gtk_style_properties_provider_lookup (GtkStyleProviderPrivate *provider,
       if (!_gtk_css_lookup_is_missing (lookup, id))
           continue;
 
-      value = property_data_match_state (data, state);
+      value = property_data_match_state (data, _gtk_css_matcher_get_state (matcher));
       if (value == NULL)
         continue;
 
@@ -340,11 +338,19 @@ gtk_style_properties_provider_lookup (GtkStyleProviderPrivate *provider,
     }
 }
 
+static GtkCssChange
+gtk_style_properties_provider_get_change (GtkStyleProviderPrivate *provider,
+                                          const GtkCssMatcher     *matcher)
+{
+  return GTK_CSS_CHANGE_STATE;
+}
+
 static void
 gtk_style_properties_provider_private_init (GtkStyleProviderPrivateInterface *iface)
 {
   iface->get_color = gtk_style_properties_provider_get_color;
   iface->lookup = gtk_style_properties_provider_lookup;
+  iface->get_change = gtk_style_properties_provider_get_change;
 }
 
 /* GtkStyleProperties methods */
@@ -395,6 +401,8 @@ gtk_style_properties_map_color (GtkStyleProperties *props,
   g_hash_table_replace (priv->color_map,
                         g_strdup (name),
                         gtk_symbolic_color_ref (color));
+
+  _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (props));
 }
 
 /**
@@ -436,8 +444,6 @@ _gtk_style_properties_set_property_by_property (GtkStyleProperties  *props,
   PropertyData *prop;
   ValueData *val;
 
-  g_return_if_fail (_gtk_css_value_holds (value, _gtk_css_style_property_get_computed_type (style_prop)));
-
   priv = props->priv;
   prop = g_hash_table_lookup (priv->properties, style_prop);
 
@@ -451,6 +457,8 @@ _gtk_style_properties_set_property_by_property (GtkStyleProperties  *props,
 
   _gtk_css_value_unref (val->value);
   val->value = _gtk_css_value_ref (value);
+
+  _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (props));
 }
 
 /**
@@ -633,7 +641,6 @@ gtk_style_properties_get_property (GtkStyleProperties *props,
 {
   StyleQueryData query = { props, state };
   GtkStyleProperty *node;
-  GtkCssValue *v;
 
   g_return_val_if_fail (GTK_IS_STYLE_PROPERTIES (props), FALSE);
   g_return_val_if_fail (property != NULL, FALSE);
@@ -651,11 +658,10 @@ gtk_style_properties_get_property (GtkStyleProperties *props,
       return FALSE;
     }
 
-  v = _gtk_style_property_query (node,
-				 style_query_func,
-				 &query);
-  _gtk_css_value_init_gvalue (v, value);
-  _gtk_css_value_unref (v);
+  _gtk_style_property_query (node,
+                             value,
+                             style_query_func,
+                             &query);
 
   return TRUE;
 }
@@ -797,6 +803,8 @@ gtk_style_properties_unset_property (GtkStyleProperties *props,
       data->value = NULL;
 
       g_array_remove_index (prop->values, pos);
+
+      _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (props));
     }
 }
 
@@ -815,6 +823,8 @@ gtk_style_properties_clear (GtkStyleProperties *props)
 
   priv = props->priv;
   g_hash_table_remove_all (priv->properties);
+
+  _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (props));
 }
 
 /**
@@ -891,7 +901,7 @@ gtk_style_properties_merge (GtkStyleProperties       *props,
           data = &g_array_index (prop_to_merge->values, ValueData, i);
 
           if (replace && data->state == GTK_STATE_FLAG_NORMAL &&
-              _gtk_css_value_holds (data->value, PANGO_TYPE_FONT_DESCRIPTION))
+              _gtk_is_css_typed_value_of_type (data->value, PANGO_TYPE_FONT_DESCRIPTION))
             {
               /* Let normal state override all states
                * previously set in the original set
@@ -901,19 +911,19 @@ gtk_style_properties_merge (GtkStyleProperties       *props,
 
           value = property_data_get_value (prop, data->state);
 
-          if (_gtk_css_value_holds (data->value, PANGO_TYPE_FONT_DESCRIPTION) &&
+          if (_gtk_is_css_typed_value_of_type (data->value, PANGO_TYPE_FONT_DESCRIPTION) &&
               value->value != NULL)
             {
               PangoFontDescription *font_desc;
               PangoFontDescription *font_desc_to_merge;
 
               /* Handle merging of font descriptions */
-              font_desc = _gtk_css_value_get_font_description (value->value);
-              font_desc_to_merge = _gtk_css_value_get_font_description (data->value);
+              font_desc = g_value_get_boxed (_gtk_css_typed_value_get (value->value));
+              font_desc_to_merge = g_value_get_boxed (_gtk_css_typed_value_get (data->value));
 
               pango_font_description_merge (font_desc, font_desc_to_merge, replace);
             }
-          else if (_gtk_css_value_holds (data->value, G_TYPE_PTR_ARRAY) &&
+          else if (_gtk_is_css_typed_value_of_type (data->value, G_TYPE_PTR_ARRAY) &&
                    value->value != NULL)
             {
               GPtrArray *array, *array_to_merge;
@@ -922,8 +932,8 @@ gtk_style_properties_merge (GtkStyleProperties       *props,
               /* Append the array, mainly thought
                * for the gtk-key-bindings property
                */
-              array = _gtk_css_value_get_boxed (value->value);
-              array_to_merge = _gtk_css_value_get_boxed (data->value);
+              array = g_value_get_boxed (_gtk_css_typed_value_get (value->value));
+              array_to_merge = g_value_get_boxed (_gtk_css_typed_value_get (data->value));
 
               for (i = 0; i < array_to_merge->len; i++)
                 g_ptr_array_add (array, g_ptr_array_index (array_to_merge, i));
@@ -935,4 +945,6 @@ gtk_style_properties_merge (GtkStyleProperties       *props,
             }
         }
     }
+
+  _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (props));
 }

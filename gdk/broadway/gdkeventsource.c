@@ -61,7 +61,11 @@ gdk_event_source_prepare (GSource *source,
   gdk_threads_enter ();
 
   *timeout = -1;
-  retval = (_gdk_event_queue_find_first (display) != NULL);
+
+  if (display->event_pause_count > 0)
+    retval = FALSE;
+  else
+    retval = (_gdk_event_queue_find_first (display) != NULL);
 
   gdk_threads_leave ();
 
@@ -76,7 +80,9 @@ gdk_event_source_check (GSource *source)
 
   gdk_threads_enter ();
 
-  if (event_source->event_poll_fd.revents & G_IO_IN)
+  if (event_source->display->event_pause_count > 0)
+    retval = FALSE;
+  else if (event_source->event_poll_fd.revents & G_IO_IN)
     retval = (_gdk_event_queue_find_first (event_source->display) != NULL);
   else
     retval = FALSE;
@@ -87,9 +93,9 @@ gdk_event_source_check (GSource *source)
 }
 
 void
-_gdk_broadway_events_got_input (GdkDisplay *display,
-				BroadwayInputMsg *message)
+_gdk_broadway_events_got_input (BroadwayInputMsg *message)
 {
+  GdkDisplay *display = gdk_display_get_default ();
   GdkBroadwayDisplay *display_broadway = GDK_BROADWAY_DISPLAY (display);
   GdkScreen *screen;
   GdkWindow *window;
@@ -97,17 +103,8 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
   GList *node;
 
   switch (message->base.type) {
-  case 'e': /* Enter */
-    display_broadway->last_x = message->pointer.root_x;
-    display_broadway->last_y = message->pointer.root_y;
-    display_broadway->last_state = message->pointer.state;
-    display_broadway->real_mouse_in_toplevel =
-      g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->pointer.mouse_window_id));
-
+  case BROADWAY_EVENT_ENTER:
     window = g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->pointer.event_window_id));
-
-    /* TODO: Unset when it dies */
-    display_broadway->mouse_in_toplevel = window;
     if (window)
       {
 	event = gdk_event_new (GDK_ENTER_NOTIFY);
@@ -134,16 +131,8 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
 	_gdk_windowing_got_event (display, node, event, message->base.serial);
       }
     break;
-  case 'l': /* Leave */
-    display_broadway->last_x = message->pointer.root_x;
-    display_broadway->last_y = message->pointer.root_y;
-    display_broadway->last_state = message->pointer.state;
-    display_broadway->real_mouse_in_toplevel =
-      g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->pointer.mouse_window_id));
-
+  case BROADWAY_EVENT_LEAVE:
     window = g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->pointer.event_window_id));
-
-    display_broadway->mouse_in_toplevel = NULL;
     if (window)
       {
 	event = gdk_event_new (GDK_LEAVE_NOTIFY);
@@ -170,13 +159,7 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
 	_gdk_windowing_got_event (display, node, event, message->base.serial);
       }
     break;
-  case 'm': /* Mouse move */
-    display_broadway->last_x = message->pointer.root_x;
-    display_broadway->last_y = message->pointer.root_y;
-    display_broadway->last_state = message->pointer.state;
-    display_broadway->real_mouse_in_toplevel =
-      g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->pointer.mouse_window_id));
-
+  case BROADWAY_EVENT_POINTER_MOVE:
     if (_gdk_broadway_moveresize_handle_event (display, message))
       break;
 
@@ -198,14 +181,8 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
       }
 
     break;
-  case 'b':
-  case 'B':
-    display_broadway->last_x = message->pointer.root_x;
-    display_broadway->last_y = message->pointer.root_y;
-    display_broadway->last_state = message->pointer.state;
-    display_broadway->real_mouse_in_toplevel =
-      g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->pointer.mouse_window_id));
-
+  case BROADWAY_EVENT_BUTTON_PRESS:
+  case BROADWAY_EVENT_BUTTON_RELEASE:
     if (message->base.type != 'b' &&
 	_gdk_broadway_moveresize_handle_event (display, message))
       break;
@@ -229,13 +206,7 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
       }
 
     break;
-  case 's':
-    display_broadway->last_x = message->pointer.root_x;
-    display_broadway->last_y = message->pointer.root_y;
-    display_broadway->last_state = message->pointer.state;
-    display_broadway->real_mouse_in_toplevel =
-      g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->pointer.mouse_window_id));
-
+  case BROADWAY_EVENT_SCROLL:
     window = g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->pointer.event_window_id));
     if (window)
       {
@@ -254,10 +225,10 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
       }
 
     break;
-  case 'k':
-  case 'K':
-    window = display_broadway->mouse_in_toplevel;
-
+  case BROADWAY_EVENT_KEY_PRESS:
+  case BROADWAY_EVENT_KEY_RELEASE:
+    window = g_hash_table_lookup (display_broadway->id_ht,
+				  GINT_TO_POINTER (message->key.mouse_window_id));
     if (window)
       {
 	event = gdk_event_new (message->base.type == 'k' ? GDK_KEY_PRESS : GDK_KEY_RELEASE);
@@ -269,19 +240,17 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
 	event->key.length = 0;
 	gdk_event_set_device (event, display->core_pointer);
 
-	display_broadway->last_state = message->key.state;
-
 	node = _gdk_event_queue_append (display, event);
 	_gdk_windowing_got_event (display, node, event, message->base.serial);
       }
 
     break;
-  case 'g':
-  case 'u':
+  case BROADWAY_EVENT_GRAB_NOTIFY:
+  case BROADWAY_EVENT_UNGRAB_NOTIFY:
     _gdk_display_device_grab_update (display, display->core_pointer, NULL, message->base.serial);
     break;
 
-  case 'w':
+  case BROADWAY_EVENT_CONFIGURE_NOTIFY:
     window = g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->configure_notify.id));
     if (window)
       {
@@ -312,7 +281,7 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
       }
     break;
 
-  case 'W':
+  case BROADWAY_EVENT_DELETE_NOTIFY:
     window = g_hash_table_lookup (display_broadway->id_ht, GINT_TO_POINTER (message->delete_notify.id));
     if (window)
       {
@@ -324,7 +293,7 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
       }
     break;
 
-  case 'd':
+  case BROADWAY_EVENT_SCREEN_SIZE_CHANGED:
     screen = gdk_display_get_default_screen (display);
     window = gdk_screen_get_root_window (screen);
     window->width = message->screen_resize_notify.width;
@@ -335,7 +304,7 @@ _gdk_broadway_events_got_input (GdkDisplay *display,
     break;
 
   default:
-    g_printerr ("Unknown input command %c\n", message->base.type);
+    g_printerr ("_gdk_broadway_events_got_input - Unknown input command %c\n", message->base.type);
     break;
   }
 }

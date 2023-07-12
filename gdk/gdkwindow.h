@@ -22,16 +22,17 @@
  * GTK+ at ftp://ftp.gtk.org/pub/gtk/.
  */
 
+#ifndef __GDK_WINDOW_H__
+#define __GDK_WINDOW_H__
+
 #if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
-#ifndef __GDK_WINDOW_H__
-#define __GDK_WINDOW_H__
-
 #include <gdk/gdkversionmacros.h>
 #include <gdk/gdktypes.h>
 #include <gdk/gdkevents.h>
+#include <gdk/gdkframeclock.h>
 
 G_BEGIN_DECLS
 
@@ -315,6 +316,22 @@ typedef enum
   GDK_WINDOW_EDGE_SOUTH,
   GDK_WINDOW_EDGE_SOUTH_EAST  
 } GdkWindowEdge;
+
+/**
+ * GdkFullscreenMode:
+ * @GDK_FULLSCREEN_ON_CURRENT_MONITOR: Fullscreen on current monitor only.
+ * @GDK_FULLSCREEN_ON_ALL_MONITORS: Span across all monitors when fullscreen.
+ *
+ * Indicates which monitor (in a multi-head setup) a window should span over
+ * when in fullscreen mode.
+ *
+ * Since: 3.8
+ **/
+typedef enum
+{
+  GDK_FULLSCREEN_ON_CURRENT_MONITOR,
+  GDK_FULLSCREEN_ON_ALL_MONITORS
+} GdkFullscreenMode;
 
 /**
  * GdkWindowAttr:
@@ -659,8 +676,8 @@ void          gdk_window_set_transient_for (GdkWindow     *window,
 GDK_DEPRECATED_IN_3_4_FOR(gdk_window_set_background_rgba)
 void	      gdk_window_set_background	 (GdkWindow	  *window,
 					  const GdkColor  *color);
-void          gdk_window_set_background_rgba (GdkWindow *window,
-                                              GdkRGBA   *rgba);
+void          gdk_window_set_background_rgba (GdkWindow     *window,
+                                              const GdkRGBA *rgba);
 void	      gdk_window_set_background_pattern (GdkWindow	 *window,
                                                  cairo_pattern_t *pattern);
 cairo_pattern_t *gdk_window_get_background_pattern (GdkWindow     *window);
@@ -773,6 +790,12 @@ void          gdk_window_unstick         (GdkWindow       *window);
 void          gdk_window_maximize        (GdkWindow       *window);
 void          gdk_window_unmaximize      (GdkWindow       *window);
 void          gdk_window_fullscreen      (GdkWindow       *window);
+GDK_AVAILABLE_IN_3_8
+void          gdk_window_set_fullscreen_mode (GdkWindow   *window,
+                                          GdkFullscreenMode mode);
+GDK_AVAILABLE_IN_3_8
+GdkFullscreenMode
+              gdk_window_get_fullscreen_mode (GdkWindow   *window);
 void          gdk_window_unfullscreen    (GdkWindow       *window);
 void          gdk_window_set_keep_above  (GdkWindow       *window,
                                           gboolean         setting);
@@ -861,7 +884,9 @@ void       gdk_window_constrain_size      (GdkGeometry  *geometry,
                                            gint         *new_width,
                                            gint         *new_height);
 
+GDK_DEPRECATED_IN_3_8
 void gdk_window_enable_synchronized_configure (GdkWindow *window);
+GDK_DEPRECATED_IN_3_8
 void gdk_window_configure_finished            (GdkWindow *window);
 
 GdkWindow *gdk_get_default_root_window (void);
@@ -878,6 +903,10 @@ void       gdk_window_geometry_changed         (GdkWindow     *window);
 void       gdk_window_set_support_multidevice (GdkWindow *window,
                                                gboolean   support_multidevice);
 gboolean   gdk_window_get_support_multidevice (GdkWindow *window);
+
+/* Frame clock */
+GDK_AVAILABLE_IN_3_8
+GdkFrameClock* gdk_window_get_frame_clock      (GdkWindow     *window);
 
 G_END_DECLS
 

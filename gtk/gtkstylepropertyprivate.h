@@ -36,10 +36,6 @@ G_BEGIN_DECLS
 typedef struct _GtkStyleProperty           GtkStyleProperty;
 typedef struct _GtkStylePropertyClass      GtkStylePropertyClass;
 
-typedef enum {
-  GTK_STYLE_PROPERTY_INHERIT = (1 << 0)
-} GtkStylePropertyFlags;
-
 typedef GtkCssValue *   (* GtkStyleQueryFunc)        (guint                   id,
 						      gpointer                data);
 
@@ -59,11 +55,11 @@ struct _GtkStylePropertyClass
                                                             GtkStyleProperties     *props,
                                                             GtkStateFlags           state,
                                                             const GValue           *value);
-  GtkCssValue *     (* query)                              (GtkStyleProperty       *property,
+  void              (* query)                              (GtkStyleProperty       *property,
+                                                            GValue                 *value,
                                                             GtkStyleQueryFunc       query_func,
                                                             gpointer                query_data);
-  gboolean          (* parse_value)                        (GtkStyleProperty *      property,
-                                                            GValue                 *value,
+  GtkCssValue *     (* parse_value)                        (GtkStyleProperty *      property,
                                                             GtkCssParser           *parser,
                                                             GFile                  *base);
 
@@ -78,13 +74,13 @@ GtkStyleProperty *       _gtk_style_property_lookup        (const char          
 
 const char *             _gtk_style_property_get_name      (GtkStyleProperty       *property);
 
-gboolean                 _gtk_style_property_parse_value   (GtkStyleProperty *      property,
-                                                            GValue                 *value,
+GtkCssValue *            _gtk_style_property_parse_value   (GtkStyleProperty *      property,
                                                             GtkCssParser           *parser,
                                                             GFile                  *base);
 
 GType                    _gtk_style_property_get_value_type(GtkStyleProperty *      property);
-GtkCssValue *            _gtk_style_property_query         (GtkStyleProperty *      property,
+void                     _gtk_style_property_query         (GtkStyleProperty *      property,
+                                                            GValue                 *value,
                                                             GtkStyleQueryFunc       query_func,
                                                             gpointer                query_data);
 void                     _gtk_style_property_assign        (GtkStyleProperty       *property,

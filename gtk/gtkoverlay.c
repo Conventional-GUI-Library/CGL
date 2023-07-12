@@ -185,7 +185,6 @@ gtk_overlay_child_update_style_classes (GtkOverlay *overlay,
   gboolean is_left, is_right, is_top, is_bottom;
   gboolean has_left, has_right, has_top, has_bottom;
   GtkStyleContext *context;
-  gint changed;
 
   context = gtk_widget_get_style_context (child);
   has_left = gtk_style_context_has_class (context, GTK_STYLE_CLASS_LEFT);
@@ -194,7 +193,6 @@ gtk_overlay_child_update_style_classes (GtkOverlay *overlay,
   has_bottom = gtk_style_context_has_class (context, GTK_STYLE_CLASS_BOTTOM);
 
   is_left = is_right = is_top = is_bottom = FALSE;
-  changed = 4;
 
   gtk_overlay_get_main_widget_allocation (overlay, &main_allocation);
   gtk_widget_get_allocation (GTK_WIDGET (overlay), &overlay_allocation);
@@ -223,32 +221,21 @@ gtk_overlay_child_update_style_classes (GtkOverlay *overlay,
     gtk_style_context_remove_class (context, GTK_STYLE_CLASS_LEFT);
   else if (!has_left && is_left)
     gtk_style_context_add_class (context, GTK_STYLE_CLASS_LEFT);
-  else
-    changed--;
 
   if (has_right && !is_right)
     gtk_style_context_remove_class (context, GTK_STYLE_CLASS_RIGHT);
   else if (!has_right && is_right)
     gtk_style_context_add_class (context, GTK_STYLE_CLASS_RIGHT);
-  else
-    changed--;
 
   if (has_top && !is_top)
     gtk_style_context_remove_class (context, GTK_STYLE_CLASS_TOP);
   else if (!has_top && is_top)
     gtk_style_context_add_class (context, GTK_STYLE_CLASS_TOP);
-  else
-    changed--;
 
   if (has_bottom && !is_bottom)
     gtk_style_context_remove_class (context, GTK_STYLE_CLASS_BOTTOM);
   else if (!has_bottom && is_bottom)
     gtk_style_context_add_class (context, GTK_STYLE_CLASS_BOTTOM);
-  else
-    changed--;
-
-  if (changed > 0)
-    gtk_widget_reset_style (child);
 }
 
 static void

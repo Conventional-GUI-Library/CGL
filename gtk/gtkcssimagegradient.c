@@ -23,6 +23,7 @@
 #include "gtkcssimagegradientprivate.h"
 
 #include "gtkcssprovider.h"
+#include "gtksymboliccolorprivate.h"
 
 G_DEFINE_TYPE (GtkCssImageGradient, _gtk_css_image_gradient, GTK_TYPE_CSS_IMAGE)
 
@@ -288,7 +289,7 @@ _gtk_gradient_parse (GtkCssParser *parser)
           return NULL;
         }
 
-      color = _gtk_css_parser_read_symbolic_color (parser);
+      color = _gtk_symbolic_color_new_take_value (_gtk_css_symbolic_value_new (parser));
       if (color == NULL)
         {
           gtk_gradient_unref (gradient);

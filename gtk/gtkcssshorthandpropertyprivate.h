@@ -40,14 +40,15 @@ typedef struct _GtkCssShorthandProperty           GtkCssShorthandProperty;
 typedef struct _GtkCssShorthandPropertyClass      GtkCssShorthandPropertyClass;
 
 typedef gboolean              (* GtkCssShorthandPropertyParseFunc)      (GtkCssShorthandProperty *shorthand,
-                                                                         GValue                  *values,
+                                                                         GtkCssValue            **values,
                                                                          GtkCssParser            *parser,
                                                                          GFile                   *base);
 typedef void                  (* GtkCssShorthandPropertyAssignFunc)     (GtkCssShorthandProperty *shorthand,
                                                                          GtkStyleProperties      *props,
                                                                          GtkStateFlags            state,
                                                                          const GValue            *value);
-typedef GtkCssValue *         (* GtkCssShorthandPropertyQueryFunc)      (GtkCssShorthandProperty *shorthand,
+typedef void                  (* GtkCssShorthandPropertyQueryFunc)      (GtkCssShorthandProperty *shorthand,
+                                                                         GValue                  *value,
                                                                          GtkStyleQueryFunc        query_func,
                                                                          gpointer                 query_data);
 

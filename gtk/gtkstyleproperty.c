@@ -133,7 +133,6 @@ _gtk_style_property_init (GtkStyleProperty *property)
 /**
  * _gtk_style_property_parse_value:
  * @property: the property
- * @value: an uninitialized value
  * @parser: the parser to parse from
  * @base: the base file for @aprser
  *
@@ -144,26 +143,24 @@ _gtk_style_property_init (GtkStyleProperty *property)
  * left uninitialized.
  *
  * Only if @property is a #GtkCssShorthandProperty, the @value will
- * always contain a #GValueArray with the values to be used for
- * the subproperties.
+ * always be a #GtkCssValue whose values can be queried with
+ * _gtk_css_array_value_get_nth().
  *
- * Returns: %TRUE on success
+ * Returns: %NULL on failure or the parsed #GtkCssValue
  **/
-gboolean
+GtkCssValue *
 _gtk_style_property_parse_value (GtkStyleProperty *property,
-                                 GValue           *value,
                                  GtkCssParser     *parser,
                                  GFile            *base)
 {
   GtkStylePropertyClass *klass;
 
-  g_return_val_if_fail (GTK_IS_STYLE_PROPERTY (property), FALSE);
-  g_return_val_if_fail (value != NULL, FALSE);
-  g_return_val_if_fail (parser != NULL, FALSE);
+  g_return_val_if_fail (GTK_IS_STYLE_PROPERTY (property), NULL);
+  g_return_val_if_fail (parser != NULL, NULL);
 
   klass = GTK_STYLE_PROPERTY_GET_CLASS (property);
 
-  return klass->parse_value (property, value, parser, base);
+  return klass->parse_value (property, parser, base);
 }
 
 /**
@@ -207,19 +204,21 @@ _gtk_style_property_assign (GtkStyleProperty   *property,
  * turn gtk_style_context_get() and similar functions to get the
  * value to return to code using old APIs.
  **/
-GtkCssValue *
+void
 _gtk_style_property_query (GtkStyleProperty  *property,
+                           GValue            *value,
                            GtkStyleQueryFunc  query_func,
                            gpointer           query_data)
 {
   GtkStylePropertyClass *klass;
 
-  g_return_val_if_fail (GTK_IS_STYLE_PROPERTY (property), NULL);
-  g_return_val_if_fail (query_func != NULL, NULL);
+  g_return_if_fail (value != NULL);
+  g_return_if_fail (GTK_IS_STYLE_PROPERTY (property));
+  g_return_if_fail (query_func != NULL);
 
   klass = GTK_STYLE_PROPERTY_GET_CLASS (property);
 
-  return klass->query (property, query_func, query_data);
+  return klass->query (property, value, query_func, query_data);
 }
 
 void

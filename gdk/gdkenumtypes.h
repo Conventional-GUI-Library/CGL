@@ -54,6 +54,10 @@ GType gdk_setting_action_get_type (void) G_GNUC_CONST;
 GType gdk_owner_change_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_OWNER_CHANGE (gdk_owner_change_get_type ())
 
+/* enumerations from "gdkframeclock.h" */
+GType gdk_frame_clock_phase_get_type (void) G_GNUC_CONST;
+#define GDK_TYPE_FRAME_CLOCK_PHASE (gdk_frame_clock_phase_get_type ())
+
 /* enumerations from "gdkproperty.h" */
 GType gdk_prop_mode_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_PROP_MODE (gdk_prop_mode_get_type ())
@@ -97,6 +101,8 @@ GType gdk_gravity_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_GRAVITY (gdk_gravity_get_type ())
 GType gdk_window_edge_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_WINDOW_EDGE (gdk_window_edge_get_type ())
+GType gdk_fullscreen_mode_get_type (void) G_GNUC_CONST;
+#define GDK_TYPE_FULLSCREEN_MODE (gdk_fullscreen_mode_get_type ())
 G_END_DECLS
 
 #endif /* __GDK_ENUM_TYPES_H__ */

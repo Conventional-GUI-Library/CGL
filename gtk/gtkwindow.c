@@ -2643,6 +2643,7 @@ void
 gtk_window_set_attached_to (GtkWindow *window,
                             GtkWidget *attach_widget)
 {
+  GtkStyleContext *context;
   GtkWindowPrivate *priv;
 
   g_return_if_fail (GTK_IS_WINDOW (window));
@@ -2665,7 +2666,11 @@ gtk_window_set_attached_to (GtkWindow *window,
     }
 
   /* Update the style, as the widget path might change. */
-  gtk_widget_reset_style (GTK_WIDGET (window)); 
+  context = gtk_widget_get_style_context (GTK_WIDGET (window));
+  if (priv->attach_widget)
+    gtk_style_context_set_parent (context, gtk_widget_get_style_context (priv->attach_widget));
+  else
+    gtk_style_context_set_parent (context, NULL);
 }
 
 /**
@@ -4801,8 +4806,7 @@ gtk_window_show (GtkWidget *widget)
 
   _gtk_widget_set_visible_flag (widget, TRUE);
 
-  need_resize = _gtk_container_get_need_resize (container) || !gtk_widget_get_realized (widget);
-  _gtk_container_set_need_resize (container, FALSE);
+  need_resize = _gtk_widget_get_alloc_needed (widget) || !gtk_widget_get_realized (widget);
 
   if (need_resize)
     {

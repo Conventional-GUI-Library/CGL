@@ -22,6 +22,8 @@
 
 #include <gtk/gtkenums.h>
 #include <gtk/gtkwidgetpath.h>
+#include <gtk/gtktypes.h>
+#include "gtk/gtkcssmatcherprivate.h"
 #include "gtk/gtkcssparserprivate.h"
 
 G_BEGIN_DECLS
@@ -37,9 +39,9 @@ void              _gtk_css_selector_print           (const GtkCssSelector   *sel
 
 GtkStateFlags     _gtk_css_selector_get_state_flags (const GtkCssSelector   *selector);
 
+GtkCssChange      _gtk_css_selector_get_change      (const GtkCssSelector   *selector);
 gboolean          _gtk_css_selector_matches         (const GtkCssSelector   *selector,
-                                                     const GtkWidgetPath    *path,
-                                                     GtkStateFlags           state);
+                                                     const GtkCssMatcher    *matcher);
 int               _gtk_css_selector_compare         (const GtkCssSelector   *a,
                                                      const GtkCssSelector   *b);
 

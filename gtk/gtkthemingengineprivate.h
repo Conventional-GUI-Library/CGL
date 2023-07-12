@@ -24,15 +24,15 @@
 #include "gtk/gtkthemingengine.h"
 #include "gtk/gtkcssvalueprivate.h"
 
-void _gtk_theming_engine_paint_spinner (cairo_t *cr,
-                                        gdouble  radius,
-                                        gdouble  progress,
-                                        GdkRGBA *color);
+void _gtk_theming_engine_paint_spinner (cairo_t       *cr,
+                                        gdouble        radius,
+                                        gdouble        progress,
+                                        const GdkRGBA *color);
 
 GtkCssValue  *_gtk_theming_engine_peek_property (GtkThemingEngine *engine,
-                                                 const char       *property_name);
+                                                 guint             property_id);
 double        _gtk_theming_engine_get_number    (GtkThemingEngine *engine,
-                                                 const char       *property_name,
+                                                 guint             property_id,
                                                  double            one_hundred_percent);
 void          _gtk_theming_engine_set_context   (GtkThemingEngine *engine,
                                                  GtkStyleContext  *context);

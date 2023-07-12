@@ -28,7 +28,6 @@
 #include "gtkcssimageprivate.h"
 #include "gtkstylecontextprivate.h"
 #include "gtkroundedboxprivate.h"
-#include "gtkshadowprivate.h"
 
 G_BEGIN_DECLS
 

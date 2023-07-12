@@ -757,8 +757,10 @@ gtk_tray_icon_manager_filter (GdkXEvent *xevent,
 	  gtk_tray_icon_manager_window_destroyed (icon);
 	}
       else
-        GTK_NOTE (PLUGSOCKET,
-		  g_print ("GtkStatusIcon %p: got other message on manager window\n", icon));
+        {
+          GTK_NOTE (PLUGSOCKET,
+                    g_print ("GtkStatusIcon %p: got other message on manager window\n", icon));
+        }
     }
   
   return GDK_FILTER_CONTINUE;
@@ -881,8 +883,10 @@ gtk_tray_icon_update_manager_window (GtkTrayIcon *icon)
 	}
     }
   else
-    GTK_NOTE (PLUGSOCKET,
-	      g_print ("GtkStatusIcon %p: no tray manager found\n", icon));
+    {
+      GTK_NOTE (PLUGSOCKET,
+                g_print ("GtkStatusIcon %p: no tray manager found\n", icon));
+    }
 }
 
 static void

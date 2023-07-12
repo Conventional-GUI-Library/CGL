@@ -334,11 +334,11 @@ AC_ARG_ENABLE(quartz-relocation,
 
 cairo_backends=
 backend_immodules=
+have_gio_unix=no
 GDK_BACKENDS=
 GDK_EXTRA_LIBS=
 GDK_EXTRA_CFLAGS=
 GDK_WINDOWING=
-GIO_PACKAGE=gio-2.0
 PANGO_PACKAGES="pango pangocairo"
 
 if test "$enable_x11_backend" = "yes"; then
@@ -348,7 +348,7 @@ if test "$enable_x11_backend" = "yes"; then
   GDK_BACKENDS="$GDK_BACKENDS x11"
   # Pull in gio-unix for GDesktopAppInfo usage, see at least
   # gdkapplaunchcontext-x11.c
-  GIO_PACKAGE=gio-unix-2.0
+  have_gio_unix=yes
   backend_immodules="$backend_immodules,xim"
   GDK_WINDOWING="$GDK_WINDOWING
 #define GDK_WINDOWING_X11"
@@ -790,6 +790,18 @@ fi
 AC_CHECK_LIB(m,rint,have_rint=yes,have_rint=no)
 if test $have_rint = yes; then
     AC_DEFINE(HAVE_RINT, 1, [Define to 1 if rint() is available])
+fi
+
+# Check for isinf()
+AC_CHECK_LIB(m,isinf,have_isinf=yes,have_isinf=no)
+if test $have_isinf = yes; then
+    AC_DEFINE(HAVE_DECL_ISINF, 1, [Define to 1 if rint() is available])
+fi
+
+# Check for isnan()
+AC_CHECK_LIB(m,isnan,have_isnan=yes,have_isnan=no)
+if test $have_isnan = yes; then
+    AC_DEFINE(HAVE_DECL_ISNAN, 1, [Define to 1 if rint() is available])
 fi
 
 # Checks for gdkspawn
@@ -1258,6 +1270,15 @@ else
   AM_CONDITIONAL(HAVE_X11R6, false)
 fi
 
+# Check for gio-unix
+if test "$have_gio_unix" = "yes"; then
+  GDK_GIO_PACKAGE=gio-unix-2.0
+  AC_DEFINE([HAVE_GIO_UNIX], [1],
+            [Define if gio-unix is available])
+else
+  GDK_GIO_PACKAGE=gio-2.0
+fi
+
 # Check for Pango flags
 
 AC_MSG_CHECKING(Pango flags)
@@ -1290,7 +1311,7 @@ CFLAGS="$saved_cflags"
 LDFLAGS="$saved_ldflags"
 
 GDK_PACKAGES="$PANGO_PACKAGES gdk-pixbuf-2.0 cairo cairo-gobject"
-GDK_PRIVATE_PACKAGES="$GIO_PACKAGE $X_PACKAGES $WAYLAND_PACKAGES $cairo_backends"
+GDK_PRIVATE_PACKAGES="$GDK_GIO_PACKAGE $X_PACKAGES $WAYLAND_PACKAGES $cairo_backends"
 if test "x$enable_x11_backend" = xyes; then
   GDK_PRIVATE_PACKAGES="$GDK_PRIVATE_PACKAGES pangoft2"
 fi
@@ -1345,6 +1366,9 @@ fi
 GTK_PACKAGES="atk cairo cairo-gobject gdk-pixbuf-2.0 gio-2.0"
 if test "x$enable_x11_backend" = xyes; then
   GTK_PACKAGES="$GTK_PACKAGES pangoft2"
+fi
+if test "$have_gio_unix" = "yes"; then
+  GTK_PRIVATE_PACKAGES="$GTK_PRIVATE_PACKAGES gio-unix-2.0"
 fi
 GTK_EXTRA_LIBS=
 
@@ -1444,6 +1468,12 @@ else
             $CUPS_API_MAJOR -eq 1 -a $CUPS_API_MINOR -ge 2; then
       AC_DEFINE(HAVE_CUPS_API_1_2, 1,
                 [Define to 1 if CUPS 1.2 API is available])
+    fi
+    if test $CUPS_API_MAJOR -gt 1 -o \
+	    $CUPS_API_MAJOR -eq 1 -a $CUPS_API_MINOR -ge 6; then
+      AC_DEFINE(HAVE_CUPS_API_1_6, 1,
+                [Define to 1 if CUPS 1.6 API is available])
+
     fi
 
     AC_SUBST(CUPS_API_MAJOR)
@@ -1556,13 +1586,6 @@ fi
 #############
 
 GLIB_GSETTINGS
-
-#############
-# Resources #
-#############
-
-GLIB_COMPILE_RESOURCES=`$PKG_CONFIG --variable glib_compile_resources gio-2.0`
-AC_SUBST(GLIB_COMPILE_RESOURCES)
 
 ##################################################
 # GObject introspection

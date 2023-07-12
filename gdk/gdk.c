@@ -138,7 +138,9 @@ static const GDebugKey gdk_debug_keys[] = {
   {"multihead",     GDK_DEBUG_MULTIHEAD},
   {"xinerama",      GDK_DEBUG_XINERAMA},
   {"draw",          GDK_DEBUG_DRAW},
-  {"eventloop",     GDK_DEBUG_EVENTLOOP}
+  {"eventloop",     GDK_DEBUG_EVENTLOOP},
+  {"frames",        GDK_DEBUG_FRAMES},
+  {"settings",      GDK_DEBUG_SETTINGS}
 };
 
 static gboolean
@@ -273,8 +275,6 @@ gdk_pre_parse_libgtk_only (void)
       else if (g_str_equal (rendering_mode, "recording"))
         _gdk_rendering_mode = GDK_RENDERING_MODE_RECORDING;
     }
-
-  g_type_init ();
 
   /* Do any setup particular to the windowing system */
   gdk_display_manager_get ();

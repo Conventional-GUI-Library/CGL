@@ -27,8 +27,8 @@
 #include <glib.h>
 
 #define GDK_MAJOR_VERSION (3)
-#define GDK_MINOR_VERSION (6)
-#define GDK_MICRO_VERSION (5)
+#define GDK_MINOR_VERSION (8)
+#define GDK_MICRO_VERSION (0)
 
 /**
  * GDK_DISABLE_DEPRECATION_WARNINGS:
@@ -89,6 +89,16 @@
  * Since: 3.6
  */
 #define GDK_VERSION_3_6         (G_ENCODE_VERSION (3, 6))
+
+/**
+ * GDK_VERSION_3_8:
+ *
+ * A macro that evaluates to the 3.8 version of GDK, in a format
+ * that can be used by the C pre-processor.
+ *
+ * Since: 3.8
+ */
+#define GDK_VERSION_3_8         (G_ENCODE_VERSION (3, 8))
 
 
 /* evaluates to the current stable version; for development cycles,
@@ -215,6 +225,20 @@
 # define GDK_AVAILABLE_IN_3_6                 GDK_UNAVAILABLE(3, 6)
 #else
 # define GDK_AVAILABLE_IN_3_6
+#endif
+
+#if GDK_VERSION_MIN_REQUIRED >= GDK_VERSION_3_8
+# define GDK_DEPRECATED_IN_3_8                GDK_DEPRECATED
+# define GDK_DEPRECATED_IN_3_8_FOR(f)         GDK_DEPRECATED_FOR(f)
+#else
+# define GDK_DEPRECATED_IN_3_8
+# define GDK_DEPRECATED_IN_3_8_FOR(f)
+#endif
+
+#if GDK_VERSION_MAX_ALLOWED < GDK_VERSION_3_8
+# define GDK_AVAILABLE_IN_3_8                 GDK_UNAVAILABLE(3, 8)
+#else
+# define GDK_AVAILABLE_IN_3_8
 #endif
 
 #endif  /* __GDK_VERSION_MACROS_H__ */

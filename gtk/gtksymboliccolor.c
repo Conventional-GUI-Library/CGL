@@ -18,6 +18,7 @@
  */
 
 #include "config.h"
+#include "gtkcssrgbavalueprivate.h"
 #include "gtksymboliccolorprivate.h"
 #include "gtkstyleproperties.h"
 #include "gtkintl.h"
@@ -58,8 +59,8 @@ typedef enum {
 
 struct _GtkSymbolicColor
 {
+  GTK_CSS_VALUE_BASE
   ColorType type;
-  guint ref_count;
   GtkCssValue *last_value;
 
   union
@@ -87,6 +88,105 @@ struct _GtkSymbolicColor
   };
 };
 
+static void
+gtk_css_value_symbolic_free (GtkCssValue *value)
+{
+  GtkSymbolicColor *color = (GtkSymbolicColor *) value;
+
+  _gtk_css_value_unref (color->last_value);
+  switch (color->type)
+    {
+    case COLOR_TYPE_NAME:
+      g_free (color->name);
+      break;
+    case COLOR_TYPE_SHADE:
+      gtk_symbolic_color_unref (color->shade.color);
+      break;
+    case COLOR_TYPE_ALPHA:
+      gtk_symbolic_color_unref (color->alpha.color);
+      break;
+    case COLOR_TYPE_MIX:
+      gtk_symbolic_color_unref (color->mix.color1);
+      gtk_symbolic_color_unref (color->mix.color2);
+      break;
+    case COLOR_TYPE_WIN32:
+      g_free (color->win32.theme_class);
+      break;
+    default:
+      break;
+    }
+
+  g_slice_free (GtkSymbolicColor, color);
+}
+
+static gboolean
+gtk_css_value_symbolic_equal (const GtkCssValue *value1,
+                              const GtkCssValue *value2)
+{
+  GtkSymbolicColor *color1 = (GtkSymbolicColor *) value1;
+  GtkSymbolicColor *color2 = (GtkSymbolicColor *) value2;
+
+  if (color1->type != color2->type)
+    return FALSE;
+
+  switch (color1->type)
+    {
+    case COLOR_TYPE_LITERAL:
+      return _gtk_css_value_equal (color1->last_value, color2->last_value);
+    case COLOR_TYPE_NAME:
+      return g_str_equal (color1->name, color2->name);
+    case COLOR_TYPE_SHADE:
+      return color1->shade.factor == color2->shade.factor &&
+             _gtk_css_value_equal ((GtkCssValue *) color1->shade.color,
+                                   (GtkCssValue *) color2->shade.color);
+    case COLOR_TYPE_ALPHA:
+      return color1->alpha.factor == color2->alpha.factor &&
+             _gtk_css_value_equal ((GtkCssValue *) color1->alpha.color,
+                                   (GtkCssValue *) color2->alpha.color);
+    case COLOR_TYPE_MIX:
+      return color1->mix.factor == color2->mix.factor &&
+             _gtk_css_value_equal ((GtkCssValue *) color1->mix.color1,
+                                   (GtkCssValue *) color2->mix.color1) &&
+             _gtk_css_value_equal ((GtkCssValue *) color1->mix.color2,
+                                   (GtkCssValue *) color2->mix.color2);
+    case COLOR_TYPE_WIN32:
+      return g_str_equal (color1->win32.theme_class, color2->win32.theme_class) &&
+             color1->win32.id == color2->win32.id;
+    case COLOR_TYPE_CURRENT_COLOR:
+      return TRUE;
+    default:
+      g_assert_not_reached ();
+      return FALSE;
+    }
+}
+
+static GtkCssValue *
+gtk_css_value_symbolic_transition (GtkCssValue *start,
+                                   GtkCssValue *end,
+                                   double       progress)
+{
+  return NULL;
+}
+
+static void
+gtk_css_value_symbolic_print (const GtkCssValue *value,
+                              GString           *string)
+{
+  GtkSymbolicColor *color = (GtkSymbolicColor *) value;
+  char *s;
+  
+  s = gtk_symbolic_color_to_string (color);
+  g_string_append (string, s);
+  g_free (s);
+}
+
+static const GtkCssValueClass GTK_CSS_VALUE_SYMBOLIC = {
+  gtk_css_value_symbolic_free,
+  gtk_css_value_symbolic_equal,
+  gtk_css_value_symbolic_transition,
+  gtk_css_value_symbolic_print
+};
+
 /**
  * gtk_symbolic_color_new_literal:
  * @color: a #GdkRGBA
@@ -104,10 +204,9 @@ gtk_symbolic_color_new_literal (const GdkRGBA *color)
 
   g_return_val_if_fail (color != NULL, NULL);
 
-  symbolic_color = g_slice_new0 (GtkSymbolicColor);
+  symbolic_color = _gtk_css_value_new (GtkSymbolicColor, &GTK_CSS_VALUE_SYMBOLIC);
   symbolic_color->type = COLOR_TYPE_LITERAL;
-  symbolic_color->last_value = _gtk_css_value_new_from_rgba (color);
-  symbolic_color->ref_count = 1;
+  symbolic_color->last_value = _gtk_css_rgba_value_new_from_rgba (color);
 
   return symbolic_color;
 }
@@ -131,10 +230,9 @@ gtk_symbolic_color_new_name (const gchar *name)
 
   g_return_val_if_fail (name != NULL, NULL);
 
-  symbolic_color = g_slice_new0 (GtkSymbolicColor);
+  symbolic_color = _gtk_css_value_new (GtkSymbolicColor, &GTK_CSS_VALUE_SYMBOLIC);
   symbolic_color->type = COLOR_TYPE_NAME;
   symbolic_color->name = g_strdup (name);
-  symbolic_color->ref_count = 1;
 
   return symbolic_color;
 }
@@ -161,11 +259,10 @@ gtk_symbolic_color_new_shade (GtkSymbolicColor *color,
 
   g_return_val_if_fail (color != NULL, NULL);
 
-  symbolic_color = g_slice_new0 (GtkSymbolicColor);
+  symbolic_color = _gtk_css_value_new (GtkSymbolicColor, &GTK_CSS_VALUE_SYMBOLIC);
   symbolic_color->type = COLOR_TYPE_SHADE;
   symbolic_color->shade.color = gtk_symbolic_color_ref (color);
   symbolic_color->shade.factor = factor;
-  symbolic_color->ref_count = 1;
 
   return symbolic_color;
 }
@@ -192,11 +289,10 @@ gtk_symbolic_color_new_alpha (GtkSymbolicColor *color,
 
   g_return_val_if_fail (color != NULL, NULL);
 
-  symbolic_color = g_slice_new0 (GtkSymbolicColor);
+  symbolic_color = _gtk_css_value_new (GtkSymbolicColor, &GTK_CSS_VALUE_SYMBOLIC);
   symbolic_color->type = COLOR_TYPE_ALPHA;
   symbolic_color->alpha.color = gtk_symbolic_color_ref (color);
   symbolic_color->alpha.factor = factor;
-  symbolic_color->ref_count = 1;
 
   return symbolic_color;
 }
@@ -225,12 +321,11 @@ gtk_symbolic_color_new_mix (GtkSymbolicColor *color1,
   g_return_val_if_fail (color1 != NULL, NULL);
   g_return_val_if_fail (color1 != NULL, NULL);
 
-  symbolic_color = g_slice_new0 (GtkSymbolicColor);
+  symbolic_color = _gtk_css_value_new (GtkSymbolicColor, &GTK_CSS_VALUE_SYMBOLIC);
   symbolic_color->type = COLOR_TYPE_MIX;
   symbolic_color->mix.color1 = gtk_symbolic_color_ref (color1);
   symbolic_color->mix.color2 = gtk_symbolic_color_ref (color2);
   symbolic_color->mix.factor = factor;
-  symbolic_color->ref_count = 1;
 
   return symbolic_color;
 }
@@ -255,11 +350,10 @@ gtk_symbolic_color_new_win32 (const gchar        *theme_class,
 
   g_return_val_if_fail (theme_class != NULL, NULL);
 
-  symbolic_color = g_slice_new0 (GtkSymbolicColor);
+  symbolic_color = _gtk_css_value_new (GtkSymbolicColor, &GTK_CSS_VALUE_SYMBOLIC);
   symbolic_color->type = COLOR_TYPE_WIN32;
   symbolic_color->win32.theme_class = g_strdup (theme_class);
   symbolic_color->win32.id = id;
-  symbolic_color->ref_count = 1;
 
   return symbolic_color;
 }
@@ -280,9 +374,8 @@ _gtk_symbolic_color_get_current_color (void)
 
   if (G_UNLIKELY (current_color == NULL))
     {
-      current_color = g_slice_new0 (GtkSymbolicColor);
+      current_color = _gtk_css_value_new (GtkSymbolicColor, &GTK_CSS_VALUE_SYMBOLIC);
       current_color->type = COLOR_TYPE_CURRENT_COLOR;
-      current_color->ref_count = 1;
     }
 
   return current_color;
@@ -303,7 +396,7 @@ gtk_symbolic_color_ref (GtkSymbolicColor *color)
 {
   g_return_val_if_fail (color != NULL, NULL);
 
-  color->ref_count++;
+  _gtk_css_value_ref ((GtkCssValue *) color);
 
   return color;
 }
@@ -322,35 +415,7 @@ gtk_symbolic_color_unref (GtkSymbolicColor *color)
 {
   g_return_if_fail (color != NULL);
 
-  color->ref_count--;
-
-  if (color->ref_count == 0)
-    {
-      _gtk_css_value_unref (color->last_value);
-      switch (color->type)
-	{
-	case COLOR_TYPE_NAME:
-	  g_free (color->name);
-	  break;
-	case COLOR_TYPE_SHADE:
-	  gtk_symbolic_color_unref (color->shade.color);
-	  break;
-	case COLOR_TYPE_ALPHA:
-	  gtk_symbolic_color_unref (color->alpha.color);
-	  break;
-	case COLOR_TYPE_MIX:
-	  gtk_symbolic_color_unref (color->mix.color1);
-	  gtk_symbolic_color_unref (color->mix.color2);
-	  break;
-	case COLOR_TYPE_WIN32:
-	  g_free (color->win32.theme_class);
-	  break;
-	default:
-	  break;
-	}
-
-      g_slice_free (GtkSymbolicColor, color);
-    }
+  _gtk_css_value_unref ((GtkCssValue *) color);
 }
 
 static void
@@ -562,31 +627,37 @@ gtk_symbolic_color_resolve (GtkSymbolicColor   *color,
 			    GtkStyleProperties *props,
 			    GdkRGBA            *resolved_color)
 {
-  GtkCssValue *v;
+  GdkRGBA pink = { 1.0, 0.5, 0.5, 1.0 };
+  GtkCssValue *v, *current;
 
   g_return_val_if_fail (color != NULL, FALSE);
   g_return_val_if_fail (resolved_color != NULL, FALSE);
   g_return_val_if_fail (props == NULL || GTK_IS_STYLE_PROPERTIES (props), FALSE);
 
+  current = _gtk_css_rgba_value_new_from_rgba (&pink);
   v =_gtk_symbolic_color_resolve_full (color,
+                                       current,
 				       resolve_lookup_color,
 				       props);
+  _gtk_css_value_unref (current);
   if (v == NULL)
     return FALSE;
 
-  *resolved_color = *_gtk_css_value_get_rgba (v);
+  *resolved_color = *_gtk_css_rgba_value_get_rgba (v);
   _gtk_css_value_unref (v);
   return TRUE;
 }
 
 GtkCssValue *
 _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
+                                  GtkCssValue                *current,
 				  GtkSymbolicColorLookupFunc  func,
 				  gpointer                    data)
 {
   GtkCssValue *value;
 
   g_return_val_if_fail (color != NULL, FALSE);
+  g_return_val_if_fail (current != NULL, FALSE);
   g_return_val_if_fail (func != NULL, FALSE);
 
   value = NULL;
@@ -603,7 +674,7 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 	if (!named_color)
 	  return NULL;
 
-	return _gtk_symbolic_color_resolve_full (named_color, func, data);
+	return _gtk_symbolic_color_resolve_full (named_color, current, func, data);
       }
 
       break;
@@ -612,16 +683,16 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 	GtkCssValue *val;
 	GdkRGBA shade;
 
-	val = _gtk_symbolic_color_resolve_full (color->shade.color, func, data);
+	val = _gtk_symbolic_color_resolve_full (color->shade.color, current, func, data);
 	if (val == NULL)
 	  return NULL;
 
-	shade = *_gtk_css_value_get_rgba (val);
+	shade = *_gtk_css_rgba_value_get_rgba (val);
 	_shade_color (&shade, color->shade.factor);
 
 	_gtk_css_value_unref (val);
 
-	value = _gtk_css_value_new_from_rgba (&shade);
+	value = _gtk_css_rgba_value_new_from_rgba (&shade);
       }
 
       break;
@@ -630,16 +701,16 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 	GtkCssValue *val;
 	GdkRGBA alpha;
 
-	val = _gtk_symbolic_color_resolve_full (color->alpha.color, func, data);
+	val = _gtk_symbolic_color_resolve_full (color->alpha.color, current, func, data);
 	if (val == NULL)
 	  return NULL;
 
-	alpha = *_gtk_css_value_get_rgba (val);
+	alpha = *_gtk_css_rgba_value_get_rgba (val);
 	alpha.alpha = CLAMP (alpha.alpha * color->alpha.factor, 0, 1);
 
 	_gtk_css_value_unref (val);
 
-	value = _gtk_css_value_new_from_rgba (&alpha);
+	value = _gtk_css_rgba_value_new_from_rgba (&alpha);
       }
       break;
 
@@ -648,16 +719,16 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 	GtkCssValue *val;
 	GdkRGBA color1, color2, res;
 
-	val = _gtk_symbolic_color_resolve_full (color->mix.color1, func, data);
+	val = _gtk_symbolic_color_resolve_full (color->mix.color1, current, func, data);
 	if (val == NULL)
 	  return NULL;
-	color1 = *_gtk_css_value_get_rgba (val);
+	color1 = *_gtk_css_rgba_value_get_rgba (val);
 	_gtk_css_value_unref (val);
 
-	val = _gtk_symbolic_color_resolve_full (color->mix.color2, func, data);
+	val = _gtk_symbolic_color_resolve_full (color->mix.color2, current, func, data);
 	if (val == NULL)
 	  return NULL;
-	color2 = *_gtk_css_value_get_rgba (val);
+	color2 = *_gtk_css_rgba_value_get_rgba (val);
 	_gtk_css_value_unref (val);
 
 
@@ -666,7 +737,7 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 	res.blue = CLAMP (color1.blue + ((color2.blue - color1.blue) * color->mix.factor), 0, 1);
 	res.alpha = CLAMP (color1.alpha + ((color2.alpha - color1.alpha) * color->mix.factor), 0, 1);
 
-	value =_gtk_css_value_new_from_rgba (&res);
+	value =_gtk_css_rgba_value_new_from_rgba (&res);
       }
 
       break;
@@ -679,12 +750,15 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 					     &res))
 	  return NULL;
 
-	value = _gtk_css_value_new_from_rgba (&res);
+	value = _gtk_css_rgba_value_new_from_rgba (&res);
       }
 
       break;
     case COLOR_TYPE_CURRENT_COLOR:
-      return NULL;
+      if (current)
+        return _gtk_css_value_ref (current);
+      else
+        return NULL;
       break;
     default:
       g_assert_not_reached ();
@@ -693,8 +767,7 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
   if (value != NULL)
     {
       if (color->last_value != NULL &&
-	  gdk_rgba_equal (_gtk_css_value_get_rgba (color->last_value),
-			  _gtk_css_value_get_rgba (value)))
+          _gtk_css_value_equal (color->last_value, value))
 	{
 	  _gtk_css_value_unref (value);
 	  value = _gtk_css_value_ref (color->last_value);
@@ -707,6 +780,7 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 	}
     }
 
+  _gtk_css_rgba_value_get_rgba (value);
   return value;
 }
 
@@ -732,7 +806,7 @@ gtk_symbolic_color_to_string (GtkSymbolicColor *color)
   switch (color->type)
     {
     case COLOR_TYPE_LITERAL:
-      s = gdk_rgba_to_string (_gtk_css_value_get_rgba (color->last_value));
+      s = gdk_rgba_to_string (_gtk_css_rgba_value_get_rgba (color->last_value));
       break;
     case COLOR_TYPE_NAME:
       s = g_strconcat ("@", color->name, NULL);
@@ -783,5 +857,251 @@ gtk_symbolic_color_to_string (GtkSymbolicColor *color)
     }
 
   return s;
-
 }
+
+typedef enum {
+  COLOR_RGBA,
+  COLOR_RGB,
+  COLOR_LIGHTER,
+  COLOR_DARKER,
+  COLOR_SHADE,
+  COLOR_ALPHA,
+  COLOR_MIX,
+  COLOR_WIN32
+} ColorParseType;
+
+static GtkSymbolicColor * gtk_css_parser_read_symbolic_color (GtkCssParser *parser);
+
+static GtkSymbolicColor *
+gtk_css_parser_read_symbolic_color_function (GtkCssParser   *parser,
+                                             ColorParseType  color)
+{
+  GtkSymbolicColor *symbolic;
+  GtkSymbolicColor *child1, *child2;
+  double value;
+
+  if (!_gtk_css_parser_try (parser, "(", TRUE))
+    {
+      _gtk_css_parser_error (parser, "Missing opening bracket in color definition");
+      return NULL;
+    }
+
+  if (color == COLOR_RGB || color == COLOR_RGBA)
+    {
+      GdkRGBA rgba;
+      double tmp;
+      guint i;
+
+      for (i = 0; i < 3; i++)
+        {
+          if (i > 0 && !_gtk_css_parser_try (parser, ",", TRUE))
+            {
+              _gtk_css_parser_error (parser, "Expected ',' in color definition");
+              return NULL;
+            }
+
+          if (!_gtk_css_parser_try_double (parser, &tmp))
+            {
+              _gtk_css_parser_error (parser, "Invalid number for color value");
+              return NULL;
+            }
+          if (_gtk_css_parser_try (parser, "%", TRUE))
+            tmp /= 100.0;
+          else
+            tmp /= 255.0;
+          if (i == 0)
+            rgba.red = tmp;
+          else if (i == 1)
+            rgba.green = tmp;
+          else if (i == 2)
+            rgba.blue = tmp;
+          else
+            g_assert_not_reached ();
+        }
+
+      if (color == COLOR_RGBA)
+        {
+          if (i > 0 && !_gtk_css_parser_try (parser, ",", TRUE))
+            {
+              _gtk_css_parser_error (parser, "Expected ',' in color definition");
+              return NULL;
+            }
+
+          if (!_gtk_css_parser_try_double (parser, &rgba.alpha))
+            {
+              _gtk_css_parser_error (parser, "Invalid number for alpha value");
+              return NULL;
+            }
+        }
+      else
+        rgba.alpha = 1.0;
+      
+      symbolic = gtk_symbolic_color_new_literal (&rgba);
+    }
+  else if (color == COLOR_WIN32)
+    {
+      symbolic = _gtk_win32_theme_color_parse (parser);
+      if (symbolic == NULL)
+	return NULL;
+    }
+  else
+    {
+      child1 = gtk_css_parser_read_symbolic_color (parser);
+      if (child1 == NULL)
+        return NULL;
+
+      if (color == COLOR_MIX)
+        {
+          if (!_gtk_css_parser_try (parser, ",", TRUE))
+            {
+              _gtk_css_parser_error (parser, "Expected ',' in color definition");
+              gtk_symbolic_color_unref (child1);
+              return NULL;
+            }
+
+          child2 = gtk_css_parser_read_symbolic_color (parser);
+          if (child2 == NULL)
+            {
+              gtk_symbolic_color_unref (child1);
+              return NULL;
+            }
+        }
+      else
+        child2 = NULL;
+
+      if (color == COLOR_LIGHTER)
+        value = 1.3;
+      else if (color == COLOR_DARKER)
+        value = 0.7;
+      else
+        {
+          if (!_gtk_css_parser_try (parser, ",", TRUE))
+            {
+              _gtk_css_parser_error (parser, "Expected ',' in color definition");
+              gtk_symbolic_color_unref (child1);
+              if (child2)
+                gtk_symbolic_color_unref (child2);
+              return NULL;
+            }
+
+          if (!_gtk_css_parser_try_double (parser, &value))
+            {
+              _gtk_css_parser_error (parser, "Expected number in color definition");
+              gtk_symbolic_color_unref (child1);
+              if (child2)
+                gtk_symbolic_color_unref (child2);
+              return NULL;
+            }
+        }
+      
+      switch (color)
+        {
+        case COLOR_LIGHTER:
+        case COLOR_DARKER:
+        case COLOR_SHADE:
+          symbolic = gtk_symbolic_color_new_shade (child1, value);
+          break;
+        case COLOR_ALPHA:
+          symbolic = gtk_symbolic_color_new_alpha (child1, value);
+          break;
+        case COLOR_MIX:
+          symbolic = gtk_symbolic_color_new_mix (child1, child2, value);
+          break;
+        default:
+          g_assert_not_reached ();
+          symbolic = NULL;
+        }
+
+      gtk_symbolic_color_unref (child1);
+      if (child2)
+        gtk_symbolic_color_unref (child2);
+    }
+
+  if (!_gtk_css_parser_try (parser, ")", TRUE))
+    {
+      _gtk_css_parser_error (parser, "Expected ')' in color definition");
+      gtk_symbolic_color_unref (symbolic);
+      return NULL;
+    }
+
+  return symbolic;
+}
+
+static GtkSymbolicColor *
+gtk_css_parser_read_symbolic_color (GtkCssParser *parser)
+{
+  GtkSymbolicColor *symbolic;
+  GdkRGBA rgba;
+  guint color;
+  const char *names[] = {"rgba", "rgb",  "lighter", "darker", "shade", "alpha", "mix",
+			 GTK_WIN32_THEME_SYMBOLIC_COLOR_NAME};
+  char *name;
+
+  if (_gtk_css_parser_try (parser, "currentColor", TRUE))
+    return gtk_symbolic_color_ref (_gtk_symbolic_color_get_current_color ());
+
+  if (_gtk_css_parser_try (parser, "transparent", TRUE))
+    {
+      GdkRGBA transparent = { 0, 0, 0, 0 };
+      
+      return gtk_symbolic_color_new_literal (&transparent);
+    }
+
+  if (_gtk_css_parser_try (parser, "@", FALSE))
+    {
+      name = _gtk_css_parser_try_name (parser, TRUE);
+
+      if (name)
+        {
+          symbolic = gtk_symbolic_color_new_name (name);
+        }
+      else
+        {
+          _gtk_css_parser_error (parser, "'%s' is not a valid symbolic color name", name);
+          symbolic = NULL;
+        }
+
+      g_free (name);
+      return symbolic;
+    }
+
+  for (color = 0; color < G_N_ELEMENTS (names); color++)
+    {
+      if (_gtk_css_parser_try (parser, names[color], TRUE))
+        break;
+    }
+
+  if (color < G_N_ELEMENTS (names))
+    return gtk_css_parser_read_symbolic_color_function (parser, color);
+
+  if (_gtk_css_parser_try_hash_color (parser, &rgba))
+    return gtk_symbolic_color_new_literal (&rgba);
+
+  name = _gtk_css_parser_try_name (parser, TRUE);
+  if (name)
+    {
+      if (gdk_rgba_parse (&rgba, name))
+        {
+          symbolic = gtk_symbolic_color_new_literal (&rgba);
+        }
+      else
+        {
+          _gtk_css_parser_error (parser, "'%s' is not a valid color name", name);
+          symbolic = NULL;
+        }
+      g_free (name);
+      return symbolic;
+    }
+
+  _gtk_css_parser_error (parser, "Not a color definition");
+  return NULL;
+}
+
+GtkCssValue *
+_gtk_css_symbolic_value_new (GtkCssParser *parser)
+{
+  g_return_val_if_fail (parser != NULL, NULL);
+
+  return _gtk_css_symbolic_value_new_take_symbolic_color (gtk_css_parser_read_symbolic_color (parser));
+}
+

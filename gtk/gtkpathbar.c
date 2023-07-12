@@ -35,6 +35,7 @@
 #include "gtkbox.h"
 #include "gtkmain.h"
 #include "gtkmarshalers.h"
+#include "gtkwidgetprivate.h"
 
 
 enum {
@@ -493,15 +494,18 @@ child_ordering_changed (GtkPathBar *path_bar)
   GList *l;
 
   if (path_bar->up_slider_button)
-    gtk_widget_reset_style (path_bar->up_slider_button);
+    _gtk_widget_invalidate_style_context (path_bar->up_slider_button,
+                                          GTK_CSS_CHANGE_POSITION | GTK_CSS_CHANGE_SIBLING_POSITION);
   if (path_bar->down_slider_button)
-    gtk_widget_reset_style (path_bar->down_slider_button);
+    _gtk_widget_invalidate_style_context (path_bar->down_slider_button,
+                                          GTK_CSS_CHANGE_POSITION | GTK_CSS_CHANGE_SIBLING_POSITION);
 
   for (l = path_bar->button_list; l; l = l->next)
     {
       ButtonData *data = l->data;
 
-      gtk_widget_reset_style (data->button);
+      _gtk_widget_invalidate_style_context (data->button,
+                                            GTK_CSS_CHANGE_POSITION | GTK_CSS_CHANGE_SIBLING_POSITION);
     }
 }
 
@@ -871,7 +875,7 @@ gtk_path_bar_get_path_for_child (GtkContainer *container,
   GtkPathBar *path_bar = GTK_PATH_BAR (container);
   GtkWidgetPath *path;
 
-  path = gtk_widget_path_copy (gtk_widget_get_path (GTK_WIDGET (path_bar)));
+  path = _gtk_widget_create_path (GTK_WIDGET (path_bar));
 
   if (gtk_widget_get_visible (child) &&
       gtk_widget_get_child_visible (child))

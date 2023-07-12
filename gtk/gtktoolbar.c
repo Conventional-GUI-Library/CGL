@@ -56,6 +56,7 @@
 #include "gtkprivate.h"
 #include "gtkintl.h"
 #include "gtktypebuiltins.h"
+#include "gtkwidgetprivate.h"
 
 
 /**
@@ -3946,7 +3947,7 @@ gtk_toolbar_get_path_for_child (GtkContainer *container,
   g_list_foreach (children, add_widget_to_path, sibling_path);
   g_list_free (children);
 
-  path = gtk_widget_path_copy (gtk_widget_get_path (GTK_WIDGET (container)));
+  path = _gtk_widget_create_path (GTK_WIDGET (container));
   if (gtk_widget_get_visible (child))
     {
       vis_index = gtk_toolbar_get_visible_position (toolbar, child);
@@ -3966,10 +3967,16 @@ gtk_toolbar_get_path_for_child (GtkContainer *container,
 }
 
 static void
+gtk_toolbar_invalidate_order_foreach (GtkWidget *widget)
+{
+  _gtk_widget_invalidate_style_context (widget, GTK_CSS_CHANGE_POSITION | GTK_CSS_CHANGE_SIBLING_POSITION);
+}
+
+static void
 gtk_toolbar_invalidate_order (GtkToolbar *toolbar)
 {
   gtk_container_forall (GTK_CONTAINER (toolbar),
-                        (GtkCallback) gtk_widget_reset_style,
+                        (GtkCallback) gtk_toolbar_invalidate_order_foreach,
                         NULL);
 }
 

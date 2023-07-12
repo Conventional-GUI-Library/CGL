@@ -21,6 +21,7 @@
 #define __GTK_SYMBOLIC_COLOR_PRIVATE_H__
 
 #include "gtk/gtksymboliccolor.h"
+#include "gtk/gtkcssparserprivate.h"
 #include "gtk/gtkcssvalueprivate.h"
 
 G_BEGIN_DECLS
@@ -28,10 +29,26 @@ G_BEGIN_DECLS
 typedef GtkSymbolicColor * (* GtkSymbolicColorLookupFunc) (gpointer data, const char *name);
 
 GtkCssValue *      _gtk_symbolic_color_resolve_full       (GtkSymbolicColor           *color,
+                                                           GtkCssValue                *current,
                                                            GtkSymbolicColorLookupFunc  func,
                                                            gpointer                    data);
 
 GtkSymbolicColor * _gtk_symbolic_color_get_current_color  (void);
+
+GtkCssValue *      _gtk_css_symbolic_value_new            (GtkCssParser               *parser);
+
+/* I made these inline functions instead of macros to gain type safety for the arguments passed in. */
+static inline GtkSymbolicColor *
+_gtk_symbolic_color_new_take_value (GtkCssValue *value)
+{
+  return (GtkSymbolicColor *) value;
+}
+
+static inline GtkCssValue *
+_gtk_css_symbolic_value_new_take_symbolic_color (GtkSymbolicColor *color)
+{
+  return (GtkCssValue *) color;
+}
 
 G_END_DECLS
 

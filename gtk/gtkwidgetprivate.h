@@ -27,6 +27,9 @@
 #ifndef __GTK_WIDGET_PRIVATE_H__
 #define __GTK_WIDGET_PRIVATE_H__
 
+#include "gtkcsstypesprivate.h"
+#include "gtkwidget.h"
+
 G_BEGIN_DECLS
 
 /* Cache as many ranges of height-for-width
@@ -66,9 +69,6 @@ typedef struct {
 
 void         _gtk_widget_set_visible_flag   (GtkWidget *widget,
                                              gboolean   visible);
-gboolean     _gtk_widget_get_resize_pending (GtkWidget *widget);
-void         _gtk_widget_set_resize_pending (GtkWidget *widget,
-                                             gboolean   resize_pending);
 gboolean     _gtk_widget_get_in_reparent    (GtkWidget *widget);
 void         _gtk_widget_set_in_reparent    (GtkWidget *widget,
                                              gboolean   in_reparent);
@@ -163,6 +163,11 @@ gpointer          _gtk_widget_peek_request_cache           (GtkWidget *widget);
 void              _gtk_widget_buildable_finish_accelerator (GtkWidget *widget,
                                                             GtkWidget *toplevel,
                                                             gpointer   user_data);
+
+GtkWidgetPath *   _gtk_widget_create_path                  (GtkWidget    *widget);
+void              _gtk_widget_invalidate_style_context     (GtkWidget    *widget,
+                                                            GtkCssChange  change);
+void              _gtk_widget_style_context_invalidated    (GtkWidget    *widget);
 
 G_END_DECLS
 

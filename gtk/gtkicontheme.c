@@ -655,8 +655,8 @@ gtk_icon_theme_init (GtkIconTheme *icon_theme)
   priv->search_path = g_new (char *, priv->search_path_len);
   
   i = 0;
-  priv->search_path[i++] = g_build_filename (g_get_home_dir (), ".icons", NULL);
   priv->search_path[i++] = g_build_filename (g_get_user_data_dir (), "icons", NULL);
+  priv->search_path[i++] = g_build_filename (g_get_home_dir (), ".icons", NULL);
   
   for (j = 0; xdg_data_dirs[j]; j++) 
     priv->search_path[i++] = g_build_filename (xdg_data_dirs[j], "icons", NULL);
@@ -1324,6 +1324,23 @@ choose_icon (GtkIconTheme       *icon_theme,
   use_builtin = flags & GTK_ICON_LOOKUP_USE_BUILTIN;
   
   ensure_valid_themes (icon_theme);
+
+  /* for symbolic icons, do a search in all registered themes first;
+   * a theme that inherits them from a parent theme might provide
+   * an alternative highcolor version, but still expect the symbolic icon
+   * to show up instead.
+   */
+  if (icon_names[0] &&
+      g_str_has_suffix (icon_names[0], "-symbolic"))
+    {
+      for (l = priv->themes; l; l = l->next)
+        {
+          IconTheme *theme = l->data;
+          icon_info = theme_lookup_icon (theme, icon_names[0], size, allow_svg, use_builtin);
+          if (icon_info)
+            goto out;
+        }
+    }
 
   for (l = priv->themes; l; l = l->next)
     {

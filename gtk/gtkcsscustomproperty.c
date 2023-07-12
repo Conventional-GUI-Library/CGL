@@ -25,62 +25,11 @@
 #include <string.h>
 
 #include "gtkcssstylefuncsprivate.h"
+#include "gtkcsstypedvalueprivate.h"
+#include "gtkstylepropertiesprivate.h"
 #include "gtkthemingengine.h"
 
 G_DEFINE_TYPE (GtkCssCustomProperty, _gtk_css_custom_property, GTK_TYPE_CSS_STYLE_PROPERTY)
-
-static gboolean
-gtk_css_custom_property_parse_value (GtkStyleProperty *property,
-                                     GValue           *value,
-                                     GtkCssParser     *parser,
-                                     GFile            *base)
-{
-  GtkCssCustomProperty *custom = GTK_CSS_CUSTOM_PROPERTY (property);
-  gboolean success;
-
-  if (custom->property_parse_func)
-    {
-      GError *error = NULL;
-      char *value_str;
-      
-      g_value_init (value, _gtk_style_property_get_value_type (property));
-
-      value_str = _gtk_css_parser_read_value (parser);
-      if (value_str != NULL)
-        {
-          success = (* custom->property_parse_func) (value_str, value, &error);
-          g_free (value_str);
-        }
-      else
-        success = FALSE;
-    }
-  else
-    {
-      GtkCssStyleProperty *style = GTK_CSS_STYLE_PROPERTY (property);
-      g_value_init (value, _gtk_css_style_property_get_specified_type (style));
-
-      success = _gtk_css_style_parse_value (value, parser, base);
-    }
-
-  if (!success)
-    g_value_unset (value);
-
-  return success;
-}
-
-static void
-_gtk_css_custom_property_class_init (GtkCssCustomPropertyClass *klass)
-{
-  GtkStylePropertyClass *property_class = GTK_STYLE_PROPERTY_CLASS (klass);
-
-  property_class->parse_value = gtk_css_custom_property_parse_value;
-}
-
-
-static void
-_gtk_css_custom_property_init (GtkCssCustomProperty *custom_property)
-{
-}
 
 static GType
 gtk_css_custom_property_get_specified_type (GParamSpec *pspec)
@@ -93,22 +42,129 @@ gtk_css_custom_property_get_specified_type (GParamSpec *pspec)
 }
 
 static GtkCssValue *
+gtk_css_custom_property_parse_value (GtkStyleProperty *property,
+                                     GtkCssParser     *parser,
+                                     GFile            *base)
+{
+  GtkCssCustomProperty *custom = GTK_CSS_CUSTOM_PROPERTY (property);
+  GValue value = G_VALUE_INIT;
+  gboolean success;
+
+  if (custom->property_parse_func)
+    {
+      GError *error = NULL;
+      char *value_str;
+      
+      g_value_init (&value, _gtk_style_property_get_value_type (property));
+
+      value_str = _gtk_css_parser_read_value (parser);
+      if (value_str != NULL)
+        {
+          success = (* custom->property_parse_func) (value_str, &value, &error);
+          g_free (value_str);
+        }
+      else
+        success = FALSE;
+    }
+  else
+    {
+      g_value_init (&value, gtk_css_custom_property_get_specified_type (custom->pspec));
+
+      success = _gtk_css_style_parse_value (&value, parser, base);
+    }
+
+  if (!success)
+    {
+      g_value_unset (&value);
+      return NULL;
+    }
+
+  return _gtk_css_typed_value_new_take (&value);
+}
+
+static void
+gtk_css_custom_property_query (GtkStyleProperty   *property,
+                               GValue             *value,
+                               GtkStyleQueryFunc   query_func,
+                               gpointer            query_data)
+{
+  GtkCssStyleProperty *style = GTK_CSS_STYLE_PROPERTY (property);
+  GtkCssCustomProperty *custom = GTK_CSS_CUSTOM_PROPERTY (property);
+  GtkCssValue *css_value;
+  
+  css_value = (* query_func) (_gtk_css_style_property_get_id (style), query_data);
+  if (css_value == NULL)
+    css_value = _gtk_css_style_property_get_initial_value (style);
+
+  g_value_init (value, custom->pspec->value_type);
+  g_value_copy (_gtk_css_typed_value_get (css_value), value);
+}
+
+static void
+gtk_css_custom_property_assign (GtkStyleProperty   *property,
+                                GtkStyleProperties *props,
+                                GtkStateFlags       state,
+                                const GValue       *value)
+{
+  GtkCssValue *css_value = _gtk_css_typed_value_new (value);
+  _gtk_style_properties_set_property_by_property (props,
+                                                  GTK_CSS_STYLE_PROPERTY (property),
+                                                  state,
+                                                  css_value);
+  _gtk_css_value_unref (css_value);
+}
+
+static void
+_gtk_css_custom_property_class_init (GtkCssCustomPropertyClass *klass)
+{
+  GtkStylePropertyClass *property_class = GTK_STYLE_PROPERTY_CLASS (klass);
+
+  property_class->parse_value = gtk_css_custom_property_parse_value;
+  property_class->query = gtk_css_custom_property_query;
+  property_class->assign = gtk_css_custom_property_assign;
+}
+
+static GtkCssValue *
+gtk_css_custom_property_compute_value (GtkCssStyleProperty *property,
+                                       GtkStyleContext     *context,
+                                       GtkCssValue         *specified)
+{
+  GtkCssCustomProperty *custom = GTK_CSS_CUSTOM_PROPERTY (property);
+
+  return _gtk_css_style_compute_value (context, custom->pspec->value_type, specified);
+}
+
+static void
+_gtk_css_custom_property_init (GtkCssCustomProperty *custom)
+{
+  GtkCssStyleProperty *style = GTK_CSS_STYLE_PROPERTY (custom);
+
+  style->compute_value = gtk_css_custom_property_compute_value;
+}
+
+static GtkCssValue *
 gtk_css_custom_property_create_initial_value (GParamSpec *pspec)
 {
   GValue value = G_VALUE_INIT;
+  GtkCssValue *result;
 
-  g_value_init (&value, gtk_css_custom_property_get_specified_type (pspec));
+  g_value_init (&value, pspec->value_type);
 
   if (pspec->value_type == GTK_TYPE_THEMING_ENGINE)
     g_value_set_object (&value, gtk_theming_engine_load (NULL));
   else if (pspec->value_type == PANGO_TYPE_FONT_DESCRIPTION)
     g_value_take_boxed (&value, pango_font_description_from_string ("Sans 10"));
-  else if (pspec->value_type == GDK_TYPE_RGBA ||
-           pspec->value_type == GDK_TYPE_COLOR)
+  else if (pspec->value_type == GDK_TYPE_RGBA)
     {
       GdkRGBA color;
       gdk_rgba_parse (&color, "pink");
-      g_value_take_boxed (&value, gtk_symbolic_color_new_literal (&color));
+      g_value_set_boxed (&value, &color);
+    }
+  else if (pspec->value_type == GDK_TYPE_COLOR)
+    {
+      GdkColor color;
+      gdk_color_parse ("pink", &color);
+      g_value_set_boxed (&value, &color);
     }
   else if (pspec->value_type == GTK_TYPE_BORDER)
     {
@@ -117,7 +173,10 @@ gtk_css_custom_property_create_initial_value (GParamSpec *pspec)
   else
     g_param_value_set_default (pspec, &value);
 
-  return _gtk_css_value_new_take_gvalue (&value);
+  result = _gtk_css_typed_value_new (&value);
+  g_value_unset (&value);
+
+  return result;
 }
 
 /* Property registration functions */
@@ -176,12 +235,20 @@ gtk_theming_engine_register_property (const gchar            *name_space,
   g_return_if_fail (G_IS_PARAM_SPEC (pspec));
 
   name = g_strdup_printf ("-%s-%s", name_space, pspec->name);
+
+  /* This also initializes the default properties */
+  if (_gtk_style_property_lookup (pspec->name))
+    {
+      g_warning ("a property with name '%s' already exists", name);
+      g_free (name);
+      return;
+    }
+  
   initial = gtk_css_custom_property_create_initial_value (pspec);
 
   node = g_object_new (GTK_TYPE_CSS_CUSTOM_PROPERTY,
                        "initial-value", initial,
                        "name", name,
-                       "computed-type", pspec->value_type,
                        "value-type", pspec->value_type,
                        NULL);
   node->pspec = pspec;
@@ -212,12 +279,18 @@ gtk_style_properties_register_property (GtkStylePropertyParser  parse_func,
 
   g_return_if_fail (G_IS_PARAM_SPEC (pspec));
 
+  /* This also initializes the default properties */
+  if (_gtk_style_property_lookup (pspec->name))
+    {
+      g_warning ("a property with name '%s' already exists", pspec->name);
+      return;
+    }
+  
   initial = gtk_css_custom_property_create_initial_value (pspec);
 
   node = g_object_new (GTK_TYPE_CSS_CUSTOM_PROPERTY,
                        "initial-value", initial,
                        "name", pspec->name,
-                       "computed-type", pspec->value_type,
                        "value-type", pspec->value_type,
                        NULL);
   node->pspec = pspec;

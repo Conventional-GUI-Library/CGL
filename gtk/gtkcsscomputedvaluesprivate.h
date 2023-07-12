@@ -23,6 +23,7 @@
 
 #include <glib-object.h>
 
+#include "gtk/gtkbitmaskprivate.h"
 #include "gtk/gtkcsssection.h"
 #include "gtk/gtkstylecontext.h"
 #include "gtk/gtkcssvalueprivate.h"
@@ -68,10 +69,10 @@ void                    _gtk_css_computed_values_set_value            (GtkCssCom
                                                                         
 GtkCssValue *           _gtk_css_computed_values_get_value            (GtkCssComputedValues     *values,
                                                                        guint                     id);
-GtkCssValue *           _gtk_css_computed_values_get_value_by_name    (GtkCssComputedValues     *values,
-                                                                       const char               *name);
 GtkCssSection *         _gtk_css_computed_values_get_section          (GtkCssComputedValues     *values,
                                                                        guint                     id);
+GtkBitmask *            _gtk_css_computed_values_get_difference       (GtkCssComputedValues     *values,
+                                                                       GtkCssComputedValues     *other);
 
 
 G_END_DECLS

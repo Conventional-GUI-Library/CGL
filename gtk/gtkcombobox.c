@@ -30,6 +30,7 @@
 #include "gtkframe.h"
 #include "gtkbox.h"
 #include "gtkliststore.h"
+#include "gtkwidgetprivate.h"
 #include "gtkmain.h"
 #include "gtkmenuprivate.h"
 #include "gtkmenushellprivate.h"
@@ -1379,10 +1380,16 @@ gtk_combo_box_button_state_flags_changed (GtkWidget     *widget,
 }
 
 static void
+gtk_combo_box_invalidate_order_foreach (GtkWidget *widget)
+{
+  _gtk_widget_invalidate_style_context (widget, GTK_CSS_CHANGE_POSITION | GTK_CSS_CHANGE_SIBLING_POSITION);
+}
+
+static void
 gtk_combo_box_invalidate_order (GtkComboBox *combo_box)
 {
   gtk_container_forall (GTK_CONTAINER (combo_box),
-                        (GtkCallback) gtk_widget_reset_style,
+                        (GtkCallback) gtk_combo_box_invalidate_order_foreach,
                         NULL);
 }
 
@@ -1405,7 +1412,7 @@ gtk_combo_box_get_path_for_child (GtkContainer *container,
   GtkWidgetPath *sibling_path;
   int pos;
 
-  path = gtk_widget_path_copy (gtk_widget_get_path (GTK_WIDGET (container)));
+  path = _gtk_widget_create_path (GTK_WIDGET (container));
 
   if (gtk_widget_get_visible (child))
     {

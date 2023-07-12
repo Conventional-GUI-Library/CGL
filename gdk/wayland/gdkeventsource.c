@@ -37,6 +37,9 @@ gdk_event_source_prepare(GSource *base, gint *timeout)
 
   *timeout = -1;
 
+  if (source->display->event_pause_count > 0)
+    return FALSE;
+
   /* We have to add/remove the GPollFD if we want to update our
    * poll event mask dynamically.  Instead, let's just flush all
    * write on idle instead, which is what this amounts to. */
@@ -53,6 +56,12 @@ static gboolean
 gdk_event_source_check(GSource *base)
 {
   GdkWaylandEventSource *source = (GdkWaylandEventSource *) base;
+
+  if (source->pfd.revents & (G_IO_ERR | G_IO_HUP))
+    g_error ("Lost connection to wayland compositor");
+
+  if (source->display->event_pause_count > 0)
+    return FALSE;
 
   return _gdk_event_queue_find_first (source->display) != NULL ||
     source->pfd.revents;
@@ -124,7 +133,7 @@ _gdk_wayland_display_event_source_new (GdkDisplay *display)
   display_wayland = GDK_WAYLAND_DISPLAY (display);
   wl_source->display = display;
   wl_source->pfd.fd = wl_display_get_fd(display_wayland->wl_display);
-  wl_source->pfd.events = G_IO_IN | G_IO_ERR;
+  wl_source->pfd.events = G_IO_IN | G_IO_ERR | G_IO_HUP;
   g_source_add_poll(source, &wl_source->pfd);
 
   g_source_set_priority (source, GDK_PRIORITY_EVENTS);

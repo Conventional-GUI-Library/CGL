@@ -29,13 +29,12 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <cairo-gobject.h>
 
-#include "gtkanimationdescription.h"
 #include "gtkcssimagegradientprivate.h"
 #include "gtkcssprovider.h"
+#include "gtkcsstypedvalueprivate.h"
 #include "gtkcsstypesprivate.h"
 #include "gtkgradient.h"
 #include "gtkprivatetypebuiltins.h"
-#include "gtkshadowprivate.h"
 #include "gtkstylecontextprivate.h"
 #include "gtksymboliccolorprivate.h"
 #include "gtkthemingengine.h"
@@ -171,16 +170,9 @@ rgba_value_parse (GtkCssParser *parser,
   GtkSymbolicColor *symbolic;
   GdkRGBA rgba;
 
-  if (_gtk_css_parser_try (parser, "currentcolor", TRUE))
-    {
-      symbolic = gtk_symbolic_color_ref (_gtk_symbolic_color_get_current_color ());
-    }
-  else
-    {
-      symbolic = _gtk_css_parser_read_symbolic_color (parser);
-      if (symbolic == NULL)
-        return FALSE;
-    }
+  symbolic = _gtk_symbolic_color_new_take_value (_gtk_css_symbolic_value_new (parser));
+  if (symbolic == NULL)
+    return FALSE;
 
   if (gtk_symbolic_color_resolve (symbolic, NULL, &rgba))
     {
@@ -215,28 +207,25 @@ rgba_value_print (const GValue *value,
 
 static GtkCssValue *
 rgba_value_compute (GtkStyleContext *context,
-                    GtkCssValue    *specified)
+                    GtkCssValue     *specified)
 {
   GdkRGBA white = { 1, 1, 1, 1 };
-  GtkCssValue *res;
+  const GValue *value;
+
+  value = _gtk_css_typed_value_get (specified);
   
-  if (_gtk_css_value_holds (specified, GTK_TYPE_CSS_SPECIAL_VALUE))
+  if (G_VALUE_HOLDS (value, GTK_TYPE_SYMBOLIC_COLOR))
     {
-      return _gtk_css_value_new_from_rgba (NULL);
-    }
-  else if (_gtk_css_value_holds (specified, GTK_TYPE_SYMBOLIC_COLOR))
-    {
-      GtkSymbolicColor *symbolic = _gtk_css_value_get_symbolic_color (specified);
+      GtkSymbolicColor *symbolic = g_value_get_boxed (value);
+      GValue new_value = G_VALUE_INIT;
+      GdkRGBA rgba;
 
-      if (symbolic == _gtk_symbolic_color_get_current_color ())
-        return _gtk_css_value_ref (_gtk_style_context_peek_property (context, "color"));
-      else {
-	res = _gtk_style_context_resolve_color_value (context, symbolic);
-	if (res != NULL)
-	  return res;
+      if (!_gtk_style_context_resolve_color (context, symbolic, &rgba))
+        rgba = white;
 
-	return _gtk_css_value_new_from_rgba (&white);
-      }
+      g_value_init (&new_value, GDK_TYPE_RGBA);
+      g_value_set_boxed (&new_value, &rgba);
+      return _gtk_css_typed_value_new_take (&new_value);
     }
   else
     return _gtk_css_value_ref (specified);
@@ -250,7 +239,7 @@ color_value_parse (GtkCssParser *parser,
   GtkSymbolicColor *symbolic;
   GdkRGBA rgba;
 
-  symbolic = _gtk_css_parser_read_symbolic_color (parser);
+  symbolic = _gtk_symbolic_color_new_take_value (_gtk_css_symbolic_value_new (parser));
   if (symbolic == NULL)
     return FALSE;
 
@@ -296,11 +285,16 @@ color_value_compute (GtkStyleContext *context,
 {
   GdkRGBA rgba;
   GdkColor color = { 0, 65535, 65535, 65535 };
+  const GValue *value;
 
-  if (_gtk_css_value_holds (specified, GTK_TYPE_SYMBOLIC_COLOR))
+  value = _gtk_css_typed_value_get (specified);
+  
+  if (G_VALUE_HOLDS (value, GTK_TYPE_SYMBOLIC_COLOR))
     {
+      GValue new_value = G_VALUE_INIT;
+
       if (_gtk_style_context_resolve_color (context,
-                                            _gtk_css_value_get_symbolic_color (specified),
+                                            g_value_get_boxed (value),
                                             &rgba))
         {
           color.red = rgba.red * 65535. + 0.5;
@@ -308,7 +302,9 @@ color_value_compute (GtkStyleContext *context,
           color.blue = rgba.blue * 65535. + 0.5;
         }
       
-      return _gtk_css_value_new_from_color (&color);
+      g_value_init (&new_value, GDK_TYPE_COLOR);
+      g_value_set_boxed (&new_value, &color);
+      return _gtk_css_typed_value_new_take (&new_value);
     }
   else
     return _gtk_css_value_ref (specified);
@@ -321,16 +317,9 @@ symbolic_color_value_parse (GtkCssParser *parser,
 {
   GtkSymbolicColor *symbolic;
 
-  if (_gtk_css_parser_try (parser, "currentcolor", TRUE))
-    {
-      symbolic = gtk_symbolic_color_ref (_gtk_symbolic_color_get_current_color ());
-    }
-  else
-    {
-      symbolic = _gtk_css_parser_read_symbolic_color (parser);
-      if (symbolic == NULL)
-        return FALSE;
-    }
+  symbolic = _gtk_symbolic_color_new_take_value (_gtk_css_symbolic_value_new (parser));
+  if (symbolic == NULL)
+    return FALSE;
 
   g_value_take_boxed (value, symbolic);
   return TRUE;
@@ -611,43 +600,6 @@ theming_engine_value_print (const GValue *value,
 }
 
 static gboolean 
-animation_description_value_parse (GtkCssParser *parser,
-                                   GFile        *base,
-                                   GValue       *value)
-{
-  GtkAnimationDescription *desc;
-  char *str;
-
-  str = _gtk_css_parser_read_value (parser);
-  if (str == NULL)
-    return FALSE;
-
-  desc = _gtk_animation_description_from_string (str);
-  g_free (str);
-
-  if (desc == NULL)
-    {
-      _gtk_css_parser_error (parser, "Invalid animation description");
-      return FALSE;
-    }
-  
-  g_value_take_boxed (value, desc);
-  return TRUE;
-}
-
-static void
-animation_description_value_print (const GValue *value,
-                                   GString      *string)
-{
-  GtkAnimationDescription *desc = g_value_get_boxed (value);
-
-  if (desc == NULL)
-    g_string_append (string, "none");
-  else
-    _gtk_animation_description_print (desc, string);
-}
-
-static gboolean 
 border_value_parse (GtkCssParser *parser,
                     GFile        *base,
                     GValue       *value)
@@ -883,184 +835,21 @@ static GtkCssValue *
 pattern_value_compute (GtkStyleContext *context,
                        GtkCssValue     *specified)
 {
-  if (_gtk_css_value_holds (specified, GTK_TYPE_GRADIENT))
+  const GValue *value = _gtk_css_typed_value_get (specified);
+
+  if (G_VALUE_HOLDS (value, GTK_TYPE_GRADIENT))
     {
+      GValue new_value = G_VALUE_INIT;
       cairo_pattern_t *gradient;
       
-      gradient = gtk_gradient_resolve_for_context (_gtk_css_value_get_gradient (specified), context);
+      gradient = gtk_gradient_resolve_for_context (g_value_get_boxed (value), context);
 
-      return _gtk_css_value_new_take_pattern (gradient);
+      g_value_init (&new_value, CAIRO_GOBJECT_TYPE_PATTERN);
+      g_value_take_boxed (&new_value, gradient);
+      return _gtk_css_typed_value_new_take (&new_value);
     }
   else
     return _gtk_css_value_ref (specified);
-}
-
-static gboolean
-shadow_value_parse (GtkCssParser *parser,
-                    GFile *base,
-                    GValue *value)
-{
-  gboolean have_inset, have_color, have_lengths;
-  gdouble hoffset, voffset, blur, spread;
-  GtkSymbolicColor *color;
-  GtkShadow *shadow;
-  guint i;
-
-  if (_gtk_css_parser_try (parser, "none", TRUE))
-    return TRUE;
-
-  shadow = _gtk_shadow_new ();
-
-  do
-    {
-      have_inset = have_lengths = have_color = FALSE;
-
-      for (i = 0; i < 3; i++)
-        {
-          if (!have_inset && 
-              _gtk_css_parser_try (parser, "inset", TRUE))
-            {
-              have_inset = TRUE;
-              continue;
-            }
-            
-          if (!have_lengths &&
-              _gtk_css_parser_try_double (parser, &hoffset))
-            {
-              have_lengths = TRUE;
-
-              if (!_gtk_css_parser_try_double (parser, &voffset))
-                {
-                  _gtk_css_parser_error (parser, "Horizontal and vertical offsets are required");
-                  _gtk_shadow_unref (shadow);
-                  return FALSE;
-                }
-
-              if (!_gtk_css_parser_try_double (parser, &blur))
-                blur = 0;
-
-              if (!_gtk_css_parser_try_double (parser, &spread))
-                spread = 0;
-
-              continue;
-            }
-
-          if (!have_color)
-            {
-              have_color = TRUE;
-
-              /* XXX: the color is optional and UA-defined if it's missing,
-               * but it doesn't really make sense for us...
-               */
-              color = _gtk_css_parser_read_symbolic_color (parser);
-
-              if (color == NULL)
-                {
-                  _gtk_shadow_unref (shadow);
-                  return FALSE;
-                }
-            }
-        }
-
-      if (!have_color || !have_lengths)
-        {
-          _gtk_css_parser_error (parser, "Must specify at least color and offsets");
-          _gtk_shadow_unref (shadow);
-          return FALSE;
-        }
-
-      _gtk_shadow_append (shadow,
-                          hoffset, voffset,
-                          blur, spread,
-                          have_inset, color);
-
-      gtk_symbolic_color_unref (color);
-
-    }
-  while (_gtk_css_parser_try (parser, ",", TRUE));
-
-  g_value_take_boxed (value, shadow);
-  return TRUE;
-}
-
-static void
-shadow_value_print (const GValue *value,
-                    GString      *string)
-{
-  GtkShadow *shadow;
-
-  shadow = g_value_get_boxed (value);
-
-  if (shadow == NULL)
-    g_string_append (string, "none");
-  else
-    _gtk_shadow_print (shadow, string);
-}
-
-static GtkCssValue *
-shadow_value_compute (GtkStyleContext *context,
-                      GtkCssValue     *specified)
-{
-  GtkShadow *shadow;
-  
-  shadow = _gtk_css_value_get_shadow (specified);
-  if (shadow)
-    shadow = _gtk_shadow_resolve (shadow, context);
-
-  return _gtk_css_value_new_take_shadow (shadow);
-}
-
-static gboolean
-border_image_repeat_value_parse (GtkCssParser *parser,
-                                 GFile *file,
-                                 GValue *value)
-{
-  GtkCssBorderImageRepeat image_repeat;
-  GtkCssBorderRepeatStyle styles[2];
-  gint i, v;
-
-  for (i = 0; i < 2; i++)
-    {
-      if (_gtk_css_parser_try_enum (parser, GTK_TYPE_CSS_BORDER_REPEAT_STYLE, &v))
-        styles[i] = v;
-      else if (i == 0)
-        {
-          styles[1] = styles[0] = GTK_CSS_REPEAT_STYLE_STRETCH;
-          break;
-        }
-      else
-        styles[i] = styles[0];
-    }
-
-  image_repeat.hrepeat = styles[0];
-  image_repeat.vrepeat = styles[1];
-
-  g_value_set_boxed (value, &image_repeat);
-
-  return TRUE;
-}
-
-static void
-border_image_repeat_value_print (const GValue *value,
-                                 GString      *string)
-{
-  GtkCssBorderImageRepeat *image_repeat;
-
-  image_repeat = g_value_get_boxed (value);
-
-  enum_print (image_repeat->hrepeat, GTK_TYPE_CSS_BORDER_REPEAT_STYLE, string);
-  if (image_repeat->hrepeat != image_repeat->vrepeat)
-    {
-      g_string_append (string, " ");
-      enum_print (image_repeat->vrepeat, GTK_TYPE_CSS_BORDER_REPEAT_STYLE, string);
-    }
-}
-
-static void
-css_number_print (const GValue *value,
-                  GString      *string)
-{
-  _gtk_css_number_print (g_value_get_boxed (value), string);
 }
 
 static gboolean 
@@ -1214,10 +1003,6 @@ gtk_css_style_funcs_init (void)
                                 theming_engine_value_parse,
                                 theming_engine_value_print,
                                 NULL);
-  register_conversion_function (GTK_TYPE_ANIMATION_DESCRIPTION,
-                                animation_description_value_parse,
-                                animation_description_value_print,
-                                NULL);
   register_conversion_function (GTK_TYPE_BORDER,
                                 border_value_parse,
                                 border_value_print,
@@ -1230,18 +1015,6 @@ gtk_css_style_funcs_init (void)
                                 pattern_value_parse,
                                 pattern_value_print,
                                 pattern_value_compute);
-  register_conversion_function (GTK_TYPE_CSS_BORDER_IMAGE_REPEAT,
-                                border_image_repeat_value_parse,
-                                border_image_repeat_value_print,
-                                NULL);
-  register_conversion_function (GTK_TYPE_SHADOW,
-                                shadow_value_parse,
-                                shadow_value_print,
-                                shadow_value_compute);
-  register_conversion_function (GTK_TYPE_CSS_NUMBER,
-                                NULL,
-                                css_number_print,
-                                NULL);
   register_conversion_function (G_TYPE_ENUM,
                                 enum_value_parse,
                                 enum_value_print,

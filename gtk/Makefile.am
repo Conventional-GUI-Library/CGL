@@ -350,6 +350,7 @@ gtk_public_h_sources = 		\
 	gtktreestore.h		\
 	gtktreeview.h		\
 	gtktreeviewcolumn.h	\
+	gtktypes.h	\
 	gtkuimanager.h		\
 	gtkvbbox.h		\
 	gtkvbox.h		\
@@ -401,7 +402,6 @@ gtk_private_h_sources =		\
 	gtkaccelgroupprivate.h	\
 	gtkaccelmapprivate.h	\
 	gtkallocatedbitmaskprivate.h	\
-	gtkanimationdescription.h \
 	gtkappchooserprivate.h	\
 	gtkappchoosermodule.h	\
 	gtkappchooseronline.h	\
@@ -415,21 +415,43 @@ gtk_private_h_sources =		\
 	gtkcellareaboxcontextprivate.h	\
 	gtkcolorchooserprivate.h	\
 	gtkcontainerprivate.h   \
+	gtkcssanimatedvaluesprivate.h	\
+	gtkcssarrayvalueprivate.h	\
+	gtkcssbgsizevalueprivate.h	\
+	gtkcssbordervalueprivate.h	\
 	gtkcsscomputedvaluesprivate.h \
+	gtkcsscornervalueprivate.h	\
 	gtkcsscustompropertyprivate.h \
+	gtkcsseasevalueprivate.h	\
+	gtkcssenginevalueprivate.h	\
+	gtkcssenumvalueprivate.h	\
+	gtkcssimagecrossfadeprivate.h	\
 	gtkcssimagegradientprivate.h	\
 	gtkcssimagelinearprivate.h	\
 	gtkcssimageprivate.h	\
 	gtkcssimageurlprivate.h	\
+	gtkcssimagevalueprivate.h	\
 	gtkcssimagewin32private.h	\
+	gtkcssinheritvalueprivate.h	\
+	gtkcssinitialvalueprivate.h	\
 	gtkcsslookupprivate.h	\
+	gtkcssmatcherprivate.h	\
+	gtkcssnumbervalueprivate.h	\
 	gtkcssparserprivate.h	\
+	gtkcsspositionvalueprivate.h	\
 	gtkcssproviderprivate.h	\
+	gtkcssrepeatvalueprivate.h	\
+	gtkcssrgbavalueprivate.h	\
 	gtkcsssectionprivate.h 	\
 	gtkcssselectorprivate.h	\
+	gtkcssshadowsvalueprivate.h	\
+	gtkcssshadowvalueprivate.h      \
 	gtkcssshorthandpropertyprivate.h \
+	gtkcssstringvalueprivate.h	\
 	gtkcssstylefuncsprivate.h \
 	gtkcssstylepropertyprivate.h \
+	gtkcsstransitionprivate.h	\
+	gtkcsstypedvalueprivate.h	\
 	gtkcssvalueprivate.h	\
 	gtkcustompaperunixdialog.h \
 	gtkentryprivate.h	\
@@ -478,9 +500,10 @@ gtk_private_h_sources =		\
 	gtksearchenginesimple.h	\
 	gtkselectionprivate.h	\
 	gtksettingsprivate.h	\
-	gtkshadowprivate.h      \
 	gtksizegroup-private.h	\
 	gtksocketprivate.h	\
+	gtkstyleanimationprivate.h \
+	gtkstylecascadeprivate.h \
 	gtkstylecontextprivate.h \
 	gtkstylepropertiesprivate.h \
 	gtkstylepropertyprivate.h \
@@ -497,7 +520,6 @@ gtk_private_h_sources =		\
 	gtktextutil.h		\
 	gtkthemingbackgroundprivate.h \
 	gtkthemingengineprivate.h \
-	gtktimeline.h		\
 	gtktoolpaletteprivate.h	\
 	gtktreedatalist.h	\
 	gtktreeprivate.h	\
@@ -539,7 +561,6 @@ gtk_base_c_sources = 		\
 	gtkappchooseronline.c	\
 	gtkapplication.c	\
 	gtkapplicationwindow.c	\
-	gtkanimationdescription.c \
 	gtkarrow.c		\
 	gtkaspectframe.c	\
 	gtkassistant.c		\
@@ -582,23 +603,45 @@ gtk_base_c_sources = 		\
 	gtkcombobox.c		\
 	gtkcomboboxtext.c	\
 	gtkcontainer.c		\
+	gtkcssanimatedvalues.c	\
+	gtkcssarrayvalue.c	\
+	gtkcssbgsizevalue.c	\
+	gtkcssbordervalue.c	\
 	gtkcsscomputedvalues.c	\
+	gtkcsscornervalue.c	\
 	gtkcsscustomproperty.c	\
+	gtkcsseasevalue.c	\
+	gtkcssenumvalue.c	\
+	gtkcssenginevalue.c	\
 	gtkcssimage.c		\
+	gtkcssimagecrossfade.c	\
 	gtkcssimagegradient.c	\
 	gtkcssimagelinear.c	\
 	gtkcssimageurl.c	\
+	gtkcssimagevalue.c	\
 	gtkcssimagewin32.c	\
+	gtkcssinheritvalue.c	\
+	gtkcssinitialvalue.c	\
 	gtkcsslookup.c		\
+	gtkcssmatcher.c		\
+	gtkcssnumbervalue.c	\
 	gtkcssparser.c		\
+	gtkcsspositionvalue.c	\
 	gtkcssprovider.c	\
+	gtkcssrepeatvalue.c	\
+	gtkcssrgbavalue.c	\
 	gtkcsssection.c 	\
 	gtkcssselector.c	\
+	gtkcssstringvalue.c	\
+	gtkcssshadowsvalue.c	\
+	gtkcssshadowvalue.c	\
 	gtkcssshorthandproperty.c \
 	gtkcssshorthandpropertyimpl.c \
 	gtkcssstylefuncs.c	\
 	gtkcssstyleproperty.c	\
 	gtkcssstylepropertyimpl.c \
+	gtkcsstransition.c	\
+	gtkcsstypedvalue.c	\
 	gtkcssvalue.c		\
 	gtkcsstypes.c		\
 	gtkdialog.c		\
@@ -722,13 +765,14 @@ gtk_base_c_sources = 		\
 	gtksettings.c		\
 	gtksizegroup.c		\
 	gtksizerequest.c	\
-	gtkshadow.c             \
 	gtkshow.c		\
 	gtkspinbutton.c		\
 	gtkspinner.c		\
 	gtkstatusbar.c		\
 	gtkstatusicon.c		\
 	gtkstock.c		\
+	gtkstyleanimation.c	\
+	gtkstylecascade.c	\
 	gtkstylecontext.c	\
 	gtkstyleproperties.c	\
 	gtkstyleproperty.c	\
@@ -758,7 +802,6 @@ gtk_base_c_sources = 		\
 	gtktextview.c		\
 	gtkthemingbackground.c  \
 	gtkthemingengine.c	\
-	gtktimeline.c		\
 	gtktoggleaction.c	\
 	gtktogglebutton.c	\
 	gtktoggletoolbutton.c	\
@@ -835,6 +878,7 @@ gtk_private_h_sources += gtkprint-win32.h
 gtk_c_sources += $(gtk_os_win32_c_sources)
 endif
 
+
 gtk_use_x11_c_sources = 	\
 	gtkplug.c		\
 	gtksocket.c		\
@@ -886,8 +930,20 @@ gtk_clipboard_dnd_c_sources = 	\
 	gtkclipboard-quartz.c	\
 	gtkdnd-quartz.c
 else
+if USE_WAYLAND
+if !USE_X11
+# No wayland gtkdnd-wayland.c yet
+gtk_clipboard_dnd_c_sources = 	\
+	gtkclipboard-wayland.c \
+	gtkdnd.c
+else
 gtk_clipboard_dnd_c_sources = gtkclipboard.c gtkdnd.c
 endif
+else
+gtk_clipboard_dnd_c_sources = gtkclipboard.c gtkdnd.c
+endif
+endif
+
 
 # we use our own built_sources variable rules to avoid automake's
 # BUILT_SOURCES oddities

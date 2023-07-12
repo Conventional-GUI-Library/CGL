@@ -361,13 +361,13 @@ gtk_image_init (GtkImage *image)
 }
 
 static void
-gtk_image_finalize(GObject* object)
+gtk_image_finalize (GObject *object)
 {
-    GtkImage* image = GTK_IMAGE(object);
+  GtkImage *image = GTK_IMAGE (object);
 
-    g_clear_object(&image->priv->icon_helper);
-
-    G_OBJECT_CLASS(gtk_image_parent_class)->finalize(object);
+  g_clear_object (&image->priv->icon_helper);
+  
+  G_OBJECT_CLASS (gtk_image_parent_class)->finalize (object);
 };
 
 static void 
@@ -1314,9 +1314,6 @@ animation_timeout (gpointer data)
         gdk_threads_add_timeout (delay, animation_timeout, image);
 
       gtk_widget_queue_draw (widget);
-
-      if (gtk_widget_is_drawable (widget))
-        gdk_window_process_updates (gtk_widget_get_window (widget), TRUE);
     }
 
   return FALSE;

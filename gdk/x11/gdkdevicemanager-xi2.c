@@ -59,10 +59,6 @@ G_DEFINE_TYPE_WITH_CODE (GdkX11DeviceManagerXI2, gdk_x11_device_manager_xi2, GDK
                          G_IMPLEMENT_INTERFACE (GDK_TYPE_EVENT_TRANSLATOR,
                                                 gdk_x11_device_manager_xi2_event_translator_init))
 
-
-#define HAS_FOCUS(toplevel) ((toplevel)->has_focus || (toplevel)->has_pointer_focus)
-
-
 static void    gdk_x11_device_manager_xi2_constructed  (GObject      *object);
 static void    gdk_x11_device_manager_xi2_dispose      (GObject      *object);
 static void    gdk_x11_device_manager_xi2_set_property (GObject      *object,
@@ -917,12 +913,14 @@ is_parent_of (GdkWindow *parent,
   return FALSE;
 }
 
-static GdkWindow *
+static gboolean
 get_event_window (GdkEventTranslator *translator,
-                  XIEvent            *ev)
+                  XIEvent            *ev,
+                  GdkWindow         **window_p)
 {
   GdkDisplay *display;
   GdkWindow *window = NULL;
+  gboolean should_have_window = TRUE;
 
   display = gdk_device_manager_get_display (GDK_DEVICE_MANAGER (translator));
 
@@ -976,9 +974,17 @@ get_event_window (GdkEventTranslator *translator,
         window = gdk_x11_window_lookup_for_display (display, xev->event);
       }
       break;
+    default:
+      should_have_window = FALSE;
+      break;
     }
 
-  return window;
+  *window_p = window;
+
+  if (should_have_window && !window)
+    return FALSE;
+
+  return TRUE;
 }
 
 static gboolean
@@ -1122,7 +1128,8 @@ gdk_x11_device_manager_xi2_translate_event (GdkEventTranslator *translator,
   if (!ev)
     return FALSE;
 
-  window = get_event_window (translator, ev);
+  if (!get_event_window (translator, ev, &window))
+    return FALSE;
 
   if (window && GDK_WINDOW_DESTROYED (window))
     return FALSE;
@@ -1558,22 +1565,25 @@ gdk_x11_device_manager_xi2_translate_event (GdkEventTranslator *translator,
     case XI_FocusIn:
     case XI_FocusOut:
       {
-        XIEnterEvent *xev = (XIEnterEvent *) ev;
-        GdkDevice *device, *source_device;
+        if (window)
+          {
+            XIEnterEvent *xev = (XIEnterEvent *) ev;
+            GdkDevice *device, *source_device;
 
-        device = g_hash_table_lookup (device_manager->id_table,
-                                      GINT_TO_POINTER (xev->deviceid));
+            device = g_hash_table_lookup (device_manager->id_table,
+                                          GINT_TO_POINTER (xev->deviceid));
 
-        source_device = g_hash_table_lookup (device_manager->id_table,
-                                             GUINT_TO_POINTER (xev->sourceid));
+            source_device = g_hash_table_lookup (device_manager->id_table,
+                                                 GUINT_TO_POINTER (xev->sourceid));
 
-        _gdk_device_manager_core_handle_focus (window,
-                                               xev->event,
-                                               device,
-                                               source_device,
-                                               (ev->evtype == XI_FocusIn) ? TRUE : FALSE,
-                                               xev->detail,
-                                               xev->mode);
+            _gdk_device_manager_core_handle_focus (window,
+                                                   xev->event,
+                                                   device,
+                                                   source_device,
+                                                   (ev->evtype == XI_FocusIn) ? TRUE : FALSE,
+                                                   xev->detail,
+                                                   xev->mode);
+          }
 
         return_val = FALSE;
       }
@@ -1650,6 +1660,7 @@ gdk_x11_device_manager_xi2_get_window (GdkEventTranslator *translator,
 {
   GdkX11DeviceManagerXI2 *device_manager;
   XIEvent *ev;
+  GdkWindow *window = NULL;
 
   device_manager = (GdkX11DeviceManagerXI2 *) translator;
 
@@ -1659,7 +1670,8 @@ gdk_x11_device_manager_xi2_get_window (GdkEventTranslator *translator,
 
   ev = (XIEvent *) xevent->xcookie.data;
 
-  return get_event_window (translator, ev);
+  get_event_window (translator, ev, &window);
+  return window;
 }
 
 GdkDevice *

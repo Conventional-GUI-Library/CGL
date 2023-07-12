@@ -116,8 +116,6 @@ struct _GtkRangePrivate
   gint  slider_start;                /* Slider range along the long dimension, in widget->window coords */
   gint  slider_end;
 
-  guint repaint_id;
-
   /* Steppers are: < > ---- < >
    *               a b      c d
    */
@@ -139,6 +137,9 @@ struct _GtkRangePrivate
 
   /* The range has an origin, should be drawn differently. Used by GtkScale */
   guint has_origin             : 1;
+
+  /* Whether we're doing fine adjustment */
+  guint zoom                   : 1;
 
   /* Fill level */
   guint show_fill_level        : 1;
@@ -1498,10 +1499,6 @@ gtk_range_destroy (GtkWidget *widget)
 
   gtk_range_remove_step_timer (range);
 
-  if (priv->repaint_id)
-    g_source_remove (priv->repaint_id);
-  priv->repaint_id = 0;
-
   if (priv->adjustment)
     {
       g_signal_handlers_disconnect_by_func (priv->adjustment,
@@ -2026,11 +2023,6 @@ gtk_range_draw (GtkWidget *widget,
                           "focus-padding", &focus_padding,
                           NULL);
 
-  /* we're now exposing, so there's no need to force early repaints */
-  if (priv->repaint_id)
-    g_source_remove (priv->repaint_id);
-  priv->repaint_id = 0;
-
   gtk_range_calc_marks (range);
   gtk_range_calc_layout (range, gtk_adjustment_get_value (priv->adjustment));
 
@@ -2377,6 +2369,8 @@ range_grab_remove (GtkRange *range)
   if (gtk_range_update_mouse_location (range) ||
       location != MOUSE_OUTSIDE)
     gtk_widget_queue_draw (GTK_WIDGET (range));
+
+  priv->zoom = FALSE;
 }
 
 static GtkScrollType
@@ -2443,7 +2437,7 @@ range_get_scroll_for_grab (GtkRange      *range)
 
 static gdouble
 coord_to_value (GtkRange *range,
-                gint      coord)
+                gdouble   coord)
 {
   GtkRangePrivate *priv = range->priv;
   gdouble frac;
@@ -2630,6 +2624,12 @@ gtk_range_button_press (GtkWidget      *widget,
 	   */
 	  need_value_update = TRUE;
         }
+      else
+        {
+          /* Shift-click in the slider = fine adjustment */
+          if (event->state & GDK_SHIFT_MASK)
+            priv->zoom = TRUE;
+        }
 
       if (priv->orientation == GTK_ORIENTATION_VERTICAL)
         {
@@ -2662,13 +2662,14 @@ update_slider_position (GtkRange *range,
                         gint      mouse_y)
 {
   GtkRangePrivate *priv = range->priv;
-  gint delta;
-  gint c;
+  gdouble delta;
+  gdouble c;
   gdouble new_value;
   gboolean handled;
   gdouble next_value;
   gdouble mark_value;
   gdouble mark_delta;
+  gdouble zoom;
   gint i;
 
   if (priv->orientation == GTK_ORIENTATION_VERTICAL)
@@ -2676,11 +2677,25 @@ update_slider_position (GtkRange *range,
   else
     delta = mouse_x - priv->slide_initial_coordinate;
 
-  c = priv->slide_initial_slider_position + delta;
+  if (priv->zoom)
+    {
+      zoom = MIN(1.0, (priv->orientation == GTK_ORIENTATION_VERTICAL ?
+                       priv->trough.height : priv->trough.width) /
+                       (gtk_adjustment_get_upper (priv->adjustment) -
+                        gtk_adjustment_get_lower (priv->adjustment) -
+                        gtk_adjustment_get_page_size (priv->adjustment)));
+      /* the above is ineffective for scales, so just set a zoom factor */
+      if (zoom == 1.0)
+        zoom = 0.25;
+    }
+  else
+    zoom = 1.0;
+
+  c = priv->slide_initial_slider_position + zoom * delta;
 
   new_value = coord_to_value (range, c);
   next_value = coord_to_value (range, c + 1);
-  mark_delta = fabs (next_value - new_value); 
+  mark_delta = fabs (next_value - new_value);
 
   for (i = 0; i < priv->n_marks; i++)
     {
@@ -2694,13 +2709,13 @@ update_slider_position (GtkRange *range,
               break;
             }
         }
-    }  
+    }
 
   g_signal_emit (range, signals[CHANGE_VALUE], 0, GTK_SCROLL_JUMP, new_value,
                  &handled);
 }
 
-static void 
+static void
 stop_scrolling (GtkRange *range)
 {
   range_grab_remove (range);
@@ -2721,7 +2736,7 @@ gtk_range_grab_broken (GtkWidget          *widget,
       priv->grab_location != MOUSE_OUTSIDE)
     {
       if (priv->grab_location == MOUSE_SLIDER)
-	update_slider_position (range, priv->mouse_x, priv->mouse_y);
+        update_slider_position (range, priv->mouse_x, priv->mouse_y);
 
       stop_scrolling (range);
       
@@ -2948,20 +2963,6 @@ gtk_range_adjustment_changed (GtkAdjustment *adjustment,
    */
 }
 
-static gboolean
-force_repaint (gpointer data)
-{
-  GtkRange *range = GTK_RANGE (data);
-  GtkRangePrivate *priv = range->priv;
-  GtkWidget *widget = GTK_WIDGET (range);
-
-  priv->repaint_id = 0;
-  if (gtk_widget_is_drawable (widget))
-    gdk_window_process_updates (gtk_widget_get_window (widget), FALSE);
-
-  return FALSE;
-}
-
 static void
 gtk_range_adjustment_value_changed (GtkAdjustment *adjustment,
 				    gpointer       data)
@@ -2978,11 +2979,6 @@ gtk_range_adjustment_value_changed (GtkAdjustment *adjustment,
       (GTK_IS_SCALE (range) && gtk_scale_get_draw_value (GTK_SCALE (range))))
     {
       gtk_widget_queue_draw (GTK_WIDGET (range));
-      /* setup a timer to ensure the range isn't lagging too much behind the scroll position */
-      if (!priv->repaint_id)
-        priv->repaint_id = gdk_threads_add_timeout_full (GDK_PRIORITY_EVENTS,
-                                                         181, force_repaint,
-                                                         range, NULL);
     }
 
   /* Note that we don't round off to priv->round_digits here.

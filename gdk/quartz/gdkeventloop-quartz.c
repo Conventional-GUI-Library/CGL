@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "gdkprivate-quartz.h"
+#include <gdk/gdkdisplayprivate.h>
 
 /* 
  * This file implementations integration between the GLib main loop and
@@ -620,8 +621,11 @@ gdk_event_prepare (GSource *source,
   
   *timeout = -1;
 
-  retval = (_gdk_event_queue_find_first (_gdk_display) != NULL ||
-	    _gdk_quartz_event_loop_check_pending ());
+  if (_gdk_display->event_pause_count > 0)
+    retval = FALSE;
+  else
+    retval = (_gdk_event_queue_find_first (_gdk_display) != NULL ||
+              _gdk_quartz_event_loop_check_pending ());
 
   gdk_threads_leave ();
 
@@ -635,8 +639,11 @@ gdk_event_check (GSource *source)
 
   gdk_threads_enter ();
 
-  retval = (_gdk_event_queue_find_first (_gdk_display) != NULL ||
-	    _gdk_quartz_event_loop_check_pending ());
+  if (_gdk_display->event_pause_count > 0)
+    retval = FALSE;
+  else
+    retval = (_gdk_event_queue_find_first (_gdk_display) != NULL ||
+              _gdk_quartz_event_loop_check_pending ());
 
   gdk_threads_leave ();
 

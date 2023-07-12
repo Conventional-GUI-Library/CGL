@@ -27,6 +27,10 @@
 #include <math.h>
 
 #include "gtkborderimageprivate.h"
+#include "gtkcssbordervalueprivate.h"
+#include "gtkcssimagevalueprivate.h"
+#include "gtkcssnumbervalueprivate.h"
+#include "gtkcssrepeatvalueprivate.h"
 #include "gtkstylepropertiesprivate.h"
 #include "gtkthemingengineprivate.h"
 
@@ -39,23 +43,13 @@ gboolean
 _gtk_border_image_init (GtkBorderImage   *image,
                         GtkThemingEngine *engine)
 {
-  GtkBorder *width;
-
-  image->source = _gtk_css_value_get_object (_gtk_theming_engine_peek_property (engine, "border-image-source"));
+  image->source = _gtk_css_image_value_get_image (_gtk_theming_engine_peek_property (engine, GTK_CSS_PROPERTY_BORDER_IMAGE_SOURCE));
   if (image->source == NULL)
     return FALSE;
 
-  image->slice = *(GtkBorder *) _gtk_css_value_get_boxed (_gtk_theming_engine_peek_property (engine, "border-image-slice"));
-  width = _gtk_css_value_get_boxed (_gtk_theming_engine_peek_property (engine, "border-image-width"));
-  if (width)
-    {
-      image->width = *width;
-      image->has_width = TRUE;
-    }
-  else
-    image->has_width = FALSE;
-
-  image->repeat = *_gtk_css_value_get_border_image_repeat (_gtk_theming_engine_peek_property (engine, "border-image-repeat"));
+  image->slice = _gtk_theming_engine_peek_property (engine, GTK_CSS_PROPERTY_BORDER_IMAGE_SLICE);
+  image->width = _gtk_theming_engine_peek_property (engine, GTK_CSS_PROPERTY_BORDER_IMAGE_WIDTH);
+  image->repeat = _gtk_theming_engine_peek_property (engine, GTK_CSS_PROPERTY_BORDER_IMAGE_REPEAT);
 
   return TRUE;
 }
@@ -67,20 +61,38 @@ struct _GtkBorderImageSliceSize {
 };
 
 static void
-gtk_border_image_compute_border_size (GtkBorderImageSliceSize sizes[3],
-                                      double                  offset,
-                                      double                  area_size,
-                                      int                     start_border,
-                                      int                     end_border)
+gtk_border_image_compute_border_size (GtkBorderImageSliceSize  sizes[3],
+                                      double                   offset,
+                                      double                   area_size,
+                                      int                      start_border_width,
+                                      int                      end_border_width,
+                                      const GtkCssValue       *start_border,
+                                      const GtkCssValue       *end_border)
 {
-  /* This code assumes area_size >= start_border + end_border */
+  double start, end;
+
+  if (_gtk_css_number_value_get_unit (start_border) == GTK_CSS_NUMBER)
+    start = start_border_width * _gtk_css_number_value_get (start_border, 100);
+  else
+    start = _gtk_css_number_value_get (start_border, area_size);
+  if (_gtk_css_number_value_get_unit (end_border) == GTK_CSS_NUMBER)
+    end = end_border_width * _gtk_css_number_value_get (end_border, 100);
+  else
+    end = _gtk_css_number_value_get (end_border, area_size);
+
+  /* XXX: reduce vertical and horizontal by the same factor */
+  if (start + end > area_size)
+    {
+      start = start * area_size / (start + end);
+      end = end * area_size / (start + end);
+    }
 
   sizes[0].offset = offset;
-  sizes[0].size = start_border;
-  sizes[1].offset = offset + start_border;
-  sizes[1].size = area_size - start_border - end_border;
-  sizes[2].offset = offset + area_size - end_border;
-  sizes[2].size = end_border;
+  sizes[0].size = start;
+  sizes[1].offset = offset + start;
+  sizes[1].size = area_size - start - end;
+  sizes[2].offset = offset + area_size - end;
+  sizes[2].size = end;
 }
 
 static void
@@ -92,8 +104,8 @@ gtk_border_image_render_slice (cairo_t           *cr,
                                double             y,
                                double             width,
                                double             height,
-                               GtkCssBorderRepeatStyle  hrepeat,
-                               GtkCssBorderRepeatStyle  vrepeat)
+                               GtkCssRepeatStyle  hrepeat,
+                               GtkCssRepeatStyle  vrepeat)
 {
   double hscale, vscale;
   double xstep, ystep;
@@ -238,9 +250,6 @@ _gtk_border_image_render (GtkBorderImage   *image,
   double source_width, source_height;
   int h, v;
 
-  if (image->has_width)
-    border_width = &image->width;
-
   _gtk_css_image_get_concrete_size (image->source,
                                     0, 0,
                                     width, height,
@@ -254,22 +263,26 @@ _gtk_border_image_render (GtkBorderImage   *image,
 
   gtk_border_image_compute_slice_size (horizontal_slice,
                                        source_width, 
-                                       image->slice.left,
-                                       image->slice.right);
+                                       _gtk_css_number_value_get (_gtk_css_border_value_get_left (image->slice), source_width),
+                                       _gtk_css_number_value_get (_gtk_css_border_value_get_right (image->slice), source_width));
   gtk_border_image_compute_slice_size (vertical_slice,
                                        source_height, 
-                                       image->slice.top,
-                                       image->slice.bottom);
+                                       _gtk_css_number_value_get (_gtk_css_border_value_get_top (image->slice), source_height),
+                                       _gtk_css_number_value_get (_gtk_css_border_value_get_bottom (image->slice), source_height));
   gtk_border_image_compute_border_size (horizontal_border,
                                         x,
                                         width,
                                         border_width->left,
-                                        border_width->right);
+                                        border_width->right,
+                                        _gtk_css_border_value_get_left (image->width),
+                                        _gtk_css_border_value_get_right (image->width));
   gtk_border_image_compute_border_size (vertical_border,
                                         y,
                                         height,
                                         border_width->top,
-                                        border_width->bottom);
+                                        border_width->bottom,
+                                        _gtk_css_border_value_get_top (image->width),
+                                        _gtk_css_border_value_get_bottom(image->width));
   
   for (v = 0; v < 3; v++)
     {
@@ -300,8 +313,8 @@ _gtk_border_image_render (GtkBorderImage   *image,
                                          vertical_border[v].offset,
                                          horizontal_border[h].size,
                                          vertical_border[v].size,
-                                         h == 1 ? image->repeat.hrepeat : GTK_CSS_REPEAT_STYLE_STRETCH,
-                                         v == 1 ? image->repeat.vrepeat : GTK_CSS_REPEAT_STYLE_STRETCH);
+                                         h == 1 ? _gtk_css_border_repeat_value_get_x (image->repeat) : GTK_CSS_REPEAT_STYLE_STRETCH,
+                                         v == 1 ? _gtk_css_border_repeat_value_get_y (image->repeat) : GTK_CSS_REPEAT_STYLE_STRETCH);
 
           cairo_surface_destroy (slice);
         }

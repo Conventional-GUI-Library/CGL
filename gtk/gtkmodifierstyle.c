@@ -146,16 +146,24 @@ gtk_modifier_style_provider_get_color (GtkStyleProviderPrivate *provider,
 
 static void
 gtk_modifier_style_provider_lookup (GtkStyleProviderPrivate *provider,
-                                    GtkWidgetPath           *path,
-                                    GtkStateFlags            state,
+                                    const GtkCssMatcher     *matcher,
                                     GtkCssLookup            *lookup)
 {
   GtkModifierStyle *style = GTK_MODIFIER_STYLE (provider);
 
   _gtk_style_provider_private_lookup (GTK_STYLE_PROVIDER_PRIVATE (style->priv->style),
-                                      path,
-                                      state,
+                                      matcher,
                                       lookup);
+}
+
+static GtkCssChange
+gtk_modifier_style_provider_get_change (GtkStyleProviderPrivate *provider,
+                                        const GtkCssMatcher     *matcher)
+{
+  GtkModifierStyle *style = GTK_MODIFIER_STYLE (provider);
+
+  return _gtk_style_provider_private_get_change (GTK_STYLE_PROVIDER_PRIVATE (style->priv->style),
+                                                 matcher);
 }
 
 static void
@@ -163,6 +171,7 @@ gtk_modifier_style_provider_private_init (GtkStyleProviderPrivateInterface *ifac
 {
   iface->get_color = gtk_modifier_style_provider_get_color;
   iface->lookup = gtk_modifier_style_provider_lookup;
+  iface->get_change = gtk_modifier_style_provider_get_change;
 }
 
 static void
@@ -203,6 +212,7 @@ modifier_style_set_color (GtkModifierStyle *style,
     gtk_style_properties_unset_property (priv->style, prop, state);
 
   g_signal_emit (style, signals[CHANGED], 0);
+  _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (style));
 }
 
 void
@@ -243,6 +253,7 @@ _gtk_modifier_style_set_font (GtkModifierStyle           *style,
     gtk_style_properties_unset_property (priv->style, "font", 0);
 
   g_signal_emit (style, signals[CHANGED], 0);
+  _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (style));
 }
 
 void
@@ -265,6 +276,7 @@ _gtk_modifier_style_map_color (GtkModifierStyle *style,
                                   name, symbolic_color);
 
   g_signal_emit (style, signals[CHANGED], 0);
+  _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (style));
 }
 
 void
@@ -305,4 +317,5 @@ _gtk_modifier_style_set_color_property (GtkModifierStyle *style,
     }
 
   g_signal_emit (style, signals[CHANGED], 0);
+  _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (style));
 }

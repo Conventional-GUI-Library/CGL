@@ -162,6 +162,16 @@ struct _GtkStyleContextClass
 #define GTK_STYLE_CLASS_CELL "cell"
 
 /**
+ * GTK_STYLE_CLASS_DIM_LABEL:
+ *
+ * A CSS class to match dimmed labels.
+ *
+ * This should be used for toning down right aligned labels as
+ * compared to the entry value.
+ */
+#define GTK_STYLE_CLASS_DIM_LABEL "dim-label"
+
+/**
  * GTK_STYLE_CLASS_ENTRY:
  *
  * A CSS class to match text entries.
@@ -745,6 +755,7 @@ void          gtk_style_context_set_state    (GtkStyleContext *context,
                                               GtkStateFlags    flags);
 GtkStateFlags gtk_style_context_get_state    (GtkStyleContext *context);
 
+GDK_DEPRECATED_IN_3_6
 gboolean      gtk_style_context_state_is_running (GtkStyleContext *context,
                                                   GtkStateType     state,
                                                   gdouble         *progress);
@@ -807,20 +818,25 @@ gboolean gtk_style_context_lookup_color (GtkStyleContext *context,
                                          const gchar     *color_name,
                                          GdkRGBA         *color);
 
+GDK_DEPRECATED_IN_3_6
 void  gtk_style_context_notify_state_change (GtkStyleContext *context,
                                              GdkWindow       *window,
                                              gpointer         region_id,
                                              GtkStateType     state,
                                              gboolean         state_value);
+GDK_DEPRECATED_IN_3_6
 void  gtk_style_context_cancel_animations   (GtkStyleContext *context,
                                              gpointer         region_id);
+GDK_DEPRECATED_IN_3_6
 void  gtk_style_context_scroll_animations   (GtkStyleContext *context,
                                              GdkWindow       *window,
                                              gint             dx,
                                              gint             dy);
 
+GDK_DEPRECATED_IN_3_6
 void gtk_style_context_push_animatable_region (GtkStyleContext *context,
                                                gpointer         region_id);
+GDK_DEPRECATED_IN_3_6
 void gtk_style_context_pop_animatable_region  (GtkStyleContext *context);
 
 /* Some helper functions to retrieve most common properties */

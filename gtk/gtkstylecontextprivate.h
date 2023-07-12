@@ -26,28 +26,35 @@
 
 G_BEGIN_DECLS
 
-GtkCssValue   * _gtk_style_context_peek_property              (GtkStyleContext *context,
-                                                              const char      *property_name);
+void            _gtk_style_context_set_widget                (GtkStyleContext *context,
+                                                              GtkWidget       *widget);
+GtkCssValue   * _gtk_style_context_peek_property             (GtkStyleContext *context,
+                                                              guint            property_id);
 double         _gtk_style_context_get_number                 (GtkStyleContext *context,
-                                                              const char      *property_name,
+                                                              guint            property_id,
                                                               double           one_hundred_percent);
 const GValue * _gtk_style_context_peek_style_property        (GtkStyleContext *context,
                                                               GType            widget_type,
                                                               GtkStateFlags    state,
                                                               GParamSpec      *pspec);
-void           _gtk_style_context_invalidate_animation_areas (GtkStyleContext *context);
-void           _gtk_style_context_coalesce_animation_areas   (GtkStyleContext *context,
-                                                              GtkWidget       *widget);
+void           _gtk_style_context_validate                   (GtkStyleContext *context,
+                                                              gint64           timestamp,
+                                                              GtkCssChange     change);
+void           _gtk_style_context_queue_invalidate           (GtkStyleContext *context,
+                                                              GtkCssChange     change);
 gboolean       _gtk_style_context_check_region_name          (const gchar     *str);
 
 gboolean       _gtk_style_context_resolve_color              (GtkStyleContext  *context,
                                                               GtkSymbolicColor *color,
                                                               GdkRGBA          *result);
 GtkCssValue *  _gtk_style_context_resolve_color_value        (GtkStyleContext  *context,
-                                                              GtkSymbolicColor *color);
+                                                              GtkCssValue      *current,
+                                                              GtkCssValue      *color);
 void           _gtk_style_context_get_cursor_color           (GtkStyleContext *context,
                                                               GdkRGBA         *primary_color,
                                                               GdkRGBA         *secondary_color);
+
+void           _gtk_style_context_stop_animations            (GtkStyleContext  *context);
 
 G_END_DECLS
 

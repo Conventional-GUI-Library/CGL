@@ -25,6 +25,8 @@
 
 #include "gtkwin32themeprivate.h"
 
+#include <gtksymboliccolor.h>
+
 #ifdef G_OS_WIN32
 
 #include <cairo-win32.h>

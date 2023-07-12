@@ -19,7 +19,7 @@
 
 #include <float.h>
 
-#ifdef _WIN32
+#ifndef HAVE_DECL_ISNAN
 /* it seems of the supported compilers only
  * MSVC does not have isnan(), but it does
  * have _isnan() which does the same as isnan()
@@ -31,7 +31,7 @@ isnan (double x)
 }
 #endif
 
-#ifdef _WIN32
+#ifndef HAVE_DECL_ISINF
 /* Unfortunately MSVC does not have finite()
  * but it does have _finite() which is the same
  * as finite() except when x is a NaN
@@ -40,5 +40,17 @@ static inline gboolean
 isinf (double x)
 {
   return (!_finite (x) && !_isnan (x));
+}
+#endif
+
+/* Workaround for round() for non-GCC/non-C99 compilers */
+#ifndef HAVE_ROUND
+static inline double
+round (double x)
+{
+  if (x >= 0)
+    return floor (x + 0.5);
+  else
+    return ceil (x - 0.5);
 }
 #endif
