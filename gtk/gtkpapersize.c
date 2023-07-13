@@ -350,7 +350,7 @@ gtk_paper_size_new_from_ppd (const gchar *ppd_name,
  * @display_name: the human-readable name
  * @width: the paper width, in units of @unit
  * @height: the paper height, in units of @unit
- * @unit: the unit for @width and @height
+ * @unit: the unit for @width and @height. not %GTK_UNIT_NONE.
  *
  * Creates a new #GtkPaperSize object with the
  * given parameters.
@@ -369,7 +369,7 @@ gtk_paper_size_new_custom (const gchar *name,
 {
   GtkPaperSize *size;
   g_return_val_if_fail (name != NULL, NULL);
-  g_return_val_if_fail (unit != GTK_UNIT_PIXEL, NULL);
+  g_return_val_if_fail (unit != GTK_UNIT_NONE, NULL);
 
   size = g_slice_new0 (GtkPaperSize);
 
@@ -572,7 +572,7 @@ gtk_paper_size_get_ppd_name (GtkPaperSize *size)
 /**
  * gtk_paper_size_get_width:
  * @size: a #GtkPaperSize object
- * @unit: the unit for the return value
+ * @unit: the unit for the return value, not %GTK_UNIT_NONE
  *
  * Gets the paper width of the #GtkPaperSize, in
  * units of @unit.
@@ -591,7 +591,7 @@ gtk_paper_size_get_width (GtkPaperSize *size,
 /**
  * gtk_paper_size_get_height:
  * @size: a #GtkPaperSize object
- * @unit: the unit for the return value
+ * @unit: the unit for the return value, not %GTK_UNIT_NONE
  *
  * Gets the paper height of the #GtkPaperSize, in
  * units of @unit.
@@ -719,7 +719,7 @@ gtk_paper_size_get_default (void)
 /**
  * gtk_paper_size_get_default_top_margin:
  * @size: a #GtkPaperSize object
- * @unit: the unit for the return value
+ * @unit: the unit for the return value, not %GTK_UNIT_NONE
  *
  * Gets the default top margin for the #GtkPaperSize.
  *
@@ -740,7 +740,7 @@ gtk_paper_size_get_default_top_margin (GtkPaperSize *size,
 /**
  * gtk_paper_size_get_default_bottom_margin:
  * @size: a #GtkPaperSize object
- * @unit: the unit for the return value
+ * @unit: the unit for the return value, not %GTK_UNIT_NONE
  *
  * Gets the default bottom margin for the #GtkPaperSize.
  *
@@ -769,7 +769,7 @@ gtk_paper_size_get_default_bottom_margin (GtkPaperSize *size,
 /**
  * gtk_paper_size_get_default_left_margin:
  * @size: a #GtkPaperSize object
- * @unit: the unit for the return value
+ * @unit: the unit for the return value, not %GTK_UNIT_NONE
  *
  * Gets the default left margin for the #GtkPaperSize.
  *
@@ -790,7 +790,7 @@ gtk_paper_size_get_default_left_margin (GtkPaperSize *size,
 /**
  * gtk_paper_size_get_default_right_margin:
  * @size: a #GtkPaperSize object
- * @unit: the unit for the return value
+ * @unit: the unit for the return value, not %GTK_UNIT_NONE
  *
  * Gets the default right margin for the #GtkPaperSize.
  *

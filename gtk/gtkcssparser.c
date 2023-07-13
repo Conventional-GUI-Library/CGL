@@ -40,26 +40,31 @@
 
 struct _GtkCssParser
 {
-  const char *data;
-  GtkCssParserErrorFunc error_func;
-  gpointer              user_data;
+  const char            *data;
+  GFile                 *file;
+  GtkCssParserErrorFunc  error_func;
+  gpointer               user_data;
 
-  const char *line_start;
-  guint line;
+  const char            *line_start;
+  guint                  line;
 };
 
 GtkCssParser *
 _gtk_css_parser_new (const char            *data,
+                     GFile                 *file,
                      GtkCssParserErrorFunc  error_func,
                      gpointer               user_data)
 {
   GtkCssParser *parser;
 
   g_return_val_if_fail (data != NULL, NULL);
+  g_return_val_if_fail (file == NULL || G_IS_FILE (file), NULL);
 
   parser = g_slice_new0 (GtkCssParser);
 
   parser->data = data;
+  if (file)
+    parser->file = g_object_ref (file);
   parser->error_func = error_func;
   parser->user_data = user_data;
 
@@ -73,6 +78,9 @@ void
 _gtk_css_parser_free (GtkCssParser *parser)
 {
   g_return_if_fail (GTK_IS_CSS_PARSER (parser));
+
+  if (parser->file)
+    g_object_unref (parser->file);
 
   g_slice_free (GtkCssParser, parser);
 }
@@ -117,6 +125,49 @@ _gtk_css_parser_get_position (GtkCssParser *parser)
   g_return_val_if_fail (GTK_IS_CSS_PARSER (parser), 1);
 
   return parser->data - parser->line_start;
+}
+
+static GFile *
+gtk_css_parser_get_base_file (GtkCssParser *parser)
+{
+  GFile *base;
+
+  if (parser->file)
+    {
+      base = g_file_get_parent (parser->file);
+    }
+  else
+    {
+      char *dir = g_get_current_dir ();
+      base = g_file_new_for_path (dir);
+      g_free (dir);
+    }
+
+  return base;
+}
+
+GFile *
+_gtk_css_parser_get_file_for_path (GtkCssParser *parser,
+                                   const char   *path)
+{
+  GFile *base, *file;
+
+  g_return_val_if_fail (parser != NULL, NULL);
+  g_return_val_if_fail (path != NULL, NULL);
+
+  base = gtk_css_parser_get_base_file (parser);
+  file = g_file_resolve_relative_path (base, path);
+  g_object_unref (base);
+
+  return file;
+}
+
+GFile *
+_gtk_css_parser_get_file (GtkCssParser *parser)
+{
+  g_return_val_if_fail (parser != NULL, NULL);
+
+  return parser->file;
 }
 
 void
@@ -775,8 +826,7 @@ _gtk_css_parser_try_hash_color (GtkCssParser *parser,
 }
 
 GFile *
-_gtk_css_parser_read_url (GtkCssParser *parser,
-                          GFile        *base)
+_gtk_css_parser_read_url (GtkCssParser *parser)
 {
   gchar *path;
   char *scheme;
@@ -830,7 +880,7 @@ _gtk_css_parser_read_url (GtkCssParser *parser,
         }
     }
 
-  file = g_file_resolve_relative_path (base, path);
+  file = _gtk_css_parser_get_file_for_path (parser, path);
   g_free (path);
 
   return file;

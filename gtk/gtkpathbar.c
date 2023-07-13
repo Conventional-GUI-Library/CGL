@@ -525,6 +525,7 @@ gtk_path_bar_size_allocate (GtkWidget     *widget,
   gboolean need_sliders = FALSE;
   gint up_slider_offset = 0;
   GtkRequisition child_requisition;
+  gboolean needs_reorder = FALSE;
 
   gtk_widget_set_allocation (widget, allocation);
 
@@ -686,6 +687,7 @@ gtk_path_bar_size_allocate (GtkWidget     *widget,
       else if (gtk_widget_get_has_tooltip (child))
 	gtk_widget_set_tooltip_text (child, NULL);
       
+      needs_reorder |= gtk_widget_get_child_visible (child) == FALSE;
       gtk_widget_set_child_visible (child, TRUE);
       gtk_widget_size_allocate (child, &child_allocation);
 
@@ -697,12 +699,16 @@ gtk_path_bar_size_allocate (GtkWidget     *widget,
   /* Now we go hide all the widgets that don't fit */
   while (list)
     {
-      gtk_widget_set_child_visible (BUTTON_DATA (list->data)->button, FALSE);
+      child = BUTTON_DATA (list->data)->button;
+      needs_reorder |= gtk_widget_get_child_visible (child) == TRUE;
+      gtk_widget_set_child_visible (child, FALSE);
       list = list->prev;
     }
   for (list = first_button->next; list; list = list->next)
     {
-      gtk_widget_set_child_visible (BUTTON_DATA (list->data)->button, FALSE);
+      child = BUTTON_DATA (list->data)->button;
+      needs_reorder |= gtk_widget_get_child_visible (child) == TRUE;
+      gtk_widget_set_child_visible (child, FALSE);
     }
 
   if (need_sliders || path_bar->fake_root)
@@ -711,11 +717,15 @@ gtk_path_bar_size_allocate (GtkWidget     *widget,
       child_allocation.x = up_slider_offset + allocation->x;
       gtk_widget_size_allocate (path_bar->up_slider_button, &child_allocation);
 
+      needs_reorder |= gtk_widget_get_child_visible (path_bar->up_slider_button) == FALSE;
       gtk_widget_set_child_visible (path_bar->up_slider_button, TRUE);
       gtk_widget_show_all (path_bar->up_slider_button);
     }
   else
-    gtk_widget_set_child_visible (path_bar->up_slider_button, FALSE);
+    {
+      needs_reorder |= gtk_widget_get_child_visible (path_bar->up_slider_button) == TRUE;
+      gtk_widget_set_child_visible (path_bar->up_slider_button, FALSE);
+    }
       
   if (need_sliders)
     {
@@ -730,14 +740,19 @@ gtk_path_bar_size_allocate (GtkWidget     *widget,
       
       gtk_widget_size_allocate (path_bar->down_slider_button, &child_allocation);
 
+      needs_reorder |= gtk_widget_get_child_visible (path_bar->down_slider_button) == FALSE;
       gtk_widget_set_child_visible (path_bar->down_slider_button, TRUE);
       gtk_widget_show_all (path_bar->down_slider_button);
       gtk_path_bar_update_slider_buttons (path_bar);
     }
   else
-    gtk_widget_set_child_visible (path_bar->down_slider_button, FALSE);
+    {
+      needs_reorder |= gtk_widget_get_child_visible (path_bar->down_slider_button) == TRUE;
+      gtk_widget_set_child_visible (path_bar->down_slider_button, FALSE);
+    }
 
-  child_ordering_changed (path_bar);
+  if (needs_reorder)
+    child_ordering_changed (path_bar);
 }
 
 static void

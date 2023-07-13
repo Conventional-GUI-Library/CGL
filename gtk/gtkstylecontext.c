@@ -28,6 +28,7 @@
 #include "gtkcssenginevalueprivate.h"
 #include "gtkcssnumbervalueprivate.h"
 #include "gtkcssrgbavalueprivate.h"
+#include "gtkdebug.h"
 #include "gtkstylepropertiesprivate.h"
 #include "gtktypebuiltins.h"
 #include "gtkthemingengineprivate.h"
@@ -42,6 +43,7 @@
 #include "gtkstylecascadeprivate.h"
 #include "gtkstyleproviderprivate.h"
 #include "gtksettings.h"
+#include "gtksettingsprivate.h"
 
 /**
  * SECTION:gtkstylecontext
@@ -661,12 +663,7 @@ static void
 gtk_style_context_cascade_changed (GtkStyleCascade *cascade,
                                    GtkStyleContext *context)
 {
-  GtkStyleContextPrivate *priv = context->priv;
-
-  if (priv->widget)
-    _gtk_style_context_queue_invalidate (context, GTK_CSS_CHANGE_SOURCE);
-  else
-    gtk_style_context_invalidate (context);
+  _gtk_style_context_queue_invalidate (context, GTK_CSS_CHANGE_SOURCE);
 }
 
 static void
@@ -1236,6 +1233,7 @@ gtk_style_context_add_provider_for_screen (GdkScreen        *screen,
 
   g_return_if_fail (GDK_IS_SCREEN (screen));
   g_return_if_fail (GTK_IS_STYLE_PROVIDER (provider));
+  g_return_if_fail (!GTK_IS_SETTINGS (provider) || _gtk_settings_get_screen (GTK_SETTINGS (provider)) == screen);
 
   cascade = _gtk_style_cascade_get_for_screen (screen);
   _gtk_style_cascade_add_provider (cascade, provider, priority);
@@ -1258,6 +1256,7 @@ gtk_style_context_remove_provider_for_screen (GdkScreen        *screen,
 
   g_return_if_fail (GDK_IS_SCREEN (screen));
   g_return_if_fail (GTK_IS_STYLE_PROVIDER (provider));
+  g_return_if_fail (!GTK_IS_SETTINGS (provider));
 
   cascade = _gtk_style_cascade_get_for_screen (screen);
   _gtk_style_cascade_remove_provider (cascade, provider);
@@ -2552,8 +2551,6 @@ gtk_style_context_set_screen (GtkStyleContext *context,
   priv->screen = screen;
 
   g_object_notify (G_OBJECT (context), "screen");
-
-  gtk_style_context_invalidate (context);
 }
 
 /**
@@ -3041,6 +3038,21 @@ _gtk_style_context_validate (GtkStyleContext *context,
   priv = context->priv;
 
   change |= priv->pending_changes;
+  
+  /* If you run your application with
+   *   GTK_DEBUG=no-css-cache
+   * every invalidation will purge the cache and completely query
+   * everything anew form the cache. This is slow (in particular
+   * when animating), but useful for figuring out bugs.
+   *
+   * We achieve that by pretending that everything that could have
+   * changed has and so we of course totally need to redo everything.
+   *
+   * Note that this also completely revalidates child widgets all
+   * the time.
+   */
+  if (G_UNLIKELY (gtk_get_debug_flags () & GTK_DEBUG_NO_CSS_CACHE))
+    change = GTK_CSS_CHANGE_ANY;
 
   if (!priv->invalid && change == 0)
     return;
@@ -3143,11 +3155,15 @@ _gtk_style_context_queue_invalidate (GtkStyleContext *context,
 
   priv = context->priv;
 
-  if (priv->widget == NULL && priv->widget_path == NULL)
-    return;
-
-  priv->pending_changes |= change;
-  gtk_style_context_set_invalid (context, TRUE);
+  if (priv->widget != NULL)
+    {
+      priv->pending_changes |= change;
+      gtk_style_context_set_invalid (context, TRUE);
+    }
+  else if (priv->widget_path == NULL)
+    {
+      gtk_style_context_invalidate (context);
+    }
 }
 
 /**

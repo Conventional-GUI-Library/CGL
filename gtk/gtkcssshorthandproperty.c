@@ -87,8 +87,7 @@ _gtk_css_shorthand_property_query (GtkStyleProperty   *property,
 
 static GtkCssValue *
 gtk_css_shorthand_property_parse_value (GtkStyleProperty *property,
-                                        GtkCssParser     *parser,
-                                        GFile            *base)
+                                        GtkCssParser     *parser)
 {
   GtkCssShorthandProperty *shorthand = GTK_CSS_SHORTHAND_PROPERTY (property);
   GtkCssValue **data;
@@ -120,7 +119,7 @@ gtk_css_shorthand_property_parse_value (GtkStyleProperty *property,
           data[i] = _gtk_css_inherit_value_new ();
         }
     }
-  else if (!shorthand->parse (shorthand, data, parser, base))
+  else if (!shorthand->parse (shorthand, data, parser))
     {
       for (i = 0; i < shorthand->subproperties->len; i++)
         {

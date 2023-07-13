@@ -993,8 +993,6 @@ struct _GtkCssScanner
   GtkCssParser *parser;
   GtkCssSection *section;
   GtkCssScanner *parent;
-  GFile *file;
-  GFile *base;
   GSList *state;
 };
 
@@ -1305,9 +1303,6 @@ gtk_css_scanner_destroy (GtkCssScanner *scanner)
   if (scanner->section)
     gtk_css_section_unref (scanner->section);
   g_object_unref (scanner->provider);
-  if (scanner->file)
-    g_object_unref (scanner->file);
-  g_object_unref (scanner->base);
   _gtk_css_parser_free (scanner->parser);
 
   g_slice_free (GtkCssScanner, scanner);
@@ -1351,29 +1346,12 @@ gtk_css_scanner_new (GtkCssProvider *provider,
   if (section)
     scanner->section = gtk_css_section_ref (section);
 
-  if (file)
-    {
-      scanner->file = g_object_ref (file);
-      scanner->base = g_file_get_parent (file);
-    }
-  else
-    {
-      char *dir = g_get_current_dir ();
-      scanner->base = g_file_new_for_path (dir);
-      g_free (dir);
-    }
-
   scanner->parser = _gtk_css_parser_new (text,
+                                         file,
                                          gtk_css_scanner_parser_error,
                                          scanner);
 
   return scanner;
-}
-
-static GFile *
-gtk_css_scanner_get_base_url (GtkCssScanner *scanner)
-{
-  return scanner->base;
 }
 
 static gboolean
@@ -1382,7 +1360,8 @@ gtk_css_scanner_would_recurse (GtkCssScanner *scanner,
 {
   while (scanner)
     {
-      if (scanner->file && g_file_equal (scanner->file, file))
+      GFile *parser_file = _gtk_css_parser_get_file (scanner->parser);
+      if (parser_file && g_file_equal (parser_file, file))
         return TRUE;
 
       scanner = scanner->parent;
@@ -1399,8 +1378,7 @@ gtk_css_scanner_push_section (GtkCssScanner     *scanner,
 
   section = _gtk_css_section_new (scanner->section,
                                   section_type,
-                                  scanner->parser,
-                                  scanner->file);
+                                  scanner->parser);
 
   if (scanner->section)
     gtk_css_section_unref (scanner->section);
@@ -1551,8 +1529,7 @@ gtk_css_provider_get_style_property (GtkStyleProvider *provider,
 					     val->value);
 
 	      found = _gtk_css_style_parse_value (value,
-						  scanner->parser,
-						  NULL);
+						  scanner->parser);
 
 	      gtk_css_scanner_destroy (scanner);
 
@@ -1887,13 +1864,12 @@ parse_import (GtkCssScanner *scanner)
       char *uri;
 
       uri = _gtk_css_parser_read_string (scanner->parser);
-      file = g_file_resolve_relative_path (gtk_css_scanner_get_base_url (scanner), uri);
+      file = _gtk_css_parser_get_file_for_path (scanner->parser, uri);
       g_free (uri);
     }
   else
     {
-      file = _gtk_css_parser_read_url (scanner->parser,
-                                       gtk_css_scanner_get_base_url (scanner));
+      file = _gtk_css_parser_read_url (scanner->parser);
     }
 
   if (file == NULL)
@@ -2195,8 +2171,7 @@ parse_declaration (GtkCssScanner *scanner,
       gtk_css_scanner_push_section (scanner, GTK_CSS_SECTION_VALUE);
 
       value = _gtk_style_property_parse_value (property,
-                                               scanner->parser,
-                                               gtk_css_scanner_get_base_url (scanner));
+                                               scanner->parser);
 
       if (value == NULL)
         {

@@ -63,8 +63,7 @@ gtk_css_image_url_draw (GtkCssImage        *image,
 
 static gboolean
 gtk_css_image_url_parse (GtkCssImage  *image,
-                         GtkCssParser *parser,
-                         GFile        *base)
+                         GtkCssParser *parser)
 {
   GtkCssImageUrl *url = GTK_CSS_IMAGE_URL (image);
   GdkPixbuf *pixbuf;
@@ -73,7 +72,7 @@ gtk_css_image_url_parse (GtkCssImage  *image,
   GError *error = NULL;
   GFileInputStream *input;
 
-  file = _gtk_css_parser_read_url (parser, base);
+  file = _gtk_css_parser_read_url (parser);
   if (file == NULL)
     return FALSE;
 

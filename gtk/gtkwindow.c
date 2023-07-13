@@ -49,6 +49,7 @@
 #include "gtkwidgetprivate.h"
 #include "gtkcontainerprivate.h"
 #include "gtkintl.h"
+#include "gtkstylecontextprivate.h"
 #include "gtktypebuiltins.h"
 #include "a11y/gtkwindowaccessible.h"
 #include "gtkstyle.h"
@@ -4808,6 +4809,10 @@ gtk_window_show (GtkWidget *widget)
 
   need_resize = _gtk_widget_get_alloc_needed (widget) || !gtk_widget_get_realized (widget);
 
+  _gtk_style_context_validate (gtk_widget_get_style_context (widget),
+                               g_get_monotonic_time (),
+                               0);
+
   if (need_resize)
     {
       GtkWindowGeometryInfo *info = gtk_window_get_geometry_info (window, TRUE);
@@ -5013,8 +5018,6 @@ gtk_window_map (GtkWidget *widget)
     gtk_window_set_focus_visible (window, gtk_window_get_focus_visible (priv->transient_parent));
   else
     gtk_window_set_focus_visible (window, visible_focus == GTK_POLICY_ALWAYS);
-
-  ensure_state_flag_backdrop (widget);
 }
 
 static gboolean

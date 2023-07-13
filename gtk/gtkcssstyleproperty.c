@@ -148,8 +148,7 @@ _gtk_css_style_property_query (GtkStyleProperty   *property,
 
 static GtkCssValue *
 gtk_css_style_property_parse_value (GtkStyleProperty *property,
-                                    GtkCssParser     *parser,
-                                    GFile            *base)
+                                    GtkCssParser     *parser)
 {
   GtkCssStyleProperty *style_property = GTK_CSS_STYLE_PROPERTY (property);
 
@@ -171,7 +170,7 @@ gtk_css_style_property_parse_value (GtkStyleProperty *property,
       return _gtk_css_inherit_value_new ();
     }
 
-  return (* style_property->parse_value) (style_property, parser, base);
+  return (* style_property->parse_value) (style_property, parser);
 }
 
 static void
@@ -222,8 +221,7 @@ _gtk_css_style_property_class_init (GtkCssStylePropertyClass *klass)
 
 static GtkCssValue *
 gtk_css_style_property_real_parse_value (GtkCssStyleProperty *property,
-                                         GtkCssParser        *parser,
-                                         GFile               *base)
+                                         GtkCssParser        *parser)
 {
   g_assert_not_reached ();
   return NULL;

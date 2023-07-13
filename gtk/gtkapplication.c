@@ -39,7 +39,7 @@
 #include "gtkintl.h"
 
 #ifdef GDK_WINDOWING_QUARTZ
-#include "gtkquartz-menu.h"
+#include "gtkmodelmenu-quartz.h"
 #import <Cocoa/Cocoa.h>
 #include <Carbon/Carbon.h>
 #include "gtkmessagedialog.h"
@@ -234,8 +234,8 @@ gtk_application_window_added_x11 (GtkApplication *application,
           guint window_id;
 
           window_id = application->priv->next_id++;
-          window_path = g_strdup_printf ("%s/window/%d", application->priv->object_path, window_id);
-          success = gtk_application_window_publish (app_window, application->priv->session_bus, window_path);
+          window_path = g_strdup_printf ("%s/window/%u", application->priv->object_path, window_id);
+          success = gtk_application_window_publish (app_window, application->priv->session_bus, window_path, window_id);
           g_free (window_path);
         }
       while (!success);
@@ -480,6 +480,10 @@ gtk_application_init (GtkApplication *application)
   application->priv = G_TYPE_INSTANCE_GET_PRIVATE (application,
                                                    GTK_TYPE_APPLICATION,
                                                    GtkApplicationPrivate);
+
+#ifdef GDK_WINDOWING_X11
+  application->priv->next_id = 1;
+#endif
 }
 
 static void
@@ -852,6 +856,34 @@ gtk_application_get_windows (GtkApplication *application)
   g_return_val_if_fail (GTK_IS_APPLICATION (application), NULL);
 
   return application->priv->windows;
+}
+
+/**
+ * gtk_application_get_window_by_id:
+ * @application: a #GtkApplication
+ * @id: an identifier number
+ *
+ * Returns: (transfer none): the #GtkApplicationWindow with ID @id, or
+ *   %NULL if there is no window with this ID
+ *
+ * Since: 3.6
+ */
+GtkWindow *
+gtk_application_get_window_by_id (GtkApplication *application,
+                                  guint           id)
+{
+  GList *l;
+
+  g_return_val_if_fail (GTK_IS_APPLICATION (application), NULL);
+
+  for (l = application->priv->windows; l != NULL; l = l->next) 
+    {
+      if (GTK_IS_APPLICATION_WINDOW (l->data) &&
+          gtk_application_window_get_id (GTK_APPLICATION_WINDOW (l->data)) == id)
+        return l->data;
+    }
+
+  return NULL;
 }
 
 /**

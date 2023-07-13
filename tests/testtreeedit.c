@@ -42,6 +42,7 @@ static ListEntry model_strings[] =
 {
   {"A simple string", TRUE, TRUE, 0 },
   {"Another string!", TRUE, TRUE, 10 },
+  {"", TRUE, TRUE, 0 },
   {"Guess what, a third string. This one can't be edited", FALSE, TRUE, 47 },
   {"And then a fourth string. Neither can this", FALSE, TRUE, 48 },
   {"Multiline\nFun!", TRUE, FALSE, 75 },
@@ -287,6 +288,9 @@ main (gint argc, gchar **argv)
   callback[1].renderer = renderer;
   g_signal_connect (renderer, "edited",
 		    G_CALLBACK (edited), tree_model);
+  g_object_set (renderer,
+                "placeholder-text", "Type here",
+                NULL);
 
   renderer = gtk_cell_renderer_text_new ();
   gtk_tree_view_column_pack_start (column, renderer, FALSE);
@@ -299,6 +303,9 @@ main (gint argc, gchar **argv)
   callback[2].renderer = renderer;
   g_signal_connect (renderer, "edited",
 		    G_CALLBACK (edited), tree_model);
+  g_object_set (renderer,
+                "placeholder-text", "Type here too",
+                NULL);
 
   renderer = gtk_cell_renderer_pixbuf_new ();
   g_object_set (renderer,

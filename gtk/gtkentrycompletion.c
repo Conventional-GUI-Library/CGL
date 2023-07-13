@@ -1465,7 +1465,6 @@ _gtk_entry_completion_resize_popup (GtkEntryCompletion *completion)
   GtkAllocation allocation;
   gint x, y;
   gint matches, actions, items, height;
-  GtkBorder borders;
   GdkScreen *screen;
   gint monitor_num;
   gint vertical_separator;
@@ -1491,8 +1490,6 @@ _gtk_entry_completion_resize_popup (GtkEntryCompletion *completion)
   gdk_window_get_origin (window, &x, &y);
   x += allocation.x;
   y += allocation.y + (allocation.height - entry_req.height) / 2;
-
-  _gtk_entry_get_borders (GTK_ENTRY (completion->priv->entry), &borders);
 
   matches = gtk_tree_model_iter_n_children (GTK_TREE_MODEL (completion->priv->filter_model), NULL);
   actions = gtk_tree_model_iter_n_children (GTK_TREE_MODEL (completion->priv->actions), NULL);
@@ -1528,20 +1525,17 @@ _gtk_entry_completion_resize_popup (GtkEntryCompletion *completion)
     gtk_widget_show (completion->priv->scrolled_window);
 
   if (completion->priv->popup_set_width)
-    width = MIN (allocation.width, monitor.width) - borders.left - borders.right;
+    width = MIN (allocation.width, monitor.width);
   else
     width = -1;
 
   gtk_tree_view_columns_autosize (GTK_TREE_VIEW (completion->priv->tree_view));
   gtk_scrolled_window_set_min_content_width (GTK_SCROLLED_WINDOW (completion->priv->scrolled_window), width);
-  gtk_widget_set_size_request (completion->priv->scrolled_window, width, -1);
+  gtk_widget_set_size_request (completion->priv->popup_window, width, -1);
   gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (completion->priv->scrolled_window), items * height);
 
   if (actions)
-    {
-      gtk_widget_show (completion->priv->action_view);
-      gtk_widget_set_size_request (completion->priv->action_view, width, -1);
-    }
+    gtk_widget_show (completion->priv->action_view);
   else
     gtk_widget_hide (completion->priv->action_view);
 

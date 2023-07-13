@@ -371,7 +371,7 @@ static const GtkStockItem builtin_items [] =
   /* This is a navigation label as in "go up" */
   { GTK_STOCK_GO_UP, NC_("Stock label, navigation", "_Up"), 0, 0, GETTEXT_PACKAGE "-navigation" },
   { GTK_STOCK_HARDDISK, NC_("Stock label", "_Hard Disk"), 0, 0, GETTEXT_PACKAGE },
-  { GTK_STOCK_HELP, NC_("Stock label", "_Help"), GTK_DEFAULT_ACCEL_MOD_MASK_VIRTUAL, 'h', GETTEXT_PACKAGE },
+  { GTK_STOCK_HELP, NC_("Stock label", "_Help"), 0, GDK_KEY_F1, GETTEXT_PACKAGE },
   { GTK_STOCK_HOME, NC_("Stock label", "_Home"), 0, 0, GETTEXT_PACKAGE },
   { GTK_STOCK_INDENT, NC_("Stock label", "Increase Indent"), 0, 0, GETTEXT_PACKAGE },
   { GTK_STOCK_UNINDENT, NC_("Stock label", "Decrease Indent"), 0, 0, GETTEXT_PACKAGE },

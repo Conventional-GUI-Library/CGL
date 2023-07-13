@@ -25,11 +25,8 @@
 typedef struct _GtkIconViewItem GtkIconViewItem;
 struct _GtkIconViewItem
 {
-  /* First member is always the rectangle so it 
-   * can be cast to a rectangle. */
   GdkRectangle cell_area;
 
-  GtkTreeIter iter;
   gint index;
   
   gint row, col;
@@ -54,8 +51,6 @@ struct _GtkIconViewPrivate
   gint width, height;
 
   GtkSelectionMode selection_mode;
-
-  guint layout_idle_id;
 
   GdkWindow *bin_window;
 
