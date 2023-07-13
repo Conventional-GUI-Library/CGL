@@ -258,6 +258,7 @@ gtk_public_h_sources = 		\
 	gtkmain.h		\
 	gtkmenu.h		\
 	gtkmenubar.h		\
+	gtkmenubutton.h		\
 	gtkmenuitem.h		\
 	gtkmenushell.h		\
 	gtkmenutoolbutton.h	\
@@ -297,6 +298,7 @@ gtk_public_h_sources = 		\
 	gtkscrollable.h		\
 	gtkscrollbar.h		\
 	gtkscrolledwindow.h	\
+	gtksearchentry.h	\
 	gtkselection.h		\
 	gtkseparator.h		\
 	gtkseparatormenuitem.h	\
@@ -471,6 +473,7 @@ gtk_private_h_sources =		\
 	gtkimcontextsimpleseqs.h \
 	gtkintl.h		\
 	gtkkeyhash.h		\
+	gtkmenubuttonprivate.h	\
 	gtkmenuprivate.h	\
 	gtkmenuitemprivate.h	\
 	gtkmenushellprivate.h	\
@@ -539,6 +542,7 @@ gtk_base_c_sources = 		\
 	gactionobservable.c	\
 	gtkactionable.c		\
  	gtkquery.c		\
+	gtksearchentry.c	\
  	gtksearchengine.c	\
  	gtksearchenginesimple.c	\
 	fnmatch.c		\
@@ -705,6 +709,7 @@ gtk_base_c_sources = 		\
 	gtkmarshalers.c		\
 	gtkmenu.c		\
 	gtkmenubar.c		\
+	gtkmenubutton.c		\
 	gtkmenuitem.c		\
 	gtkmenushell.c		\
 	gtkmenutoolbutton.c	\
@@ -843,6 +848,15 @@ gtk_base_c_sources = 		\
 gtk_c_sources = $(gtk_base_c_sources)
 gtk_all_c_sources = $(gtk_base_c_sources)
 
+gtk_dbus_built_sources = gtkdbusgenerated.c gtkdbusgenerated.h
+
+$(gtk_dbus_built_sources) : Makefile.am gtkdbusinterfaces.xml
+	gdbus-codegen \
+	--interface-prefix org.Gtk. \
+	--c-namespace _Gtk \
+	--generate-c-code gtkdbusgenerated \
+	$(srcdir)/gtkdbusinterfaces.xml
+
 gtk_os_unix_c_sources = 		\
 	gtkcustompaperunixdialog.c	\
 	gtkpagesetupunixdialog.c	\
@@ -854,7 +868,8 @@ gtk_os_unix_c_sources = 		\
 	gtkprintoperation-unix.c	\
 	gtkprintunixdialog.c		\
         gtkprintbackend.c		\
-	gtksearchenginetracker.c
+	gtksearchenginetracker.c        \
+	$(gtk_dbus_built_sources)
 gtk_all_c_sources += $(gtk_os_unix_c_sources)
 if OS_UNIX
 gtk_private_h_sources += \
@@ -970,12 +985,14 @@ gtk_built_public_sources =			\
 
 # built headers that don't get installed
 gtk_built_private_headers =			\
+	gtkdbusgenerated.h			\
 	gtkresources.h				\
  	gtkmarshalers.h				\
  	gtkbuiltincache.h			\
  	gtkprivatetypebuiltins.h		
 
 gtk_built_sources =				\
+	gtkdbusgenerated.c			\
 	gtkresources.c				\
  	gtktypebuiltins.c			\
  	gtktypefuncs.c				\
@@ -1127,7 +1144,7 @@ endif
 
 if USE_QUARTZ
 install-mac-key-theme:
-	$(mkdir_p) $(DESTDIR)$(datadir)/themes/Mac/gtk-3.0
+	$(MKDIR_P) $(DESTDIR)$(datadir)/themes/Mac/gtk-3.0
 	$(INSTALL_DATA) $(srcdir)/gtk-keys.css.mac $(DESTDIR)$(datadir)/themes/Mac/gtk-3.0/gtk-keys.css
 uninstall-mac-key-theme:
 	rm -f $(DESTDIR)$(datadir)/themes/Mac/gtk-3.0/gtk-keys.css
@@ -1170,9 +1187,9 @@ dist-hook: ../build/win32/vs9/gtk.vcproj ../build/win32/vs10/gtk.vcxproj ../buil
 
 # Install a RC file for the default GTK+ theme, and key themes
 install-data-local: install-ms-lib install-def-file install-mac-key-theme
-	$(mkdir_p) $(DESTDIR)$(datadir)/themes/Default/gtk-3.0
+	$(MKDIR_P) $(DESTDIR)$(datadir)/themes/Default/gtk-3.0
 	$(INSTALL_DATA) $(srcdir)/gtk-keys.css.default $(DESTDIR)$(datadir)/themes/Default/gtk-3.0/gtk-keys.css
-	$(mkdir_p) $(DESTDIR)$(datadir)/themes/Emacs/gtk-3.0
+	$(MKDIR_P) $(DESTDIR)$(datadir)/themes/Emacs/gtk-3.0
 	$(INSTALL_DATA) $(srcdir)/gtk-keys.css.emacs $(DESTDIR)$(datadir)/themes/Emacs/gtk-3.0/gtk-keys.css
 
 uninstall-local: uninstall-ms-lib uninstall-def-file uninstall-mac-key-theme
@@ -1615,6 +1632,7 @@ EXTRA_DIST +=                   \
 	gtksearchenginequartz.h \
 	gtk.css.raleigh		\
 	gtk.gresource.xml	\
+	gtkdbusinterfaces.xml	\
 	gtk-default.css		\
 	gtk-keys.css.default	\
 	gtk-keys.css.emacs	\

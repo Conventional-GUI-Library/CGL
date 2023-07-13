@@ -4088,6 +4088,38 @@ msgstr ""
 "Cantidade de espazo do bordo entre a sombra da barra de menús e os elementos "
 "de menú"
 
+#: ../gtk/gtkmenubutton.c:381
+msgid "menu"
+msgstr "menú"
+
+#: ../gtk/gtkmenubutton.c:382
+msgid "The dropdown menu."
+msgstr "O menú despregábel."
+
+#: ../gtk/gtkmenubutton.c:397
+msgid "menu-model"
+msgstr "menu-model"
+
+#: ../gtk/gtkmenubutton.c:398
+msgid "The dropdown menu's model."
+msgstr "O modelo do menú despregábel."
+
+#: ../gtk/gtkmenubutton.c:411
+msgid "align-widget"
+msgstr "align-widget"
+
+#: ../gtk/gtkmenubutton.c:412
+msgid "The parent widget which the menu should align with."
+msgstr "O widget pai co que o menú debe aliñarse."
+
+#: ../gtk/gtkmenubutton.c:426
+msgid "direction"
+msgstr "dirección"
+
+#: ../gtk/gtkmenubutton.c:427
+msgid "The direction the arrow should point."
+msgstr "A dirección á que a frecha apunta."
+
 #: ../gtk/gtkmenu.c:555
 msgid "The currently selected menu item"
 msgstr "O elemento de menú actualmente seleccionado"
@@ -4284,11 +4316,11 @@ msgstr "Obtén o foco"
 msgid "A boolean that determines whether the menu grabs the keyboard focus"
 msgstr "Un booleano que determina se o menú captura o foco do teclado"
 
-#: ../gtk/gtkmenutoolbutton.c:290
+#: ../gtk/gtkmenutoolbutton.c:272
 msgid "Menu"
 msgstr "Menú"
 
-#: ../gtk/gtkmenutoolbutton.c:291
+#: ../gtk/gtkmenutoolbutton.c:273
 msgid "The dropdown menu"
 msgstr "O menú despregábel"
 

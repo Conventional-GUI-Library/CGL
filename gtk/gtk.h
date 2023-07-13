@@ -136,6 +136,7 @@
 #include <gtk/gtkmain.h>
 #include <gtk/gtkmenu.h>
 #include <gtk/gtkmenubar.h>
+#include <gtk/gtkmenubutton.h>
 #include <gtk/gtkmenuitem.h>
 #include <gtk/gtkmenushell.h>
 #include <gtk/gtkmenutoolbutton.h>
@@ -174,6 +175,7 @@
 #include <gtk/gtkscrollable.h>
 #include <gtk/gtkscrollbar.h>
 #include <gtk/gtkscrolledwindow.h>
+#include <gtk/gtksearchentry.h>
 #include <gtk/gtkselection.h>
 #include <gtk/gtkseparator.h>
 #include <gtk/gtkseparatormenuitem.h>

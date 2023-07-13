@@ -367,6 +367,8 @@ gtk_image_finalize (GObject *object)
 
   g_clear_object (&image->priv->icon_helper);
   
+  g_free (image->priv->filename);
+
   G_OBJECT_CLASS (gtk_image_parent_class)->finalize (object);
 };
 
@@ -447,7 +449,7 @@ gtk_image_get_property (GObject     *object,
       g_value_set_string (value, priv->filename);
       break;
     case PROP_STOCK:
-      g_value_set_string (value, _gtk_icon_helper_get_icon_name (priv->icon_helper));
+      g_value_set_string (value, _gtk_icon_helper_get_stock_id (priv->icon_helper));
       break;
     case PROP_ICON_SET:
       g_value_set_boxed (value, _gtk_icon_helper_peek_icon_set (priv->icon_helper));
@@ -1386,6 +1388,13 @@ gtk_image_draw (GtkWidget *widget,
 
   context = gtk_widget_get_style_context (widget);
 
+  gtk_render_background (context, cr,
+                         0, 0,
+                         gtk_widget_get_allocated_width (widget), gtk_widget_get_allocated_height (widget));
+  gtk_render_frame (context, cr,
+                    0, 0,
+                    gtk_widget_get_allocated_width (widget), gtk_widget_get_allocated_height (widget));
+
   gtk_misc_get_alignment (misc, &xalign, &yalign);
   gtk_image_get_preferred_size (image, &width, &height);
   _gtk_misc_get_padding_and_border (misc, &border);
@@ -1393,14 +1402,8 @@ gtk_image_draw (GtkWidget *widget,
   if (gtk_widget_get_direction (widget) != GTK_TEXT_DIR_LTR)
     xalign = 1.0 - xalign;
 
-  x = floor ((gtk_widget_get_allocated_width (widget) - width) * xalign);
-  y = floor ((gtk_widget_get_allocated_height (widget) - height) * yalign);
-
-  gtk_render_background (context, cr, x, y, width, height);
-  gtk_render_frame (context, cr, x, y, width, height);
-
-  x += border.left;
-  y += border.top;
+  x = floor ((gtk_widget_get_allocated_width (widget) - width) * xalign) + border.left;
+  y = floor ((gtk_widget_get_allocated_height (widget) - height) * yalign) + border.top;
 
   if (gtk_image_get_storage_type (image) == GTK_IMAGE_ANIMATION)
     {

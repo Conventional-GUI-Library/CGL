@@ -1741,6 +1741,7 @@ gtk_icon_view_set_margin
 gtk_icon_view_get_margin
 gtk_icon_view_set_item_padding
 gtk_icon_view_get_item_padding
+gtk_icon_view_get_cell_rect
 gtk_icon_view_select_path
 gtk_icon_view_unselect_path
 gtk_icon_view_path_is_selected
@@ -2122,6 +2123,31 @@ GTK_MENU_BAR_GET_CLASS
 <SUBSECTION Private>
 GtkMenuBarPrivate
 gtk_menu_bar_get_type
+</SECTION>
+
+<SECTION>
+<FILE>gtkmenubutton</FILE>
+<TITLE>GtkMenuButton</TITLE>
+GtkMenuButton
+gtk_menu_button_new
+gtk_menu_button_set_menu
+gtk_menu_button_get_menu
+gtk_menu_button_set_menu_model
+gtk_menu_button_get_menu_model
+gtk_menu_button_set_direction
+gtk_menu_button_get_direction
+gtk_menu_button_set_align_widget
+gtk_menu_button_get_align_widget
+<SUBSECTION Standard>
+GTK_TYPE_MENU_BUTTON
+GTK_MENU_BUTTON
+GTK_MENU_BUTTON_CLASS
+GTK_IS_MENU_BUTTON
+GTK_IS_MENU_BUTTON_CLASS
+GTK_MENU_BUTTON_GET_CLASS
+<SUBSECTION Private>
+GtkMenuButtonrPrivate
+gtk_menu_button_get_type
 </SECTION>
 
 <SECTION>
@@ -2951,6 +2977,22 @@ GTK_SCROLLED_WINDOW_GET_CLASS
 <SUBSECTION Private>
 gtk_scrolled_window_get_type
 GtkScrolledWindowPrivate
+</SECTION>
+
+<SECTION>
+<FILE>gtksearchentry</FILE>
+<TITLE>GtkSearchEntry</TITLE>
+GtkSearchEntry
+gtk_search_entry_new
+<SUBSECTION Standard>
+GTK_TYPE_SEARCH_ENTRY
+GTK_SEARCH_ENTRY
+GTK_SEARCH_ENTRY_CLASS
+GTK_IS_SEARCH_ENTRY
+GTK_IS_SEARCH_ENTRY_CLASS
+GTK_SEARCH_ENTRY_GET_CLASS
+<SUBSECTION Private>
+gtk_search_entry_get_type
 </SECTION>
 
 <SECTION>

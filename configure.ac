@@ -125,6 +125,7 @@ AC_SUBST([GAIL_LT_CURRENT_MINUS_AGE],[gail_lt_current_minus_age])
 AC_PROG_CC
 AC_PROG_CC_C_O
 AC_PROG_CC_STDC
+AC_PROG_MKDIR_P
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 
@@ -381,6 +382,9 @@ if test "x$enable_quartz_backend" = xyes; then
   if test "x$quartz_relocation" = xyes; then
     AC_DEFINE([QUARTZ_RELOCATION], [1], [Use NSBundle functions to determine load paths for libraries, translations, etc.])
   fi
+  # Pull in gio-unix for GDesktopAppInfo usage, see at least
+  # gdkapplaunchcontext-x11.c
+  have_gio_unix=yes
 
 else
   AM_CONDITIONAL(USE_QUARTZ, false)
@@ -1305,9 +1309,7 @@ if $PKG_CONFIG --uninstalled $PANGO_PACKAGES; then
 else
 	gtk_save_LIBS="$LIBS"
         LIBS="$PANGO_LIBS $LIBS"
-        AC_TRY_LINK_FUNC(pango_context_new, :, AC_MSG_ERROR([
-*** Can't link to Pango. Pango is required to build
-*** GTK+. For more information see http://www.pango.org]))
+        AC_TRY_LINK_FUNC(pango_context_new, :, AC_MSG_ERROR("FUCK YOU"))
         LIBS="$gtk_save_LIBS"
 fi
 
@@ -1343,10 +1345,21 @@ AC_SUBST(GDK_DEP_CFLAGS)
 # Check for Accessibility Toolkit flags
 ########################################
 
-ATK_PACKAGES=atk
+AC_ARG_WITH(atk-bridge,
+	    AS_HELP_STRING([--without-atk-bridge], [Do not use atk-bridge-2.0]),
+	    :, with_atk_bridge=$enable_x11_backend)
+
+if test x$with_atk_bridge != xno; then
+   ATK_PACKAGES="atk atk-bridge-2.0"
+   AC_DEFINE([HAVE_ATK_BRIDGE], [1], [Define if we're using atk-bridge-2.0])
+else
+   ATK_PACKAGES="atk"
+fi
+
 PKG_CHECK_MODULES(ATK, $ATK_PACKAGES)
 
 GTK_PACKAGES="atk cairo cairo-gobject gdk-pixbuf-2.0 gio-2.0"
+GTK_PRIVATE_PACKAGES="$ATK_PACKAGES"
 if test "x$enable_x11_backend" = xyes; then
   GTK_PACKAGES="$GTK_PACKAGES pangoft2"
 fi

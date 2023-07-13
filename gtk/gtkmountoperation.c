@@ -31,6 +31,7 @@
 
 #include "gtkmountoperationprivate.h"
 #include "gtkbox.h"
+#include "gtkdbusgenerated.h"
 #include "gtkentry.h"
 #include "gtkbox.h"
 #include "gtkintl.h"
@@ -50,6 +51,8 @@
 #include "gtkicontheme.h"
 #include "gtkimagemenuitem.h"
 #include "gtkmain.h"
+
+#include <glib/gprintf.h>
 
 /**
  * SECTION:filesystem
@@ -117,6 +120,11 @@ struct _GtkMountOperationPrivate {
   GtkDialog *dialog;
   GdkScreen *screen;
 
+  /* bus proxy */
+  _GtkMountOperationHandler *handler;
+  GCancellable *cancellable;
+  gboolean handler_showing;
+
   /* for the ask-password dialog */
   GtkWidget *entry_container;
   GtkWidget *username_entry;
@@ -178,9 +186,22 @@ gtk_mount_operation_class_init (GtkMountOperationClass *klass)
 static void
 gtk_mount_operation_init (GtkMountOperation *operation)
 {
+  gchar *name_owner;
+
   operation->priv = G_TYPE_INSTANCE_GET_PRIVATE (operation,
                                                  GTK_TYPE_MOUNT_OPERATION,
                                                  GtkMountOperationPrivate);
+
+  operation->priv->handler =
+    _gtk_mount_operation_handler_proxy_new_for_bus_sync (G_BUS_TYPE_SESSION,
+                                                         G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
+                                                         "org.gtk.MountOperationHandler",
+                                                         "/org/gtk/MountOperationHandler",
+                                                         NULL, NULL);
+  name_owner = g_dbus_proxy_get_name_owner (G_DBUS_PROXY (operation->priv->handler));
+  if (!name_owner)
+    g_clear_object (&operation->priv->handler);
+  g_free (name_owner);
 }
 
 static void
@@ -194,6 +215,9 @@ gtk_mount_operation_finalize (GObject *object)
 
   if (priv->screen)
     g_object_unref (priv->screen);
+
+  if (priv->handler)
+    g_object_unref (priv->handler);
 
   G_OBJECT_CLASS (gtk_mount_operation_parent_class)->finalize (object);
 }
@@ -239,7 +263,7 @@ gtk_mount_operation_get_property (GObject    *object,
       break;
 
     case PROP_IS_SHOWING:
-      g_value_set_boolean (value, priv->dialog != NULL);
+      g_value_set_boolean (value, priv->dialog != NULL || priv->handler_showing);
       break;
 
     case PROP_SCREEN:
@@ -250,6 +274,21 @@ gtk_mount_operation_get_property (GObject    *object,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
+}
+
+static void
+gtk_mount_operation_proxy_finish (GtkMountOperation     *op,
+                                  GMountOperationResult  result)
+{
+  _gtk_mount_operation_handler_call_close (op->priv->handler, NULL, NULL, NULL);
+
+  op->priv->handler_showing = FALSE;
+  g_object_notify (G_OBJECT (op), "is-showing");
+
+  g_mount_operation_reply (G_MOUNT_OPERATION (op), result);
+
+  /* drop the reference acquired when calling the proxy method */
+  g_object_unref (op);
 }
 
 static void
@@ -438,13 +477,11 @@ table_add_entry (GtkWidget  *table,
 }
 
 static void
-gtk_mount_operation_ask_password (GMountOperation   *mount_op,
-                                  const char        *message,
-                                  const char        *default_user,
-                                  const char        *default_domain,
-                                  GAskPasswordFlags  flags)
+gtk_mount_operation_ask_password_do_gtk (GtkMountOperation *operation,
+                                         const gchar       *message,
+                                         const gchar       *default_user,
+                                         const gchar       *default_domain)
 {
-  GtkMountOperation *operation;
   GtkMountOperationPrivate *priv;
   GtkWidget *widget;
   GtkDialog *dialog;
@@ -457,10 +494,7 @@ gtk_mount_operation_ask_password (GMountOperation   *mount_op,
   guint      rows;
   const gchar *secondary;
 
-  operation = GTK_MOUNT_OPERATION (mount_op);
   priv = operation->priv;
-
-  priv->ask_flags = flags;
 
   widget = gtk_dialog_new ();
   dialog = GTK_DIALOG (widget);
@@ -540,7 +574,7 @@ gtk_mount_operation_ask_password (GMountOperation   *mount_op,
   vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
   gtk_box_pack_start (GTK_BOX (main_vbox), vbox, FALSE, FALSE, 0);
 
-  can_anonymous = flags & G_ASK_PASSWORD_ANONYMOUS_SUPPORTED;
+  can_anonymous = priv->ask_flags & G_ASK_PASSWORD_ANONYMOUS_SUPPORTED;
 
   priv->anonymous_toggle = NULL;
   if (can_anonymous)
@@ -572,13 +606,13 @@ gtk_mount_operation_ask_password (GMountOperation   *mount_op,
 
   rows = 0;
 
-  if (flags & G_ASK_PASSWORD_NEED_PASSWORD)
+  if (priv->ask_flags & G_ASK_PASSWORD_NEED_PASSWORD)
     rows++;
 
-  if (flags & G_ASK_PASSWORD_NEED_USERNAME)
+  if (priv->ask_flags & G_ASK_PASSWORD_NEED_USERNAME)
     rows++;
 
-  if (flags &G_ASK_PASSWORD_NEED_DOMAIN)
+  if (priv->ask_flags &G_ASK_PASSWORD_NEED_DOMAIN)
     rows++;
 
   /* The table that holds the entries */
@@ -595,24 +629,25 @@ gtk_mount_operation_ask_password (GMountOperation   *mount_op,
   rows = 0;
 
   priv->username_entry = NULL;
-  if (flags & G_ASK_PASSWORD_NEED_USERNAME)
+
+  if (priv->ask_flags & G_ASK_PASSWORD_NEED_USERNAME)
     priv->username_entry = table_add_entry (table, rows++, _("_Username:"),
                                             default_user, operation);
 
   priv->domain_entry = NULL;
-  if (flags & G_ASK_PASSWORD_NEED_DOMAIN)
+  if (priv->ask_flags & G_ASK_PASSWORD_NEED_DOMAIN)
     priv->domain_entry = table_add_entry (table, rows++, _("_Domain:"),
                                           default_domain, operation);
 
   priv->password_entry = NULL;
-  if (flags & G_ASK_PASSWORD_NEED_PASSWORD)
+  if (priv->ask_flags & G_ASK_PASSWORD_NEED_PASSWORD)
     {
       priv->password_entry = table_add_entry (table, rows++, _("_Password:"),
                                               NULL, operation);
       gtk_entry_set_visibility (GTK_ENTRY (priv->password_entry), FALSE);
     }
 
-   if (flags & G_ASK_PASSWORD_SAVING_SUPPORTED)
+   if (priv->ask_flags & G_ASK_PASSWORD_SAVING_SUPPORTED)
     {
       GtkWidget    *choice;
       GtkWidget    *remember_box;
@@ -623,7 +658,7 @@ gtk_mount_operation_ask_password (GMountOperation   *mount_op,
       gtk_box_pack_start (GTK_BOX (vbox), remember_box,
                           FALSE, FALSE, 0);
 
-      password_save = g_mount_operation_get_password_save (mount_op);
+      password_save = g_mount_operation_get_password_save (G_MOUNT_OPERATION (operation));
       
       choice = gtk_radio_button_new_with_mnemonic (NULL, _("Forget password _immediately"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (choice),
@@ -684,6 +719,92 @@ gtk_mount_operation_ask_password (GMountOperation   *mount_op,
 }
 
 static void
+call_password_proxy_cb (GObject      *source,
+                        GAsyncResult *res,
+                        gpointer      user_data)
+{
+  _GtkMountOperationHandler *proxy = _GTK_MOUNT_OPERATION_HANDLER (source);
+  GMountOperation *op = user_data;
+  GMountOperationResult result;
+  GVariant *result_details;
+  GVariantIter iter;
+  const gchar *key;
+  GVariant *value;
+  GError *error = NULL;
+
+  if (!_gtk_mount_operation_handler_call_ask_password_finish (proxy,
+                                                              &result,
+                                                              &result_details,
+                                                              res,
+                                                              &error))
+    {
+      result = G_MOUNT_OPERATION_ABORTED;
+      g_warning ("Shell mount operation error: %s\n", error->message);
+      g_error_free (error);
+      goto out;
+    }
+
+  g_variant_iter_init (&iter, result_details);
+  while (g_variant_iter_loop (&iter, "{&sv}", &key, &value))
+    {
+      if (strcmp (key, "password") == 0)
+        g_mount_operation_set_password (op, g_variant_get_string (value, NULL));
+      else if (strcmp (key, "password_save") == 0)
+        g_mount_operation_set_password_save (op, g_variant_get_uint32 (value));
+    }
+
+ out:
+  gtk_mount_operation_proxy_finish (GTK_MOUNT_OPERATION (op), result);
+}
+
+static void
+gtk_mount_operation_ask_password_do_proxy (GtkMountOperation *operation,
+                                           const char        *message,
+                                           const char        *default_user,
+                                           const char        *default_domain)
+{
+  gchar id[255];
+  g_sprintf(id, "GtkMountOperation%p", operation);
+
+  operation->priv->handler_showing = TRUE;
+  g_object_notify (G_OBJECT (operation), "is-showing");
+
+  /* keep a ref to the operation while the handler is showing */
+  g_object_ref (operation);
+
+  _gtk_mount_operation_handler_call_ask_password (operation->priv->handler, id,
+                                                  message, "drive-harddisk",
+                                                  default_user, default_domain,
+                                                  operation->priv->ask_flags, NULL,
+                                                  call_password_proxy_cb, operation);
+}
+
+static void
+gtk_mount_operation_ask_password (GMountOperation   *mount_op,
+                                  const char        *message,
+                                  const char        *default_user,
+                                  const char        *default_domain,
+                                  GAskPasswordFlags  flags)
+{
+  GtkMountOperation *operation;
+  GtkMountOperationPrivate *priv;
+  gboolean use_gtk;
+
+  operation = GTK_MOUNT_OPERATION (mount_op);
+  priv = operation->priv;
+  priv->ask_flags = flags;
+
+  use_gtk = (operation->priv->handler == NULL) ||
+    (priv->ask_flags & G_ASK_PASSWORD_NEED_DOMAIN) ||
+    (priv->ask_flags & G_ASK_PASSWORD_NEED_USERNAME);
+
+  if (use_gtk)
+    gtk_mount_operation_ask_password_do_gtk (operation, message, default_user, default_domain);
+  else
+    gtk_mount_operation_ask_password_do_proxy (operation, message, default_user, default_domain);
+}
+
+static void
 question_dialog_button_clicked (GtkDialog       *dialog,
                                 gint             button_number,
                                 GMountOperation *op)
@@ -709,9 +830,9 @@ question_dialog_button_clicked (GtkDialog       *dialog,
 }
 
 static void
-gtk_mount_operation_ask_question (GMountOperation *op,
-                                  const char      *message,
-                                  const char      *choices[])
+gtk_mount_operation_ask_question_do_gtk (GtkMountOperation *op,
+                                         const char        *message,
+                                         const char        *choices[])
 {
   GtkMountOperationPrivate *priv;
   GtkWidget  *dialog;
@@ -723,7 +844,7 @@ gtk_mount_operation_ask_question (GMountOperation *op,
   g_return_if_fail (message != NULL);
   g_return_if_fail (choices != NULL);
 
-  priv = GTK_MOUNT_OPERATION (op)->priv;
+  priv = op->priv;
 
   primary = strstr (message, "\n");
   if (primary)
@@ -762,6 +883,80 @@ gtk_mount_operation_ask_question (GMountOperation *op,
 
   gtk_widget_show (dialog);
   g_object_ref (op);
+}
+
+static void
+call_question_proxy_cb (GObject      *source,
+                        GAsyncResult *res,
+                        gpointer      user_data)
+{
+  _GtkMountOperationHandler *proxy = _GTK_MOUNT_OPERATION_HANDLER (source);
+  GMountOperation *op = user_data;
+  GMountOperationResult result;
+  GVariant *result_details;
+  GVariantIter iter;
+  const gchar *key;
+  GVariant *value;
+  GError *error = NULL;
+
+  if (!_gtk_mount_operation_handler_call_ask_question_finish (proxy,
+                                                              &result,
+                                                              &result_details,
+                                                              res,
+                                                              &error))
+    {
+      result = G_MOUNT_OPERATION_ABORTED;
+      g_warning ("Shell mount operation error: %s\n", error->message);
+      g_error_free (error);
+      goto out;
+    }
+
+  g_variant_iter_init (&iter, result_details);
+  while (g_variant_iter_loop (&iter, "{&sv}", &key, &value))
+    {
+      if (strcmp (key, "choice") == 0)
+        g_mount_operation_set_choice (op, g_variant_get_int32 (value));
+    }
+ 
+ out:
+  gtk_mount_operation_proxy_finish (GTK_MOUNT_OPERATION (op), result);
+}
+
+static void
+gtk_mount_operation_ask_question_do_proxy (GtkMountOperation *operation,
+                                           const char        *message,
+                                           const char        *choices[])
+{
+  gchar id[255];
+  g_sprintf(id, "GtkMountOperation%p", operation);
+
+  operation->priv->handler_showing = TRUE;
+  g_object_notify (G_OBJECT (operation), "is-showing");
+
+  /* keep a ref to the operation while the handler is showing */
+  g_object_ref (operation);
+
+  _gtk_mount_operation_handler_call_ask_question (operation->priv->handler, id,
+                                                  message, "drive-harddisk",
+                                                  choices, NULL,
+                                                  call_question_proxy_cb, operation);
+}
+
+static void
+gtk_mount_operation_ask_question (GMountOperation *op,
+                                  const char      *message,
+                                  const char      *choices[])
+{
+  GtkMountOperation *operation;
+  gboolean use_gtk;
+
+  operation = GTK_MOUNT_OPERATION (op);
+  use_gtk = (operation->priv->handler == NULL);
+
+  if (use_gtk)
+    gtk_mount_operation_ask_question_do_gtk (operation, message, choices);
+  else
+    gtk_mount_operation_ask_question_do_proxy (operation, message, choices);
 }
 
 static void
@@ -1176,7 +1371,7 @@ on_button_press_event_for_process_tree_view (GtkWidget      *widget,
 }
 
 static GtkWidget *
-create_show_processes_dialog (GMountOperation *op,
+create_show_processes_dialog (GtkMountOperation *op,
                               const char      *message,
                               const char      *choices[])
 {
@@ -1195,7 +1390,7 @@ create_show_processes_dialog (GMountOperation *op,
   GtkListStore *list_store;
   gchar *s;
 
-  priv = GTK_MOUNT_OPERATION (op)->priv;
+  priv = op->priv;
 
   primary = strstr (message, "\n");
   if (primary)
@@ -1308,10 +1503,77 @@ create_show_processes_dialog (GMountOperation *op,
 }
 
 static void
-gtk_mount_operation_show_processes (GMountOperation *op,
-                                    const char      *message,
-                                    GArray          *processes,
-                                    const char      *choices[])
+call_processes_proxy_cb (GObject     *source,
+                        GAsyncResult *res,
+                        gpointer      user_data)
+{
+  _GtkMountOperationHandler *proxy = _GTK_MOUNT_OPERATION_HANDLER (source);
+  GMountOperation *op = user_data;
+  GMountOperationResult result;
+  GVariant *result_details;
+  GVariantIter iter;
+  const gchar *key;
+  GVariant *value;
+  GError *error = NULL;
+
+  if (!_gtk_mount_operation_handler_call_show_processes_finish (proxy,
+                                                                &result,
+                                                                &result_details,
+                                                                res,
+                                                                &error))
+    {
+      result = G_MOUNT_OPERATION_ABORTED;
+      g_warning ("Shell mount operation error: %s\n", error->message);
+      g_error_free (error);
+      goto out;
+    }
+
+  /* If the request was unhandled it means we called the method again;
+   * in this case, just return and wait for the next response.
+   */
+  if (result == G_MOUNT_OPERATION_UNHANDLED)
+    return;
+
+  g_variant_iter_init (&iter, result_details);
+  while (g_variant_iter_loop (&iter, "{&sv}", &key, &value))
+    {
+      if (strcmp (key, "choice") == 0)
+        g_mount_operation_set_choice (op, g_variant_get_int32 (value));
+    }
+
+ out:
+  gtk_mount_operation_proxy_finish (GTK_MOUNT_OPERATION (op), result);
+}
+
+static void
+gtk_mount_operation_show_processes_do_proxy (GtkMountOperation *operation,
+                                             const char        *message,
+                                             GArray            *processes,
+                                             const char        *choices[])
+{
+  gchar id[255];
+  g_sprintf(id, "GtkMountOperation%p", operation);
+
+  operation->priv->handler_showing = TRUE;
+  g_object_notify (G_OBJECT (operation), "is-showing");
+
+  /* keep a ref to the operation while the handler is showing */
+  g_object_ref (operation);
+
+  _gtk_mount_operation_handler_call_show_processes (operation->priv->handler, id,
+                                                    message, "drive-harddisk",
+                                                    g_variant_new_fixed_array (G_VARIANT_TYPE_INT32,
+                                                                               processes->data, processes->len,
+                                                                               sizeof (GPid)),
+                                                    choices, NULL,
+                                                    call_processes_proxy_cb, operation);
+}
+
+static void
+gtk_mount_operation_show_processes_do_gtk (GtkMountOperation *op,
+                                           const char        *message,
+                                           GArray            *processes,
+                                           const char        *choices[])
 {
   GtkMountOperationPrivate *priv;
   GtkWidget *dialog = NULL;
@@ -1321,7 +1583,7 @@ gtk_mount_operation_show_processes (GMountOperation *op,
   g_return_if_fail (processes != NULL);
   g_return_if_fail (choices != NULL);
 
-  priv = GTK_MOUNT_OPERATION (op)->priv;
+  priv = op->priv;
 
   if (priv->process_list_store == NULL)
     {
@@ -1331,7 +1593,7 @@ gtk_mount_operation_show_processes (GMountOperation *op,
 
   /* otherwise, we're showing the dialog, assume messages+choices hasn't changed */
 
-  update_process_list_store (GTK_MOUNT_OPERATION (op),
+  update_process_list_store (op,
                              priv->process_list_store,
                              processes);
 
@@ -1339,6 +1601,26 @@ gtk_mount_operation_show_processes (GMountOperation *op,
     {
       gtk_widget_show_all (dialog);
     }
+}
+
+
+static void
+gtk_mount_operation_show_processes (GMountOperation *op,
+                                    const char      *message,
+                                    GArray          *processes,
+                                    const char      *choices[])
+{
+
+  GtkMountOperation *operation;
+  gboolean use_gtk;
+
+  operation = GTK_MOUNT_OPERATION (op);
+  use_gtk = (operation->priv->handler == NULL);
+
+  if (use_gtk)
+    gtk_mount_operation_show_processes_do_gtk (operation, message, processes, choices);
+  else
+    gtk_mount_operation_show_processes_do_proxy (operation, message, processes, choices);
 }
 
 static void
@@ -1354,6 +1636,14 @@ gtk_mount_operation_aborted (GMountOperation *op)
       priv->dialog = NULL;
       g_object_notify (G_OBJECT (op), "is-showing");
       g_object_unref (op);
+    }
+
+  if (priv->handler != NULL)
+    {
+      _gtk_mount_operation_handler_call_close (priv->handler, NULL, NULL, NULL);
+
+      priv->handler_showing = FALSE;
+      g_object_notify (G_OBJECT (op), "is-showing");
     }
 }
 
