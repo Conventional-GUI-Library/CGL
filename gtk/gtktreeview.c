@@ -12,9 +12,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 
@@ -24,6 +22,8 @@
 #include <string.h>
 
 #include "gtktreeview.h"
+
+#include "gtkadjustment.h"
 #include "gtkrbtree.h"
 #include "gtktreednd.h"
 #include "gtktreeprivate.h"
@@ -50,6 +50,7 @@
 #include "gtkstylecontextprivate.h"
 #include "gtktypebuiltins.h"
 #include "gtkmain.h"
+#include "gtksettings.h"
 #include "a11y/gtktreeviewaccessible.h"
 
 
@@ -11829,7 +11830,7 @@ gtk_tree_view_get_headers_clickable (GtkTreeView *tree_view)
 }
 
 /**
- * gtk_tree_view_set_rules_hint
+ * gtk_tree_view_set_rules_hint:
  * @tree_view: a #GtkTreeView
  * @setting: %TRUE if the tree requires reading across rows
  *
@@ -11865,7 +11866,7 @@ gtk_tree_view_set_rules_hint (GtkTreeView  *tree_view,
 }
 
 /**
- * gtk_tree_view_get_rules_hint
+ * gtk_tree_view_get_rules_hint:
  * @tree_view: a #GtkTreeView
  *
  * Gets the setting set by gtk_tree_view_set_rules_hint().
@@ -14695,6 +14696,8 @@ gtk_tree_view_create_row_drag_icon (GtkTreeView  *tree_view,
  * This function should almost never be used.  It is meant for private use by
  * ATK for determining the number of visible children that are removed when the
  * user collapses a row, or a row is deleted.
+ *
+ * Deprecated: 3.4: Accessibility does not need the function anymore.
  **/
 void
 gtk_tree_view_set_destroy_count_func (GtkTreeView             *tree_view,
@@ -15716,7 +15719,7 @@ gtk_tree_view_get_hover_selection (GtkTreeView *tree_view)
  * @tree_view: a #GtkTreeView
  * @expand: %TRUE to enable hover selection mode
  *
- * Enables of disables the hover expansion mode of @tree_view.
+ * Enables or disables the hover expansion mode of @tree_view.
  * Hover expansion makes rows expand or collapse if the pointer 
  * moves over them.
  * 
