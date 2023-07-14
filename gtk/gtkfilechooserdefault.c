@@ -3673,7 +3673,7 @@ shortcuts_pane_create (GtkFileChooserDefault *impl,
   gtk_widget_show (toolbar);
 
   /* Add bookmark button */
-  icon = g_themed_icon_new_with_default_fallbacks ("list-add-symbolic");
+  icon = g_themed_icon_new_with_default_fallbacks ("list-add");
   impl->browse_shortcuts_add_button = toolbutton_new (impl,
                                                       icon,
                                                       FALSE,
@@ -3686,7 +3686,7 @@ shortcuts_pane_create (GtkFileChooserDefault *impl,
                                _("Add the selected folder to the Bookmarks"));
 
   /* Remove bookmark button */
-  icon = g_themed_icon_new_with_default_fallbacks ("list-remove-symbolic");
+  icon = g_themed_icon_new_with_default_fallbacks ("list-remove");
   impl->browse_shortcuts_remove_button = toolbutton_new (impl,
                                                          icon,
                                                          FALSE,

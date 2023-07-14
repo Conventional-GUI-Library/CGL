@@ -20,8 +20,10 @@ gail_c_sources =			\
 	gtkiconviewaccessible.c		\
 	gtkimageaccessible.c		\
 	gtkimagecellaccessible.c	\
+	gtklevelbaraccessible.c		\
 	gtklabelaccessible.c		\
 	gtklinkbuttonaccessible.c	\
+	gtklockbuttonaccessible.c	\
 	gtkmenuaccessible.c		\
 	gtkmenushellaccessible.c	\
 	gtkmenuitemaccessible.c		\
@@ -68,8 +70,10 @@ gail_private_h_sources =		\
 	gtkiconviewaccessible.h		\
 	gtkimageaccessible.h		\
 	gtkimagecellaccessible.h	\
+	gtklevelbaraccessible.h		\
 	gtklabelaccessible.h		\
 	gtklinkbuttonaccessible.h	\
+	gtklockbuttonaccessible.h	\
 	gtkmenuaccessible.h		\
 	gtkmenushellaccessible.h	\
 	gtkmenuitemaccessible.h		\

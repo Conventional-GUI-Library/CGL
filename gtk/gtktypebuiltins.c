@@ -530,6 +530,21 @@ gtk_justification_get_type (void)
 }
 
 GType
+gtk_level_bar_mode_get_type (void)
+{
+    static GType etype = 0;
+    if (G_UNLIKELY(etype == 0)) {
+        static const GEnumValue values[] = {
+            { GTK_LEVEL_BAR_MODE_CONTINUOUS, "GTK_LEVEL_BAR_MODE_CONTINUOUS", "continuous" },
+            { GTK_LEVEL_BAR_MODE_DISCRETE, "GTK_LEVEL_BAR_MODE_DISCRETE", "discrete" },
+            { 0, NULL, NULL }
+        };
+        etype = g_enum_register_static (g_intern_static_string ("GtkLevelBarMode"), values);
+    }
+    return etype;
+}
+
+GType
 gtk_menu_direction_type_get_type (void)
 {
     static GType etype = 0;

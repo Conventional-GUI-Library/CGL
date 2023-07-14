@@ -203,6 +203,7 @@ gtk_public_h_sources = 		\
 	gtkcolorchooserdialog.h	\
 	gtkcombobox.h		\
 	gtkcomboboxtext.h	\
+	gtkcomboboxentry.h	\
 	gtkcontainer.h		\
 	gtkcssprovider.h	\
 	gtkcsssection.h 	\
@@ -252,6 +253,7 @@ gtk_public_h_sources = 		\
 	gtkinvisible.h		\
 	gtklabel.h		\
 	gtklayout.h		\
+	gtklevelbar.h	\
 	gtklinkbutton.h		\
 	gtkliststore.h		\
 	gtklockbutton.h		\
@@ -473,6 +475,7 @@ gtk_private_h_sources =		\
 	gtkimcontextsimpleseqs.h \
 	gtkintl.h		\
 	gtkkeyhash.h		\
+	gtklockbuttonprivate.h	\
 	gtkmenubuttonprivate.h	\
 	gtkmenuprivate.h	\
 	gtkmenuitemprivate.h	\
@@ -605,6 +608,7 @@ gtk_base_c_sources = 		\
 	gtkcolorchooserwidget.c	\
 	gtkcolorchooserdialog.c	\
 	gtkcombobox.c		\
+	gtkcomboboxentry.c	\
 	gtkcomboboxtext.c	\
 	gtkcontainer.c		\
 	gtkcssanimatedvalues.c	\
@@ -702,6 +706,7 @@ gtk_base_c_sources = 		\
 	gtkkeyhash.c		\
 	gtklabel.c		\
 	gtklayout.c		\
+	gtklevelbar.c	\
 	gtklinkbutton.c		\
 	gtkliststore.c		\
 	gtklockbutton.c		\
@@ -851,7 +856,7 @@ gtk_all_c_sources = $(gtk_base_c_sources)
 gtk_dbus_built_sources = gtkdbusgenerated.c gtkdbusgenerated.h
 
 $(gtk_dbus_built_sources) : Makefile.am gtkdbusinterfaces.xml
-	gdbus-codegen \
+	$(AM_V_GEN) gdbus-codegen \
 	--interface-prefix org.Gtk. \
 	--c-namespace _Gtk \
 	--generate-c-code gtkdbusgenerated \

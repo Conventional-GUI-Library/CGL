@@ -20,12 +20,13 @@
 
 #include "config.h"
 
-#include "gtklockbutton.h"
+#include "gtklockbuttonprivate.h"
 #include "gtkbox.h"
 #include "gtkimage.h"
 #include "gtklabel.h"
 #include "gtksizegroup.h"
 #include "gtkintl.h"
+#include "a11y/gtklockbuttonaccessible.h"
 
 /**
  * SECTION:gtklockbutton
@@ -186,10 +187,12 @@ gtk_lock_button_set_property (GObject      *object,
 
     case PROP_TEXT_LOCK:
       gtk_label_set_text (GTK_LABEL (priv->label_lock), g_value_get_string (value));
+      _gtk_lock_button_accessible_name_changed (button);
       break;
 
     case PROP_TEXT_UNLOCK:
       gtk_label_set_text (GTK_LABEL (priv->label_unlock), g_value_get_string (value));
+      _gtk_lock_button_accessible_name_changed (button);
       break;
 
     case PROP_TOOLTIP_LOCK:
@@ -263,6 +266,7 @@ static void
 gtk_lock_button_class_init (GtkLockButtonClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
   GtkButtonClass *button_class = GTK_BUTTON_CLASS (klass);
 
   gobject_class->finalize     = gtk_lock_button_finalize;
@@ -325,6 +329,8 @@ gtk_lock_button_class_init (GtkLockButtonClass *klass)
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT |
                          G_PARAM_STATIC_STRINGS));
+
+  gtk_widget_class_set_accessible_type (widget_class, GTK_TYPE_LOCK_BUTTON_ACCESSIBLE);
 }
 
 static void
@@ -386,8 +392,12 @@ update_state (GtkLockButton *button)
     }
 
   gtk_image_set_from_gicon (GTK_IMAGE (priv->image), icon, GTK_ICON_SIZE_MENU);
-  gtk_widget_set_visible (priv->label_lock, allowed);
-  gtk_widget_set_visible (priv->label_unlock, !allowed);
+  if (gtk_widget_get_visible (priv->label_lock) != allowed)
+    {
+      gtk_widget_set_visible (priv->label_lock, allowed);
+      gtk_widget_set_visible (priv->label_unlock, !allowed);
+      _gtk_lock_button_accessible_name_changed (button);
+    }
   gtk_widget_set_tooltip_markup (GTK_WIDGET (button), tooltip);
   gtk_widget_set_sensitive (GTK_WIDGET (button), sensitive);
   gtk_widget_set_visible (GTK_WIDGET (button), visible);
@@ -562,3 +572,19 @@ gtk_lock_button_set_permission (GtkLockButton *button,
       g_object_notify (G_OBJECT (button), "permission");
     }
 }
+
+const char *
+_gtk_lock_button_get_current_text (GtkLockButton *button)
+{
+  GtkLockButtonPrivate *priv;
+
+  g_return_val_if_fail (GTK_IS_LOCK_BUTTON (button), NULL);
+
+  priv = button->priv;
+
+  if (gtk_widget_get_visible (priv->label_lock))
+    return gtk_label_get_text (GTK_LABEL (priv->label_lock));
+  else
+    return gtk_label_get_text (GTK_LABEL (priv->label_unlock));
+}
+

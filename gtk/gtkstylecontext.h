@@ -718,6 +718,25 @@ struct _GtkStyleContextClass
 #define GTK_STYLE_CLASS_ARROW "arrow"
 
 
+/**
+ * GTK_STYLE_CLASS_OSD:
+ *
+ * A CSS class used when rendering an OSD (On Screen Display) element,
+ * on top of another container.
+ */
+#define GTK_STYLE_CLASS_OSD "osd"
+
+/**
+ * GTK_STYLE_CLASS_LEVEL_BAR:
+ *
+ * A CSS class used when rendering a level indicator, such
+ * as a battery charge level, or a password strength.
+ *
+ * This is used by #GtkLevelBar.
+ */
+#define GTK_STYLE_CLASS_LEVEL_BAR "level-bar"
+
+
 GType gtk_style_context_get_type (void) G_GNUC_CONST;
 
 GtkStyleContext * gtk_style_context_new (void);

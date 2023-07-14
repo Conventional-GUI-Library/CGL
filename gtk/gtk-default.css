@@ -245,6 +245,26 @@ GtkScrolledWindow.frame {
   padding: 0;
 }
 
+.level-bar.indicator-discrete {
+    margin: 1px;
+}
+
+.level-bar.fill-block {
+    background-color: @selected_bg_color;
+}
+
+.level-bar.fill-block.level-low {
+    background-color: @warning_bg_color;
+}
+
+.level-bar.fill-block.level-high {
+    background-color: @success_bg_color;
+}
+
+.level-bar.fill-block.empty-fill-block {
+    background-color: @base_color;
+}
+
 .menu,
 .menubar,
 .toolbar {

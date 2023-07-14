@@ -1328,6 +1328,7 @@ gtk_menu_detach (GtkMenu *menu)
   /* Fallback title for menu comes from attach widget */
   gtk_menu_update_title (menu);
 
+  g_object_notify (G_OBJECT (menu), "attach-widget");
   g_object_unref (menu);
 }
 
@@ -5080,10 +5081,10 @@ gtk_menu_scroll_to (GtkMenu *menu,
 
   /* Scroll the menu: */
   if (gtk_widget_get_realized (widget))
-    gdk_window_move (priv->bin_window, 0, -offset);
-
-  if (gtk_widget_get_realized (widget))
-    gdk_window_move_resize (priv->view_window, x, y, view_width, view_height);
+    {
+      gdk_window_move (priv->bin_window, 0, -offset);
+      gdk_window_move_resize (priv->view_window, x, y, view_width, view_height);
+    }
 
   priv->scroll_offset = offset;
 }

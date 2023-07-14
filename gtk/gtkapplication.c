@@ -197,6 +197,7 @@ static void
 gtk_application_set_app_menu_x11 (GtkApplication *application,
                                   GMenuModel     *app_menu)
 {
+  g_free (application->priv->app_menu_path);
   gtk_application_x11_publish_menu (application, "appmenu", app_menu,
                                     &application->priv->app_menu_id,
                                     &application->priv->app_menu_path);
@@ -206,6 +207,7 @@ static void
 gtk_application_set_menubar_x11 (GtkApplication *application,
                                  GMenuModel     *menubar)
 {
+  g_free (application->priv->menubar_path);
   gtk_application_x11_publish_menu (application, "menubar", menubar,
                                     &application->priv->menubar_id,
                                     &application->priv->menubar_path);
@@ -274,6 +276,9 @@ gtk_application_shutdown_x11 (GtkApplication *application)
   g_clear_object (&application->priv->client_proxy);
   g_free (application->priv->app_id);
   g_free (application->priv->client_path);
+
+  g_free (application->priv->app_menu_path);
+  g_free (application->priv->menubar_path);
 }
 
 const gchar *
@@ -1020,7 +1025,8 @@ gtk_application_set_app_menu (GtkApplication *application,
       if (application->priv->app_menu != NULL)
      g_object_ref (application->priv->app_menu);
 
-      extract_accels_from_menu (app_menu, application);
+      if (app_menu)
+        extract_accels_from_menu (app_menu, application);
 
 #ifdef GDK_WINDOWING_X11
       gtk_application_set_app_menu_x11 (application, app_menu);
@@ -1089,7 +1095,9 @@ gtk_application_set_menubar (GtkApplication *application,
       if (application->priv->menubar != NULL)
         g_object_ref (application->priv->menubar);
 
-     extract_accels_from_menu (menubar, application);
+      extract_accels_from_menu (menubar, application);
+      if (menubar)
+        extract_accels_from_menu (menubar, application);
 
 #ifdef GDK_WINDOWING_X11
      gtk_application_set_menubar_x11 (application, menubar);

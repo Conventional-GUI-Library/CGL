@@ -82,6 +82,7 @@
 #include <gtk/gtkcolorseldialog.h>
 #include <gtk/gtkcombobox.h>
 #include <gtk/gtkcomboboxtext.h>
+#include <gtk/gtkcomboboxentry.h>
 #include <gtk/gtkcontainer.h>
 #include <gtk/gtkcssprovider.h>
 #include <gtk/gtkcsssection.h>
@@ -129,6 +130,7 @@
 #include <gtk/gtkinfobar.h>
 #include <gtk/gtkinvisible.h>
 #include <gtk/gtklabel.h>
+#include <gtk/gtklevelbar.h>
 #include <gtk/gtklayout.h>
 #include <gtk/gtklinkbutton.h>
 #include <gtk/gtkliststore.h>

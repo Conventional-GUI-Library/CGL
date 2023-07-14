@@ -2870,6 +2870,7 @@ construct_icon_info (GtkWidget            *widget,
   priv->icons[icon_pos] = icon_info;
 
   icon_info->icon_helper = _gtk_icon_helper_new ();
+  _gtk_icon_helper_set_force_scale_pixbuf (icon_info->icon_helper, TRUE);
 
   if (gtk_widget_get_realized (widget))
     realize_icon_info (widget, icon_pos);
@@ -7600,6 +7601,8 @@ gtk_entry_set_icon_from_pixbuf (GtkEntry             *entry,
   if (pixbuf)
     {
       _gtk_icon_helper_set_pixbuf (icon_info->icon_helper, pixbuf);
+      _gtk_icon_helper_set_icon_size (icon_info->icon_helper,
+                                      GTK_ICON_SIZE_MENU);
 
       if (icon_pos == GTK_ENTRY_ICON_PRIMARY)
         {
@@ -7926,7 +7929,8 @@ gtk_entry_get_icon_pixbuf (GtkEntry             *entry,
    * the icon helper's cache ref directly.
    */
   pixbuf = gtk_entry_ensure_pixbuf (entry, icon_pos);
-  g_object_unref (pixbuf);
+  if (pixbuf)
+    g_object_unref (pixbuf);
 
   return pixbuf;
 }
