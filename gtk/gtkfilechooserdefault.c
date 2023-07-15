@@ -207,6 +207,7 @@ enum {
   MODEL_COL_FILE,
   MODEL_COL_NAME_COLLATED,
   MODEL_COL_IS_FOLDER,
+  MODEL_COL_IS_SENSITIVE,
   MODEL_COL_PIXBUF,
   MODEL_COL_SIZE_TEXT,
   MODEL_COL_MTIME_TEXT,
@@ -223,6 +224,7 @@ enum {
 	G_TYPE_FILE,		  /* MODEL_COL_FILE */		\
 	G_TYPE_STRING,		  /* MODEL_COL_NAME_COLLATED */	\
 	G_TYPE_BOOLEAN,		  /* MODEL_COL_IS_FOLDER */	\
+	G_TYPE_BOOLEAN,		  /* MODEL_COL_IS_SENSITIVE */	\
 	GDK_TYPE_PIXBUF,	  /* MODEL_COL_PIXBUF */	\
 	G_TYPE_STRING,		  /* MODEL_COL_SIZE_TEXT */	\
 	G_TYPE_STRING,		  /* MODEL_COL_MTIME_TEXT */	\
@@ -6203,13 +6205,6 @@ gtk_file_chooser_default_unmap (GtkWidget *widget)
   GTK_WIDGET_CLASS (_gtk_file_chooser_default_parent_class)->unmap (widget);
 }
 
-static void
-install_list_model_filter (GtkFileChooserDefault *impl)
-{
-  _gtk_file_system_model_set_filter (impl->browse_files_model,
-                                     impl->current_filter);
-}
-
 #define COMPARE_DIRECTORIES										       \
   GtkFileChooserDefault *impl = user_data;								       \
   GtkFileSystemModel *fs_model = GTK_FILE_SYSTEM_MODEL (model);                                                \
@@ -6839,6 +6834,34 @@ file_system_model_set (GtkFileSystemModel *model,
     case MODEL_COL_IS_FOLDER:
       g_value_set_boolean (value, info == NULL || _gtk_file_info_consider_as_directory (info));
       break;
+    case MODEL_COL_IS_SENSITIVE:
+      if (info)
+        {
+          gboolean sensitive = TRUE;
+
+          if (!(impl->action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER
+		|| impl->action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER))
+            {
+              sensitive = TRUE; /* for file modes... */
+            }
+          else if (!_gtk_file_info_consider_as_directory (info))
+            {
+              sensitive = FALSE; /* for folder modes, files are not sensitive... */
+            }
+          else
+            {
+	      /* ... and for folder modes, folders are sensitive only if the filter says so */
+              GtkTreeIter iter;
+              if (!_gtk_file_system_model_get_iter_for_file (model, &iter, file))
+                g_assert_not_reached ();
+              sensitive = !_gtk_file_system_model_iter_is_filtered_out (model, &iter);
+            }
+
+          g_value_set_boolean (value, sensitive);
+        }
+      else
+        g_value_set_boolean (value, TRUE);
+      break;
     case MODEL_COL_PIXBUF:
       if (info)
         {
@@ -6962,7 +6985,7 @@ set_list_model (GtkFileChooserDefault *impl,
   g_signal_connect (impl->browse_files_model, "finished-loading",
 		    G_CALLBACK (browse_files_model_finished_loading_cb), impl);
 
-  install_list_model_filter (impl);
+  _gtk_file_system_model_set_filter (impl->browse_files_model, impl->current_filter);
 
   profile_end ("end", NULL);
 
@@ -7533,16 +7556,19 @@ maybe_select (GtkTreeModel *model,
 {
   GtkFileChooserDefault *impl = GTK_FILE_CHOOSER_DEFAULT (data);
   GtkTreeSelection *selection;
+  gboolean is_sensitive;
   gboolean is_folder;
   
   selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (impl->browse_files_tree_view));
   
   gtk_tree_model_get (model, iter,
                       MODEL_COL_IS_FOLDER, &is_folder,
+                      MODEL_COL_IS_SENSITIVE, &is_sensitive,
                       -1);
 
-  if ((is_folder && impl->action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER) ||
-      (!is_folder && impl->action == GTK_FILE_CHOOSER_ACTION_OPEN))
+  if (is_sensitive &&
+      ((is_folder && impl->action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER) ||
+       (!is_folder && impl->action == GTK_FILE_CHOOSER_ACTION_OPEN)))
     gtk_tree_selection_select_iter (selection, iter);
   else
     gtk_tree_selection_unselect_iter (selection, iter);
@@ -9656,13 +9682,22 @@ set_current_filter (GtkFileChooserDefault *impl,
 				  filter_index);
 
       if (impl->browse_files_model)
-	install_list_model_filter (impl);
+        {
+          _gtk_file_system_model_set_filter (impl->browse_files_model, impl->current_filter);
+          _gtk_file_system_model_clear_cache (impl->browse_files_model, MODEL_COL_IS_SENSITIVE);
+        }
 
       if (impl->search_model)
-        _gtk_file_system_model_set_filter (impl->search_model, filter);
+        {
+          _gtk_file_system_model_set_filter (impl->search_model, filter);
+          _gtk_file_system_model_clear_cache (impl->search_model, MODEL_COL_IS_SENSITIVE);
+        }
 
       if (impl->recent_model)
-        _gtk_file_system_model_set_filter (impl->recent_model, filter);
+        {
+          _gtk_file_system_model_set_filter (impl->recent_model, filter);
+          _gtk_file_system_model_clear_cache (impl->recent_model, MODEL_COL_IS_SENSITIVE);
+        }
 
       g_object_notify (G_OBJECT (impl), "filter");
     }
@@ -10053,14 +10088,16 @@ list_select_func  (GtkTreeSelection  *selection,
       impl->action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER)
     {
       GtkTreeIter iter;
+      gboolean is_sensitive;
       gboolean is_folder;
 
       if (!gtk_tree_model_get_iter (model, &iter, path))
         return FALSE;
       gtk_tree_model_get (model, &iter,
+                          MODEL_COL_IS_SENSITIVE, &is_sensitive,
                           MODEL_COL_IS_FOLDER, &is_folder,
                           -1);
-      if (!is_folder)
+      if (!is_sensitive || !is_folder)
         return FALSE;
     }
     
@@ -10111,6 +10148,7 @@ list_row_activated (GtkTreeView           *tree_view,
   GtkTreeIter iter;
   GtkTreeModel *model;
   gboolean is_folder;
+  gboolean is_sensitive;
 
   model = gtk_tree_view_get_model (tree_view);
 
@@ -10120,9 +10158,10 @@ list_row_activated (GtkTreeView           *tree_view,
   gtk_tree_model_get (model, &iter,
                       MODEL_COL_FILE, &file,
                       MODEL_COL_IS_FOLDER, &is_folder,
+                      MODEL_COL_IS_SENSITIVE, &is_sensitive,
                       -1);
         
-  if (is_folder && file)
+  if (is_sensitive && is_folder && file)
     {
       change_folder_and_display_error (impl, file, FALSE);
       goto out;
@@ -10165,10 +10204,6 @@ update_cell_renderer_attributes (GtkFileChooserDefault *impl)
   GtkTreeViewColumn *column;
   GtkCellRenderer *renderer;
   GList *walk, *list;
-  gboolean always_sensitive;
-
-  always_sensitive = impl->action != GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER &&
-                     impl->action != GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER;
 
   /* Keep the following column numbers in sync with create_file_list() */
 
@@ -10191,10 +10226,8 @@ update_cell_renderer_attributes (GtkFileChooserDefault *impl)
                                                "ellipsize", MODEL_COL_ELLIPSIZE,
                                                NULL);
         }
-      if (always_sensitive)
-        g_object_set (renderer, "sensitive", TRUE, NULL);
-      else
-        gtk_tree_view_column_add_attribute (column, renderer, "sensitive", MODEL_COL_IS_FOLDER);
+
+      gtk_tree_view_column_add_attribute (column, renderer, "sensitive", MODEL_COL_IS_SENSITIVE);
     }
   g_list_free (list);
 
@@ -10205,10 +10238,8 @@ update_cell_renderer_attributes (GtkFileChooserDefault *impl)
   gtk_tree_view_column_set_attributes (column, renderer, 
                                        "text", MODEL_COL_SIZE_TEXT,
                                        NULL);
-  if (always_sensitive)
-    g_object_set (renderer, "sensitive", TRUE, NULL);
-  else
-    gtk_tree_view_column_add_attribute (column, renderer, "sensitive", MODEL_COL_IS_FOLDER);
+
+  gtk_tree_view_column_add_attribute (column, renderer, "sensitive", MODEL_COL_IS_SENSITIVE);
   g_list_free (list);
 
   /* mtime */
@@ -10218,10 +10249,7 @@ update_cell_renderer_attributes (GtkFileChooserDefault *impl)
   gtk_tree_view_column_set_attributes (column, renderer, 
                                        "text", MODEL_COL_MTIME_TEXT,
                                        NULL);
-  if (always_sensitive)
-    g_object_set (renderer, "sensitive", TRUE, NULL);
-  else
-    gtk_tree_view_column_add_attribute (column, renderer, "sensitive", MODEL_COL_IS_FOLDER);
+  gtk_tree_view_column_add_attribute (column, renderer, "sensitive", MODEL_COL_IS_SENSITIVE);
   g_list_free (list);
 }
 
