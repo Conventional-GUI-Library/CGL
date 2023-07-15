@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
- * USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Ryan Lortie <desrt@desrt.ca>
  */
@@ -106,8 +104,12 @@ gtk_builder_menu_start_element (GMarkupParseContext  *context,
         {
           GMenuItem *item;
 
-          item = g_menu_item_new (NULL, NULL);
-          gtk_builder_menu_push_frame (state, NULL, item);
+          if (COLLECT (G_MARKUP_COLLECT_INVALID, NULL))
+            {
+              item = g_menu_item_new (NULL, NULL);
+              gtk_builder_menu_push_frame (state, NULL, item);
+            }
+
           return;
         }
 

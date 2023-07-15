@@ -22,6 +22,7 @@ if HAVE_PAPI_CUPS
 GTK_PRINT_BACKENDS=file,papi,cups
 else
 if HAVE_CUPS
+
 GTK_PRINT_BACKENDS=file,cups
 else
 if HAVE_PAPI
@@ -1037,6 +1038,8 @@ EXTRA_HEADERS =
 EXTRA_DIST += $(gtk_all_private_h_sources) $(gtk_extra_sources)
 EXTRA_DIST += $(gtk_built_sources)
 EXTRA_DIST += $(STOCK_ICONS)
+EXTRA_DIST += gtkbuilder.rnc gtkbuilder.rng
+
 
 DND_CURSORS = \
 	cursor_dnd_ask.png				\

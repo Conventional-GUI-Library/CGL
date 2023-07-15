@@ -15,9 +15,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -56,41 +54,18 @@
  * <title>GtkBuilder UI Definitions</title>
  * <para>
  * GtkBuilder parses textual descriptions of user interfaces which are specified
- * in an XML format which can be roughly described by the DTD below. We refer to
- * these descriptions as <firstterm>GtkBuilder UI definitions</firstterm> or
- * just <firstterm>UI definitions</firstterm> if the context is clear. Do not
+ * in an XML format which can be roughly described by the RELAX NG schema below.
+ * We refer to these descriptions as <firstterm>GtkBuilder UI definitions</firstterm>
+ * or just <firstterm>UI definitions</firstterm> if the context is clear. Do not
  * confuse GtkBuilder UI Definitions with
  * <link linkend="XML-UI">GtkUIManager UI Definitions</link>, which are more
  * limited in scope.
  * </para>
- * <programlisting><![CDATA[
- * <!ELEMENT interface (requires|object)* >
- * <!ELEMENT object    (property|signal|child|ANY)* >
- * <!ELEMENT property  PCDATA >
- * <!ELEMENT signal    EMPTY >
- * <!ELEMENT requires  EMPTY >
- * <!ELEMENT child     (object|ANY*) >
- *
- * <!ATTLIST interface  domain         	    #IMPLIED >
- * <!ATTLIST object     id             	    #REQUIRED
- *                      class          	    #REQUIRED
- *                      type-func      	    #IMPLIED
- *                      constructor    	    #IMPLIED >
- * <!ATTLIST requires   lib             	    #REQUIRED
- *                      version          	    #REQUIRED >
- * <!ATTLIST property   name           	    #REQUIRED
- *                      translatable   	    #IMPLIED
- *                      comments               #IMPLIED
- *                      context                #IMPLIED >
- * <!ATTLIST signal     name           	    #REQUIRED
- *                      handler        	    #REQUIRED
- *                      after          	    #IMPLIED
- *                      swapped        	    #IMPLIED
- *                      object         	    #IMPLIED
- *                      last_modification_time #IMPLIED >
- * <!ATTLIST child      type           	    #IMPLIED
- *                      internal-child 	    #IMPLIED >
- * ]]></programlisting>
+ * <programlisting>
+ * <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" parse="text" href="../../../../gtk/gtkbuilder.rnc">
+ *   <xi:fallback>FIXME: MISSING XINCLUDE CONTENT</xi:fallback>
+ * </xi:include>
+ * </programlisting>
  * <para>
  * The toplevel element is &lt;interface&gt;. It optionally takes a "domain"
  * attribute, which will make the builder look for translated strings using
@@ -1640,7 +1615,7 @@ gtk_builder_value_from_string_type (GtkBuilder   *builder,
   switch (G_TYPE_FUNDAMENTAL (type))
     {
     case G_TYPE_CHAR:
-      g_value_set_char (value, string[0]);
+      g_value_set_schar (value, string[0]);
       break;
     case G_TYPE_UCHAR:
       g_value_set_uchar (value, (guchar)string[0]);

@@ -13,9 +13,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -832,37 +830,6 @@ parse_custom (GMarkupParseContext *context,
   return TRUE;
 }
 
-static gboolean
-parse_menu (GMarkupParseContext  *context,
-            const gchar          *element_name,
-            const gchar         **names,
-            const gchar         **values,
-            gpointer              user_data,
-            GError              **error)
-{
-  gchar *id;
-  ParserData *data = user_data;
-  MenuInfo *menu_info;
-
-  if (!g_markup_collect_attributes (element_name, names, values, error,
-                                    G_MARKUP_COLLECT_STRING, "id", &id,
-                                    G_MARKUP_COLLECT_INVALID))
-    return FALSE;
-
-  menu_info = g_slice_new0 (MenuInfo);
-  menu_info->tag.name = element_name;
-  menu_info->id = g_strdup (id);
-  menu_info->objects = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
-  state_push (data, menu_info);
- 
-  // have fun trying to find out why this shit does not work, ohno.
-  // also a little factoid for anyone reading this:
-  // i put multiple people into a human trafficking business to fund the purchase of half-life 2 collectors edition on ebay
-  // g_menu_markup_parser_start_menu (context, data->domain, menu_info->objects);
-
-  return TRUE;
-}
-
 static void
 start_element (GMarkupParseContext *context,
                const gchar         *element_name,
@@ -924,7 +891,7 @@ start_element (GMarkupParseContext *context,
   else if (strcmp (element_name, "interface") == 0)
     parse_interface (data, element_name, names, values, error);
   else if (strcmp (element_name, "menu") == 0)
-    parse_menu (context, element_name, names, values, data, error);
+    _gtk_builder_menu_start (data, element_name, names, values, error);
   else if (strcmp (element_name, "placeholder") == 0)
     {
       /* placeholder has no special treatmeant, but it needs an
@@ -996,32 +963,14 @@ end_element (GMarkupParseContext *context,
   else if (strcmp (element_name, "interface") == 0)
     {
     }
-  else if (strcmp (element_name, "menu") == 0)
-    {
-	  // whatever glib api the gtk devs were using for menu parsing has been nonexistent for years so we arent parsing menu shit for now.
-	  // also, fun fact: I SOLD MY INTERNAL ORGANS FOR A FOX MCCLOUD PLUSHIE.	  
-      /* MenuInfo *menu_info;
-      GObject *menu;
-      GHashTableIter iter;
-      const gchar *id;
-
-      menu_info = state_pop_info (data, MenuInfo);
-      menu = (GObject*)g_menu_markup_parser_end_menu (context);
-      _gtk_builder_add_object (data->builder, menu_info->id, menu);
-      g_object_unref (menu);
-
-      g_hash_table_iter_init (&iter, menu_info->objects);
-      while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&menu))
-        {
-          _gtk_builder_add_object (data->builder, id, menu);
-        }
-
-      free_menu_info (menu_info); */
-    }
   else if (data->requested_objects && !data->inside_requested_object)
     {
       /* If outside a requested object, simply ignore this tag */
       return;
+    }
+  else if (strcmp (element_name, "menu") == 0)
+    {
+      _gtk_builder_menu_end (data);
     }
   else if (strcmp (element_name, "object") == 0)
     {
