@@ -61,12 +61,6 @@
 struct _GtkFontChooserWidgetPrivate
 {
   GtkWidget    *font_sel_widget;
-  
-  PangoFontDescription *font_desc;
-
-  GtkFontFilterFunc filter_func;
-  gpointer          filter_data;
-  GDestroyNotify    filter_data_destroy;
 };
 
 static void gtk_font_chooser_widget_set_property         (GObject         *object,
@@ -109,8 +103,6 @@ gtk_font_chooser_widget_class_init (GtkFontChooserWidgetClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
-
-  //widget_class->screen_changed = gtk_font_chooser_widget_screen_changed;
 
   gobject_class->finalize = gtk_font_chooser_widget_finalize;
   gobject_class->set_property = gtk_font_chooser_widget_set_property;
@@ -186,12 +178,6 @@ gtk_font_chooser_widget_finalize (GObject *object)
 
   if (priv->font_sel_widget)
     gtk_widget_destroy(priv->font_sel_widget);
-    
-  if (priv->font_desc)
-    pango_font_description_free (priv->font_desc);
-
-  if (priv->filter_data_destroy)
-    priv->filter_data_destroy (priv->filter_data);
 
   G_OBJECT_CLASS (gtk_font_chooser_widget_parent_class)->finalize (object);
 }
@@ -212,15 +198,13 @@ gtk_font_chooser_widget_init (GtkFontChooserWidget *fontchooser)
                                                    GtkFontChooserWidgetPrivate);
   priv = fontchooser->priv;
 
-  priv->font_desc = pango_font_description_new ();
-
   priv->font_sel_widget = gtk_font_selection_new();
 
   gtk_box_pack_start (GTK_BOX (fontchooser), priv->font_sel_widget, TRUE, TRUE, 0);
   
   gtk_widget_show_all (GTK_WIDGET (fontchooser));
 
-  gtk_font_chooser_widget_take_font_desc (fontchooser, NULL);
+  gtk_font_chooser_widget_take_font_desc(fontchooser, pango_font_description_new());
 }
 
 static gchar *
@@ -265,8 +249,6 @@ gtk_font_chooser_widget_take_font_desc (GtkFontChooserWidget *fontchooser,
                                         PangoFontDescription *font_desc)
 {
   GtkFontChooserWidgetPrivate *priv = fontchooser->priv;
-
-  priv->font_desc = font_desc;
   
   char* font_name = pango_font_description_to_string(font_desc);
   
@@ -322,7 +304,7 @@ gtk_font_chooser_widget_set_filter_func (GtkFontChooser  *chooser,
                                          gpointer          data,
                                          GDestroyNotify    destroy)
 {
-
+	g_warning("The gtk_font_chooser_widget_set_filter_func function is currently not implemented");
 }
 
 static void

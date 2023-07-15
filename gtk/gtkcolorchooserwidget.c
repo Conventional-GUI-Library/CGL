@@ -83,7 +83,7 @@ static void
 gtk_color_chooser_widget_set_show_editor (GtkColorChooserWidget *cc,
                                           gboolean               show_editor)
 {
-  // again, this is unimplemented
+  g_warning("The gtk_color_chooser_widget_set_show_editor function is currently not implemented");
 }
 
 static void
@@ -123,7 +123,7 @@ gtk_color_chooser_widget_get_property (GObject    *object,
       g_value_set_boolean (value, gtk_color_selection_get_has_opacity_control(GTK_COLOR_SELECTION(cw->priv->color_sel_widget)));
       break;
     case PROP_SHOW_EDITOR:
-	  // this is also unimplemented
+	  g_warning("The show-editor property is currently not implemented");
       g_value_set_boolean (value, TRUE);
       break;
     default:
@@ -151,6 +151,7 @@ gtk_color_chooser_widget_set_property (GObject      *object,
                                               g_value_get_boolean (value));
       break;
     case PROP_SHOW_EDITOR:
+      g_warning("The show-editor property is currently not implemented");
       gtk_color_chooser_widget_set_show_editor (cc,
                                                 g_value_get_boolean (value));
       break;
@@ -180,7 +181,7 @@ gtk_color_chooser_widget_class_init (GtkColorChooserWidgetClass *class)
   g_object_class_override_property (object_class, PROP_RGBA, "rgba");
   g_object_class_override_property (object_class, PROP_USE_ALPHA, "use-alpha");
 
-  // this property currently does nothing
+  // This property currently does nothing
   g_object_class_install_property (object_class, PROP_SHOW_EDITOR,
       g_param_spec_boolean ("show-editor", P_("Show editor"), P_("Show editor"),
                             FALSE, GTK_PARAM_READWRITE));
@@ -215,7 +216,7 @@ gtk_color_chooser_widget_add_palette (GtkColorChooser *chooser,
 {
   GtkColorChooserWidget *cc = GTK_COLOR_CHOOSER_WIDGET (chooser);
 
-  //implement this
+  g_warning("The gtk_color_chooser_widget_add_palette function is currently not implemented");
 }
 
 static void
