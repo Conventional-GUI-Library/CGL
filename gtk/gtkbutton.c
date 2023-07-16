@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -63,7 +61,6 @@
 
 static const GtkBorder default_default_border = { 1, 1, 1, 1 };
 static const GtkBorder default_default_outside_border = { 0, 0, 0, 0 };
-static const GtkBorder default_inner_border = { 1, 1, 1, 1 };
 
 /* Time out before giving up on getting a key release when animating
  * the close button.
@@ -126,6 +123,8 @@ static gint gtk_button_button_press (GtkWidget * widget,
 				     GdkEventButton * event);
 static gint gtk_button_button_release (GtkWidget * widget,
 				       GdkEventButton * event);
+static gboolean gtk_button_touch (GtkWidget     *widget,
+                                  GdkEventTouch *event);
 static gint gtk_button_grab_broken (GtkWidget * widget,
 				    GdkEventGrabBroken * event);
 static gint gtk_button_key_release (GtkWidget * widget, GdkEventKey * event);
@@ -534,6 +533,9 @@ gtk_button_class_init (GtkButtonClass *klass)
    * Sets the border between the button edges and child.
    *
    * Since: 2.10
+   *
+   * Deprecated: 3.4: Use the standard border and padding CSS properties;
+   *   the value of this style property is ignored.
    */
   gtk_widget_class_install_style_property (widget_class,
 					   g_param_spec_boxed ("inner-border",
@@ -1459,9 +1461,10 @@ gtk_button_realize (GtkWidget *widget)
   attributes.wclass = GDK_INPUT_ONLY;
   attributes.event_mask = gtk_widget_get_events (widget);
   attributes.event_mask |= (GDK_BUTTON_PRESS_MASK |
-			    GDK_BUTTON_RELEASE_MASK |
-			    GDK_ENTER_NOTIFY_MASK |
-			    GDK_LEAVE_NOTIFY_MASK);
+                            GDK_BUTTON_RELEASE_MASK |
+                            GDK_TOUCH_MASK |
+                            GDK_ENTER_NOTIFY_MASK |
+                            GDK_LEAVE_NOTIFY_MASK);
 
   attributes_mask = GDK_WA_X | GDK_WA_Y;
 
@@ -1563,7 +1566,6 @@ static void
 gtk_button_get_props (GtkButton *button,
 		      GtkBorder *default_border,
 		      GtkBorder *default_outside_border,
-                      GtkBorder *inner_border,
                       GtkBorder *padding,
                       GtkBorder *border,
 		      gboolean  *interior_focus)
@@ -1605,21 +1607,6 @@ gtk_button_get_props (GtkButton *button,
 	*default_outside_border = default_default_outside_border;
     }
 
-  if (inner_border)
-    {
-      gtk_style_context_get_style (context,
-                                   "inner-border", &tmp_border,
-                                   NULL);
-
-      if (tmp_border)
-	{
-	  *inner_border = *tmp_border;
-	  gtk_border_free (tmp_border);
-	}
-      else
-	*inner_border = default_inner_border;
-    }
-
   if (interior_focus)
     {
       gtk_style_context_get_style (context,
@@ -1644,7 +1631,6 @@ gtk_button_size_allocate (GtkWidget     *widget,
   GtkStyleContext *context;
   GtkWidget *child;
   GtkBorder default_border;
-  GtkBorder inner_border;
   GtkBorder padding;
   GtkBorder border;
   gint focus_width;
@@ -1652,7 +1638,7 @@ gtk_button_size_allocate (GtkWidget     *widget,
 
   context = gtk_widget_get_style_context (widget);
 
-  gtk_button_get_props (button, &default_border, NULL, &inner_border,
+  gtk_button_get_props (button, &default_border, NULL,
                         &padding, &border, NULL);
   gtk_style_context_get_style (context,
                               "focus-line-width", &focus_width,
@@ -1671,20 +1657,18 @@ gtk_button_size_allocate (GtkWidget     *widget,
   child = gtk_bin_get_child (GTK_BIN (button));
   if (child && gtk_widget_get_visible (child))
     {
-      child_allocation.x = allocation->x + inner_border.left + padding.left + border.left;
-      child_allocation.y = allocation->y + inner_border.top + padding.top + border.top;
+      child_allocation.x = allocation->x + padding.left + border.left;
+      child_allocation.y = allocation->y + padding.top + border.top;
 
       child_allocation.width =
 	allocation->width -
         (padding.left + padding.right) -
-	(border.left + border.right) -
-	(inner_border.left + inner_border.right);
+	(border.left + border.right);
 
       child_allocation.height = 
 	allocation->height -
         (padding.top + padding.bottom) -
-        (border.top + border.bottom) -
-	(inner_border.top + inner_border.bottom);
+        (border.top + border.bottom);
 
       if (gtk_widget_get_can_default (GTK_WIDGET (button)))
 	{
@@ -1743,7 +1727,7 @@ gtk_button_draw (GtkWidget *widget,
   context = gtk_widget_get_style_context (widget);
   state = gtk_style_context_get_state (context);
 
-  gtk_button_get_props (button, &default_border, &default_outside_border, NULL, NULL, NULL, &interior_focus);
+  gtk_button_get_props (button, &default_border, &default_outside_border, NULL, NULL, &interior_focus);
   gtk_style_context_get_style (context,
                                "focus-line-width", &focus_width,
                                "focus-padding", &focus_pad,
@@ -1851,7 +1835,7 @@ gtk_button_button_press (GtkWidget      *widget,
 	gtk_widget_grab_focus (widget);
 
       if (event->button == GDK_BUTTON_PRIMARY)
-	gtk_button_pressed (button);
+        g_signal_emit (button, button_signals[PRESSED], 0);
     }
 
   return TRUE;
@@ -1866,7 +1850,29 @@ gtk_button_button_release (GtkWidget      *widget,
   if (event->button == GDK_BUTTON_PRIMARY)
     {
       button = GTK_BUTTON (widget);
-      gtk_button_released (button);
+      g_signal_emit (button, button_signals[RELEASED], 0);
+    }
+
+  return TRUE;
+}
+
+static gboolean
+gtk_button_touch (GtkWidget     *widget,
+                  GdkEventTouch *event)
+{
+  GtkButton *button = GTK_BUTTON (widget);
+  GtkButtonPrivate *priv = button->priv;
+
+  if (event->type == GDK_TOUCH_BEGIN)
+    {
+      if (priv->focus_on_click && !gtk_widget_has_focus (widget))
+        gtk_widget_grab_focus (widget);
+
+      g_signal_emit (button, button_signals[PRESSED], 0);
+    }
+  else if (event->type == GDK_TOUCH_END)
+    {
+      g_signal_emit (button, button_signals[RELEASED], 0);
     }
 
   return TRUE;
@@ -1885,7 +1891,7 @@ gtk_button_grab_broken (GtkWidget          *widget,
     {
       save_in = priv->in_button;
       priv->in_button = FALSE;
-      gtk_button_released (button);
+      g_signal_emit (button, button_signals[RELEASED], 0);
       if (save_in != priv->in_button)
 	{
 	  priv->in_button = save_in;
@@ -1925,7 +1931,7 @@ gtk_button_enter_notify (GtkWidget        *widget,
       (event->detail != GDK_NOTIFY_INFERIOR))
     {
       priv->in_button = TRUE;
-      gtk_button_enter (button);
+      g_signal_emit (button, button_signals[ENTER], 0);
     }
 
   return FALSE;
@@ -1943,7 +1949,7 @@ gtk_button_leave_notify (GtkWidget        *widget,
       (gtk_widget_get_sensitive (widget)))
     {
       priv->in_button = FALSE;
-      gtk_button_leave (button);
+      g_signal_emit (button, button_signals[LEAVE], 0);
     }
 
   return FALSE;
@@ -1961,6 +1967,40 @@ gtk_real_button_pressed (GtkButton *button)
   gtk_button_update_state (button);
 }
 
+static gboolean
+touch_release_in_button (GtkButton *button)
+{
+  GtkButtonPrivate *priv;
+  gint width, height;
+  GdkEvent *event;
+  gdouble x, y;
+
+  priv = button->priv;
+  event = gtk_get_current_event ();
+
+  if (!event)
+    return FALSE;
+
+  if (event->type != GDK_TOUCH_END ||
+      event->touch.window != priv->event_window)
+    {
+      gdk_event_free (event);
+      return FALSE;
+    }
+
+  gdk_event_get_coords (event, &x, &y);
+  width = gdk_window_get_width (priv->event_window);
+  height = gdk_window_get_height (priv->event_window);
+
+  gdk_event_free (event);
+
+  if (x >= 0 && x <= width &&
+      y >= 0 && y <= height)
+    return TRUE;
+
+  return FALSE;
+}
+
 static void
 gtk_real_button_released (GtkButton *button)
 {
@@ -1973,7 +2013,8 @@ gtk_real_button_released (GtkButton *button)
       if (priv->activate_timeout)
 	return;
 
-      if (priv->in_button)
+      if (priv->in_button ||
+          touch_release_in_button (button))
 	gtk_button_clicked (button);
 
       gtk_button_update_state (button);
@@ -2079,7 +2120,6 @@ gtk_button_get_size (GtkWidget      *widget,
   GtkStyleContext *context;
   GtkWidget *child;
   GtkBorder default_border;
-  GtkBorder inner_border;
   GtkBorder padding;
   GtkBorder border;
   gint focus_width;
@@ -2088,7 +2128,7 @@ gtk_button_get_size (GtkWidget      *widget,
 
   context = gtk_widget_get_style_context (widget);
 
-  gtk_button_get_props (button, &default_border, NULL, &inner_border,
+  gtk_button_get_props (button, &default_border, NULL,
                         &padding, &border, NULL);
   gtk_style_context_get_style (context,
                                "focus-line-width", &focus_width,
@@ -2097,8 +2137,7 @@ gtk_button_get_size (GtkWidget      *widget,
 
   if (orientation == GTK_ORIENTATION_HORIZONTAL)
     {
-      minimum = inner_border.left + inner_border.right +
-        padding.left + padding.right +
+      minimum = padding.left + padding.right +
         border.left + border.right;
 
       if (gtk_widget_get_can_default (GTK_WIDGET (widget)))
@@ -2106,8 +2145,7 @@ gtk_button_get_size (GtkWidget      *widget,
     }
   else
     {
-      minimum = inner_border.top + inner_border.bottom +
-        padding.top + padding.bottom +
+      minimum = padding.top + padding.bottom +
         border.top + border.bottom;
 
       if (gtk_widget_get_can_default (GTK_WIDGET (widget)))

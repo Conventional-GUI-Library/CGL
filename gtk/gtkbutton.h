@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -81,15 +79,15 @@ GtkWidget*     gtk_button_new               (void);
 GtkWidget*     gtk_button_new_with_label    (const gchar    *label);
 GtkWidget*     gtk_button_new_from_stock    (const gchar    *stock_id);
 GtkWidget*     gtk_button_new_with_mnemonic (const gchar    *label);
-#ifndef GTK_DISABLE_DEPRECATED
-void           gtk_button_pressed           (GtkButton      *button);
-void           gtk_button_released          (GtkButton      *button);
-#endif
 void           gtk_button_clicked           (GtkButton      *button);
-#ifndef GTK_DISABLE_DEPRECATED
+GDK_DEPRECATED
+void           gtk_button_pressed           (GtkButton      *button);
+GDK_DEPRECATED
+void           gtk_button_released          (GtkButton      *button);
+GDK_DEPRECATED
 void           gtk_button_enter             (GtkButton      *button);
+GDK_DEPRECATED
 void           gtk_button_leave             (GtkButton      *button);
-#endif
 
 void                  gtk_button_set_relief         (GtkButton      *button,
 						     GtkReliefStyle  newstyle);
@@ -118,9 +116,11 @@ GtkWidget*            gtk_button_get_image          (GtkButton      *button);
 void                  gtk_button_set_image_position (GtkButton      *button,
 						     GtkPositionType position);
 GtkPositionType       gtk_button_get_image_position (GtkButton      *button);
+GDK_AVAILABLE_IN_3_6
 void                  gtk_button_set_always_show_image (GtkButton   *button,
                                                         gboolean     always_show);
-gboolean              gtk_button_get_always_show_image (GtkButton   *image_menu_item);
+GDK_AVAILABLE_IN_3_6
+gboolean              gtk_button_get_always_show_image (GtkButton   *button);
 
 GdkWindow*            gtk_button_get_event_window   (GtkButton      *button);
 

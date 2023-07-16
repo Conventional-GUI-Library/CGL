@@ -88,6 +88,9 @@ GtkIMContext* _gtk_entry_get_im_context    (GtkEntry  *entry);
 void     _gtk_entry_set_is_cell_renderer   (GtkEntry  *entry,
                                             gboolean   is_cell_renderer);
 
+gchar*   _gtk_entry_get_display_text       (GtkEntry *entry,
+                                            gint      start_pos,
+                                            gint      end_pos);
 
 G_END_DECLS
 

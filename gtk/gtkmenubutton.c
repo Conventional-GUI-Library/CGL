@@ -20,15 +20,124 @@
 
 /**
  * SECTION:gtkmenubutton
- * @Short_description: A widget that shows a menu when clicked on
- * @Title: GtkMenuButton
+ * @short_description: A widget that shows a menu when clicked on
+ * @title: GtkMenuButton
  *
  * The #GtkMenuButton widget is used to display a menu when clicked on.
  * This menu can be provided either as a #GtkMenu, or an abstract #GMenuModel.
  *
- * The #GtkMenuButton widget can hold any valid child widget.  That is, it can hold
- * almost any other standard #GtkWidget. The most commonly used child is the
- * provided #GtkArrow.
+ * The #GtkMenuButton widget can hold any valid child widget. That is, it
+ * can hold almost any other standard #GtkWidget. The most commonly used
+ * child is the provided #GtkArrow.
+ *
+ * The positioning of the menu is determined by the #GtkMenuButton:direction
+ * property of the menu button and the #GtkWidget:halign or #GtkWidget:valign
+ * properties of the menu. For example, when the direction is %GTK_ARROW_DOWN
+ * and the horizontal alignment is %GTK_ALIGN_START, the menu will be
+ * positioned below the button, with the starting edge (depending on the
+ * text direction) of the menu aligned with the starting edge of the button.
+ * If there is not enough space below the button, the menu is popped up above
+ * the button instead. If the alignment would move part of the menu offscreen,
+ * it is 'pushed in'.
+ *
+ * <informaltable>
+ *   <tgroup cols="4">
+ *     <tbody>
+ *       <row>
+ *         <entry></entry>
+ *         <entry>halign = start</entry>
+ *         <entry>halign = center</entry>
+ *         <entry>halign = end</entry>
+ *       </row>
+ *     <row>
+ *       <entry>direction = down</entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="down-start.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="down-center.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="down-end.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *     </row>
+ *     <row>
+ *       <entry>direction = up</entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="up-start.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="up-center.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="up-end.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *      </row>
+ *     </tbody>
+ *   </tgroup>
+ * </informaltable>
+ * <informaltable>
+ *   <tgroup cols="3">
+ *     <tbody>
+ *       <row>
+ *         <entry></entry>
+ *         <entry>direction = left</entry>
+ *         <entry>direction = right</entry>
+ *       </row>
+ *     <row>
+ *       <entry>valign = start</entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="left-start.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="right-start.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *     </row>
+ *     <row>
+ *       <entry>valign = center</entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="left-center.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="right-center.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *     </row>
+ *     <row>
+ *       <entry>valign = end</entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="left-end.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *       <entry>
+ *         <inlinemediaobject>
+ *           <imageobject><imagedata fileref="right-end.png" format="PNG"/></imageobject>
+ *         </inlinemediaobject>
+ *       </entry>
+ *      </row>
+ *     </tbody>
+ *   </tgroup>
+ * </informaltable>
  */
 
 #include "config.h"
@@ -64,13 +173,13 @@ enum
 
 G_DEFINE_TYPE(GtkMenuButton, gtk_menu_button, GTK_TYPE_TOGGLE_BUTTON)
 
-static void gtk_menu_button_finalize (GObject *object);
+static void gtk_menu_button_dispose (GObject *object);
 
 static void
 gtk_menu_button_set_property (GObject      *object,
-                                guint         property_id,
-                                const GValue *value,
-                                GParamSpec   *pspec)
+                              guint         property_id,
+                              const GValue *value,
+                              GParamSpec   *pspec)
 {
   GtkMenuButton *self = GTK_MENU_BUTTON (object);
 
@@ -95,9 +204,9 @@ gtk_menu_button_set_property (GObject      *object,
 
 static void
 gtk_menu_button_get_property (GObject    *object,
-                                guint       property_id,
-                                GValue     *value,
-                                GParamSpec *pspec)
+                              guint       property_id,
+                              GValue     *value,
+                              GParamSpec *pspec)
 {
   GtkMenuButtonPrivate *priv = GTK_MENU_BUTTON (object)->priv;
 
@@ -132,11 +241,11 @@ gtk_menu_button_state_flags_changed (GtkWidget    *widget,
 }
 
 static void
-menu_position_down_func (GtkMenu         *menu,
-                         int             *x,
-                         int             *y,
-                         gboolean        *push_in,
-                         GtkMenuButton   *menu_button)
+menu_position_up_down_func (GtkMenu       *menu,
+                            gint          *x,
+                            gint          *y,
+                            gboolean      *push_in,
+                            GtkMenuButton *menu_button)
 {
   GtkMenuButtonPrivate *priv = menu_button->priv;
   GtkWidget *widget = GTK_WIDGET (menu_button);
@@ -147,14 +256,12 @@ menu_position_down_func (GtkMenu         *menu,
   GdkScreen *screen;
   GdkWindow *window;
   GtkAllocation allocation, arrow_allocation;
-  GtkWidget *toplevel;
-
-  toplevel = gtk_widget_get_toplevel (GTK_WIDGET (priv->menu));
-  gtk_window_set_type_hint (GTK_WINDOW (toplevel), GDK_WINDOW_TYPE_HINT_DROPDOWN_MENU);
+  GtkAlign align;
 
   gtk_widget_get_preferred_size (GTK_WIDGET (priv->menu),
                                  &menu_req, NULL);
 
+  align = gtk_widget_get_halign (GTK_WIDGET (priv->menu));
   direction = gtk_widget_get_direction (widget);
   window = gtk_widget_get_window (priv->align_widget ? priv->align_widget : widget);
 
@@ -171,97 +278,60 @@ menu_position_down_func (GtkMenu         *menu,
   *x += allocation.x;
   *y += allocation.y;
 
-  if (direction == GTK_TEXT_DIR_LTR)
+  /* treat the default align value like START */
+  if (align == GTK_ALIGN_FILL)
+    align = GTK_ALIGN_START;
+
+  if (align == GTK_ALIGN_CENTER)
+    *x -= (menu_req.width - allocation.width) / 2;
+  else if ((align == GTK_ALIGN_START && direction == GTK_TEXT_DIR_LTR) ||
+           (align == GTK_ALIGN_END && direction == GTK_TEXT_DIR_RTL))
     *x += MAX (allocation.width - menu_req.width, 0);
   else if (menu_req.width > allocation.width)
     *x -= menu_req.width - allocation.width;
 
-  if ((*y + arrow_allocation.height + menu_req.height) <= monitor.y + monitor.height)
-    *y += arrow_allocation.height;
-  else if ((*y - menu_req.height) >= monitor.y)
-    *y -= menu_req.height;
-  else if (monitor.y + monitor.height - (*y + arrow_allocation.height) > *y)
-    *y += arrow_allocation.height;
-  else
-    *y -= menu_req.height;
-
-  *push_in = FALSE;
-}
-
-static void
-menu_position_up_func (GtkMenu         *menu,
-                       gint            *x,
-                       gint            *y,
-                       gboolean        *push_in,
-                       GtkMenuButton   *menu_button)
-{
-  GtkMenuButtonPrivate *priv = menu_button->priv;
-  GtkWidget *widget = GTK_WIDGET (menu_button);
-  GtkRequisition menu_req;
-  GtkTextDirection direction;
-  GdkRectangle monitor;
-  gint monitor_num;
-  GdkScreen *screen;
-  GdkWindow *window;
-  GtkAllocation allocation, arrow_allocation;
-
-  gtk_widget_get_preferred_size (GTK_WIDGET (priv->menu),
-                                 &menu_req, NULL);
-
-  direction = gtk_widget_get_direction (widget);
-  window = gtk_widget_get_window (priv->align_widget ? priv->align_widget : widget);
-
-  screen = gtk_widget_get_screen (GTK_WIDGET (menu));
-  monitor_num = gdk_screen_get_monitor_at_window (screen, window);
-  if (monitor_num < 0)
-    monitor_num = 0;
-  gdk_screen_get_monitor_workarea (screen, monitor_num, &monitor);
-
-  gtk_widget_get_allocation (priv->align_widget ? priv->align_widget : widget, &allocation);
-  gtk_widget_get_allocation (widget, &arrow_allocation);
-
-  gdk_window_get_origin (window, x, y);
-  *x += allocation.x;
-  *y += allocation.y;
-
-  if (direction == GTK_TEXT_DIR_LTR)
-    *x += MAX (allocation.width - menu_req.width, 0);
-  else if (menu_req.width > allocation.width)
-    *x -= menu_req.width - allocation.width;
-
-  *y -= menu_req.height;
-
-  /* If we're going to clip the top, pop down instead */
-  if (*y < monitor.y)
+  if (priv->arrow_type == GTK_ARROW_UP && *y - menu_req.height >= monitor.y)
     {
-      menu_position_down_func (menu, x, y, push_in, menu_button);
-      return;
+      *y -= menu_req.height;
+    }
+  else
+    {
+      if ((*y + arrow_allocation.height + menu_req.height) <= monitor.y + monitor.height)
+        *y += arrow_allocation.height;
+      else if ((*y - menu_req.height) >= monitor.y)
+        *y -= menu_req.height;
+      else if (monitor.y + monitor.height - (*y + arrow_allocation.height) > *y)
+        *y += arrow_allocation.height;
+      else
+        *y -= menu_req.height;
     }
 
   *push_in = FALSE;
 }
 
 static void
-menu_position_side_func (GtkMenu         *menu,
-                         int             *x,
-                         int             *y,
-                         gboolean        *push_in,
-                         GtkMenuButton   *menu_button)
+menu_position_side_func (GtkMenu       *menu,
+                         gint          *x,
+                         gint          *y,
+                         gboolean      *push_in,
+                         GtkMenuButton *menu_button)
 {
   GtkMenuButtonPrivate *priv = menu_button->priv;
-  GtkAllocation toggle_allocation;
+  GtkAllocation allocation;
   GtkWidget *widget = GTK_WIDGET (menu_button);
   GtkRequisition menu_req;
   GdkRectangle monitor;
   gint monitor_num;
   GdkScreen *screen;
   GdkWindow *window;
+  GtkAlign align;
 
   gtk_widget_get_preferred_size (GTK_WIDGET (priv->menu),
                                  &menu_req, NULL);
 
   window = gtk_widget_get_window (widget);
 
+  align = gtk_widget_get_valign (GTK_WIDGET (menu));
   screen = gtk_widget_get_screen (GTK_WIDGET (menu));
   monitor_num = gdk_screen_get_monitor_at_window (screen, window);
   if (monitor_num < 0)
@@ -270,16 +340,31 @@ menu_position_side_func (GtkMenu         *menu,
 
   gdk_window_get_origin (gtk_button_get_event_window (GTK_BUTTON (menu_button)), x, y);
 
-  gtk_widget_get_allocation (widget, &toggle_allocation);
+  gtk_widget_get_allocation (widget, &allocation);
 
   if (priv->arrow_type == GTK_ARROW_RIGHT)
-    *x += toggle_allocation.width;
+    {
+      if (*x + allocation.width + menu_req.width <= monitor.x + monitor.width)
+        *x += allocation.width;
+      else
+        *x -= menu_req.width;
+    }
   else
-    *x -= menu_req.width;
+    {
+      if (*x - menu_req.width >= monitor.x)
+        *x -= menu_req.width;
+      else
+        *x += allocation.width;
+    }
 
-  if (*y + menu_req.height > monitor.y + monitor.height &&
-      *y + toggle_allocation.height - monitor.y > monitor.y + monitor.height - *y)
-    *y += toggle_allocation.height - menu_req.height;
+  /* treat the default align value like START */
+  if (align == GTK_ALIGN_FILL)
+    align = GTK_ALIGN_START;
+
+  if (align == GTK_ALIGN_CENTER)
+    *y -= (menu_req.height - allocation.height) / 2;
+  else if (align == GTK_ALIGN_END)
+    *y -= menu_req.height - allocation.height;
 
   *push_in = FALSE;
 }
@@ -299,15 +384,12 @@ popup_menu (GtkMenuButton  *menu_button,
 
   switch (priv->arrow_type)
     {
-      case GTK_ARROW_UP:
-        func = (GtkMenuPositionFunc) menu_position_up_func;
-        break;
       case GTK_ARROW_LEFT:
       case GTK_ARROW_RIGHT:
         func = (GtkMenuPositionFunc) menu_position_side_func;
         break;
       default:
-        func = (GtkMenuPositionFunc) menu_position_down_func;
+        func = (GtkMenuPositionFunc) menu_position_up_down_func;
         break;
   }
 
@@ -342,8 +424,8 @@ gtk_menu_button_toggled (GtkToggleButton *button)
 }
 
 static gboolean
-gtk_menu_button_button_press_event (GtkWidget         *widget,
-                                    GdkEventButton    *event)
+gtk_menu_button_button_press_event (GtkWidget      *widget,
+                                    GdkEventButton *event)
 {
   if (event->button == GDK_BUTTON_PRIMARY)
     {
@@ -367,7 +449,7 @@ gtk_menu_button_class_init (GtkMenuButtonClass *klass)
 
   gobject_class->set_property = gtk_menu_button_set_property;
   gobject_class->get_property = gtk_menu_button_get_property;
-  gobject_class->finalize = gtk_menu_button_finalize;
+  gobject_class->dispose = gtk_menu_button_dispose;
 
   widget_class->state_flags_changed = gtk_menu_button_state_flags_changed;
   widget_class->button_press_event = gtk_menu_button_button_press_event;
@@ -483,7 +565,7 @@ gtk_menu_button_new (void)
  * when the pop-up menu disappears.
  */
 static int
-menu_deactivate_cb (GtkMenuShell    *menu_shell,
+menu_deactivate_cb (GtkMenuShell  *menu_shell,
                     GtkMenuButton *menu_button)
 {
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (menu_button), FALSE);
@@ -621,7 +703,7 @@ gtk_menu_button_get_menu (GtkMenuButton *menu_button)
  */
 void
 gtk_menu_button_set_menu_model (GtkMenuButton *menu_button,
-				GMenuModel    *menu_model)
+                                GMenuModel    *menu_model)
 {
   GtkMenuButtonPrivate *priv;
   GtkWidget *menu;
@@ -677,7 +759,7 @@ gtk_menu_button_get_menu_model (GtkMenuButton *menu_button)
  */
 void
 gtk_menu_button_set_align_widget (GtkMenuButton *menu_button,
-				  GtkWidget     *align_widget)
+                                  GtkWidget     *align_widget)
 {
   GtkMenuButtonPrivate *priv;
 
@@ -772,7 +854,7 @@ gtk_menu_button_get_direction (GtkMenuButton *menu_button)
 }
 
 static void
-gtk_menu_button_finalize (GObject *object)
+gtk_menu_button_dispose (GObject *object)
 {
   GtkMenuButtonPrivate *priv = GTK_MENU_BUTTON (object)->priv;
 
@@ -786,5 +868,5 @@ gtk_menu_button_finalize (GObject *object)
 
   g_clear_object (&priv->model);
 
-  G_OBJECT_CLASS (gtk_menu_button_parent_class)->finalize (object);
+  G_OBJECT_CLASS (gtk_menu_button_parent_class)->dispose (object);
 }
