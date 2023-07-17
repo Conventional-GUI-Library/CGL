@@ -391,7 +391,7 @@ else
 fi
 
 
-if test "x$enable_broadway_backend" == xyes; then
+if test "x$enable_broadway_backend" = xyes; then
   GDK_BACKENDS="$GDK_BACKENDS broadway"
   cairo_backends="$cairo_backends cairo"
   GDK_WINDOWING="$GDK_WINDOWING

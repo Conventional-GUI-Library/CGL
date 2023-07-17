@@ -133,6 +133,8 @@
 #include "gtkdebug.h"
 #include "gtkmenu.h"
 #include "gtkprivate.h"
+#include "a11y/gail.h"
+#include "a11y/gailutil.h"
 
 #ifdef G_OS_WIN32
 
@@ -352,6 +354,7 @@ gtk_get_binary_age (void)
 guint
 gtk_get_interface_age (void)
 {
+
   return GTK_INTERFACE_AGE;
 }
 

@@ -44,7 +44,7 @@
 #include "gtkintl.h"
 #include "gtktypebuiltins.h"
 #include "a11y/gtkmenuitemaccessible.h"
-#include "deprecated/gtktearoffmenuitem.h"
+#include "gtktearoffmenuitem.h"
 
 /**
  * SECTION:gtkmenuitem
