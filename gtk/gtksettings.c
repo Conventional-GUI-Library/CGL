@@ -280,6 +280,8 @@ gtk_settings_init (GtkSettings *settings)
   g_datalist_init (&priv->queued_settings);
   object_list = g_slist_prepend (object_list, settings);
 
+  priv->theme_provider = gtk_css_provider_new ();
+
   /* build up property array for all yet existing properties and queue
    * notification for them (at least notification for internal properties
    * will instantly be caught)
@@ -1583,6 +1585,10 @@ settings_init_style (GtkSettings *settings)
                                              GTK_STYLE_PROVIDER (settings),
                                              GTK_STYLE_PROVIDER_PRIORITY_SETTINGS);
 
+  gtk_style_context_add_provider_for_screen (screen,
+                                             GTK_STYLE_PROVIDER (settings->priv->theme_provider),
+                                             GTK_STYLE_PROVIDER_PRIORITY_SETTINGS);
+
   settings_update_theme (settings);
   settings_update_key_theme (settings);
 }
@@ -1818,6 +1824,9 @@ gtk_settings_notify (GObject    *object,
     case PROP_FONTCONFIG_TIMESTAMP:
       if (settings_update_fontconfig (settings))
         gtk_style_context_reset_widgets (priv->screen);
+      break;
+    case PROP_ENABLE_ANIMATIONS:
+      gtk_style_context_reset_widgets (priv->screen);
       break;
     case PROP_CURSOR_THEME_NAME:
     case PROP_CURSOR_THEME_SIZE:
@@ -2886,7 +2895,6 @@ static void
 settings_update_theme (GtkSettings *settings)
 {
   GtkSettingsPrivate *priv = settings->priv;
-  GtkCssProvider *provider = NULL;
   gboolean prefer_dark_theme;
   gchar *theme_name;
 
@@ -2895,20 +2903,15 @@ settings_update_theme (GtkSettings *settings)
                 "gtk-application-prefer-dark-theme", &prefer_dark_theme,
                 NULL);
 
-  if (theme_name && *theme_name)
+  if (!theme_name || !*theme_name)
     {
-      if (prefer_dark_theme)
-        provider = gtk_css_provider_get_named (theme_name, "dark");
-
-      if (!provider)
-        provider = gtk_css_provider_get_named (theme_name, NULL);
+      g_free (theme_name);
+      theme_name = g_strdup ("Raleigh");
     }
-
-  /* If we didn't find the named theme, fall back */
-  if (!provider)
-    provider = gtk_css_provider_get_named ("Raleigh", NULL);
-
-  settings_update_provider (priv->screen, &priv->theme_provider, provider);
+  
+  _gtk_css_provider_load_named (priv->theme_provider,
+                                theme_name,
+                                prefer_dark_theme ? "dark" : NULL);
 
   if (theme_name && *theme_name)
     {

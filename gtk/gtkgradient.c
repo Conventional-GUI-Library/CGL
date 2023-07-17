@@ -329,6 +329,7 @@ _gtk_gradient_resolve_full (GtkGradient             *gradient,
         {
           rgba = *_gtk_css_rgba_value_get_rgba (val);
           *dependencies = _gtk_css_dependencies_union (*dependencies, stop_deps);
+          _gtk_css_value_unref (val);
         }
       else
         {
@@ -469,7 +470,7 @@ gtk_gradient_fade (GtkGradient *gradient,
 
       stop = &g_array_index (gradient->stops, ColorStop, i);
       color = gtk_symbolic_color_new_alpha (stop->color, opacity);
-      gtk_gradient_add_color_stop (gradient, stop->offset, color);
+      gtk_gradient_add_color_stop (faded, stop->offset, color);
       gtk_symbolic_color_unref (color);
     }
 

@@ -43,6 +43,7 @@
 #include "gtkselectionprivate.h"
 #include "gtksettingsprivate.h"
 #include "gtksizegroup-private.h"
+#include "gtksizerequestcacheprivate.h"
 #include "gtkwidget.h"
 #include "gtkwidgetprivate.h"
 #include "gtkwindowprivate.h"
@@ -346,8 +347,6 @@ struct _GtkWidgetPrivate
 
   /* Queue-resize related flags */
   guint alloc_needed          : 1;
-  guint width_request_needed  : 1;
-  guint height_request_needed : 1;
 
   /* Expand-related flags */
   guint need_compute_expand   : 1; /* Need to recompute computed_[hv]_expand */
@@ -359,8 +358,6 @@ struct _GtkWidgetPrivate
   guint vexpand_set           : 1; /* instead of computing from children */
 
   /* SizeGroup related flags */
-  guint sizegroup_visited     : 1;
-  guint sizegroup_bumping     : 1;
   guint have_size_groups      : 1;
 
   /* The widget's name. If the widget does not have a name
@@ -3635,8 +3632,6 @@ gtk_widget_init (GtkWidget *widget)
   priv->composite_child = composite_child_stack != 0;
   priv->double_buffered = TRUE;
   priv->redraw_on_alloc = TRUE;
-  priv->width_request_needed = TRUE;
-  priv->height_request_needed = TRUE;
   priv->alloc_needed = TRUE;
 
   /* this will be set to TRUE if the widget gets a child or if the
@@ -3647,6 +3642,8 @@ gtk_widget_init (GtkWidget *widget)
    * all over the place while initially building a widget tree.
    */
   priv->need_compute_expand = FALSE;
+
+  _gtk_size_request_cache_init (&priv->requests);
 
   priv->style = gtk_widget_get_default_style ();
   g_object_ref (priv->style);
@@ -4792,9 +4789,8 @@ gtk_widget_size_allocate (GtkWidget	*widget,
 #endif /* G_ENABLE_DEBUG */
 
   alloc_needed = priv->alloc_needed;
-  if (!priv->width_request_needed && !priv->height_request_needed)
-    /* Preserve request/allocate ordering */
-    priv->alloc_needed = FALSE;
+  /* Preserve request/allocate ordering */
+  priv->alloc_needed = FALSE;
 
   old_allocation = priv->allocation;
   real_allocation = *allocation;
@@ -4886,9 +4882,7 @@ gtk_widget_size_allocate (GtkWidget	*widget,
   g_signal_emit (widget, widget_signals[SIZE_ALLOCATE], 0, &real_allocation);
 
   /* Size allocation is god... after consulting god, no further requests or allocations are needed */
-  priv->width_request_needed  = FALSE;
-  priv->height_request_needed = FALSE;
-  priv->alloc_needed          = FALSE;
+  priv->alloc_needed = FALSE;
 
   if (gtk_widget_get_mapped (widget))
     {
@@ -7315,9 +7309,11 @@ _gtk_widget_set_visible_flag (GtkWidget *widget,
  * gtk_widget_get_visible:
  * @widget: a #GtkWidget
  *
- * Determines whether the widget is visible. Note that this doesn't
- * take into account whether the widget's parent is also visible
- * or the widget is obscured in any way.
+ * Determines whether the widget is visible. If you want to
+ * take into account whether the widget's parent is also marked as
+ * visible, use gtk_widget_is_visible() instead.
+ *
+ * This function does not check if the widget is obscured in any way.
  *
  * See gtk_widget_set_visible().
  *
@@ -7331,6 +7327,39 @@ gtk_widget_get_visible (GtkWidget *widget)
   g_return_val_if_fail (GTK_IS_WIDGET (widget), FALSE);
 
   return widget->priv->visible;
+}
+
+/**
+ * gtk_widget_is_visible:
+ * @widget: a #GtkWidget
+ *
+ * Determines whether the widget and all its parents are marked as
+ * visible.
+ *
+ * This function does not check if the widget is obscured in any way.
+ *
+ * See also gtk_widget_get_visible() and gtk_widget_set_visible()
+ *
+ * Return value: %TRUE if the widget and all its parents are visible
+ *
+ * Since: 3.8
+ **/
+gboolean
+gtk_widget_is_visible (GtkWidget *widget)
+{
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), FALSE);
+
+  while (widget)
+    {
+      GtkWidgetPrivate *priv = widget->priv;
+
+      if (!priv->visible)
+        return FALSE;
+
+      widget = priv->parent;
+    }
+
+  return TRUE;
 }
 
 /**
@@ -10761,7 +10790,7 @@ gtk_widget_finalize (GObject *object)
       g_object_unref (priv->context);
     }
 
-  _gtk_widget_free_cached_sizes (widget);
+  _gtk_size_request_cache_free (&priv->requests);
 
   if (g_object_is_floating (object))
     g_warning ("A floating object was finalized. This means that someone\n"
@@ -14323,58 +14352,6 @@ _gtk_widget_set_alloc_needed (GtkWidget *widget,
                               gboolean   alloc_needed)
 {
   widget->priv->alloc_needed = alloc_needed;
-}
-
-gboolean
-_gtk_widget_get_width_request_needed (GtkWidget *widget)
-{
-  return widget->priv->width_request_needed;
-}
-
-void
-_gtk_widget_set_width_request_needed (GtkWidget *widget,
-                                      gboolean   width_request_needed)
-{
-  widget->priv->width_request_needed = width_request_needed;
-}
-
-gboolean
-_gtk_widget_get_height_request_needed (GtkWidget *widget)
-{
-  return widget->priv->height_request_needed;
-}
-
-void
-_gtk_widget_set_height_request_needed (GtkWidget *widget,
-                                       gboolean   height_request_needed)
-{
-  widget->priv->height_request_needed = height_request_needed;
-}
-
-gboolean
-_gtk_widget_get_sizegroup_visited (GtkWidget    *widget)
-{
-  return widget->priv->sizegroup_visited;
-}
-
-void
-_gtk_widget_set_sizegroup_visited (GtkWidget    *widget,
-				   gboolean      visited)
-{
-  widget->priv->sizegroup_visited = visited;
-}
-
-gboolean
-_gtk_widget_get_sizegroup_bumping (GtkWidget    *widget)
-{
-  return widget->priv->sizegroup_bumping;
-}
-
-void
-_gtk_widget_set_sizegroup_bumping (GtkWidget    *widget,
-				   gboolean      bumping)
-{
-  widget->priv->sizegroup_bumping = bumping;
 }
 
 void

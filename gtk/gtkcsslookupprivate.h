@@ -30,10 +30,21 @@ G_BEGIN_DECLS
 
 typedef struct _GtkCssLookup GtkCssLookup;
 
+typedef struct {
+  GtkCssSection     *section;
+  GtkCssValue       *value;
+  GtkCssValue       *computed;
+} GtkCssLookupValue;
+
+struct _GtkCssLookup {
+  GtkBitmask        *missing;
+  GtkCssLookupValue  values[1];
+};
+
 GtkCssLookup *          _gtk_css_lookup_new                     (const GtkBitmask           *relevant);
 void                    _gtk_css_lookup_free                    (GtkCssLookup               *lookup);
 
-const GtkBitmask *      _gtk_css_lookup_get_missing             (const GtkCssLookup         *lookup);
+static inline const GtkBitmask *_gtk_css_lookup_get_missing     (const GtkCssLookup         *lookup);
 gboolean                _gtk_css_lookup_is_missing              (const GtkCssLookup         *lookup,
                                                                  guint                       id);
 void                    _gtk_css_lookup_set                     (GtkCssLookup               *lookup,
@@ -48,6 +59,13 @@ void                    _gtk_css_lookup_resolve                 (GtkCssLookup   
                                                                  GtkStyleProviderPrivate    *provider,
                                                                  GtkCssComputedValues       *values,
                                                                  GtkCssComputedValues       *parent_values);
+
+static inline const GtkBitmask *
+_gtk_css_lookup_get_missing (const GtkCssLookup *lookup)
+{
+  return lookup->missing;
+}
+
 
 
 G_END_DECLS

@@ -2698,25 +2698,6 @@ gtk_style_context_get_junction_sides (GtkStyleContext *context)
   return context->priv->info->junction_sides;
 }
 
-GtkCssValue *
-_gtk_style_context_resolve_color_value (GtkStyleContext    *context,
-                                        GtkCssValue        *current,
-                                        GtkCssDependencies  current_deps,
-					GtkCssValue        *color,
-                                        GtkCssDependencies *dependencies)
-{
-  g_return_val_if_fail (GTK_IS_STYLE_CONTEXT (context), FALSE);
-  g_return_val_if_fail (current != NULL, FALSE);
-  g_return_val_if_fail (color != NULL, FALSE);
-
-  return _gtk_symbolic_color_resolve_full ((GtkSymbolicColor *) color,
-                                           GTK_STYLE_PROVIDER_PRIVATE (context->priv->cascade),
-                                           current,
-                                           current_deps,
-                                           dependencies);
-}
-
-
 gboolean
 _gtk_style_context_resolve_color (GtkStyleContext    *context,
                                   GtkSymbolicColor   *color,
@@ -2959,6 +2940,9 @@ gtk_style_context_update_cache (GtkStyleContext  *context,
   GHashTableIter iter;
   gpointer key, value;
 
+  if (_gtk_bitmask_is_empty (parent_changes))
+    return;
+
   priv = context->priv;
 
   g_hash_table_iter_init (&iter, priv->style_data);
@@ -2968,14 +2952,12 @@ gtk_style_context_update_cache (GtkStyleContext  *context,
       StyleData *data = value;
       GtkBitmask *changes;
 
-      changes = _gtk_bitmask_copy (parent_changes);
-      changes = _gtk_bitmask_intersect (changes, data->store->depends_on_parent);
-      if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_COLOR))
-        changes = _gtk_bitmask_union (changes, data->store->depends_on_color);
-      if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_FONT_SIZE))
-        changes = _gtk_bitmask_union (changes, data->store->depends_on_font_size);
+      changes = _gtk_css_computed_values_compute_dependencies (data->store, parent_changes);
 
-      build_properties (context, data->store, info, changes);
+      if (!_gtk_bitmask_is_empty (changes))
+	build_properties (context, data->store, info, changes);
+
+      _gtk_bitmask_free (changes);
     }
 }
 
@@ -3167,12 +3149,7 @@ _gtk_style_context_validate (GtkStyleContext  *context,
     }
   else
     {
-      changes = _gtk_bitmask_copy (parent_changes);
-      changes = _gtk_bitmask_intersect (changes, current->store->depends_on_parent);
-      if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_COLOR))
-        changes = _gtk_bitmask_union (changes, current->store->depends_on_color);
-      if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_FONT_SIZE))
-        changes = _gtk_bitmask_union (changes, current->store->depends_on_font_size);
+      changes = _gtk_css_computed_values_compute_dependencies (current->store, parent_changes);
 
       gtk_style_context_update_cache (context, parent_changes);
     }
@@ -3190,7 +3167,7 @@ _gtk_style_context_validate (GtkStyleContext  *context,
       _gtk_bitmask_free (animation_changes);
     }
 
-  if (!_gtk_bitmask_is_empty (changes))
+  if (!_gtk_bitmask_is_empty (changes) || (change & GTK_CSS_CHANGE_FORCE_INVALIDATE))
     gtk_style_context_do_invalidate (context);
 
   change = _gtk_css_change_for_child (change);
@@ -3261,22 +3238,12 @@ gtk_style_context_set_background (GtkStyleContext *context,
                                   GdkWindow       *window)
 {
   GtkStateFlags state;
-  cairo_pattern_t *pattern;
   GdkRGBA *color;
 
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
   g_return_if_fail (GDK_IS_WINDOW (window));
 
   state = gtk_style_context_get_state (context);
-  gtk_style_context_get (context, state,
-                         "background-image", &pattern,
-                         NULL);
-  if (pattern)
-    {
-      gdk_window_set_background_pattern (window, pattern);
-      cairo_pattern_destroy (pattern);
-      return;
-    }
 
   gtk_style_context_get (context, state,
                          "background-color", &color,

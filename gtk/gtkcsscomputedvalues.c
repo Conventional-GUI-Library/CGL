@@ -500,6 +500,7 @@ gtk_css_computed_values_create_css_animations (GtkCssComputedValues    *values,
                                               _gtk_css_play_state_value_get (_gtk_css_array_value_get_nth (play_states, i)),
                                               _gtk_css_fill_mode_value_get (_gtk_css_array_value_get_nth (fill_modes, i)),
                                               _gtk_css_number_value_get (_gtk_css_array_value_get_nth (iteration_counts, i), 100));
+          _gtk_css_keyframes_unref (keyframes);
         }
       values->animations = g_slist_prepend (values->animations, animation);
     }
@@ -602,5 +603,23 @@ _gtk_css_computed_values_cancel_animations (GtkCssComputedValues *values)
 
   g_slist_free_full (values->animations, g_object_unref);
   values->animations = NULL;
+}
+
+GtkBitmask *
+_gtk_css_computed_values_compute_dependencies (GtkCssComputedValues *values,
+                                               const GtkBitmask     *parent_changes)
+{
+  GtkBitmask *changes;
+
+  g_return_val_if_fail (GTK_IS_CSS_COMPUTED_VALUES (values), _gtk_bitmask_new ());
+
+  changes = _gtk_bitmask_copy (parent_changes);
+  changes = _gtk_bitmask_intersect (changes, values->depends_on_parent);
+  if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_COLOR))
+    changes = _gtk_bitmask_union (changes, values->depends_on_color);
+  if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_FONT_SIZE))
+    changes = _gtk_bitmask_union (changes, values->depends_on_font_size);
+
+  return changes;
 }
 
