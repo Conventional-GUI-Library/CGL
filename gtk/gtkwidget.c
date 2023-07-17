@@ -642,7 +642,6 @@ static AtkObject*	gtk_widget_ref_accessible		(AtkImplementor *implementor);
 static void             gtk_widget_invalidate_widget_windows    (GtkWidget        *widget,
 								 cairo_region_t        *region);
 static GdkScreen *      gtk_widget_get_screen_unchecked         (GtkWidget        *widget);
-static void		gtk_widget_queue_shallow_draw		(GtkWidget        *widget);
 static gboolean         gtk_widget_real_can_activate_accel      (GtkWidget *widget,
                                                                  guint      signal_id);
 
@@ -4117,9 +4116,6 @@ gtk_widget_real_hide (GtkWidget *widget)
 
       if (gtk_widget_get_mapped (widget))
 	gtk_widget_unmap (widget);
-
-      if (widget->priv->context)
-        _gtk_style_context_stop_animations (widget->priv->context);
     }
 }
 
@@ -4200,6 +4196,9 @@ gtk_widget_map (GtkWidget *widget)
       if (!gtk_widget_get_has_window (widget))
         gdk_window_invalidate_rect (priv->window, &priv->allocation, FALSE);
 
+      if (widget->priv->context)
+        _gtk_style_context_update_animating (widget->priv->context);
+
       gtk_widget_pop_verify_invariants (widget);
     }
 }
@@ -4227,6 +4226,10 @@ gtk_widget_unmap (GtkWidget *widget)
       if (!gtk_widget_get_has_window (widget))
 	gdk_window_invalidate_rect (priv->window, &priv->allocation, FALSE);
       _gtk_tooltip_hide (widget);
+
+      if (widget->priv->context)
+        _gtk_style_context_update_animating (widget->priv->context);
+
       g_signal_emit (widget, widget_signals[UNMAP], 0);
 
       gtk_widget_pop_verify_invariants (widget);
@@ -4610,7 +4613,7 @@ gtk_widget_queue_resize (GtkWidget *widget)
   g_return_if_fail (GTK_IS_WIDGET (widget));
 
   if (gtk_widget_get_realized (widget))
-    gtk_widget_queue_shallow_draw (widget);
+    gtk_widget_queue_draw (widget);
 
   _gtk_size_group_queue_resize (widget, 0);
 }
@@ -4730,29 +4733,6 @@ gtk_widget_invalidate_widget_windows (GtkWidget *widget,
 
   gdk_window_invalidate_maybe_recurse (priv->window, region,
 				       invalidate_predicate, widget);
-}
-
-/**
- * gtk_widget_queue_shallow_draw:
- * @widget: a #GtkWidget
- *
- * Like gtk_widget_queue_draw(), but only windows owned
- * by @widget are invalidated.
- **/
-static void
-gtk_widget_queue_shallow_draw (GtkWidget *widget)
-{
-  GdkRectangle rect;
-  cairo_region_t *region;
-
-  if (!gtk_widget_get_realized (widget))
-    return;
-
-  gtk_widget_get_allocation (widget, &rect);
-
-  region = cairo_region_create_rectangle (&rect);
-  gtk_widget_invalidate_widget_windows (widget, region);
-  cairo_region_destroy (region);
 }
 
 /**
@@ -5816,7 +5796,7 @@ static gboolean
 gtk_widget_real_focus_in_event (GtkWidget     *widget,
                                 GdkEventFocus *event)
 {
-  gtk_widget_queue_shallow_draw (widget);
+  gtk_widget_queue_draw (widget);
 
   return FALSE;
 }
@@ -5825,7 +5805,7 @@ static gboolean
 gtk_widget_real_focus_out_event (GtkWidget     *widget,
                                  GdkEventFocus *event)
 {
-  gtk_widget_queue_shallow_draw (widget);
+  gtk_widget_queue_draw (widget);
 
   return FALSE;
 }
@@ -9782,9 +9762,8 @@ gtk_widget_set_usize_internal (GtkWidget          *widget,
  * @height: height @widget should request, or -1 to unset
  *
  * Sets the minimum size of a widget; that is, the widget's size
- * request will be @width by @height. You can use this function to
- * force a widget to be either larger or smaller than it normally
- * would be.
+ * request will be at least @width by @height. You can use this 
+ * function to force a widget to be larger than it normally would be.
  *
  * In most cases, gtk_window_set_default_size() is a better choice for
  * toplevel windows than this function; setting the default size will
@@ -9807,9 +9786,6 @@ gtk_widget_set_usize_internal (GtkWidget          *widget,
  *
  * If the size request in a given direction is -1 (unset), then
  * the "natural" size request of the widget will be used instead.
- *
- * Widgets can't actually be allocated a size less than 1 by 1, but
- * you can pass 0,0 to this function to mean "as small as possible."
  *
  * The size request set here does not include any margin from the
  * #GtkWidget properties margin-left, margin-right, margin-top, and

@@ -50,10 +50,12 @@ gtk_css_value_ease_free (GtkCssValue *value)
 }
 
 static GtkCssValue *
-gtk_css_value_ease_compute (GtkCssValue        *value,
-                            guint               property_id,
-                            GtkStyleContext    *context,
-                            GtkCssDependencies *dependencies)
+gtk_css_value_ease_compute (GtkCssValue             *value,
+                            guint                    property_id,
+                            GtkStyleProviderPrivate *provider,
+                            GtkCssComputedValues    *values,
+                            GtkCssComputedValues    *parent_values,
+                            GtkCssDependencies      *dependencies)
 {
   return _gtk_css_value_ref (value);
 }
@@ -370,7 +372,7 @@ _gtk_css_ease_value_transform (const GtkCssValue *ease,
       }
     case GTK_CSS_EASE_STEPS:
       progress *= ease->u.steps.steps;
-      progress = floor (progress) + ease->u.steps.start ? 0 : 1;
+      progress = floor (progress) + (ease->u.steps.start ? 0 : 1);
       return progress / ease->u.steps.steps;
     default:
       g_assert_not_reached ();

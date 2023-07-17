@@ -30,6 +30,9 @@
  */
 
 #include "config.h"
+
+#include "gtkprivate.h"
+
 #include <string.h>
 
 #include <glib.h>

@@ -1149,6 +1149,7 @@ gtk_window_class_init (GtkWindowClass *klass)
 static void
 gtk_window_init (GtkWindow *window)
 {
+  GtkStyleContext *context;
   GtkWindowPrivate *priv;
 
   window->priv = G_TYPE_INSTANCE_GET_PRIVATE (window,
@@ -1208,6 +1209,9 @@ gtk_window_init (GtkWindow *window)
                     "notify::gtk-application-prefer-dark-theme",
                     G_CALLBACK (gtk_window_on_theme_variant_changed), window);
 #endif
+
+  context = gtk_widget_get_style_context (GTK_WIDGET (window));
+  gtk_style_context_add_class (context, GTK_STYLE_CLASS_BACKGROUND);
 }
 
 static void
@@ -6245,7 +6249,7 @@ maybe_set_mnemonics_visible (GtkWindow *window)
                                 NULL, &mask);
           if (window->priv->mnemonic_modifier == (mask & gtk_accelerator_get_default_mod_mask ()))
             {
-              gtk_window_set_mnemonics_visible (window, TRUE);
+              _gtk_window_set_auto_mnemonics_visible (window);
               break;
             }
         }
@@ -7676,14 +7680,9 @@ gtk_window_draw (GtkWidget *widget,
   if (!gtk_widget_get_app_paintable (widget) &&
       gtk_cairo_should_draw_window (cr, gtk_widget_get_window (widget)))
     {
-      gtk_style_context_save (context);
-
-      gtk_style_context_add_class (context, GTK_STYLE_CLASS_BACKGROUND);
       gtk_render_background (context, cr, 0, 0,
 			     gtk_widget_get_allocated_width (widget),
 			     gtk_widget_get_allocated_height (widget));
-
-      gtk_style_context_restore (context);
     }
 
   if (GTK_WIDGET_CLASS (gtk_window_parent_class)->draw)
@@ -7700,6 +7699,7 @@ gtk_window_draw (GtkWidget *widget,
       gtk_cairo_transform_to_window (cr, widget, priv->grip_window);
       gtk_window_get_resize_grip_area (GTK_WINDOW (widget), &rect);
 
+      gtk_style_context_remove_class (context, GTK_STYLE_CLASS_BACKGROUND);
       gtk_style_context_add_class (context, GTK_STYLE_CLASS_GRIP);
       gtk_style_context_set_junction_sides (context, get_grip_junction (widget));
       gtk_render_handle (context, cr, 0, 0, rect.width, rect.height);

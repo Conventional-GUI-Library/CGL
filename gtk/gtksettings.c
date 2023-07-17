@@ -59,7 +59,9 @@
  * utilities that let the user change these settings. In the absence of
  * an Xsettings manager, GTK+ reads default values for settings from
  * <filename>settings.ini</filename> files in
- * <filename>/etc/gtk-3.0</filename> and <filename>$XDG_CONFIG_HOME/gtk-3.0</filename>. These files must be valid key files (see #GKeyFile), and have
+ * <filename>/etc/gtk-3.0</filename>, <filename>$XDG_CONFIG_DIRS/gtk-3.0</filename>
+ * and <filename>$XDG_CONFIG_HOME/gtk-3.0</filename>.
+ * These files must be valid key files (see #GKeyFile), and have
  * a section called Settings. Themes can also provide default values
  * for settings by installing a <filename>settings.ini</filename> file
  * next to their <filename>gtk.css</filename> file.
@@ -238,6 +240,9 @@ static GHashTable *get_color_hash                (GtkSettings           *setting
 static void gtk_settings_load_from_key_file      (GtkSettings           *settings,
                                                   const gchar           *path,
                                                   GtkSettingsSource      source);
+static void settings_update_provider             (GdkScreen             *screen,
+                                                  GtkCssProvider       **old,
+                                                  GtkCssProvider        *new);
 
 /* the default palette for GtkColorSelelection */
 static const gchar default_color_palette[] =
@@ -264,6 +269,8 @@ gtk_settings_init (GtkSettings *settings)
   GParamSpec **pspecs, **p;
   guint i = 0;
   gchar *path;
+  const gchar * const *config_dirs;
+  const gchar *config_dir;
 
   priv = G_TYPE_INSTANCE_GET_PRIVATE (settings,
                                       GTK_TYPE_SETTINGS,
@@ -305,6 +312,15 @@ gtk_settings_init (GtkSettings *settings)
   if (g_file_test (path, G_FILE_TEST_EXISTS))
     gtk_settings_load_from_key_file (settings, path, GTK_SETTINGS_SOURCE_DEFAULT);
   g_free (path);
+
+  config_dirs = g_get_system_config_dirs ();
+  for (config_dir = *config_dirs; *config_dirs != NULL; config_dirs++)
+    {
+      path = g_build_filename (config_dir, "gtk-3.0", "settings.ini", NULL);
+      if (g_file_test (path, G_FILE_TEST_EXISTS))
+        gtk_settings_load_from_key_file (settings, path, GTK_SETTINGS_SOURCE_DEFAULT);
+      g_free (path);
+    }
 
   path = g_build_filename (g_get_user_config_dir (), "gtk-3.0", "settings.ini", NULL);
   if (g_file_test (path, G_FILE_TEST_EXISTS))
@@ -1526,14 +1542,10 @@ gtk_settings_finalize (GObject *object)
 
   g_datalist_clear (&priv->queued_settings);
 
-  if (priv->theme_provider)
-    g_object_unref (priv->theme_provider);
+  settings_update_provider (priv->screen, &priv->theme_provider, NULL);
+  settings_update_provider (priv->screen, &priv->key_theme_provider, NULL);
 
-  if (priv->key_theme_provider)
-    g_object_unref (priv->key_theme_provider);
-
-  if (priv->style)
-    g_object_unref (priv->style);
+  g_clear_object (&priv->style);
 
   G_OBJECT_CLASS (gtk_settings_parent_class)->finalize (object);
 }

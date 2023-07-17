@@ -595,6 +595,7 @@ enum_locale_proc (LPTSTR locale)
   char iso3166[10];
   char *endptr;
 
+#include "a11y/gail.h"
 #include "a11y/gailutil.h"
 
   lcid = strtoul (locale, &endptr, 16);
@@ -791,9 +792,6 @@ gettext_initialization (void)
 #    endif
 #endif  
 }
-
-/* XXX: Remove me after getting rid of gail */
-extern void _gtk_accessibility_init (void);
 
 static void
 do_post_parse_initialization (int    *argc,
@@ -1295,11 +1293,15 @@ gtk_main (void)
 
   if (gtk_main_loop_level == 0)
     {
+      /* Keep this section in sync with gtk_application_shutdown() */
+
       /* Try storing all clipboard data we have */
       _gtk_clipboard_store_all ();
 
       /* Synchronize the recent manager singleton */
       _gtk_recent_manager_sync ();
+
+      _gtk_accessibility_shutdown ();
     }
 }
 

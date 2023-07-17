@@ -50,7 +50,14 @@ bloat_pad_open (GApplication  *application,
     new_window (application, files[i]);
 }
 
-typedef GtkApplication BloatPad;
+typedef struct
+{
+  GtkApplication parent_instance;
+
+  GMenu *time;
+  guint timeout;
+} BloatPad;
+
 typedef GtkApplicationClass BloatPadClass;
 
 G_DEFINE_TYPE (BloatPad, bloat_pad, GTK_TYPE_APPLICATION)
