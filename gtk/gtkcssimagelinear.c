@@ -410,41 +410,42 @@ gtk_css_image_linear_print (GtkCssImage *image,
 }
 
 static GtkCssImage *
-gtk_css_image_linear_compute (GtkCssImage     *image,
-                              GtkStyleContext *context)
+gtk_css_image_linear_compute (GtkCssImage        *image,
+                              guint               property_id,
+                              GtkStyleContext    *context,
+                              GtkCssDependencies *dependencies)
 {
-  static const GdkRGBA transparent = { 0, 0, 0, 0 };
   GtkCssImageLinear *linear = GTK_CSS_IMAGE_LINEAR (image);
   GtkCssImageLinear *copy;
-  GtkCssValue *fallback;
   guint i;
 
   copy = g_object_new (GTK_TYPE_CSS_IMAGE_LINEAR, NULL);
   copy->repeating = linear->repeating;
 
-  copy->angle = _gtk_css_number_value_compute (linear->angle, context);
+  copy->angle = _gtk_css_value_compute (linear->angle, property_id, context, dependencies);
   
-  fallback = _gtk_css_symbolic_value_new_take_symbolic_color (gtk_symbolic_color_new_literal (&transparent));
   g_array_set_size (copy->stops, linear->stops->len);
   for (i = 0; i < linear->stops->len; i++)
     {
       GtkCssImageLinearColorStop *stop, *scopy;
+      GtkCssDependencies child_deps;
 
       stop = &g_array_index (linear->stops, GtkCssImageLinearColorStop, i);
       scopy = &g_array_index (copy->stops, GtkCssImageLinearColorStop, i);
               
-      scopy->color = _gtk_css_rgba_value_compute_from_symbolic (stop->color,
-                                                                fallback,
-                                                                context,
-                                                                FALSE);
+      scopy->color = _gtk_css_value_compute (stop->color, property_id, context, &child_deps);
+      *dependencies = _gtk_css_dependencies_union (*dependencies, child_deps);
       
       if (stop->offset)
-        scopy->offset = _gtk_css_number_value_compute (stop->offset, context);
+        {
+          scopy->offset = _gtk_css_value_compute (stop->offset, property_id, context, &child_deps);
+          *dependencies = _gtk_css_dependencies_union (*dependencies, child_deps);
+        }
       else
-        scopy->offset = NULL;
+        {
+          scopy->offset = NULL;
+        }
     }
-
-  _gtk_css_value_unref (fallback);
 
   return GTK_CSS_IMAGE (copy);
 }

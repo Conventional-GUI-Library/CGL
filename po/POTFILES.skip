@@ -90,3 +90,4 @@ tests/reftests/toplevel-vs-popup.ui
 tests/testfilechooser.c
 tests/visuals/inline-toolbar.ui
 tests/visuals/primary-toolbar.ui
+tests/visuals/suggested-action-buttons.ui

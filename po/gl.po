@@ -427,7 +427,7 @@ msgstr "Non poñer en lotes as solicitudes GDI"
 #. Description of --no-wintab in --help output
 #: ../gdk/win32/gdkmain-win32.c:55
 msgid "Don't use the Wintab API for tablet support"
-msgstr "Non usar a API Wintab para a compatibilide de táboas dixitalizadoras"
+msgstr "Non usar a API Wintab para a compatibilidade de tabletas"
 
 #. Description of --ignore-wintab in --help output
 #: ../gdk/win32/gdkmain-win32.c:57
@@ -625,6 +625,7 @@ msgstr ""
 #.
 #: ../gtk/deprecated/gtkcolorseldialog.c:201 ../gtk/gtkappchooserdialog.c:574
 #: ../gtk/gtkcolorchooserdialog.c:150 ../gtk/gtkfontchooserdialog.c:174
+#: ../gtk/gtkprinteroptionwidget.c:550
 msgid "_Select"
 msgstr "_Seleccionar"
 
@@ -796,11 +797,11 @@ msgstr "Outro aplicativo…"
 
 #: ../gtk/gtkappchooserdialog.c:137
 msgid "Failed to look for applications online"
-msgstr "Produciuse un fallo ao buscar os aplicativos en liña"
+msgstr "Produciuse un erro ao buscar os aplicativos en Internet"
 
 #: ../gtk/gtkappchooserdialog.c:188
-msgid "Find applications online"
-msgstr "Buscar os aplicativos en liña"
+msgid "_Find applications online"
+msgstr "_Atopar aplicativos en Internet"
 
 #: ../gtk/gtkappchooserdialog.c:247
 msgid "Could not run application"
@@ -1063,7 +1064,7 @@ msgstr "Vermello %d%%, Verde %d%%, Azul %d%%"
 #: ../gtk/gtkcolorchooserwidget.c:360
 #, c-format
 msgid "Color: %s"
-msgstr "Col: %s"
+msgstr "Cor: %s"
 
 #: ../gtk/gtkcolorchooserwidget.c:419
 msgctxt "Color name"
@@ -1466,7 +1467,7 @@ msgstr "Non foi posíbel engadir un marcador"
 
 #: ../gtk/gtkfilechooserdefault.c:988
 msgid "Could not remove bookmark"
-msgstr "Non foi posíbel eliminar o marcador"
+msgstr "Non foi posíbel retirar o marcador"
 
 #: ../gtk/gtkfilechooserdefault.c:999
 msgid "The folder could not be created"
@@ -2048,17 +2049,13 @@ msgstr "Sistema de ficheiros raíz"
 msgid "Authentication"
 msgstr "Autenticación"
 
-#: ../gtk/gtkprinteroptionwidget.c:728
+#: ../gtk/gtkprinteroptionwidget.c:546
+msgid "Select a filename"
+msgstr "Seleccionar un nome de ficheiro"
+
+#: ../gtk/gtkprinteroptionwidget.c:770
 msgid "Not available"
 msgstr "Non dispoñíbel"
-
-#: ../gtk/gtkprinteroptionwidget.c:828
-msgid "Select a folder"
-msgstr "Seleccionar un cartafol"
-
-#: ../gtk/gtkprinteroptionwidget.c:843
-msgid "_Save in folder:"
-msgstr "_Gardar no cartafol:"
 
 #. translators: this string is the default job title for print
 #. * jobs. %s gets replaced by the application name, %d gets replaced
@@ -2198,7 +2195,7 @@ msgstr "Erro non especificado"
 
 #: ../gtk/gtkprintunixdialog.c:686
 msgid "Getting printer information failed"
-msgstr "Produciuse un fallo ao obter a información da impresora"
+msgstr "Produciuse un erro ao obter a información da impresora"
 
 #: ../gtk/gtkprintunixdialog.c:1959
 msgid "Getting printer information..."
@@ -2534,7 +2531,7 @@ msgstr "Filtro sen título"
 
 #: ../gtk/gtkrecentchooserdefault.c:1647
 msgid "Could not remove item"
-msgstr "Non foi posíbel eliminar o elemento"
+msgstr "Non foi posíbel retirar o elemento"
 
 #: ../gtk/gtkrecentchooserdefault.c:1691
 msgid "Could not clear list"
@@ -2546,7 +2543,7 @@ msgstr "Copiar _localización"
 
 #: ../gtk/gtkrecentchooserdefault.c:1788
 msgid "_Remove From List"
-msgstr "Elimina_r da lista"
+msgstr "Retira_r da lista"
 
 #: ../gtk/gtkrecentchooserdefault.c:1797
 msgid "_Clear List"
@@ -2809,7 +2806,7 @@ msgstr "_Arriba"
 #: ../gtk/gtkstock.c:371
 msgctxt "Stock label"
 msgid "_Hard Disk"
-msgstr "_Disco ríxido"
+msgstr "_Disco duro"
 
 #: ../gtk/gtkstock.c:372
 msgctxt "Stock label"
@@ -3020,7 +3017,7 @@ msgstr "_Actualizar"
 #: ../gtk/gtkstock.c:427
 msgctxt "Stock label"
 msgid "_Remove"
-msgstr "_Eliminar"
+msgstr "_Retirar"
 
 #: ../gtk/gtkstock.c:428
 msgctxt "Stock label"
@@ -4182,32 +4179,32 @@ msgstr "ROC 8k"
 #: ../gtk/updateiconcache.c:1368
 #, c-format
 msgid "Failed to write header\n"
-msgstr "Produciuse un fallo ao escribir a cabeceira\n"
+msgstr "Produciuse un erro ao escribir a cabeceira\n"
 
 #: ../gtk/updateiconcache.c:1374
 #, c-format
 msgid "Failed to write hash table\n"
-msgstr "Produciuse un fallo ao escribir a táboa hash\n"
+msgstr "Produciuse un erro ao escribir a táboa hash\n"
 
 #: ../gtk/updateiconcache.c:1380
 #, c-format
 msgid "Failed to write folder index\n"
-msgstr "Produciuse un fallo ao escribir o índice do cartafol\n"
+msgstr "Produciuse un erro ao escribir o índice do cartafol\n"
 
 #: ../gtk/updateiconcache.c:1388
 #, c-format
 msgid "Failed to rewrite header\n"
-msgstr "Produciuse un fallo ao reescribir a cabeceira\n"
+msgstr "Produciuse un erro ao reescribir a cabeceira\n"
 
 #: ../gtk/updateiconcache.c:1482
 #, c-format
 msgid "Failed to open file %s : %s\n"
-msgstr "Produciuse un fallo ao abrir o ficheiro %s : %s\n"
+msgstr "Produciuse un erro ao abrir o ficheiro %s : %s\n"
 
 #: ../gtk/updateiconcache.c:1490 ../gtk/updateiconcache.c:1520
 #, c-format
 msgid "Failed to write cache file: %s\n"
-msgstr "Produciuse un fallo ao escribir o ficheiro da caché: %s\n"
+msgstr "Produciuse un erro ao escribir o ficheiro da caché: %s\n"
 
 #: ../gtk/updateiconcache.c:1530
 #, c-format
@@ -4217,7 +4214,7 @@ msgstr "A caché xerada non é válida.\n"
 #: ../gtk/updateiconcache.c:1544
 #, c-format
 msgid "Could not rename %s to %s: %s, removing %s then.\n"
-msgstr "Non foi posíbel renomear %s como %s: %s, ao eliminar %s despois.\n"
+msgstr "Non foi posíbel renomear %s como %s: %s, polo tanto retírase %s.\n"
 
 #: ../gtk/updateiconcache.c:1558
 #, c-format
@@ -5705,22 +5702,3 @@ msgstr "Imprimir para probar a impresora"
 
 #~ msgid "Y t_ilt:"
 #~ msgstr "I_nclinación Y:"
-
-# ¿Alguén sabe que diaños é isto?
-#~ msgid "_Wheel:"
-#~ msgstr "_Roda:"
-
-#~ msgid "none"
-#~ msgstr "ningún"
-
-#~ msgid "(disabled)"
-#~ msgstr "(desactivado)"
-
-#~ msgid "(unknown)"
-#~ msgstr "(descoñecido)"
-
-#~ msgid "Cl_ear"
-#~ msgstr "Li_mpar"
-
-#~ msgid "--- No Tip ---"
-#~ msgstr "--- Sen suxestión ---"

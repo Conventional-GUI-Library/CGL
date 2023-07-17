@@ -43,6 +43,9 @@
 #include "gtkprivate.h"
 #include "gtkintl.h"
 #include "gtktypebuiltins.h"
+#include "gtkorientable.h"
+#include "gtkorientableprivate.h"
+
 
 #include "a11y/gtkspinbuttonaccessible.h"
 
@@ -154,6 +157,8 @@ struct _GtkSpinButtonPrivate
 
   gdouble        climb_rate;
   gdouble        timer_step;
+  
+  GtkOrientation orientation;
 
   guint          button        : 2;
   guint          click_child   : 2; /* valid: GTK_ARROW_UP=0, GTK_ARROW_DOWN=1 or 2=NONE/BOTH */
@@ -175,7 +180,8 @@ enum {
   PROP_NUMERIC,
   PROP_WRAP,
   PROP_UPDATE_POLICY,
-  PROP_VALUE
+  PROP_VALUE,
+  PROP_ORIENTATION
 };
 
 /* Signals */
@@ -207,6 +213,11 @@ static void gtk_spin_button_unrealize      (GtkWidget          *widget);
 static void gtk_spin_button_get_preferred_width  (GtkWidget          *widget,
                                                   gint               *minimum,
                                                   gint               *natural);
+static void gtk_spin_button_get_preferred_height (GtkWidget          *widget,
+                                                  gint               *minimum,
+                                                  gint               *natural);
+static void gtk_spin_button_set_orientation (GtkSpinButton     *spin_button,
+                                             GtkOrientation     orientation);
 
 static void gtk_spin_button_size_allocate  (GtkWidget          *widget,
                                             GtkAllocation      *allocation);
@@ -260,15 +271,22 @@ static void gtk_spin_button_real_change_value (GtkSpinButton   *spin,
 
 static gint gtk_spin_button_default_input  (GtkSpinButton      *spin_button,
                                             gdouble            *new_val);
-static gint gtk_spin_button_default_output (GtkSpinButton      *spin_button);
+static void gtk_spin_button_default_output (GtkSpinButton      *spin_button);
 
 static gint spin_button_get_arrow_size     (GtkSpinButton      *spin_button);
+
+static void gtk_spin_button_get_frame_size (GtkEntry *entry,
+                                            gint     *x,
+                                            gint     *y,
+                                            gint     *width,
+                                            gint     *height);
 
 static guint spinbutton_signals[LAST_SIGNAL] = {0};
 
 #define NO_ARROW 2
 
 G_DEFINE_TYPE_WITH_CODE (GtkSpinButton, gtk_spin_button, GTK_TYPE_ENTRY,
+                         G_IMPLEMENT_INTERFACE (GTK_TYPE_ORIENTABLE, NULL)
                          G_IMPLEMENT_INTERFACE (GTK_TYPE_EDITABLE,
                                                 gtk_spin_button_editable_init))
 
@@ -295,6 +313,7 @@ gtk_spin_button_class_init (GtkSpinButtonClass *class)
   widget_class->realize = gtk_spin_button_realize;
   widget_class->unrealize = gtk_spin_button_unrealize;
   widget_class->get_preferred_width = gtk_spin_button_get_preferred_width;
+  
   widget_class->size_allocate = gtk_spin_button_size_allocate;
   widget_class->draw = gtk_spin_button_draw;
   widget_class->scroll_event = gtk_spin_button_scroll;
@@ -311,6 +330,7 @@ gtk_spin_button_class_init (GtkSpinButtonClass *class)
 
   entry_class->activate = gtk_spin_button_activate;
   entry_class->get_text_area_size = gtk_spin_button_get_text_area_size;
+  entry_class->get_frame_size = gtk_spin_button_get_frame_size;
 
   class->input = NULL;
   class->output = NULL;
@@ -386,6 +406,10 @@ gtk_spin_button_class_init (GtkSpinButtonClass *class)
                                                         G_MAXDOUBLE,
                                                         0.0,
                                                         GTK_PARAM_READWRITE));
+                                                        
+  g_object_class_override_property (gobject_class,
+                                    PROP_ORIENTATION,
+                                    "orientation");
 
   gtk_widget_class_install_style_property_parser (widget_class,
                                                   g_param_spec_enum ("shadow-type",
@@ -564,6 +588,9 @@ gtk_spin_button_set_property (GObject      *object,
     case PROP_VALUE:
       gtk_spin_button_set_value (spin_button, g_value_get_double (value));
       break;
+    case PROP_ORIENTATION:
+      gtk_spin_button_set_orientation (spin_button, g_value_get_enum (value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -605,6 +632,9 @@ gtk_spin_button_get_property (GObject      *object,
      case PROP_VALUE:
        g_value_set_double (value, gtk_adjustment_get_value (priv->adjustment));
       break;
+    case PROP_ORIENTATION:
+      g_value_set_enum (value, priv->orientation);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -637,6 +667,7 @@ gtk_spin_button_init (GtkSpinButton *spin_button)
   priv->numeric = FALSE;
   priv->wrap = FALSE;
   priv->snap_to_ticks = FALSE;
+  priv->orientation = GTK_ORIENTATION_VERTICAL;
 
   gtk_spin_button_set_adjustment (spin_button,
                                   gtk_adjustment_new (0, 0, 0, 0, 0, 0));
@@ -762,27 +793,26 @@ gtk_spin_button_unrealize (GtkWidget *widget)
     }
 }
 
-static int
-compute_double_length (double val, int digits)
+static gint
+measure_string_width (PangoLayout *layout,
+                      const gchar *string)
 {
-  int a;
-  int extra;
+  gint width;
 
-  a = 1;
-  if (fabs (val) > 1.0)
-    a = floor (log10 (fabs (val))) + 1;
+  pango_layout_set_text (layout, string, -1);
+  pango_layout_get_pixel_size (layout, &width, NULL);
 
-  extra = 0;
+  return width;
+}
 
-  /* The dot: */
-  if (digits > 0)
-    extra++;
+static gchar *
+gtk_spin_button_format_for_value (GtkSpinButton *spin_button,
+                                  gdouble        value)
+{
+  GtkSpinButtonPrivate *priv = spin_button->priv;
+  gchar *buf = g_strdup_printf ("%0.*f", priv->digits, value);
 
-  /* The sign: */
-  if (val < 0)
-    extra++;
-
-  return a + digits + extra;
+  return buf;
 }
 
 static void
@@ -1627,6 +1657,34 @@ gtk_spin_button_activate (GtkEntry *entry)
 }
 
 static void
+gtk_spin_button_set_orientation (GtkSpinButton *spin,
+                                 GtkOrientation orientation)
+{
+  GtkEntry *entry = GTK_ENTRY (spin);
+  GtkSpinButtonPrivate *priv = spin->priv;
+
+  if (priv->orientation == orientation)
+    return;
+
+  g_warning("The gtk_spin_button_set_orientation function is currently not implemented");
+
+  g_object_notify (G_OBJECT (spin), "orientation");
+  gtk_widget_queue_resize (GTK_WIDGET (spin));
+}
+
+
+static void
+gtk_spin_button_get_frame_size (GtkEntry *entry,
+                                gint     *x,
+                                gint     *y,
+                                gint     *width,
+                                gint     *height)
+{
+	g_warning("The gtk_spin_button_get_frame_size function is currently not implemented");
+}
+
+
+static void
 gtk_spin_button_get_text_area_size (GtkEntry *entry,
                                     gint     *x,
                                     gint     *y,
@@ -1831,17 +1889,17 @@ gtk_spin_button_default_input (GtkSpinButton *spin_button,
     return FALSE;
 }
 
-static gint
+static void
 gtk_spin_button_default_output (GtkSpinButton *spin_button)
 {
   GtkSpinButtonPrivate *priv = spin_button->priv;
-
-  gchar *buf = g_strdup_printf ("%0.*f", priv->digits, gtk_adjustment_get_value (priv->adjustment));
+  gchar *buf = gtk_spin_button_format_for_value (spin_button,
+                                                 gtk_adjustment_get_value (priv->adjustment));
 
   if (strcmp (buf, gtk_entry_get_text (GTK_ENTRY (spin_button))))
     gtk_entry_set_text (GTK_ENTRY (spin_button), buf);
+
   g_free (buf);
-  return FALSE;
 }
 
 

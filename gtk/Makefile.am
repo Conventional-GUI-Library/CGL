@@ -400,12 +400,12 @@ gtk_private_type_h_sources = \
 # GTK+ header files that don't get installed
 gtk_private_h_sources =		\
 	gactionmuxer.h		\
-	gsimpleactionobserver.h	\
 	gactionobserver.h	\
 	gactionobservable.h	\
 	gtkapplicationprivate.h	\
 	gtkaccelgroupprivate.h	\
 	gtkaccelmapprivate.h	\
+	gtkactionhelper.h	\
 	gtkallocatedbitmaskprivate.h	\
 	gtkappchooserprivate.h	\
 	gtkappchoosermodule.h	\
@@ -541,7 +541,6 @@ gtk_private_h_sources =		\
 # GTK+ C sources to build the library from
 gtk_base_c_sources = 		\
 	gactionmuxer.c		\
-	gsimpleactionobserver.c	\
 	gactionobserver.c	\
 	gactionobservable.c	\
 	gtkactionable.c		\
@@ -556,6 +555,7 @@ gtk_base_c_sources = 		\
 	gtkaccelmap.c		\
 	gtkaccessible.c		\
 	gtkaction.c		\
+	gtkactionhelper.c	\
 	gtkactiongroup.c	\
 	gtkactivatable.c	\
 	gtkadjustment.c		\
@@ -887,6 +887,8 @@ gtk_private_h_sources += \
 	gtkprinteroptionwidget.h	\
 	gtksearchenginetracker.h
 gtk_c_sources += $(gtk_os_unix_c_sources)
+else
+gtk_c_sources += $(gtk_dbus_built_sources)
 endif
 
 gtk_os_win32_c_sources = \

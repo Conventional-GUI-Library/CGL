@@ -19,6 +19,7 @@
 
 #include "gtkcssnumbervalueprivate.h"
 
+#include "gtkcssenumvalueprivate.h"
 #include "gtkstylepropertyprivate.h"
 
 struct _GtkCssValue {
@@ -33,6 +34,103 @@ gtk_css_value_number_free (GtkCssValue *value)
   g_slice_free (GtkCssValue, value);
 }
 
+static GtkCssValue *
+gtk_css_value_number_compute (GtkCssValue        *number,
+                              guint               property_id,
+                              GtkStyleContext    *context,
+                              GtkCssDependencies *dependencies)
+{
+  GtkBorderStyle border_style;
+
+  /* I don't like this special case being here in this generic code path, but no idea where else to put it. */
+  switch (property_id)
+    {
+      case GTK_CSS_PROPERTY_BORDER_TOP_WIDTH:
+        border_style = _gtk_css_border_style_value_get (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BORDER_TOP_STYLE));
+        if (border_style == GTK_BORDER_STYLE_NONE || border_style == GTK_BORDER_STYLE_HIDDEN)
+          return _gtk_css_number_value_new (0, GTK_CSS_PX);
+        break;
+      case GTK_CSS_PROPERTY_BORDER_RIGHT_WIDTH:
+        border_style = _gtk_css_border_style_value_get (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BORDER_RIGHT_STYLE));
+        if (border_style == GTK_BORDER_STYLE_NONE || border_style == GTK_BORDER_STYLE_HIDDEN)
+          return _gtk_css_number_value_new (0, GTK_CSS_PX);
+        break;
+      case GTK_CSS_PROPERTY_BORDER_BOTTOM_WIDTH:
+        border_style = _gtk_css_border_style_value_get (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BORDER_BOTTOM_STYLE));
+        if (border_style == GTK_BORDER_STYLE_NONE || border_style == GTK_BORDER_STYLE_HIDDEN)
+          return _gtk_css_number_value_new (0, GTK_CSS_PX);
+        break;
+      case GTK_CSS_PROPERTY_BORDER_LEFT_WIDTH:
+        border_style = _gtk_css_border_style_value_get (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BORDER_LEFT_STYLE));
+        if (border_style == GTK_BORDER_STYLE_NONE || border_style == GTK_BORDER_STYLE_HIDDEN)
+          return _gtk_css_number_value_new (0, GTK_CSS_PX);
+        break;
+      case GTK_CSS_PROPERTY_OUTLINE_WIDTH:
+        border_style = _gtk_css_border_style_value_get (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_OUTLINE_STYLE));
+        if (border_style == GTK_BORDER_STYLE_NONE || border_style == GTK_BORDER_STYLE_HIDDEN)
+          return _gtk_css_number_value_new (0, GTK_CSS_PX);
+        break;
+      default:
+        break;
+    }
+
+  switch (number->unit)
+    {
+    default:
+      g_assert_not_reached();
+      /* fall through */
+    case GTK_CSS_PERCENT:
+    case GTK_CSS_NUMBER:
+    case GTK_CSS_PX:
+    case GTK_CSS_DEG:
+    case GTK_CSS_S:
+      return _gtk_css_value_ref (number);
+    case GTK_CSS_PT:
+      return _gtk_css_number_value_new (number->value * 96.0 / 72.0,
+                                        GTK_CSS_PX);
+    case GTK_CSS_PC:
+      return _gtk_css_number_value_new (number->value * 96.0 / 72.0 * 12.0,
+                                        GTK_CSS_PX);
+      break;
+    case GTK_CSS_IN:
+      return _gtk_css_number_value_new (number->value * 96.0,
+                                        GTK_CSS_PX);
+      break;
+    case GTK_CSS_CM:
+      return _gtk_css_number_value_new (number->value * 96.0 * 0.39370078740157477,
+                                        GTK_CSS_PX);
+      break;
+    case GTK_CSS_MM:
+      return _gtk_css_number_value_new (number->value * 96.0 * 0.039370078740157477,
+                                        GTK_CSS_PX);
+      break;
+    case GTK_CSS_EM:
+      *dependencies = GTK_CSS_DEPENDS_ON_FONT_SIZE;
+      return _gtk_css_number_value_new (number->value *
+                                        _gtk_css_number_value_get (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_FONT_SIZE), 100),
+                                        GTK_CSS_PX);
+      break;
+    case GTK_CSS_EX:
+      /* for now we pretend ex is half of em */
+      *dependencies = GTK_CSS_DEPENDS_ON_FONT_SIZE;
+      return _gtk_css_number_value_new (number->value * 0.5 * 
+                                        _gtk_css_number_value_get (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_FONT_SIZE), 100),
+                                        GTK_CSS_PX);
+    case GTK_CSS_RAD:
+      return _gtk_css_number_value_new (number->value * 360.0 / (2 * G_PI),
+                                        GTK_CSS_DEG);
+    case GTK_CSS_GRAD:
+      return _gtk_css_number_value_new (number->value * 360.0 / 400.0,
+                                        GTK_CSS_DEG);
+    case GTK_CSS_TURN:
+      return _gtk_css_number_value_new (number->value * 360.0,
+                                        GTK_CSS_DEG);
+    case GTK_CSS_MS:
+      return _gtk_css_number_value_new (number->value / 1000.0,
+                                        GTK_CSS_S);
+    }
+}
+
 static gboolean
 gtk_css_value_number_equal (const GtkCssValue *number1,
                             const GtkCssValue *number2)
@@ -44,6 +142,7 @@ gtk_css_value_number_equal (const GtkCssValue *number1,
 static GtkCssValue *
 gtk_css_value_number_transition (GtkCssValue *start,
                                  GtkCssValue *end,
+                                 guint        property_id,
                                  double       progress)
 {
   /* FIXME: This needs to be supported at least for percentages,
@@ -88,6 +187,7 @@ gtk_css_value_number_print (const GtkCssValue *number,
 
 static const GtkCssValueClass GTK_CSS_VALUE_NUMBER = {
   gtk_css_value_number_free,
+  gtk_css_value_number_compute,
   gtk_css_value_number_equal,
   gtk_css_value_number_transition,
   gtk_css_value_number_print
@@ -146,66 +246,5 @@ _gtk_css_number_value_get (const GtkCssValue *number,
     return number->value * one_hundred_percent / 100;
   else
     return number->value;
-}
-
-GtkCssValue *
-_gtk_css_number_value_compute (GtkCssValue     *number,
-                               GtkStyleContext *context)
-{
-  g_return_val_if_fail (number->class == &GTK_CSS_VALUE_NUMBER, NULL);
-
-  switch (number->unit)
-    {
-    default:
-      g_assert_not_reached();
-      /* fall through */
-    case GTK_CSS_PERCENT:
-    case GTK_CSS_NUMBER:
-    case GTK_CSS_PX:
-    case GTK_CSS_DEG:
-    case GTK_CSS_S:
-      return _gtk_css_value_ref (number);
-    case GTK_CSS_PT:
-      return _gtk_css_number_value_new (number->value * 96.0 / 72.0,
-                                        GTK_CSS_PX);
-    case GTK_CSS_PC:
-      return _gtk_css_number_value_new (number->value * 96.0 / 72.0 * 12.0,
-                                        GTK_CSS_PX);
-      break;
-    case GTK_CSS_IN:
-      return _gtk_css_number_value_new (number->value * 96.0,
-                                        GTK_CSS_PX);
-      break;
-    case GTK_CSS_CM:
-      return _gtk_css_number_value_new (number->value * 96.0 * 0.39370078740157477,
-                                        GTK_CSS_PX);
-      break;
-    case GTK_CSS_MM:
-      return _gtk_css_number_value_new (number->value * 96.0 * 0.039370078740157477,
-                                        GTK_CSS_PX);
-      break;
-    case GTK_CSS_EM:
-      return _gtk_css_number_value_new (number->value *
-                                        _gtk_css_number_value_get (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_FONT_SIZE), 100),
-                                        GTK_CSS_PX);
-      break;
-    case GTK_CSS_EX:
-      /* for now we pretend ex is half of em */
-      return _gtk_css_number_value_new (number->value * 0.5 * 
-                                        _gtk_css_number_value_get (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_FONT_SIZE), 100),
-                                        GTK_CSS_PX);
-    case GTK_CSS_RAD:
-      return _gtk_css_number_value_new (number->value * 360.0 / (2 * G_PI),
-                                        GTK_CSS_DEG);
-    case GTK_CSS_GRAD:
-      return _gtk_css_number_value_new (number->value * 360.0 / 400.0,
-                                        GTK_CSS_DEG);
-    case GTK_CSS_TURN:
-      return _gtk_css_number_value_new (number->value * 360.0,
-                                        GTK_CSS_DEG);
-    case GTK_CSS_MS:
-      return _gtk_css_number_value_new (number->value / 1000.0,
-                                        GTK_CSS_S);
-    }
 }
 

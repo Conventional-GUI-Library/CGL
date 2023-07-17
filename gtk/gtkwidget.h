@@ -750,6 +750,10 @@ gint     gtk_widget_get_margin_bottom (GtkWidget *widget);
 void     gtk_widget_set_margin_bottom (GtkWidget *widget,
                                        gint       margin);
 
+GDK_AVAILABLE_IN_3_6
+void                    gtk_widget_insert_action_group                  (GtkWidget    *widget,
+                                                                         const gchar  *name,
+                                                                         GActionGroup *group);
 
 gint	     gtk_widget_get_events	(GtkWidget	*widget);
 GdkEventMask gtk_widget_get_device_events (GtkWidget	*widget,

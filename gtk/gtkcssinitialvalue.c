@@ -19,6 +19,8 @@
 
 #include "gtkcssinitialvalueprivate.h"
 
+#include "gtkcssstylepropertyprivate.h"
+
 struct _GtkCssValue {
   GTK_CSS_VALUE_BASE
 };
@@ -28,6 +30,18 @@ gtk_css_value_initial_free (GtkCssValue *value)
 {
   /* Can only happen if the unique value gets unreffed too often */
   g_assert_not_reached ();
+}
+
+static GtkCssValue *
+gtk_css_value_initial_compute (GtkCssValue        *value,
+                               guint               property_id,
+                               GtkStyleContext    *context,
+                               GtkCssDependencies *dependencies)
+{
+  return _gtk_css_value_compute (_gtk_css_style_property_get_initial_value (_gtk_css_style_property_lookup_by_id (property_id)),
+                                 property_id,
+                                 context,
+                                 dependencies);
 }
 
 static gboolean
@@ -40,6 +54,7 @@ gtk_css_value_initial_equal (const GtkCssValue *value1,
 static GtkCssValue *
 gtk_css_value_initial_transition (GtkCssValue *start,
                                   GtkCssValue *end,
+                                  guint        property_id,
                                   double       progress)
 {
   return NULL;
@@ -54,6 +69,7 @@ gtk_css_value_initial_print (const GtkCssValue *value,
 
 static const GtkCssValueClass GTK_CSS_VALUE_INITIAL = {
   gtk_css_value_initial_free,
+  gtk_css_value_initial_compute,
   gtk_css_value_initial_equal,
   gtk_css_value_initial_transition,
   gtk_css_value_initial_print
@@ -65,12 +81,4 @@ GtkCssValue *
 _gtk_css_initial_value_new (void)
 {
   return _gtk_css_value_ref (&initial);
-}
-
-gboolean
-_gtk_css_value_is_initial (const GtkCssValue *value)
-{
-  g_return_val_if_fail (value != NULL, FALSE);
-
-  return value == &initial;
 }

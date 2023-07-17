@@ -71,12 +71,13 @@ struct _GtkEntryCompletionPrivate
 
   GSource *check_completion_idle;
 
-  GdkDevice *grab_device;
+  GdkDevice *device;
 };
 
 gboolean _gtk_entry_completion_resize_popup (GtkEntryCompletion *completion);
-void     _gtk_entry_completion_popup        (GtkEntryCompletion *completion,
-                                             GdkDevice          *device);
+void     _gtk_entry_completion_connect      (GtkEntryCompletion *completion,
+                                             GtkEntry           *entry);
+void     _gtk_entry_completion_disconnect   (GtkEntryCompletion *completion);
 void     _gtk_entry_completion_popdown      (GtkEntryCompletion *completion);
 
 void      _gtk_entry_get_borders            (GtkEntry  *entry,
@@ -84,7 +85,6 @@ void      _gtk_entry_get_borders            (GtkEntry  *entry,
 void     _gtk_entry_effective_inner_border (GtkEntry  *entry,
 					    GtkBorder *border);
 void     _gtk_entry_reset_im_context       (GtkEntry  *entry);
-GtkIMContext* _gtk_entry_get_im_context    (GtkEntry  *entry);
 void     _gtk_entry_set_is_cell_renderer   (GtkEntry  *entry,
                                             gboolean   is_cell_renderer);
 

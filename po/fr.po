@@ -466,7 +466,7 @@ msgstr[1] "Ouverture de %d éléments"
 #: ../gtk/a11y/gtkspinneraccessible.c:40
 msgctxt "throbbing progress animation widget"
 msgid "Spinner"
-msgstr "Bouton animé"
+msgstr "Indicateur d'activité"
 
 #: ../gtk/a11y/gtkspinneraccessible.c:41
 msgid "Provides visual indication of progress"

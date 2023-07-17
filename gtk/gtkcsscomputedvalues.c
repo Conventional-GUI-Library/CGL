@@ -48,17 +48,34 @@ gtk_css_computed_values_dispose (GObject *object)
 }
 
 static void
+gtk_css_computed_values_finalize (GObject *object)
+{
+  GtkCssComputedValues *values = GTK_CSS_COMPUTED_VALUES (object);
+
+  _gtk_bitmask_free (values->depends_on_parent);
+  _gtk_bitmask_free (values->equals_parent);
+  _gtk_bitmask_free (values->depends_on_color);
+  _gtk_bitmask_free (values->depends_on_font_size);
+
+  G_OBJECT_CLASS (_gtk_css_computed_values_parent_class)->finalize (object);
+}
+
+static void
 _gtk_css_computed_values_class_init (GtkCssComputedValuesClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   object_class->dispose = gtk_css_computed_values_dispose;
+  object_class->finalize = gtk_css_computed_values_finalize;
 }
 
 static void
-_gtk_css_computed_values_init (GtkCssComputedValues *computed_values)
+_gtk_css_computed_values_init (GtkCssComputedValues *values)
 {
-  
+  values->depends_on_parent = _gtk_bitmask_new ();
+  values->equals_parent = _gtk_bitmask_new ();
+  values->depends_on_color = _gtk_bitmask_new ();
+  values->depends_on_font_size = _gtk_bitmask_new ();
 }
 
 GtkCssComputedValues *
@@ -91,100 +108,42 @@ _gtk_css_computed_values_compute_value (GtkCssComputedValues *values,
                                         GtkCssValue          *specified,
                                         GtkCssSection        *section)
 {
-  GtkCssStyleProperty *prop;
-  GtkStyleContext *parent;
+  GtkCssDependencies dependencies;
+  GtkCssValue *value;
 
   g_return_if_fail (GTK_IS_CSS_COMPUTED_VALUES (values));
   g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
-
-  prop = _gtk_css_style_property_lookup_by_id (id);
-  parent = gtk_style_context_get_parent (context);
-
-  gtk_css_computed_values_ensure_array (values, id + 1);
 
   /* http://www.w3.org/TR/css3-cascade/#cascade
    * Then, for every element, the value for each property can be found
    * by following this pseudo-algorithm:
    * 1) Identify all declarations that apply to the element
    */
-  if (specified != NULL)
+  if (specified == NULL)
     {
-      if (_gtk_css_value_is_inherit (specified))
-        {
-          /* 3) if the value of the winning declaration is ‘inherit’,
-           * the inherited value (see below) becomes the specified value.
-           */
-          specified = NULL;
-        }
-      else if (_gtk_css_value_is_initial (specified))
-        {
-          /* if the value of the winning declaration is ‘initial’,
-           * the initial value (see below) becomes the specified value.
-           */
-          specified = _gtk_css_style_property_get_initial_value (prop);
-        }
+      GtkCssStyleProperty *prop = _gtk_css_style_property_lookup_by_id (id);
 
-      /* 2) If the cascading process (described below) yields a winning
-       * declaration and the value of the winning declaration is not
-       * ‘initial’ or ‘inherit’, the value of the winning declaration
-       * becomes the specified value.
-       */
-    }
-  else
-    {
       if (_gtk_css_style_property_is_inherit (prop))
-        {
-          /* 4) if the property is inherited, the inherited value becomes
-           * the specified value.
-           */
-          specified = NULL;
-        }
+        specified = _gtk_css_inherit_value_new ();
       else
-        {
-          /* 5) Otherwise, the initial value becomes the specified value.
-           */
-          specified = _gtk_css_style_property_get_initial_value (prop);
-        }
-    }
-
-  if (specified == NULL && parent == NULL)
-    {
-      /* If the ‘inherit’ value is set on the root element, the property is
-       * assigned its initial value. */
-      specified = _gtk_css_style_property_get_initial_value (prop);
-    }
-
-  if (specified)
-    {
-      g_ptr_array_index (values->values, id) =
-	_gtk_css_style_property_compute_value (prop,
-					       context,
-					       specified);
+        specified = _gtk_css_initial_value_new ();
     }
   else
-    {
-      GtkCssValue *parent_value;
-      /* Set NULL here and do the inheritance upon lookup? */
-      parent_value = _gtk_style_context_peek_property (parent, id);
+    _gtk_css_value_ref (specified);
 
-      g_ptr_array_index (values->values, id) = _gtk_css_value_ref (parent_value);
-    }
+  value = _gtk_css_value_compute (specified, id, context, &dependencies);
 
-  if (section)
-    {
-      if (values->sections == NULL)
-        values->sections = g_ptr_array_new_with_free_func (maybe_unref_section);
-      if (values->sections->len <= id)
-        g_ptr_array_set_size (values->sections, id + 1);
+  _gtk_css_computed_values_set_value (values, id, value, dependencies, section);
 
-      g_ptr_array_index (values->sections, id) = gtk_css_section_ref (section);
-    }
+  _gtk_css_value_unref (value);
+  _gtk_css_value_unref (specified);
 }
                                     
 void
 _gtk_css_computed_values_set_value (GtkCssComputedValues *values,
                                     guint                 id,
                                     GtkCssValue          *value,
+                                    GtkCssDependencies    dependencies,
                                     GtkCssSection        *section)
 {
   g_return_if_fail (GTK_IS_CSS_COMPUTED_VALUES (values));
@@ -194,6 +153,15 @@ _gtk_css_computed_values_set_value (GtkCssComputedValues *values,
   if (g_ptr_array_index (values->values, id))
     _gtk_css_value_unref (g_ptr_array_index (values->values, id));
   g_ptr_array_index (values->values, id) = _gtk_css_value_ref (value);
+
+  if (dependencies & (GTK_CSS_DEPENDS_ON_PARENT | GTK_CSS_EQUALS_PARENT))
+    values->depends_on_parent = _gtk_bitmask_set (values->depends_on_parent, id, TRUE);
+  if (dependencies & (GTK_CSS_EQUALS_PARENT))
+    values->equals_parent = _gtk_bitmask_set (values->equals_parent, id, TRUE);
+  if (dependencies & (GTK_CSS_DEPENDS_ON_COLOR))
+    values->depends_on_color = _gtk_bitmask_set (values->depends_on_color, id, TRUE);
+  if (dependencies & (GTK_CSS_DEPENDS_ON_FONT_SIZE))
+    values->depends_on_font_size = _gtk_bitmask_set (values->depends_on_font_size, id, TRUE);
 
   if (section)
     {

@@ -36,9 +36,6 @@ GtkCssValue *   _gtk_css_shadow_value_new_for_transition (GtkCssValue           
 
 GtkCssValue *   _gtk_css_shadow_value_parse           (GtkCssParser             *parser);
 
-GtkCssValue *   _gtk_css_shadow_value_compute         (GtkCssValue              *shadow,
-                                                       GtkStyleContext          *context);
-
 void            _gtk_css_shadow_value_paint_layout    (const GtkCssValue        *shadow,
                                                        cairo_t                  *cr,
                                                        PangoLayout              *layout);

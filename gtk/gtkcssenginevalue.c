@@ -34,6 +34,15 @@ gtk_css_value_engine_free (GtkCssValue *value)
   g_slice_free (GtkCssValue, value);
 }
 
+static GtkCssValue *
+gtk_css_value_engine_compute (GtkCssValue        *value,
+                              guint               property_id,
+                              GtkStyleContext    *context,
+                              GtkCssDependencies *dependencies)
+{
+  return _gtk_css_value_ref (value);
+}
+
 static gboolean
 gtk_css_value_engine_equal (const GtkCssValue *value1,
                             const GtkCssValue *value2)
@@ -44,6 +53,7 @@ gtk_css_value_engine_equal (const GtkCssValue *value1,
 static GtkCssValue *
 gtk_css_value_engine_transition (GtkCssValue *start,
                                  GtkCssValue *end,
+                                 guint        property_id,
                                  double       progress)
 {
   return NULL;
@@ -67,6 +77,7 @@ gtk_css_value_engine_print (const GtkCssValue *value,
 
 static const GtkCssValueClass GTK_CSS_VALUE_ENGINE = {
   gtk_css_value_engine_free,
+  gtk_css_value_engine_compute,
   gtk_css_value_engine_equal,
   gtk_css_value_engine_transition,
   gtk_css_value_engine_print

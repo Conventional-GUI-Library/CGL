@@ -19,6 +19,8 @@
 
 #include "config.h"
 #include "gtkcssrgbavalueprivate.h"
+#include "gtkcssstylepropertyprivate.h"
+#include "gtkstylepropertyprivate.h"
 #include "gtksymboliccolorprivate.h"
 #include "gtkstyleproperties.h"
 #include "gtkintl.h"
@@ -119,6 +121,81 @@ gtk_css_value_symbolic_free (GtkCssValue *value)
   g_slice_free (GtkSymbolicColor, color);
 }
 
+static GtkCssValue *
+gtk_css_value_symbolic_get_fallback (guint            property_id,
+                                     GtkStyleContext *context)
+{
+  static const GdkRGBA transparent = { 0, 0, 0, 0 };
+
+  switch (property_id)
+    {
+      case GTK_CSS_PROPERTY_BACKGROUND_IMAGE:
+      case GTK_CSS_PROPERTY_BORDER_IMAGE_SOURCE:
+      case GTK_CSS_PROPERTY_TEXT_SHADOW:
+      case GTK_CSS_PROPERTY_ICON_SHADOW:
+      case GTK_CSS_PROPERTY_BOX_SHADOW:
+        return _gtk_css_rgba_value_new_from_rgba (&transparent);
+      case GTK_CSS_PROPERTY_COLOR:
+      case GTK_CSS_PROPERTY_BACKGROUND_COLOR:
+      case GTK_CSS_PROPERTY_BORDER_TOP_COLOR:
+      case GTK_CSS_PROPERTY_BORDER_RIGHT_COLOR:
+      case GTK_CSS_PROPERTY_BORDER_BOTTOM_COLOR:
+      case GTK_CSS_PROPERTY_BORDER_LEFT_COLOR:
+      case GTK_CSS_PROPERTY_OUTLINE_COLOR:
+        return _gtk_css_value_compute (_gtk_css_style_property_get_initial_value (_gtk_css_style_property_lookup_by_id (property_id)),
+                                       property_id,
+                                       context,
+                                       NULL);
+      default:
+        if (property_id < GTK_CSS_PROPERTY_N_PROPERTIES)
+          g_warning ("No fallback color defined for property '%s'", 
+                     _gtk_style_property_get_name (GTK_STYLE_PROPERTY (_gtk_css_style_property_lookup_by_id (property_id))));
+        return _gtk_css_rgba_value_new_from_rgba (&transparent);
+    }
+}
+
+static GtkCssValue *
+gtk_css_value_symbolic_compute (GtkCssValue        *value,
+                                guint               property_id,
+                                GtkStyleContext    *context,
+                                GtkCssDependencies *dependencies)
+{
+  GtkCssValue *resolved, *current;
+  GtkCssDependencies current_deps;
+
+  /* The computed value of the ‘currentColor’ keyword is the computed
+   * value of the ‘color’ property. If the ‘currentColor’ keyword is
+   * set on the ‘color’ property itself, it is treated as ‘color: inherit’. 
+   */
+  if (property_id == GTK_CSS_PROPERTY_COLOR)
+    {
+      GtkStyleContext *parent = gtk_style_context_get_parent (context);
+
+      if (parent)
+        {
+          current = _gtk_style_context_peek_property (parent, GTK_CSS_PROPERTY_COLOR);
+          current_deps = GTK_CSS_EQUALS_PARENT;
+        }
+      else
+        {
+          current = _gtk_css_style_property_get_initial_value (_gtk_css_style_property_lookup_by_id (GTK_CSS_PROPERTY_COLOR));
+          current_deps = 0;
+        }
+    }
+  else
+    {
+      current = _gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_COLOR);
+      current_deps = GTK_CSS_DEPENDS_ON_COLOR;
+    }
+  
+  resolved = _gtk_style_context_resolve_color_value (context, current, current_deps, value, dependencies);
+
+  if (resolved == NULL)
+    return gtk_css_value_symbolic_get_fallback (property_id, context);
+
+  return resolved;
+}
+
 static gboolean
 gtk_css_value_symbolic_equal (const GtkCssValue *value1,
                               const GtkCssValue *value2)
@@ -163,6 +240,7 @@ gtk_css_value_symbolic_equal (const GtkCssValue *value1,
 static GtkCssValue *
 gtk_css_value_symbolic_transition (GtkCssValue *start,
                                    GtkCssValue *end,
+                                   guint        property_id,
                                    double       progress)
 {
   return NULL;
@@ -182,6 +260,7 @@ gtk_css_value_symbolic_print (const GtkCssValue *value,
 
 static const GtkCssValueClass GTK_CSS_VALUE_SYMBOLIC = {
   gtk_css_value_symbolic_free,
+  gtk_css_value_symbolic_compute,
   gtk_css_value_symbolic_equal,
   gtk_css_value_symbolic_transition,
   gtk_css_value_symbolic_print
@@ -637,8 +716,10 @@ gtk_symbolic_color_resolve (GtkSymbolicColor   *color,
   current = _gtk_css_rgba_value_new_from_rgba (&pink);
   v =_gtk_symbolic_color_resolve_full (color,
                                        current,
+                                       0,
 				       resolve_lookup_color,
-				       props);
+				       props,
+                                       NULL);
   _gtk_css_value_unref (current);
   if (v == NULL)
     return FALSE;
@@ -651,14 +732,21 @@ gtk_symbolic_color_resolve (GtkSymbolicColor   *color,
 GtkCssValue *
 _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
                                   GtkCssValue                *current,
+                                  GtkCssDependencies          current_deps,
 				  GtkSymbolicColorLookupFunc  func,
-				  gpointer                    data)
+				  gpointer                    data,
+                                  GtkCssDependencies         *dependencies)
 {
+  GtkCssDependencies unused;
   GtkCssValue *value;
 
   g_return_val_if_fail (color != NULL, FALSE);
   g_return_val_if_fail (current != NULL, FALSE);
   g_return_val_if_fail (func != NULL, FALSE);
+
+  if (dependencies == NULL)
+    dependencies = &unused;
+  *dependencies = 0;
 
   value = NULL;
   switch (color->type)
@@ -674,7 +762,7 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 	if (!named_color)
 	  return NULL;
 
-	return _gtk_symbolic_color_resolve_full (named_color, current, func, data);
+	return _gtk_symbolic_color_resolve_full (named_color, current, current_deps, func, data, dependencies);
       }
 
       break;
@@ -683,10 +771,11 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 	GtkCssValue *val;
 	GdkRGBA shade;
 
-	val = _gtk_symbolic_color_resolve_full (color->shade.color, current, func, data);
+	val = _gtk_symbolic_color_resolve_full (color->shade.color, current, current_deps, func, data, dependencies);
 	if (val == NULL)
 	  return NULL;
 
+        *dependencies = _gtk_css_dependencies_union (*dependencies, 0);
 	shade = *_gtk_css_rgba_value_get_rgba (val);
 	_shade_color (&shade, color->shade.factor);
 
@@ -701,10 +790,11 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
 	GtkCssValue *val;
 	GdkRGBA alpha;
 
-	val = _gtk_symbolic_color_resolve_full (color->alpha.color, current, func, data);
+	val = _gtk_symbolic_color_resolve_full (color->alpha.color, current, current_deps, func, data, dependencies);
 	if (val == NULL)
 	  return NULL;
 
+        *dependencies = _gtk_css_dependencies_union (*dependencies, 0);
 	alpha = *_gtk_css_rgba_value_get_rgba (val);
 	alpha.alpha = CLAMP (alpha.alpha * color->alpha.factor, 0, 1);
 
@@ -718,20 +808,21 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
       {
 	GtkCssValue *val;
 	GdkRGBA color1, color2, res;
+        GtkCssDependencies dep1, dep2;
 
-	val = _gtk_symbolic_color_resolve_full (color->mix.color1, current, func, data);
+	val = _gtk_symbolic_color_resolve_full (color->mix.color1, current, current_deps, func, data, &dep1);
 	if (val == NULL)
 	  return NULL;
 	color1 = *_gtk_css_rgba_value_get_rgba (val);
 	_gtk_css_value_unref (val);
 
-	val = _gtk_symbolic_color_resolve_full (color->mix.color2, current, func, data);
+	val = _gtk_symbolic_color_resolve_full (color->mix.color2, current, current_deps, func, data, &dep2);
 	if (val == NULL)
 	  return NULL;
 	color2 = *_gtk_css_rgba_value_get_rgba (val);
 	_gtk_css_value_unref (val);
 
-
+        *dependencies = _gtk_css_dependencies_union (dep1, dep2);
 	res.red = CLAMP (color1.red + ((color2.red - color1.red) * color->mix.factor), 0, 1);
 	res.green = CLAMP (color1.green + ((color2.green - color1.green) * color->mix.factor), 0, 1);
 	res.blue = CLAMP (color1.blue + ((color2.blue - color1.blue) * color->mix.factor), 0, 1);
@@ -756,9 +847,14 @@ _gtk_symbolic_color_resolve_full (GtkSymbolicColor           *color,
       break;
     case COLOR_TYPE_CURRENT_COLOR:
       if (current)
-        return _gtk_css_value_ref (current);
+        {
+          *dependencies = current_deps;
+          return _gtk_css_value_ref (current);
+        }
       else
-        return NULL;
+        {
+          return NULL;
+        }
       break;
     default:
       g_assert_not_reached ();

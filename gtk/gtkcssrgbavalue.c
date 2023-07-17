@@ -34,6 +34,15 @@ gtk_css_value_rgba_free (GtkCssValue *value)
   g_slice_free (GtkCssValue, value);
 }
 
+static GtkCssValue *
+gtk_css_value_rgba_compute (GtkCssValue        *value,
+                            guint               property_id,
+                            GtkStyleContext    *context,
+                            GtkCssDependencies *dependencies)
+{
+  return _gtk_css_value_ref (value);
+}
+
 static gboolean
 gtk_css_value_rgba_equal (const GtkCssValue *rgba1,
                           const GtkCssValue *rgba2)
@@ -44,6 +53,7 @@ gtk_css_value_rgba_equal (const GtkCssValue *rgba1,
 static GtkCssValue *
 gtk_css_value_rgba_transition (GtkCssValue *start,
                                GtkCssValue *end,
+                               guint        property_id,
                                double       progress)
 {
   GdkRGBA transition;
@@ -68,6 +78,7 @@ gtk_css_value_rgba_print (const GtkCssValue *rgba,
 
 static const GtkCssValueClass GTK_CSS_VALUE_RGBA = {
   gtk_css_value_rgba_free,
+  gtk_css_value_rgba_compute,
   gtk_css_value_rgba_equal,
   gtk_css_value_rgba_transition,
   gtk_css_value_rgba_print
@@ -93,41 +104,3 @@ _gtk_css_rgba_value_get_rgba (const GtkCssValue *rgba)
 
   return &rgba->rgba;
 }
-
-GtkCssValue *
-_gtk_css_rgba_value_compute_from_symbolic (GtkCssValue     *symbolic,
-                                           GtkCssValue     *fallback,
-                                           GtkStyleContext *context,
-                                           gboolean         for_color_property)
-{
-  GtkCssValue *resolved, *current;
-
-  g_return_val_if_fail (symbolic != NULL, NULL);
-
-  /* The computed value of the ‘currentColor’ keyword is the computed
-   * value of the ‘color’ property. If the ‘currentColor’ keyword is
-   * set on the ‘color’ property itself, it is treated as ‘color: inherit’. 
-   */
-  if (for_color_property)
-    {
-      GtkStyleContext *parent = gtk_style_context_get_parent (context);
-
-      if (parent)
-        current = _gtk_style_context_peek_property (parent, GTK_CSS_PROPERTY_COLOR);
-      else
-        current = _gtk_css_style_property_get_initial_value (_gtk_css_style_property_lookup_by_id (GTK_CSS_PROPERTY_COLOR));
-    }
-  else
-    {
-      current = _gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_COLOR);
-    }
-  
-  resolved = _gtk_style_context_resolve_color_value (context, current, symbolic);
-
-  if (resolved == NULL)
-    return _gtk_css_rgba_value_compute_from_symbolic (fallback, NULL, context, for_color_property);
-
-  g_assert (resolved->class == &GTK_CSS_VALUE_RGBA);
-  return resolved;
-}
-

@@ -99,6 +99,8 @@
  * </refsect2>
  */
 
+#define AUTO_MNEMONICS_DELAY 300 /* ms */
+
 typedef struct _GtkDeviceGrabInfo GtkDeviceGrabInfo;
 
 struct _GtkWindowPrivate
@@ -132,6 +134,8 @@ struct _GtkWindowPrivate
   guint32  initial_timestamp;
 
   guint16  configure_request_count;
+
+  guint    auto_mnemonics_timeout_id;
 
   /* The following flags are initially TRUE (before a window is mapped).
    * They cause us to compute a configure request that involves
@@ -2821,6 +2825,9 @@ gtk_window_set_application (GtkWindow      *window,
           gtk_application_add_window (priv->application, window);
         }
 
+      /* don't use a normal cast: application may be NULL */
+      gtk_widget_insert_action_group (GTK_WIDGET (window), "app", (GActionGroup *) application);
+
       g_object_notify (G_OBJECT (window), "application");
     }
 }
@@ -4781,6 +4788,12 @@ gtk_window_finalize (GObject *object)
 
   g_free (priv->startup_id);
 
+  if (priv->auto_mnemonics_timeout_id)
+    {
+      g_source_remove (priv->auto_mnemonics_timeout_id);
+      priv->auto_mnemonics_timeout_id = 0;
+    }
+
 #ifdef GDK_WINDOWING_X11
   g_signal_handlers_disconnect_by_func (gtk_settings_get_default (),
                                         gtk_window_on_theme_variant_changed,
@@ -4796,6 +4809,7 @@ gtk_window_show (GtkWidget *widget)
   GtkWindow *window = GTK_WINDOW (widget);
   GtkWindowPrivate *priv = window->priv;
   GtkContainer *container = GTK_CONTAINER (window);
+  GtkBitmask *empty;
   gboolean need_resize;
   gboolean is_plug;
 
@@ -4809,9 +4823,12 @@ gtk_window_show (GtkWidget *widget)
 
   need_resize = _gtk_widget_get_alloc_needed (widget) || !gtk_widget_get_realized (widget);
 
+  empty = _gtk_bitmask_new ();
   _gtk_style_context_validate (gtk_widget_get_style_context (widget),
                                g_get_monotonic_time (),
-                               0);
+                               0,
+                               empty);
+  _gtk_bitmask_free (empty);
 
   if (need_resize)
     {
@@ -9752,7 +9769,37 @@ gtk_window_set_mnemonics_visible (GtkWindow *window,
       g_object_notify (G_OBJECT (window), "mnemonics-visible");
     }
 
+  if (priv->auto_mnemonics_timeout_id)
+    {
+      g_source_remove (priv->auto_mnemonics_timeout_id);
+      priv->auto_mnemonics_timeout_id = 0;
+    }
+
   priv->mnemonics_visible_set = TRUE;
+}
+
+static gboolean
+set_auto_mnemonics_visible_cb (gpointer data)
+{
+  GtkWindow *window = data;
+
+  gtk_window_set_mnemonics_visible (window, TRUE);
+
+  window->priv->auto_mnemonics_timeout_id = 0;
+
+  return FALSE;
+}
+
+void
+_gtk_window_set_auto_mnemonics_visible (GtkWindow *window)
+{
+  g_return_if_fail (GTK_IS_WINDOW (window));
+
+  if (window->priv->auto_mnemonics_timeout_id)
+    return;
+
+  window->priv->auto_mnemonics_timeout_id =
+    gdk_threads_add_timeout (AUTO_MNEMONICS_DELAY, set_auto_mnemonics_visible_cb, window);
 }
 
 /**

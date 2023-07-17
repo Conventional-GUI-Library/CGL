@@ -890,30 +890,6 @@ gtk_style_context_impl_get_property (GObject    *object,
     }
 }
 
-static void
-build_properties (GtkStyleContext *context,
-                  StyleData       *style_data,
-                  GtkWidgetPath   *path,
-                  GtkStateFlags    state)
-{
-  GtkStyleContextPrivate *priv;
-  GtkCssMatcher matcher;
-  GtkCssLookup *lookup;
-
-  priv = context->priv;
-
-  lookup = _gtk_css_lookup_new ();
-
-  if (_gtk_css_matcher_init (&matcher, path, state))
-    _gtk_style_provider_private_lookup (GTK_STYLE_PROVIDER_PRIVATE (priv->cascade),
-                                        &matcher,
-                                        lookup);
-
-  style_data->store = _gtk_css_computed_values_new ();
-  _gtk_css_lookup_resolve (lookup, context, style_data->store);
-  _gtk_css_lookup_free (lookup);
-}
-
 static GtkWidgetPath *
 create_query_path (GtkStyleContext *context)
 {
@@ -952,11 +928,37 @@ create_query_path (GtkStyleContext *context)
   return path;
 }
 
+static void
+build_properties (GtkStyleContext      *context,
+                  GtkCssComputedValues *values,
+                  GtkStateFlags         state,
+                  const GtkBitmask     *relevant_changes)
+{
+  GtkStyleContextPrivate *priv;
+  GtkCssMatcher matcher;
+  GtkWidgetPath *path;
+  GtkCssLookup *lookup;
+
+  priv = context->priv;
+
+  path = create_query_path (context);
+  lookup = _gtk_css_lookup_new (relevant_changes);
+
+  if (_gtk_css_matcher_init (&matcher, path, state))
+    _gtk_style_provider_private_lookup (GTK_STYLE_PROVIDER_PRIVATE (priv->cascade),
+                                        &matcher,
+                                        lookup);
+
+  _gtk_css_lookup_resolve (lookup, context, values);
+
+  _gtk_css_lookup_free (lookup);
+  gtk_widget_path_free (path);
+}
+
 static StyleData *
 style_data_lookup (GtkStyleContext *context)
 {
   GtkStyleContextPrivate *priv;
-  GtkWidgetPath *path;
   GtkStyleInfo *info;
   StyleData *data;
 
@@ -976,17 +978,14 @@ style_data_lookup (GtkStyleContext *context)
       return data;
     }
 
-  path = create_query_path (context);
-
   data = style_data_new ();
+  data->store = _gtk_css_computed_values_new ();
   style_info_set_data (info, data);
   g_hash_table_insert (priv->style_data,
                        style_info_copy (info),
                        data);
 
-  build_properties (context, data, path, info->state_flags);
-
-  gtk_widget_path_free (path);
+  build_properties (context, data->store, info->state_flags, NULL);
 
   return data;
 }
@@ -2261,7 +2260,7 @@ _gtk_style_context_peek_style_property (GtkStyleContext *context,
               else
                 g_value_init (&pcache->value, GDK_TYPE_COLOR);
 
-              if (_gtk_style_context_resolve_color (context, color, &rgba))
+              if (_gtk_style_context_resolve_color (context, color, &rgba, NULL))
                 {
                   if (G_PARAM_SPEC_VALUE_TYPE (pspec) == GDK_TYPE_RGBA)
                     g_value_set_boxed (&pcache->value, &rgba);
@@ -2675,9 +2674,11 @@ gtk_style_context_color_lookup_func (gpointer    contextp,
 }
 
 GtkCssValue *
-_gtk_style_context_resolve_color_value (GtkStyleContext  *context,
-                                        GtkCssValue      *current,
-					GtkCssValue      *color)
+_gtk_style_context_resolve_color_value (GtkStyleContext    *context,
+                                        GtkCssValue        *current,
+                                        GtkCssDependencies  current_deps,
+					GtkCssValue        *color,
+                                        GtkCssDependencies *dependencies)
 {
   g_return_val_if_fail (GTK_IS_STYLE_CONTEXT (context), FALSE);
   g_return_val_if_fail (current != NULL, FALSE);
@@ -2685,15 +2686,18 @@ _gtk_style_context_resolve_color_value (GtkStyleContext  *context,
 
   return _gtk_symbolic_color_resolve_full ((GtkSymbolicColor *) color,
                                            current,
+                                           current_deps,
                                            gtk_style_context_color_lookup_func,
-                                           context);
+                                           context,
+                                           dependencies);
 }
 
 
 gboolean
-_gtk_style_context_resolve_color (GtkStyleContext  *context,
-                                  GtkSymbolicColor *color,
-                                  GdkRGBA          *result)
+_gtk_style_context_resolve_color (GtkStyleContext    *context,
+                                  GtkSymbolicColor   *color,
+                                  GdkRGBA            *result,
+                                  GtkCssDependencies *dependencies)
 {
   GtkCssValue *val;
 
@@ -2703,8 +2707,10 @@ _gtk_style_context_resolve_color (GtkStyleContext  *context,
 
   val = _gtk_symbolic_color_resolve_full (color,
                                           _gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_COLOR),
+                                          GTK_CSS_DEPENDS_ON_COLOR,
 					  gtk_style_context_color_lookup_func,
-					  context);
+					  context,
+                                          dependencies);
   if (val == NULL)
     return FALSE;
 
@@ -2738,7 +2744,7 @@ gtk_style_context_lookup_color (GtkStyleContext *context,
   if (sym_color == NULL)
     return FALSE;
 
-  return _gtk_style_context_resolve_color (context, sym_color, color);
+  return _gtk_style_context_resolve_color (context, sym_color, color, NULL);
 }
 
 /**
@@ -2923,6 +2929,36 @@ gtk_style_context_clear_cache (GtkStyleContext *context)
 }
 
 static void
+gtk_style_context_update_cache (GtkStyleContext  *context,
+                                const GtkBitmask *parent_changes)
+{
+  GtkStyleContextPrivate *priv;
+  GHashTableIter iter;
+  gpointer key, value;
+
+  priv = context->priv;
+
+  g_hash_table_remove_all (priv->style_data);
+
+  g_hash_table_iter_init (&iter, priv->style_data);
+  while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+      GtkStyleInfo *info = key;
+      StyleData *data = value;
+      GtkBitmask *changes;
+
+      changes = _gtk_bitmask_copy (parent_changes);
+      changes = _gtk_bitmask_intersect (changes, data->store->depends_on_parent);
+      if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_COLOR))
+        changes = _gtk_bitmask_union (changes, data->store->depends_on_color);
+      if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_FONT_SIZE))
+        changes = _gtk_bitmask_union (changes, data->store->depends_on_font_size);
+
+      build_properties (context, data->store, info->state_flags, changes);
+    }
+}
+
+static void
 gtk_style_context_do_invalidate (GtkStyleContext *context)
 {
   GtkStyleContextPrivate *priv;
@@ -3024,41 +3060,11 @@ gtk_style_context_start_animations (GtkStyleContext      *context,
   gtk_style_context_start_animating (context);
 }
 
-void
-_gtk_style_context_validate (GtkStyleContext *context,
-                             gint64           timestamp,
-                             GtkCssChange     change)
+static gboolean
+gtk_style_context_needs_full_revalidate (GtkStyleContext  *context,
+                                         GtkCssChange      change)
 {
-  GtkStyleContextPrivate *priv;
-  GtkBitmask *changes;
-  GSList *list;
-
-  g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
-
-  priv = context->priv;
-
-  change |= priv->pending_changes;
-  
-  /* If you run your application with
-   *   GTK_DEBUG=no-css-cache
-   * every invalidation will purge the cache and completely query
-   * everything anew form the cache. This is slow (in particular
-   * when animating), but useful for figuring out bugs.
-   *
-   * We achieve that by pretending that everything that could have
-   * changed has and so we of course totally need to redo everything.
-   *
-   * Note that this also completely revalidates child widgets all
-   * the time.
-   */
-  if (G_UNLIKELY (gtk_get_debug_flags () & GTK_DEBUG_NO_CSS_CACHE))
-    change = GTK_CSS_CHANGE_ANY;
-
-  if (!priv->invalid && change == 0)
-    return;
-
-  priv->pending_changes = 0;
-  gtk_style_context_set_invalid (context, FALSE);
+  GtkStyleContextPrivate *priv = context->priv;
 
   /* Try to avoid invalidating if we can */
   if (change & GTK_STYLE_CONTEXT_RADICAL_CHANGE)
@@ -3086,19 +3092,69 @@ _gtk_style_context_validate (GtkStyleContext *context,
     }
 
   if (priv->relevant_changes & change)
+    return TRUE;
+  else
+    return FALSE;
+}
+
+void
+_gtk_style_context_validate (GtkStyleContext  *context,
+                             gint64            timestamp,
+                             GtkCssChange      change,
+                             const GtkBitmask *parent_changes)
+{
+  GtkStyleContextPrivate *priv;
+  GtkStyleInfo *info;
+  StyleData *current;
+  GtkBitmask *changes;
+  GSList *list;
+
+  g_return_if_fail (GTK_IS_STYLE_CONTEXT (context));
+
+  priv = context->priv;
+
+  change |= priv->pending_changes;
+  
+  /* If you run your application with
+   *   GTK_DEBUG=no-css-cache
+   * every invalidation will purge the cache and completely query
+   * everything anew form the cache. This is slow (in particular
+   * when animating), but useful for figuring out bugs.
+   *
+   * We achieve that by pretending that everything that could have
+   * changed has and so we of course totally need to redo everything.
+   *
+   * Note that this also completely revalidates child widgets all
+   * the time.
+   */
+  if (G_UNLIKELY (gtk_get_debug_flags () & GTK_DEBUG_NO_CSS_CACHE))
+    change = GTK_CSS_CHANGE_ANY;
+
+  if (!priv->invalid && change == 0 && _gtk_bitmask_is_empty (parent_changes))
+    return;
+
+  priv->pending_changes = 0;
+  gtk_style_context_set_invalid (context, FALSE);
+
+  info = priv->info;
+  if (info->data)
+    current = style_data_ref (info->data);
+  else
+    current = NULL;
+
+  /* Try to avoid invalidating if we can */
+  if (current == NULL ||
+      gtk_style_context_needs_full_revalidate (context, change))
     {
-      GtkStyleInfo *info = priv->info;
-      StyleData *current;
-
-      if (info->data)
-        current = style_data_ref (info->data);
-      else
-        current = NULL;
-
       if ((priv->relevant_changes & change) & ~GTK_STYLE_CONTEXT_CACHED_CHANGE)
-        gtk_style_context_clear_cache (context);
+        {
+          gtk_style_context_clear_cache (context);
+        }
       else
-        style_info_set_data (info, NULL);
+        {
+          gtk_style_context_update_cache (context, parent_changes);
+          style_info_set_data (info, NULL);
+        }
 
       if (current)
         {
@@ -3120,7 +3176,16 @@ _gtk_style_context_validate (GtkStyleContext *context,
         }
     }
   else
-    changes = _gtk_bitmask_new ();
+    {
+      changes = _gtk_bitmask_copy (parent_changes);
+      changes = _gtk_bitmask_intersect (changes, current->store->depends_on_parent);
+      if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_COLOR))
+        changes = _gtk_bitmask_union (changes, current->store->depends_on_color);
+      if (_gtk_bitmask_get (changes, GTK_CSS_PROPERTY_FONT_SIZE))
+        changes = _gtk_bitmask_union (changes, current->store->depends_on_font_size);
+
+      gtk_style_context_update_cache (context, parent_changes);
+    }
 
   if (change & GTK_CSS_CHANGE_ANIMATE &&
       gtk_style_context_is_animating (context))
@@ -3138,7 +3203,7 @@ _gtk_style_context_validate (GtkStyleContext *context,
   change = _gtk_css_change_for_child (change);
   for (list = priv->children; list; list = list->next)
     {
-      _gtk_style_context_validate (list->data, timestamp, change);
+      _gtk_style_context_validate (list->data, timestamp, change, changes);
     }
 
   _gtk_bitmask_free (changes);

@@ -41,6 +41,39 @@ gtk_css_value_border_free (GtkCssValue *value)
   g_slice_free (GtkCssValue, value);
 }
 
+static GtkCssValue *
+gtk_css_value_border_compute (GtkCssValue        *value,
+                              guint               property_id,
+                              GtkStyleContext    *context,
+                              GtkCssDependencies *dependencies)
+{
+  GtkCssValue *computed;
+  GtkCssDependencies child_deps;
+  gboolean changed = FALSE;
+  guint i;
+
+  computed = _gtk_css_border_value_new (NULL, NULL, NULL, NULL);
+  computed->fill = value->fill;
+
+  for (i = 0; i < 4; i++)
+    {
+      if (value->values[i])
+        {
+          computed->values[i] = _gtk_css_value_compute (value->values[i], property_id, context, &child_deps);
+          *dependencies = _gtk_css_dependencies_union (*dependencies, child_deps);
+          changed |= (computed->values[i] != value->values[i]);
+        }
+    }
+
+  if (!changed)
+    {
+      _gtk_css_value_unref (computed);
+      return _gtk_css_value_ref (value);
+    }
+
+  return computed;
+}
+
 static gboolean
 gtk_css_value_border_equal (const GtkCssValue *value1,
                             const GtkCssValue *value2)
@@ -62,6 +95,7 @@ gtk_css_value_border_equal (const GtkCssValue *value1,
 static GtkCssValue *
 gtk_css_value_border_transition (GtkCssValue *start,
                                  GtkCssValue *end,
+                                 guint        property_id,
                                  double       progress)
 {
   return NULL;
@@ -99,6 +133,7 @@ gtk_css_value_border_print (const GtkCssValue *value,
 
 static const GtkCssValueClass GTK_CSS_VALUE_BORDER = {
   gtk_css_value_border_free,
+  gtk_css_value_border_compute,
   gtk_css_value_border_equal,
   gtk_css_value_border_transition,
   gtk_css_value_border_print
@@ -200,36 +235,5 @@ _gtk_css_border_value_get_left (const GtkCssValue *value)
   g_return_val_if_fail (value->class == &GTK_CSS_VALUE_BORDER, NULL);
 
   return value->values[GTK_CSS_LEFT];
-}
-
-GtkCssValue *
-_gtk_css_border_value_compute (GtkCssValue     *value,
-                               GtkStyleContext *context)
-{
-  GtkCssValue *computed;
-  gboolean changed = FALSE;
-  guint i;
-
-  g_return_val_if_fail (value->class == &GTK_CSS_VALUE_BORDER, NULL);
-
-  computed = _gtk_css_border_value_new (NULL, NULL, NULL, NULL);
-  computed->fill = value->fill;
-
-  for (i = 0; i < 4; i++)
-    {
-      if (value->values[i])
-        {
-          computed->values[i] = _gtk_css_number_value_compute (value->values[i], context);
-          changed |= (computed->values[i] != value->values[i]);
-        }
-    }
-
-  if (!changed)
-    {
-      _gtk_css_value_unref (computed);
-      return _gtk_css_value_ref (value);
-    }
-
-  return computed;
 }
 

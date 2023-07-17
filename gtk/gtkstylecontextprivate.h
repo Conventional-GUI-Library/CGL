@@ -22,6 +22,7 @@
 
 #include "gtkstylecontext.h"
 #include "gtksymboliccolor.h"
+#include "gtkbitmaskprivate.h"
 #include "gtkcssvalueprivate.h"
 
 G_BEGIN_DECLS
@@ -39,22 +40,26 @@ const GValue * _gtk_style_context_peek_style_property        (GtkStyleContext *c
                                                               GParamSpec      *pspec);
 void           _gtk_style_context_validate                   (GtkStyleContext *context,
                                                               gint64           timestamp,
-                                                              GtkCssChange     change);
+                                                              GtkCssChange     change,
+                                                              const GtkBitmask*parent_changes);
 void           _gtk_style_context_queue_invalidate           (GtkStyleContext *context,
                                                               GtkCssChange     change);
 gboolean       _gtk_style_context_check_region_name          (const gchar     *str);
 
-gboolean       _gtk_style_context_resolve_color              (GtkStyleContext  *context,
-                                                              GtkSymbolicColor *color,
-                                                              GdkRGBA          *result);
-GtkCssValue *  _gtk_style_context_resolve_color_value        (GtkStyleContext  *context,
-                                                              GtkCssValue      *current,
-                                                              GtkCssValue      *color);
-void           _gtk_style_context_get_cursor_color           (GtkStyleContext *context,
-                                                              GdkRGBA         *primary_color,
-                                                              GdkRGBA         *secondary_color);
+gboolean       _gtk_style_context_resolve_color              (GtkStyleContext    *context,
+                                                              GtkSymbolicColor   *color,
+                                                              GdkRGBA            *result,
+                                                              GtkCssDependencies *dependencies);
+GtkCssValue *  _gtk_style_context_resolve_color_value        (GtkStyleContext    *context,
+                                                              GtkCssValue        *current,
+                                                              GtkCssDependencies  current_deps,
+                                                              GtkCssValue        *color,
+                                                              GtkCssDependencies *dependencies);
+void           _gtk_style_context_get_cursor_color           (GtkStyleContext    *context,
+                                                              GdkRGBA            *primary_color,
+                                                              GdkRGBA            *secondary_color);
 
-void           _gtk_style_context_stop_animations            (GtkStyleContext  *context);
+void           _gtk_style_context_stop_animations            (GtkStyleContext    *context);
 
 G_END_DECLS
 

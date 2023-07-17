@@ -1046,6 +1046,8 @@ gtk_entry_get_layout
 gtk_entry_get_layout_offsets
 gtk_entry_layout_index_to_text_index
 gtk_entry_text_index_to_layout_index
+gtk_entry_set_attributes
+gtk_entry_get_attributes
 gtk_entry_get_max_length
 gtk_entry_get_visibility
 gtk_entry_set_completion
@@ -2130,8 +2132,8 @@ gtk_menu_bar_get_type
 <TITLE>GtkMenuButton</TITLE>
 GtkMenuButton
 gtk_menu_button_new
-gtk_menu_button_set_menu
-gtk_menu_button_get_menu
+gtk_menu_button_set_popup
+gtk_menu_button_get_popup
 gtk_menu_button_set_menu_model
 gtk_menu_button_get_menu_model
 gtk_menu_button_set_direction
@@ -5256,6 +5258,7 @@ gtk_widget_get_mapped
 gtk_widget_get_requisition
 gtk_widget_device_is_shadowed
 gtk_widget_get_modifier_mask
+gtk_widget_insert_action_group
 
 <SUBSECTION>
 gtk_widget_get_path
