@@ -2328,37 +2328,6 @@ gtk_scrolled_window_get_preferred_height_for_width (GtkWidget *widget,
 }
 
 static void
-_gtk_scrolled_window_update_background (GtkScrolledWindow *scrolled_window)
-{
-  GtkWidget *widget = GTK_WIDGET (scrolled_window);
-
-  if (gtk_widget_get_realized (widget))
-    {
-      GtkStyleContext *context;
-
-      context = gtk_widget_get_style_context (widget);
-      gtk_style_context_set_background (context, scrolled_window->priv->overshoot_window);
-    }
-}
-
-static void
-gtk_scrolled_window_state_flags_changed (GtkWidget     *widget,
-                                         GtkStateFlags  previous_state)
-{
-  _gtk_scrolled_window_update_background (GTK_SCROLLED_WINDOW (widget));
-  gtk_widget_queue_draw (widget);
-}
-
-static void
-gtk_scrolled_window_style_updated (GtkWidget *widget)
-{
-  GTK_WIDGET_CLASS (gtk_scrolled_window_parent_class)->style_updated (widget);
-
-  _gtk_scrolled_window_update_background (GTK_SCROLLED_WINDOW (widget));
-  gtk_widget_queue_draw (widget);
-}
-
-static void
 gtk_scrolled_window_get_preferred_width_for_height (GtkWidget *widget,
                                                     gint       height,
                                                     gint      *minimum_width,

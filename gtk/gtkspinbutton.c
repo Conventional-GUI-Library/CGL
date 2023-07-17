@@ -330,7 +330,6 @@ gtk_spin_button_class_init (GtkSpinButtonClass *class)
 
   entry_class->activate = gtk_spin_button_activate;
   entry_class->get_text_area_size = gtk_spin_button_get_text_area_size;
-  entry_class->get_frame_size = gtk_spin_button_get_frame_size;
 
   class->input = NULL;
   class->output = NULL;
@@ -813,6 +812,29 @@ gtk_spin_button_format_for_value (GtkSpinButton *spin_button,
   gchar *buf = g_strdup_printf ("%0.*f", priv->digits, value);
 
   return buf;
+}
+
+static int
+compute_double_length (double val, int digits)
+{
+  int a;
+  int extra;
+
+  a = 1;
+  if (fabs (val) > 1.0)
+    a = floor (log10 (fabs (val))) + 1;
+
+  extra = 0;
+
+  /* The dot: */
+  if (digits > 0)
+    extra++;
+
+  /* The sign: */
+  if (val < 0)
+    extra++;
+
+  return a + digits + extra;
 }
 
 static void
