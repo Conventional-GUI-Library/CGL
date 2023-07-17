@@ -80,6 +80,8 @@ test_iconview_object_new (void)
 typedef GtkIconView MyIconView;
 typedef GtkIconViewClass MyIconViewClass;
 
+GType my_icon_view_get_type (void);
+
 G_DEFINE_TYPE (MyIconView, my_icon_view, GTK_TYPE_ICON_VIEW)
 
 static void
@@ -235,6 +237,8 @@ test_combobox_object_new (void)
 
 typedef GtkComboBox MyComboBox;
 typedef GtkComboBoxClass MyComboBoxClass;
+
+GType my_combo_box_get_type (void);
 
 G_DEFINE_TYPE (MyComboBox, my_combo_box, GTK_TYPE_COMBO_BOX)
 
@@ -392,6 +396,8 @@ test_cellview_object_new (void)
 typedef GtkCellView MyCellView;
 typedef GtkCellViewClass MyCellViewClass;
 
+GType my_cell_view_get_type (void);
+
 G_DEFINE_TYPE (MyCellView, my_cell_view, GTK_TYPE_CELL_VIEW)
 
 static void
@@ -546,6 +552,8 @@ test_column_object_new (void)
 typedef GtkTreeViewColumn MyTreeViewColumn;
 typedef GtkTreeViewColumnClass MyTreeViewColumnClass;
 
+GType my_tree_view_column_get_type (void);
+
 G_DEFINE_TYPE (MyTreeViewColumn, my_tree_view_column, GTK_TYPE_TREE_VIEW_COLUMN)
 
 static void
@@ -699,6 +707,8 @@ test_completion_object_new (void)
 
 typedef GtkEntryCompletion MyEntryCompletion;
 typedef GtkEntryCompletionClass MyEntryCompletionClass;
+
+GType my_entry_completion_get_type (void);
 
 G_DEFINE_TYPE (MyEntryCompletion, my_entry_completion, GTK_TYPE_ENTRY_COMPLETION)
 

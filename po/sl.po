@@ -24,48 +24,48 @@ msgstr ""
 "X-Poedit-SourceCharset: utf-8\n"
 "X-Poedit-Language: Slovenian\n"
 
-#: ../gdk/gdk.c:153
+#: ../gdk/gdk.c:155
 #, c-format
 msgid "Error parsing option --gdk-debug"
 msgstr "Napaka med razčlenjevanjem možnosti --gdk-debug"
 
-#: ../gdk/gdk.c:173
+#: ../gdk/gdk.c:175
 #, c-format
 msgid "Error parsing option --gdk-no-debug"
 msgstr "Napaka med razčlenjevanjem možnosti --gdk-no-debug"
 
 #. Description of --class=CLASS in --help output
-#: ../gdk/gdk.c:201
+#: ../gdk/gdk.c:203
 msgid "Program class as used by the window manager"
 msgstr "Razred programa, kot ga uporablja upravljalnik oken"
 
 #. Placeholder in --class=CLASS in --help output
-#: ../gdk/gdk.c:202
+#: ../gdk/gdk.c:204
 msgid "CLASS"
 msgstr "RAZRED"
 
 #. Description of --name=NAME in --help output
-#: ../gdk/gdk.c:204
+#: ../gdk/gdk.c:206
 msgid "Program name as used by the window manager"
 msgstr "Ime programa, kot ga uporablja upravljalnik oken"
 
 #. Placeholder in --name=NAME in --help output
-#: ../gdk/gdk.c:205
+#: ../gdk/gdk.c:207
 msgid "NAME"
 msgstr "IME"
 
 #. Description of --display=DISPLAY in --help output
-#: ../gdk/gdk.c:207
+#: ../gdk/gdk.c:209
 msgid "X display to use"
 msgstr "Prikaz X, ki je uporabljen"
 
 #. Placeholder in --display=DISPLAY in --help output
-#: ../gdk/gdk.c:208
+#: ../gdk/gdk.c:210
 msgid "DISPLAY"
 msgstr "PRIKAZ"
 
 #. Description of --gdk-debug=FLAGS in --help output
-#: ../gdk/gdk.c:211
+#: ../gdk/gdk.c:213
 msgid "GDK debugging flags to set"
 msgstr "Zastavice razhroščevanja GDK, ki naj bodo nastavljene"
 
@@ -73,15 +73,15 @@ msgstr "Zastavice razhroščevanja GDK, ki naj bodo nastavljene"
 #. Placeholder in --gdk-no-debug=FLAGS in --help output
 #. Placeholder in --gtk-debug=FLAGS in --help output
 #. Placeholder in --gtk-no-debug=FLAGS in --help output
-#: ../gdk/gdk.c:212
-#: ../gdk/gdk.c:215
+#: ../gdk/gdk.c:214
+#: ../gdk/gdk.c:217
 #: ../gtk/gtkmain.c:453
 #: ../gtk/gtkmain.c:456
 msgid "FLAGS"
 msgstr "ZASTAVICE"
 
 #. Description of --gdk-no-debug=FLAGS in --help output
-#: ../gdk/gdk.c:214
+#: ../gdk/gdk.c:216
 msgid "GDK debugging flags to unset"
 msgstr "Zastavice rahroščevanja GDK, ki naj ne bodo nastavljene"
 
@@ -593,6 +593,7 @@ msgstr "Kliknite na ta vnos palete, da postane trenutna barva. Za spremembo tega
 #: ../gtk/gtkappchooserdialog.c:574
 #: ../gtk/gtkcolorchooserdialog.c:150
 #: ../gtk/gtkfontchooserdialog.c:174
+#: ../gtk/gtkprinteroptionwidget.c:550
 msgid "_Select"
 msgstr "_Izberi"
 
@@ -766,8 +767,8 @@ msgid "Failed to look for applications online"
 msgstr "Iskanje programov na spletu je spodletelo"
 
 #: ../gtk/gtkappchooserdialog.c:188
-msgid "Find applications online"
-msgstr "Najdi programe na spletu"
+msgid "_Find applications online"
+msgstr "_Najdi programe na spletu"
 
 #: ../gtk/gtkappchooserdialog.c:247
 msgid "Could not run application"
@@ -844,7 +845,7 @@ msgstr ""
 "\n"
 "%s"
 
-#: ../gtk/gtkapplicationwindow.c:327
+#: ../gtk/gtkapplicationwindow.c:333
 #: ../gtk/gtkprintoperation-unix.c:475
 #: ../gtk/gtkprintoperation-win32.c:1445
 msgid "Application"
@@ -1012,7 +1013,7 @@ msgid "%d %%"
 msgstr "%d %%"
 
 #: ../gtk/gtkcolorbutton.c:188
-#: ../gtk/gtkcolorbutton.c:450
+#: ../gtk/gtkcolorbutton.c:449
 msgid "Pick a Color"
 msgstr "Izberite barvo"
 
@@ -1740,17 +1741,17 @@ msgstr "Ikone ni mogoče naložiti"
 msgid "Simple"
 msgstr "Enostavno"
 
-#: ../gtk/gtkimmulticontext.c:600
+#: ../gtk/gtkimmulticontext.c:608
 msgctxt "input method menu"
 msgid "System"
 msgstr "Sistem"
 
-#: ../gtk/gtkimmulticontext.c:610
+#: ../gtk/gtkimmulticontext.c:618
 msgctxt "input method menu"
 msgid "None"
 msgstr "Brez"
 
-#: ../gtk/gtkimmulticontext.c:693
+#: ../gtk/gtkimmulticontext.c:701
 #, c-format
 msgctxt "input method menu"
 msgid "System (%s)"
@@ -2016,17 +2017,13 @@ msgstr "Koren datotečnega sistema"
 msgid "Authentication"
 msgstr "Overitev"
 
-#: ../gtk/gtkprinteroptionwidget.c:728
+#: ../gtk/gtkprinteroptionwidget.c:546
+msgid "Select a filename"
+msgstr "Izbor imena datoteke"
+
+#: ../gtk/gtkprinteroptionwidget.c:770
 msgid "Not available"
 msgstr "Ni na voljo"
-
-#: ../gtk/gtkprinteroptionwidget.c:828
-msgid "Select a folder"
-msgstr "Izberite mapo"
-
-#: ../gtk/gtkprinteroptionwidget.c:843
-msgid "_Save in folder:"
-msgstr "_Shrani v mapo:"
 
 #. translators: this string is the default job title for print
 #. * jobs. %s gets replaced by the application name, %d gets replaced
@@ -3101,9 +3098,9 @@ msgstr "_Oddalji"
 #. * glyphs then use MEDIUM VERTICAL BAR (U+2759) as the text for
 #. * the state
 #.
-#: ../gtk/gtkswitch.c:342
-#: ../gtk/gtkswitch.c:397
-#: ../gtk/gtkswitch.c:591
+#: ../gtk/gtkswitch.c:337
+#: ../gtk/gtkswitch.c:392
+#: ../gtk/gtkswitch.c:586
 msgctxt "switch"
 msgid "ON"
 msgstr "VKLJUČENO"
@@ -3111,9 +3108,9 @@ msgstr "VKLJUČENO"
 #. Translators: if the "off" state label requires more than three
 #. * glyphs then use WHITE CIRCLE (U+25CB) as the text for the state
 #.
-#: ../gtk/gtkswitch.c:350
-#: ../gtk/gtkswitch.c:398
-#: ../gtk/gtkswitch.c:620
+#: ../gtk/gtkswitch.c:345
+#: ../gtk/gtkswitch.c:393
+#: ../gtk/gtkswitch.c:615
 msgctxt "switch"
 msgid "OFF"
 msgstr "IZKLJUČENO"
@@ -4764,6 +4761,15 @@ msgstr "preizkusni-izhod.%s"
 #: ../modules/printbackends/test/gtkprintbackendtest.c:465
 msgid "Print to Test Printer"
 msgstr "Natisni na preizkusnem tiskalniku"
+
+#~ msgid "Connect as u_ser:"
+#~ msgstr "Poveži se kot _uporabnik:"
+
+#~ msgid "Select a folder"
+#~ msgstr "Izberite mapo"
+
+#~ msgid "_Save in folder:"
+#~ msgstr "_Shrani v mapo:"
 
 #~ msgid "Caps Lock and Num Lock are on"
 #~ msgstr "Tipki Caps Lock in Num Lock sta vključeni"

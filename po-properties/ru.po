@@ -1645,129 +1645,130 @@ msgstr "Режим быстрой клавиши"
 msgid "The type of accelerators"
 msgstr "Тип быстрых клавиш"
 
-#: ../gtk/gtkcellrenderer.c:275
+#: ../gtk/gtkcellrenderer.c:280
 msgid "mode"
 msgstr "режим"
 
-#: ../gtk/gtkcellrenderer.c:276
+#: ../gtk/gtkcellrenderer.c:281
 msgid "Editable mode of the CellRenderer"
 msgstr "Редактируемый режим приложения CellRenderer"
 
-#: ../gtk/gtkcellrenderer.c:284
+#: ../gtk/gtkcellrenderer.c:289
 msgid "visible"
 msgstr "видимое"
 
-#: ../gtk/gtkcellrenderer.c:285
+#: ../gtk/gtkcellrenderer.c:290
 msgid "Display the cell"
 msgstr "Показать эту ячейку"
 
-#: ../gtk/gtkcellrenderer.c:292
+#: ../gtk/gtkcellrenderer.c:297
 msgid "Display the cell sensitive"
 msgstr "Показывать чувствительность ячейки"
 
-#: ../gtk/gtkcellrenderer.c:299
+#: ../gtk/gtkcellrenderer.c:304
 msgid "xalign"
 msgstr "x-выравнивание"
 
-#: ../gtk/gtkcellrenderer.c:300
+#: ../gtk/gtkcellrenderer.c:305
 msgid "The x-align"
 msgstr "Выравнивание по оси X"
 
-#: ../gtk/gtkcellrenderer.c:309
+#: ../gtk/gtkcellrenderer.c:314
 msgid "yalign"
 msgstr "y-выравнивание"
 
-#: ../gtk/gtkcellrenderer.c:310
+#: ../gtk/gtkcellrenderer.c:315
 msgid "The y-align"
 msgstr "Выравнивание по оси Y"
 
-#: ../gtk/gtkcellrenderer.c:319
+#: ../gtk/gtkcellrenderer.c:324
 msgid "xpad"
 msgstr "заполнение по горизонтали"
 
-#: ../gtk/gtkcellrenderer.c:320
+#: ../gtk/gtkcellrenderer.c:325
 msgid "The xpad"
 msgstr "Заполнение по горизонтали"
 
-#: ../gtk/gtkcellrenderer.c:329
+#: ../gtk/gtkcellrenderer.c:334
 msgid "ypad"
 msgstr "заполнение по вертикали"
 
-#: ../gtk/gtkcellrenderer.c:330
+#: ../gtk/gtkcellrenderer.c:335
 msgid "The ypad"
 msgstr "Заполнение по вертикали"
 
-#: ../gtk/gtkcellrenderer.c:339
+#: ../gtk/gtkcellrenderer.c:344
 msgid "width"
 msgstr "ширина"
 
-#: ../gtk/gtkcellrenderer.c:340
+#: ../gtk/gtkcellrenderer.c:345
 msgid "The fixed width"
 msgstr "Фиксированная ширина"
 
-#: ../gtk/gtkcellrenderer.c:349
+#: ../gtk/gtkcellrenderer.c:354
 msgid "height"
 msgstr "высота"
 
-#: ../gtk/gtkcellrenderer.c:350
+#: ../gtk/gtkcellrenderer.c:355
 msgid "The fixed height"
 msgstr "Фиксированная высота"
 
-#: ../gtk/gtkcellrenderer.c:359
+#: ../gtk/gtkcellrenderer.c:364
 msgid "Is Expander"
 msgstr "Расширяемая"
 
-#: ../gtk/gtkcellrenderer.c:360
+#: ../gtk/gtkcellrenderer.c:365
 msgid "Row has children"
 msgstr "У строки есть дочерние элементы"
 
-#: ../gtk/gtkcellrenderer.c:368
+#: ../gtk/gtkcellrenderer.c:373
 msgid "Is Expanded"
 msgstr "Расширенная"
 
-#: ../gtk/gtkcellrenderer.c:369
+#: ../gtk/gtkcellrenderer.c:374
 msgid "Row is an expander row, and is expanded"
 msgstr "Строка является расширяемой, и она расширена"
 
-#: ../gtk/gtkcellrenderer.c:376
+#: ../gtk/gtkcellrenderer.c:381
 msgid "Cell background color name"
 msgstr "Наименование цвета фона ячейки"
 
-#: ../gtk/gtkcellrenderer.c:377
+#: ../gtk/gtkcellrenderer.c:382
 msgid "Cell background color as a string"
 msgstr "Цвет фона ячейки в виде строки"
 
-#: ../gtk/gtkcellrenderer.c:391
+#: ../gtk/gtkcellrenderer.c:396
 msgid "Cell background color"
 msgstr "Цвет фона ячейки"
 
-#: ../gtk/gtkcellrenderer.c:392
+#: ../gtk/gtkcellrenderer.c:397
 msgid "Cell background color as a GdkColor"
 msgstr "Цвет фона ячейки в виде GdkColor"
 
-#: ../gtk/gtkcellrenderer.c:405
+#: ../gtk/gtkcellrenderer.c:410
 msgid "Cell background RGBA color"
 msgstr "Цвет RGBA для фона ячейки"
 
-#: ../gtk/gtkcellrenderer.c:406
+#: ../gtk/gtkcellrenderer.c:411
 msgid "Cell background color as a GdkRGBA"
 msgstr "Цвет фона ячейки в виде GdkRGBA"
 
-#: ../gtk/gtkcellrenderer.c:413
+#: ../gtk/gtkcellrenderer.c:418
 msgid "Editing"
 msgstr "Редактирование"
 
-#: ../gtk/gtkcellrenderer.c:414
+#: ../gtk/gtkcellrenderer.c:419
 msgid "Whether the cell renderer is currently in editing mode"
 msgstr "Находится ли ячейка в режиме редактирования"
 
-#: ../gtk/gtkcellrenderer.c:422
+#: ../gtk/gtkcellrenderer.c:427
 msgid "Cell background set"
 msgstr "Фон ячейки установлен"
 
-#: ../gtk/gtkcellrenderer.c:423
-msgid "Whether this tag affects the cell background color"
-msgstr "Влияет ли этот тег на цвет фона ячейки"
+#: ../gtk/gtkcellrenderer.c:428
+#| msgid "Whether this tag affects the cell background color"
+msgid "Whether the cell background color is set"
+msgstr "Установлен ли цвет фона ячейки"
 
 #: ../gtk/gtkcellrenderercombo.c:128
 msgid "Model"
@@ -4016,6 +4017,63 @@ msgstr "Ширина макета"
 msgid "The height of the layout"
 msgstr "Высота макета"
 
+#: ../gtk/gtklevelbar.c:872
+msgid "Currently filled value level"
+msgstr "Уровень текущего заполненного значения"
+
+#: ../gtk/gtklevelbar.c:873
+msgid "Currently filled value level of the level bar"
+msgstr "Уровень текущего заполненного значения"
+
+#: ../gtk/gtklevelbar.c:886
+#| msgid "The minimum value of the adjustment"
+msgid "Minimum value level for the bar"
+msgstr "Уровень минимального значения"
+
+#: ../gtk/gtklevelbar.c:887
+#| msgid "The number of decimal places that are displayed in the value"
+msgid "Minimum value level that can be displayed by the bar"
+msgstr "Уровень минимального значения, который может быть показан"
+
+#: ../gtk/gtklevelbar.c:900
+#| msgid "The maximum value of the adjustment"
+msgid "Maximum value level for the bar"
+msgstr "Уровень максимального значения"
+
+#: ../gtk/gtklevelbar.c:901
+msgid "Maximum value level that can be displayed by the bar"
+msgstr "Уровень максимального значения, который может быть показан"
+
+#: ../gtk/gtklevelbar.c:920
+#| msgid "The modifier mask of the accelerator"
+msgid "The mode of the value indicator"
+msgstr "Режим индикатора значения"
+
+#: ../gtk/gtklevelbar.c:921
+#| msgid "The name of the themed icon displayed on the item"
+msgid "The mode of the value indicator displayed by the bar"
+msgstr "Режим индикатора значения"
+
+#: ../gtk/gtklevelbar.c:936
+#| msgid "Minimum height of buttons inside the box"
+msgid "Minimum height for filling blocks"
+msgstr "Минимальная высота заполняющих блоков"
+
+#: ../gtk/gtklevelbar.c:937
+#| msgid "Minimum height of buttons inside the box"
+msgid "Minimum height for blocks that fill the bar"
+msgstr "Минимальная высота заполняющих блоков"
+
+#: ../gtk/gtklevelbar.c:950
+#| msgid "Minimum width of buttons inside the box"
+msgid "Minimum width for filling blocks"
+msgstr "Минимальная ширина заполняющих блоков"
+
+#: ../gtk/gtklevelbar.c:951
+#| msgid "Minimum width of buttons inside the box"
+msgid "Minimum width for blocks that fill the bar"
+msgstr "Минимальная ширина заполняющих блоков"
+
 #: ../gtk/gtklinkbutton.c:175
 msgid "URI"
 msgstr "URI"
@@ -4282,71 +4340,71 @@ msgstr "Перехватывает фокус"
 msgid "A boolean that determines whether the menu grabs the keyboard focus"
 msgstr "Булево значение, определяющее, перехватывает ли меню фокус клавиатуры"
 
-#: ../gtk/gtkmenutoolbutton.c:290
+#: ../gtk/gtkmenutoolbutton.c:272
 msgid "Menu"
 msgstr "Меню"
 
-#: ../gtk/gtkmenutoolbutton.c:291
+#: ../gtk/gtkmenutoolbutton.c:273
 msgid "The dropdown menu"
 msgstr "Выпадающее меню"
 
-#: ../gtk/gtkmessagedialog.c:184
+#: ../gtk/gtkmessagedialog.c:188
 msgid "Image/label border"
 msgstr "Граница изображения/метки"
 
-#: ../gtk/gtkmessagedialog.c:185
+#: ../gtk/gtkmessagedialog.c:189
 msgid "Width of border around the label and image in the message dialog"
 msgstr "Ширина отступа вокруг метки и изображения в диалоге сообщения"
 
-#: ../gtk/gtkmessagedialog.c:209
+#: ../gtk/gtkmessagedialog.c:213
 msgid "Message Buttons"
 msgstr "Кнопки сообщения"
 
-#: ../gtk/gtkmessagedialog.c:210
+#: ../gtk/gtkmessagedialog.c:214
 msgid "The buttons shown in the message dialog"
 msgstr "Кнопки, отображаемые в диалоге сообщения"
 
-#: ../gtk/gtkmessagedialog.c:227
+#: ../gtk/gtkmessagedialog.c:231
 msgid "The primary text of the message dialog"
 msgstr "Главный текст диалога сообщения"
 
-#: ../gtk/gtkmessagedialog.c:242
+#: ../gtk/gtkmessagedialog.c:246
 msgid "Use Markup"
 msgstr "Использовать разметку"
 
-#: ../gtk/gtkmessagedialog.c:243
+#: ../gtk/gtkmessagedialog.c:247
 msgid "The primary text of the title includes Pango markup."
 msgstr "Главный текст диалога сообщения использует разметку Pango."
 
-#: ../gtk/gtkmessagedialog.c:257
+#: ../gtk/gtkmessagedialog.c:261
 msgid "Secondary Text"
 msgstr "Вторичный текст"
 
-#: ../gtk/gtkmessagedialog.c:258
+#: ../gtk/gtkmessagedialog.c:262
 msgid "The secondary text of the message dialog"
 msgstr "Вторичный текст диалога сообщения"
 
-#: ../gtk/gtkmessagedialog.c:273
+#: ../gtk/gtkmessagedialog.c:277
 msgid "Use Markup in secondary"
 msgstr "Использовать разметку во вторичном"
 
-#: ../gtk/gtkmessagedialog.c:274
+#: ../gtk/gtkmessagedialog.c:278
 msgid "The secondary text includes Pango markup."
 msgstr "Вторичный текст диалога сообщения использует разметку Pango."
 
-#: ../gtk/gtkmessagedialog.c:288
+#: ../gtk/gtkmessagedialog.c:292
 msgid "Image"
 msgstr "Изображение"
 
-#: ../gtk/gtkmessagedialog.c:289
+#: ../gtk/gtkmessagedialog.c:293
 msgid "The image"
 msgstr "Изображение"
 
-#: ../gtk/gtkmessagedialog.c:305
+#: ../gtk/gtkmessagedialog.c:309
 msgid "Message area"
 msgstr "Область сообщения"
 
-#: ../gtk/gtkmessagedialog.c:306
+#: ../gtk/gtkmessagedialog.c:310
 msgid "GtkVBox that holds the dialog's primary and secondary labels"
 msgstr "GtkVBox, в котором содержатся первичная и вторичная метки диалога"
 
@@ -4794,11 +4852,11 @@ msgstr "Значение параметра"
 msgid "Value of the option"
 msgstr "Значение параметра"
 
-#: ../gtk/gtkprinteroptionwidget.c:120
+#: ../gtk/gtkprinteroptionwidget.c:132
 msgid "Source option"
 msgstr "Параметры принтера"
 
-#: ../gtk/gtkprinteroptionwidget.c:121
+#: ../gtk/gtkprinteroptionwidget.c:133
 msgid "The PrinterOption backing this widget"
 msgstr "Объект PrinterOption, относящийся к этому элементу"
 
@@ -5120,11 +5178,11 @@ msgstr "Текущее значение"
 msgid "The value property of the currently active member of the group to which this action belongs."
 msgstr "Значение текущего активного элемента группы, к которой виджет принадлежит."
 
-#: ../gtk/gtkradiobutton.c:163
+#: ../gtk/gtkradiobutton.c:164
 msgid "The radio button whose group this widget belongs to."
 msgstr "Радио-кнопка, группе которого принадлежит этот виджет."
 
-#: ../gtk/gtkradiomenuitem.c:426
+#: ../gtk/gtkradiomenuitem.c:427
 msgid "The radio menu item whose group this widget belongs to."
 msgstr "Радио элемент меню, группе которого принадлежит этот виджет."
 
@@ -6352,6 +6410,19 @@ msgstr "Список целей вставки"
 msgid "The list of targets this buffer supports for clipboard pasting and DND destination"
 msgstr "Список целей, которые этот буфер может поддерживать при вставке из буфера обмена или при переносе мышью"
 
+#: ../gtk/gtktexthandle.c:469 ../gtk/gtktexthandle.c:470
+#: ../gtk/gtkwidget.c:993
+msgid "Parent widget"
+msgstr "Родительский виджет"
+
+#: ../gtk/gtktexthandle.c:477 ../gtk/gtkwidget.c:1184
+msgid "Window"
+msgstr "Окно"
+
+#: ../gtk/gtktexthandle.c:478
+msgid "Window the coordinates are based upon"
+msgstr "Окно, относительно которого считаются координаты"
+
 #: ../gtk/gtktextmark.c:127
 msgid "Mark name"
 msgstr "Имя отметки"
@@ -6973,35 +7044,35 @@ msgstr "Размер значка"
 msgid "The pixel size that icons should be forced to, or zero"
 msgstr "Размер значка в пикселях, к которому должны быть приведены значки, или ноль"
 
-#: ../gtk/gtktreemenu.c:285
+#: ../gtk/gtktreemenu.c:290
 msgid "TreeMenu model"
 msgstr "Модель TreeMenu"
 
-#: ../gtk/gtktreemenu.c:286
+#: ../gtk/gtktreemenu.c:291
 msgid "The model for the tree menu"
 msgstr "Модель для меню в виде дерева"
 
-#: ../gtk/gtktreemenu.c:308
+#: ../gtk/gtktreemenu.c:313
 msgid "TreeMenu root row"
 msgstr "Корневой элемент TreeMenu"
 
-#: ../gtk/gtktreemenu.c:309
+#: ../gtk/gtktreemenu.c:314
 msgid "The TreeMenu will display children of the specified root"
 msgstr "TreeMenu будет отображать потомков от указанного корневого элемента"
 
-#: ../gtk/gtktreemenu.c:342
+#: ../gtk/gtktreemenu.c:347
 msgid "Tearoff"
 msgstr "Линия разрыва"
 
-#: ../gtk/gtktreemenu.c:343
+#: ../gtk/gtktreemenu.c:348
 msgid "Whether the menu has a tearoff item"
 msgstr "Добавлять ли в меню элемент линии разрыва"
 
-#: ../gtk/gtktreemenu.c:359
+#: ../gtk/gtktreemenu.c:364
 msgid "Wrap Width"
 msgstr "Ширина переноса"
 
-#: ../gtk/gtktreemenu.c:360
+#: ../gtk/gtktreemenu.c:365
 msgid "Wrap width for laying out items in a grid"
 msgstr "Ширина размещения элементов в сетке"
 
@@ -7318,15 +7389,15 @@ msgstr "Идентификатор столбца сортировки"
 msgid "Logical sort column ID this column sorts on when selected for sorting"
 msgstr "Логический идентификатор сортировки, по которому производится сортировка этого столбца, когда он выделен для сортировки"
 
-#: ../gtk/gtkuimanager.c:483
+#: ../gtk/gtkuimanager.c:488
 msgid "Whether tearoff menu items should be added to menus"
 msgstr "Следует ли добавлять отделённые меню к меню"
 
-#: ../gtk/gtkuimanager.c:490
+#: ../gtk/gtkuimanager.c:495
 msgid "Merged UI definition"
 msgstr "Объединённое определение интерфейса"
 
-#: ../gtk/gtkuimanager.c:491
+#: ../gtk/gtkuimanager.c:496
 msgid "An XML string describing the merged UI"
 msgstr "Строка в формате XML, описывающая объединённый интерфейс"
 

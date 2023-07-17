@@ -1967,7 +1967,7 @@ msgstr "Обвивка zsh"
 msgid "Cannot end process with PID %d: %s"
 msgstr "Процесът с ид. пр. %d не може да бъде приключен: %s"
 
-#: ../gtk/gtknotebook.c:5045 ../gtk/gtknotebook.c:7699
+#: ../gtk/gtknotebook.c:5051 ../gtk/gtknotebook.c:7705
 #, c-format
 msgid "Page %u"
 msgstr "Страница %u"

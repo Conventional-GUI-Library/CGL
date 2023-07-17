@@ -139,7 +139,7 @@ msgstr "Résolution de la police"
 msgid "The resolution for fonts on the screen"
 msgstr "La résolution des polices à l'écran"
 
-#: ../gdk/gdkwindow.c:366 ../gdk/gdkwindow.c:367
+#: ../gdk/gdkwindow.c:403 ../gdk/gdkwindow.c:404
 msgid "Cursor"
 msgstr "Curseur"
 
@@ -600,8 +600,7 @@ msgstr "Élément graphique accélérateur"
 
 #: ../gtk/gtkaccellabel.c:193
 msgid "The widget to be monitored for accelerator changes"
-msgstr ""
-"L'élément graphique à surveiller pour les modifications d'accélérateur"
+msgstr "L'élément graphique à surveiller pour les modifications d'accélérateur"
 
 #: ../gtk/gtkaccessible.c:158 ../gtk/gtktreeviewcolumn.c:355
 msgid "Widget"
@@ -672,8 +671,8 @@ msgstr "Icône prédéfinie"
 #: ../gtk/gtkaction.c:282
 msgid "The stock icon displayed in widgets representing this action."
 msgstr ""
-"L'icône prédéfinie affichée dans les éléments graphiques représentant "
-"cette action."
+"L'icône prédéfinie affichée dans les éléments graphiques représentant cette "
+"action."
 
 #: ../gtk/gtkaction.c:302 ../gtk/gtkstatusicon.c:262
 msgid "GIcon"
@@ -790,17 +789,25 @@ msgstr "Toujours afficher l'image"
 msgid "Whether the image will always be shown"
 msgstr "Indique si l'image doit toujours être affichée"
 
-#: ../gtk/gtkactiongroup.c:227
+#: ../gtk/gtkactiongroup.c:229
 msgid "A name for the action group."
 msgstr "Un nom pour le groupe d'actions."
 
-#: ../gtk/gtkactiongroup.c:234
+#: ../gtk/gtkactiongroup.c:236
 msgid "Whether the action group is enabled."
 msgstr "Indique si le groupe d'actions est activé."
 
-#: ../gtk/gtkactiongroup.c:241
+#: ../gtk/gtkactiongroup.c:243
 msgid "Whether the action group is visible."
 msgstr "Indique si le groupe d'actions est visible."
+
+#: ../gtk/gtkactiongroup.c:249
+msgid "Accelerator Group"
+msgstr "Group d'accélérateurs"
+
+#: ../gtk/gtkactiongroup.c:250
+msgid "The accelerator group the actions of this group should use."
+msgstr "Le groupe d'accélérateurs que l'action de ce groupe devrait utiliser."
 
 #: ../gtk/gtkactivatable.c:287
 msgid "Related Action"
@@ -4531,23 +4538,23 @@ msgid ""
 msgstr ""
 "L'espacement à ajouter en haut et en bas de l'élément graphique, en pixels"
 
-#: ../gtk/gtkmountoperation.c:162 ../gtk/gtkstylecontext.c:465
+#: ../gtk/gtkmountoperation.c:163 ../gtk/gtkstylecontext.c:465
 msgid "Parent"
 msgstr "Parent"
 
-#: ../gtk/gtkmountoperation.c:163
+#: ../gtk/gtkmountoperation.c:164
 msgid "The parent window"
 msgstr "La fenêtre parent"
 
-#: ../gtk/gtkmountoperation.c:170
+#: ../gtk/gtkmountoperation.c:171
 msgid "Is Showing"
 msgstr "Est affiché"
 
-#: ../gtk/gtkmountoperation.c:171
+#: ../gtk/gtkmountoperation.c:172
 msgid "Are we showing a dialog"
 msgstr "Indique si une boîte de dialogue est en cours d'affichage"
 
-#: ../gtk/gtkmountoperation.c:179
+#: ../gtk/gtkmountoperation.c:180
 msgid "The screen where this window will be displayed."
 msgstr "L'écran où cette fenêtre sera affichée."
 
@@ -4961,11 +4968,11 @@ msgstr "Valeur de l'option"
 msgid "Value of the option"
 msgstr "Valeur de l'option"
 
-#: ../gtk/gtkprinteroptionwidget.c:120
+#: ../gtk/gtkprinteroptionwidget.c:132
 msgid "Source option"
 msgstr "Option de source"
 
-#: ../gtk/gtkprinteroptionwidget.c:121
+#: ../gtk/gtkprinteroptionwidget.c:133
 msgid "The PrinterOption backing this widget"
 msgstr "L'objet PrinterOption correspondant à l'élément graphique"
 
@@ -5697,43 +5704,43 @@ msgstr ""
 "Afficher un second bouton fléché d'avancement à l'extrémité opposée de la "
 "barre de défilement"
 
-#: ../gtk/gtkscrolledwindow.c:366
+#: ../gtk/gtkscrolledwindow.c:372
 msgid "Horizontal Adjustment"
 msgstr "Ajustement horizontal"
 
-#: ../gtk/gtkscrolledwindow.c:367
+#: ../gtk/gtkscrolledwindow.c:373
 msgid "The GtkAdjustment for the horizontal position"
 msgstr "L'objet GtkAdjustement pour la position horizontale"
 
-#: ../gtk/gtkscrolledwindow.c:373
+#: ../gtk/gtkscrolledwindow.c:379
 msgid "Vertical Adjustment"
 msgstr "Ajustement vertical"
 
-#: ../gtk/gtkscrolledwindow.c:374
+#: ../gtk/gtkscrolledwindow.c:380
 msgid "The GtkAdjustment for the vertical position"
 msgstr "L'objet GtkAdjustement pour la position verticale"
 
-#: ../gtk/gtkscrolledwindow.c:380
+#: ../gtk/gtkscrolledwindow.c:386
 msgid "Horizontal Scrollbar Policy"
 msgstr "Politique d'affichage des barres de défilement horizontal"
 
-#: ../gtk/gtkscrolledwindow.c:381
+#: ../gtk/gtkscrolledwindow.c:387
 msgid "When the horizontal scrollbar is displayed"
 msgstr "Quand la barre de défilement horizontal est affichée"
 
-#: ../gtk/gtkscrolledwindow.c:388
+#: ../gtk/gtkscrolledwindow.c:394
 msgid "Vertical Scrollbar Policy"
 msgstr "Politique d'affichage des barres de défilement vertical"
 
-#: ../gtk/gtkscrolledwindow.c:389
+#: ../gtk/gtkscrolledwindow.c:395
 msgid "When the vertical scrollbar is displayed"
 msgstr "Quand la barre de défilement vertical est affichée"
 
-#: ../gtk/gtkscrolledwindow.c:397
+#: ../gtk/gtkscrolledwindow.c:403
 msgid "Window Placement"
 msgstr "Emplacement de la fenêtre"
 
-#: ../gtk/gtkscrolledwindow.c:398
+#: ../gtk/gtkscrolledwindow.c:404
 msgid ""
 "Where the contents are located with respect to the scrollbars. This property "
 "only takes effect if \"window-placement-set\" is TRUE."
@@ -5742,11 +5749,11 @@ msgstr ""
 "propriété n'a d'effet que si la propriété « window-placement-"
 "set » (placement de la fenêtre défini) est vrai (TRUE)."
 
-#: ../gtk/gtkscrolledwindow.c:415
+#: ../gtk/gtkscrolledwindow.c:421
 msgid "Window Placement Set"
 msgstr "Placement de la fenêtre défini"
 
-#: ../gtk/gtkscrolledwindow.c:416
+#: ../gtk/gtkscrolledwindow.c:422
 msgid ""
 "Whether \"window-placement\" should be used to determine the location of the "
 "contents with respect to the scrollbars."
@@ -5755,55 +5762,55 @@ msgstr ""
 "pour déterminer l'emplacement du contenu par rapport aux barres de "
 "défilement."
 
-#: ../gtk/gtkscrolledwindow.c:422
+#: ../gtk/gtkscrolledwindow.c:428
 msgid "Shadow Type"
 msgstr "Type d'ombre"
 
-#: ../gtk/gtkscrolledwindow.c:423
+#: ../gtk/gtkscrolledwindow.c:429
 msgid "Style of bevel around the contents"
 msgstr "Style de mise en relief autour du contenu"
 
-#: ../gtk/gtkscrolledwindow.c:437
+#: ../gtk/gtkscrolledwindow.c:443
 msgid "Scrollbars within bevel"
 msgstr "Barres de défilement à l'intérieur de l'encadrement"
 
-#: ../gtk/gtkscrolledwindow.c:438
+#: ../gtk/gtkscrolledwindow.c:444
 msgid "Place scrollbars within the scrolled window's bevel"
 msgstr ""
 "Place les barres de défilement à l'intérieur de l'encadrement de la fenêtre "
 "défilante"
 
-#: ../gtk/gtkscrolledwindow.c:444
+#: ../gtk/gtkscrolledwindow.c:450
 msgid "Scrollbar spacing"
 msgstr "Espacement de la barre de défilement"
 
-#: ../gtk/gtkscrolledwindow.c:445
+#: ../gtk/gtkscrolledwindow.c:451
 msgid "Number of pixels between the scrollbars and the scrolled window"
 msgstr ""
 "Nombre de pixels entre les barres de défilement et la fenêtre défilante"
 
-#: ../gtk/gtkscrolledwindow.c:461
+#: ../gtk/gtkscrolledwindow.c:467
 msgid "Minimum Content Width"
 msgstr "Largeur minimale du contenu"
 
-#: ../gtk/gtkscrolledwindow.c:462
+#: ../gtk/gtkscrolledwindow.c:468
 msgid "The minimum width that the scrolled window will allocate to its content"
 msgstr "La largeur minimale que la fenêtre défilante alloue à son contenu"
 
-#: ../gtk/gtkscrolledwindow.c:476
+#: ../gtk/gtkscrolledwindow.c:482
 msgid "Minimum Content Height"
 msgstr "Hauteur minimale du contenu"
 
-#: ../gtk/gtkscrolledwindow.c:477
+#: ../gtk/gtkscrolledwindow.c:483
 msgid ""
 "The minimum height that the scrolled window will allocate to its content"
 msgstr "La hauteur minimale que la fenêtre défilante alloue à son contenu"
 
-#: ../gtk/gtkscrolledwindow.c:492
+#: ../gtk/gtkscrolledwindow.c:498
 msgid "Kinetic Scrolling"
 msgstr "Défilement cinétique"
 
-#: ../gtk/gtkscrolledwindow.c:493
+#: ../gtk/gtkscrolledwindow.c:499
 msgid "Kinetic scrolling mode."
 msgstr "Mode de défilement cinétique."
 
@@ -6705,6 +6712,19 @@ msgstr ""
 "La liste des cibles que ce tampon prend en charge pour le collage du presse-"
 "papiers ou comme destination du glisser-déposer"
 
+#: ../gtk/gtktexthandle.c:469 ../gtk/gtktexthandle.c:470
+#: ../gtk/gtkwidget.c:993
+msgid "Parent widget"
+msgstr "Élément graphique parent"
+
+#: ../gtk/gtktexthandle.c:477 ../gtk/gtkwidget.c:1184
+msgid "Window"
+msgstr "Fenêtre"
+
+#: ../gtk/gtktexthandle.c:478
+msgid "Window the coordinates are based upon"
+msgstr "Fenêtre sur laquelle les coordonnées sont basées"
+
 #: ../gtk/gtktextmark.c:127
 msgid "Mark name"
 msgstr "Nom de marque"
@@ -7011,63 +7031,63 @@ msgstr "Arrière-plan du paragraphe défini"
 msgid "Whether this tag affects the paragraph background color"
 msgstr "Indique si cette balise affecte la couleur de fond du paragraphe"
 
-#: ../gtk/gtktextview.c:656
+#: ../gtk/gtktextview.c:672
 msgid "Pixels Above Lines"
 msgstr "Pixels au-dessus des lignes"
 
-#: ../gtk/gtktextview.c:666
+#: ../gtk/gtktextview.c:682
 msgid "Pixels Below Lines"
 msgstr "Pixels au-dessous des lignes"
 
-#: ../gtk/gtktextview.c:676
+#: ../gtk/gtktextview.c:692
 msgid "Pixels Inside Wrap"
 msgstr "Pixels entre coupures"
 
-#: ../gtk/gtktextview.c:694
+#: ../gtk/gtktextview.c:710
 msgid "Wrap Mode"
 msgstr "Mode de coupure"
 
-#: ../gtk/gtktextview.c:712
+#: ../gtk/gtktextview.c:728
 msgid "Left Margin"
 msgstr "Marge gauche"
 
-#: ../gtk/gtktextview.c:722
+#: ../gtk/gtktextview.c:738
 msgid "Right Margin"
 msgstr "Marge droite"
 
-#: ../gtk/gtktextview.c:750
+#: ../gtk/gtktextview.c:766
 msgid "Cursor Visible"
 msgstr "Curseur visible"
 
-#: ../gtk/gtktextview.c:751
+#: ../gtk/gtktextview.c:767
 msgid "If the insertion cursor is shown"
 msgstr "Indique si le curseur d'insertion est affiché"
 
-#: ../gtk/gtktextview.c:758
+#: ../gtk/gtktextview.c:774
 msgid "Buffer"
 msgstr "Tampon"
 
-#: ../gtk/gtktextview.c:759
+#: ../gtk/gtktextview.c:775
 msgid "The buffer which is displayed"
 msgstr "Le tampon affiché"
 
-#: ../gtk/gtktextview.c:767
+#: ../gtk/gtktextview.c:783
 msgid "Whether entered text overwrites existing contents"
 msgstr "Indique si le texte saisi écrase le contenu existant"
 
-#: ../gtk/gtktextview.c:774
+#: ../gtk/gtktextview.c:790
 msgid "Accepts tab"
 msgstr "Accepte les tabulations"
 
-#: ../gtk/gtktextview.c:775
+#: ../gtk/gtktextview.c:791
 msgid "Whether Tab will result in a tab character being entered"
 msgstr "Indique si la touche tabulation insère un caractère tabulation"
 
-#: ../gtk/gtktextview.c:846
+#: ../gtk/gtktextview.c:862
 msgid "Error underline color"
 msgstr "Couleur de soulignement des erreurs"
 
-#: ../gtk/gtktextview.c:847
+#: ../gtk/gtktextview.c:863
 msgid "Color with which to draw error-indication underlines"
 msgstr "Couleur utilisée pour souligner les erreurs"
 
@@ -7784,10 +7804,6 @@ msgstr "Nom de l'élément graphique"
 msgid "The name of the widget"
 msgstr "Le nom de l'élément graphique"
 
-#: ../gtk/gtkwidget.c:993
-msgid "Parent widget"
-msgstr "Élément graphique parent"
-
 #: ../gtk/gtkwidget.c:994
 msgid "The parent widget of this widget. Must be a Container widget"
 msgstr ""
@@ -7928,10 +7944,6 @@ msgstr ""
 #: ../gtk/gtkwidget.c:1128
 msgid "Whether this widget has a tooltip"
 msgstr "Indique si l'élément graphique dispose d'une infobulle"
-
-#: ../gtk/gtkwidget.c:1184
-msgid "Window"
-msgstr "Fenêtre"
 
 #: ../gtk/gtkwidget.c:1185
 msgid "The widget's window if it is realized"

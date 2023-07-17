@@ -159,7 +159,7 @@ msgstr "ફોન્ટ રીઝોલ્યુશન"
 msgid "The resolution for fonts on the screen"
 msgstr "સ્ક્રીન પર ફોન્ટ માટેનું રીઝોલ્યુશન"
 
-#: ../gdk/gdkwindow.c:366 ../gdk/gdkwindow.c:367
+#: ../gdk/gdkwindow.c:384 ../gdk/gdkwindow.c:385
 msgid "Cursor"
 msgstr "કર્સર"
 
@@ -578,19 +578,19 @@ msgstr "લાઈસન્સ લપેટો"
 msgid "Whether to wrap the license text."
 msgstr "શું લાઈસન્સ લખાણ લપેટવાનું છે."
 
-#: ../gtk/gtkaccellabel.c:185
+#: ../gtk/gtkaccellabel.c:188
 msgid "Accelerator Closure"
 msgstr "પ્રવેગ બંધ કરો"
 
-#: ../gtk/gtkaccellabel.c:186
+#: ../gtk/gtkaccellabel.c:189
 msgid "The closure to be monitored for accelerator changes"
 msgstr "પ્રવેગમાં થતા બદલાવો માટે બંધ કરવાની પ્રક્રિયાનું નિરીક્ષણ કરો"
 
-#: ../gtk/gtkaccellabel.c:192
+#: ../gtk/gtkaccellabel.c:195
 msgid "Accelerator Widget"
 msgstr "પ્રવેગ વિજેટ"
 
-#: ../gtk/gtkaccellabel.c:193
+#: ../gtk/gtkaccellabel.c:196
 msgid "The widget to be monitored for accelerator changes"
 msgstr "પ્રવેગમાં થતા બદલાવો માટે વિજેટનું નિરીક્ષણ કરો"
 
@@ -1104,7 +1104,7 @@ msgstr "તીરનું માપન"
 msgid "Amount of space used up by arrow"
 msgstr "તીર દ્વારા વાપરવામાં આવતી જગ્યાનો જથ્થો"
 
-#: ../gtk/gtkaspectframe.c:107 ../gtk/gtkwidget.c:1211
+#: ../gtk/gtkaspectframe.c:107 ../gtk/gtkwidget.c:1213
 msgid "Horizontal Alignment"
 msgstr "આડી કતારબંધ ગોઠવણી"
 
@@ -1112,7 +1112,7 @@ msgstr "આડી કતારબંધ ગોઠવણી"
 msgid "X alignment of the child"
 msgstr "બાળની X દિશામાં ગોઠવણી"
 
-#: ../gtk/gtkaspectframe.c:114 ../gtk/gtkwidget.c:1227
+#: ../gtk/gtkaspectframe.c:114 ../gtk/gtkwidget.c:1229
 msgid "Vertical Alignment"
 msgstr "ઉભી કતારબંધ ગોઠવણી"
 
@@ -4275,39 +4275,39 @@ msgstr "નીચેથી જોડાયેલુ"
 msgid "Arbitrary constant to scale down the size of the scroll arrow"
 msgstr "સરક તીરના માપને નીચે કરવા માટેનો અંશતઃ અચળ"
 
-#: ../gtk/gtkmenuitem.c:328
+#: ../gtk/gtkmenuitem.c:382
 msgid "Right Justified"
 msgstr "જમણેથી ગોઠવાયેલ"
 
-#: ../gtk/gtkmenuitem.c:329
+#: ../gtk/gtkmenuitem.c:383
 msgid "Sets whether the menu item appears justified at the right side of a menu bar"
 msgstr "શું મેનુ વસ્તુ મેનુ પટ્ટીની જમણી બાજુએ ગોઠવાયેલ દેખાશે કે નહિં તે સુયોજીત કરે છે"
 
-#: ../gtk/gtkmenuitem.c:343
+#: ../gtk/gtkmenuitem.c:397
 msgid "Submenu"
 msgstr "ઉપમેનુ"
 
-#: ../gtk/gtkmenuitem.c:344
+#: ../gtk/gtkmenuitem.c:398
 msgid "The submenu attached to the menu item, or NULL if it has none"
 msgstr "મેનુ વસ્તુ સાથે જોડાયેલ ઉપમેનુ, અથવા NULL જો તેની પાસે કંઈ નહિં હોય"
 
-#: ../gtk/gtkmenuitem.c:361
+#: ../gtk/gtkmenuitem.c:415
 msgid "Sets the accelerator path of the menu item"
 msgstr "મેનુ વસ્તુનાં પ્રવેગક પાથ ને સુયોજિત કરો"
 
-#: ../gtk/gtkmenuitem.c:376
+#: ../gtk/gtkmenuitem.c:430
 msgid "The text for the child label"
 msgstr "બાળ લેબલ માટે લખાણ"
 
-#: ../gtk/gtkmenuitem.c:439
+#: ../gtk/gtkmenuitem.c:496
 msgid "Amount of space used up by arrow, relative to the menu item's font size"
 msgstr "તીર દ્વારા વાપરવામાં આવતી જગ્યાનો જથ્થો, ફોન્ટ માપની મેનુ વસ્તુને સંબંધિત"
 
-#: ../gtk/gtkmenuitem.c:452
+#: ../gtk/gtkmenuitem.c:509
 msgid "Width in Characters"
 msgstr "અક્ષરોમાં પહોળાઈ"
 
-#: ../gtk/gtkmenuitem.c:453
+#: ../gtk/gtkmenuitem.c:510
 msgid "The minimum desired width of the menu item in characters"
 msgstr "અક્ષરોમાં મેનુ વસ્તુની ન્યૂનત્તમ ઇચ્છિત પહોળાઇ"
 
@@ -4842,11 +4842,11 @@ msgstr "વિકલ્પ કિંમત"
 msgid "Value of the option"
 msgstr "વિકલ્પની કિંમત"
 
-#: ../gtk/gtkprinteroptionwidget.c:120
+#: ../gtk/gtkprinteroptionwidget.c:132
 msgid "Source option"
 msgstr "સ્રોત વિકલ્પ"
 
-#: ../gtk/gtkprinteroptionwidget.c:121
+#: ../gtk/gtkprinteroptionwidget.c:133
 msgid "The PrinterOption backing this widget"
 msgstr "PrinterOption આ વિજેટને બેક કરી રહ્યું છે"
 
@@ -5182,7 +5182,7 @@ msgid ""
 "action belongs."
 msgstr "જૂથના વર્તમાનમાં સક્રિય સભ્યનો કિંમત ગુણધર્મ કે જેમાં આ ક્રિયા અનુલક્ષે છે."
 
-#: ../gtk/gtkradiobutton.c:163
+#: ../gtk/gtkradiobutton.c:164
 msgid "The radio button whose group this widget belongs to."
 msgstr "રેડિયો બટન કે જેનું જૂથ આ વિજેટને અનુસરે છે."
 
@@ -5539,43 +5539,43 @@ msgstr "ખસેડવાની પટ્ટીના બીજા છેડા
 msgid "Display a second forward arrow button on the opposite end of the scrollbar"
 msgstr "બીજું આગળ ધપાવો તીર બટન સરકપટ્ટીના વિરુદ્ધ અંત પર દર્શાવો"
 
-#: ../gtk/gtkscrolledwindow.c:366
+#: ../gtk/gtkscrolledwindow.c:372
 msgid "Horizontal Adjustment"
 msgstr "આડી વ્યવસ્થિત ગોઠવણી"
 
-#: ../gtk/gtkscrolledwindow.c:367
+#: ../gtk/gtkscrolledwindow.c:373
 msgid "The GtkAdjustment for the horizontal position"
 msgstr "આડી સ્થિતિ માટે GtkAdjustment"
 
-#: ../gtk/gtkscrolledwindow.c:373
+#: ../gtk/gtkscrolledwindow.c:379
 msgid "Vertical Adjustment"
 msgstr "ઊભી વ્યવસ્થિત ગોઠવણી"
 
-#: ../gtk/gtkscrolledwindow.c:374
+#: ../gtk/gtkscrolledwindow.c:380
 msgid "The GtkAdjustment for the vertical position"
 msgstr "ઊભી સ્થિતિ માટે GtkAdjustment"
 
-#: ../gtk/gtkscrolledwindow.c:380
+#: ../gtk/gtkscrolledwindow.c:386
 msgid "Horizontal Scrollbar Policy"
 msgstr "આડી ખસેડવાની પટ્ટીની નીતિ"
 
-#: ../gtk/gtkscrolledwindow.c:381
+#: ../gtk/gtkscrolledwindow.c:387
 msgid "When the horizontal scrollbar is displayed"
 msgstr "આડી ખસેડવાની પટ્ટી ક્યારે દર્શાવવામાં આવે છે"
 
-#: ../gtk/gtkscrolledwindow.c:388
+#: ../gtk/gtkscrolledwindow.c:394
 msgid "Vertical Scrollbar Policy"
 msgstr "ઊભી ખસેડવાની પટ્ટીની નીતિ"
 
-#: ../gtk/gtkscrolledwindow.c:389
+#: ../gtk/gtkscrolledwindow.c:395
 msgid "When the vertical scrollbar is displayed"
 msgstr "ઊભી ખસેડવાની પટ્ટીને ક્યારે દર્શાવવામાં આવે છે"
 
-#: ../gtk/gtkscrolledwindow.c:397
+#: ../gtk/gtkscrolledwindow.c:403
 msgid "Window Placement"
 msgstr "વિન્ડોની ગોઠવણી"
 
-#: ../gtk/gtkscrolledwindow.c:398
+#: ../gtk/gtkscrolledwindow.c:404
 msgid ""
 "Where the contents are located with respect to the scrollbars. This property "
 "only takes effect if \"window-placement-set\" is TRUE."
@@ -5583,11 +5583,11 @@ msgstr ""
 "સરકપટ્ટીઓને સંબંધિત સમાવિષ્ટો ક્યાં સ્થિત થયેલ છે. આ ગુણધર્મ માત્ર ત્યારે જ અસરમાં આવે છે જો "
 "\"window-placement-set\" એ TRUE ખરું તરીકે સુયોજિત થયેલ હોય."
 
-#: ../gtk/gtkscrolledwindow.c:415
+#: ../gtk/gtkscrolledwindow.c:421
 msgid "Window Placement Set"
 msgstr "વિન્ડોની ગોઠવણી સમૂહ"
 
-#: ../gtk/gtkscrolledwindow.c:416
+#: ../gtk/gtkscrolledwindow.c:422
 msgid ""
 "Whether \"window-placement\" should be used to determine the location of the "
 "contents with respect to the scrollbars."
@@ -5595,55 +5595,55 @@ msgstr ""
 "શું \"વિન્ડો-ગોઠવણી\" એ સરકપટ્ટીઓને અનુલક્ષીને સમાવિષ્ટોનું સ્થાન નક્કી કરવા માટે વપરાવું "
 "જોઈએ."
 
-#: ../gtk/gtkscrolledwindow.c:422
+#: ../gtk/gtkscrolledwindow.c:428
 msgid "Shadow Type"
 msgstr "પડછાયાનો પ્રકાર"
 
-#: ../gtk/gtkscrolledwindow.c:423
+#: ../gtk/gtkscrolledwindow.c:429
 msgid "Style of bevel around the contents"
 msgstr "સમાવિષ્ટ વસ્તુની આસપાસ ઉઠાવનો પ્રકાર"
 
-#: ../gtk/gtkscrolledwindow.c:437
+#: ../gtk/gtkscrolledwindow.c:443
 msgid "Scrollbars within bevel"
 msgstr "bevel માં સરકપટ્ટીઓ"
 
-#: ../gtk/gtkscrolledwindow.c:438
+#: ../gtk/gtkscrolledwindow.c:444
 msgid "Place scrollbars within the scrolled window's bevel"
 msgstr "સરકાવાયેલ વિન્ડોની bevel માં સરકપટ્ટીઓ મૂકો"
 
-#: ../gtk/gtkscrolledwindow.c:444
+#: ../gtk/gtkscrolledwindow.c:450
 msgid "Scrollbar spacing"
 msgstr "ખસેડવાની પટ્ટી વચ્ચેની જગ્યા"
 
-#: ../gtk/gtkscrolledwindow.c:445
+#: ../gtk/gtkscrolledwindow.c:451
 msgid "Number of pixels between the scrollbars and the scrolled window"
 msgstr "ખસેડવાની પટ્ટી અને ખસેડાયેલી વિન્ડો વચ્ચે પિક્સેલની સંખ્યા"
 
-#: ../gtk/gtkscrolledwindow.c:461
+#: ../gtk/gtkscrolledwindow.c:467
 #, fuzzy
 #| msgid "Minimum Width"
 msgid "Minimum Content Width"
 msgstr "ન્યૂનતમ પહોળાઈ"
 
-#: ../gtk/gtkscrolledwindow.c:462
+#: ../gtk/gtkscrolledwindow.c:468
 msgid "The minimum width that the scrolled window will allocate to its content"
 msgstr ""
 
-#: ../gtk/gtkscrolledwindow.c:476
+#: ../gtk/gtkscrolledwindow.c:482
 #, fuzzy
 #| msgid "Minimum child height"
 msgid "Minimum Content Height"
 msgstr "બાળની ન્યૂનત્તમ ઊંચાઈ"
 
-#: ../gtk/gtkscrolledwindow.c:477
+#: ../gtk/gtkscrolledwindow.c:483
 msgid "The minimum height that the scrolled window will allocate to its content"
 msgstr ""
 
-#: ../gtk/gtkscrolledwindow.c:492
+#: ../gtk/gtkscrolledwindow.c:498
 msgid "Kinetic Scrolling"
 msgstr ""
 
-#: ../gtk/gtkscrolledwindow.c:493
+#: ../gtk/gtkscrolledwindow.c:499
 msgid "Kinetic scrolling mode."
 msgstr ""
 
@@ -6486,6 +6486,19 @@ msgid ""
 "destination"
 msgstr "ક્લિપબોર્ડ ચોંટાડવા અને DND લક્ષ્ય માટે લક્ષ્યોની યાદી કે જેને આ બફર આધાર આપે છે"
 
+#: ../gtk/gtktexthandle.c:469 ../gtk/gtktexthandle.c:470
+#: ../gtk/gtkwidget.c:992
+msgid "Parent widget"
+msgstr "પિતૃ વિજેટ"
+
+#: ../gtk/gtktexthandle.c:477 ../gtk/gtkwidget.c:1183
+msgid "Window"
+msgstr "વિન્ડો"
+
+#: ../gtk/gtktexthandle.c:478
+msgid "Window the coordinates are based upon"
+msgstr ""
+
 #: ../gtk/gtktextmark.c:127
 msgid "Mark name"
 msgstr "ચિહ્ન નામ"
@@ -6779,63 +6792,63 @@ msgstr "ફકરાનો પાશ્વ ભાગ સુયોજિત છ�
 msgid "Whether this tag affects the paragraph background color"
 msgstr "શું આ ટેગ ફકરાના પાશ્વ ભાગના રંગને અસર કરે છે"
 
-#: ../gtk/gtktextview.c:654
+#: ../gtk/gtktextview.c:672
 msgid "Pixels Above Lines"
 msgstr "લીટીઓની ઉપરના પિક્સેલ"
 
-#: ../gtk/gtktextview.c:664
+#: ../gtk/gtktextview.c:682
 msgid "Pixels Below Lines"
 msgstr "લીટાઓની નીચેના પિકસેલ"
 
-#: ../gtk/gtktextview.c:674
+#: ../gtk/gtktextview.c:692
 msgid "Pixels Inside Wrap"
 msgstr "લપેટાયેલા ભાગની અંદરના પિક્સેલ"
 
-#: ../gtk/gtktextview.c:692
+#: ../gtk/gtktextview.c:710
 msgid "Wrap Mode"
 msgstr "લપેટવાની સ્થિતિ"
 
-#: ../gtk/gtktextview.c:710
+#: ../gtk/gtktextview.c:728
 msgid "Left Margin"
 msgstr "ડાબો હાંસ્યો"
 
-#: ../gtk/gtktextview.c:720
+#: ../gtk/gtktextview.c:738
 msgid "Right Margin"
 msgstr "જમણો હાંસ્યો"
 
-#: ../gtk/gtktextview.c:748
+#: ../gtk/gtktextview.c:766
 msgid "Cursor Visible"
 msgstr "કર્સર દૃશ્યમાન છે"
 
-#: ../gtk/gtktextview.c:749
+#: ../gtk/gtktextview.c:767
 msgid "If the insertion cursor is shown"
 msgstr "જો દાખલ કરવા માટેનુ કર્સર બતાવેલુ હોય તો"
 
-#: ../gtk/gtktextview.c:756
+#: ../gtk/gtktextview.c:774
 msgid "Buffer"
 msgstr "બફર"
 
-#: ../gtk/gtktextview.c:757
+#: ../gtk/gtktextview.c:775
 msgid "The buffer which is displayed"
 msgstr "બફર કે જે દર્શાવાય છે"
 
-#: ../gtk/gtktextview.c:765
+#: ../gtk/gtktextview.c:783
 msgid "Whether entered text overwrites existing contents"
 msgstr "શું દાખલ થયેલ લખાણ વર્તમાન સમાવિષ્ટો પર ફરીથી લખે છે"
 
-#: ../gtk/gtktextview.c:772
+#: ../gtk/gtktextview.c:790
 msgid "Accepts tab"
 msgstr "ટેબ સ્વીકારે છે"
 
-#: ../gtk/gtktextview.c:773
+#: ../gtk/gtktextview.c:791
 msgid "Whether Tab will result in a tab character being entered"
 msgstr "શું ટેબ ટેબ અક્ષરો દાખલ થાય તેમાં પરિણમશે"
 
-#: ../gtk/gtktextview.c:808
+#: ../gtk/gtktextview.c:862
 msgid "Error underline color"
 msgstr "અગ્ર ભાગનો રંગ"
 
-#: ../gtk/gtktextview.c:809
+#: ../gtk/gtktextview.c:863
 msgid "Color with which to draw error-indication underlines"
 msgstr "રંગ કે જેનાથી દાખલ કરવા માટેનું કર્સર દોરાય છે"
 
@@ -7533,111 +7546,107 @@ msgstr "અગ્ર ભાગના રંગને વાક્ય તરી�
 msgid "Whether to use symbolic icons"
 msgstr "શું કર્સરને ઝબકતુ કરવુ જોઈએ"
 
-#: ../gtk/gtkwidget.c:983
+#: ../gtk/gtkwidget.c:985
 msgid "Widget name"
 msgstr "વિજેટ નામ"
 
-#: ../gtk/gtkwidget.c:984
+#: ../gtk/gtkwidget.c:986
 msgid "The name of the widget"
 msgstr "વિન્ડોનો પ્રકાર"
 
-#: ../gtk/gtkwidget.c:990
-msgid "Parent widget"
-msgstr "પિતૃ વિજેટ"
-
-#: ../gtk/gtkwidget.c:991
+#: ../gtk/gtkwidget.c:993
 msgid "The parent widget of this widget. Must be a Container widget"
 msgstr "આ વિજેટનું પિતૃ વિજેટ. આ એક સમાવનાર વિજેટ હોવો જોઈએ"
 
-#: ../gtk/gtkwidget.c:998
+#: ../gtk/gtkwidget.c:1000
 msgid "Width request"
 msgstr "પહોળાઈ માટેની વિનંતી"
 
-#: ../gtk/gtkwidget.c:999
+#: ../gtk/gtkwidget.c:1001
 msgid ""
 "Override for width request of the widget, or -1 if natural request should be "
 "used"
 msgstr "વિજેટને પહોળુ કરવાની વિનંતીને દબાવી દો, અથવા તો જો કુદરતી વિનંતી હોય તો -૧વાપરવુ જાેઇએ"
 
-#: ../gtk/gtkwidget.c:1007
+#: ../gtk/gtkwidget.c:1009
 msgid "Height request"
 msgstr "ઊંચાઈ માટેની વિનંતી"
 
-#: ../gtk/gtkwidget.c:1008
+#: ../gtk/gtkwidget.c:1010
 msgid ""
 "Override for height request of the widget, or -1 if natural request should "
 "be used"
 msgstr "વિજેટને ઊંચુ કરવાની વિનંતીને દબાવી દો, અથવા તો જો એ કુદરતી વિનંતી હોય તો -૧વાપરવુ જાેઇએ"
 
-#: ../gtk/gtkwidget.c:1017
+#: ../gtk/gtkwidget.c:1019
 msgid "Whether the widget is visible"
 msgstr "શું વિજેટ દૃશ્યમાન છે"
 
-#: ../gtk/gtkwidget.c:1024
+#: ../gtk/gtkwidget.c:1026
 msgid "Whether the widget responds to input"
 msgstr "શું વિજેટ ઈનપુટને પ્રતિસાદ આપે છે"
 
-#: ../gtk/gtkwidget.c:1030
+#: ../gtk/gtkwidget.c:1032
 msgid "Application paintable"
 msgstr "દોરી શકાય તેવો કાર્યક્રમ"
 
-#: ../gtk/gtkwidget.c:1031
+#: ../gtk/gtkwidget.c:1033
 msgid "Whether the application will paint directly on the widget"
 msgstr "શું કાર્યક્રમ વિજેટની ઉપર સીધુ દોરશે"
 
-#: ../gtk/gtkwidget.c:1037
+#: ../gtk/gtkwidget.c:1039
 msgid "Can focus"
 msgstr "પ્રકાશિત કરી શકાય છે"
 
-#: ../gtk/gtkwidget.c:1038
+#: ../gtk/gtkwidget.c:1040
 msgid "Whether the widget can accept the input focus"
 msgstr "શું વિજેટ પ્રકાશિત ઈનપુટને સ્વીકાર કરશે"
 
-#: ../gtk/gtkwidget.c:1044
+#: ../gtk/gtkwidget.c:1046
 msgid "Has focus"
 msgstr "પ્રકાશિત કરેલુ"
 
-#: ../gtk/gtkwidget.c:1045
+#: ../gtk/gtkwidget.c:1047
 msgid "Whether the widget has the input focus"
 msgstr "શું વિજેટની પાસે પ્રકાશિત ઈનપુટ છે"
 
-#: ../gtk/gtkwidget.c:1051
+#: ../gtk/gtkwidget.c:1053
 msgid "Is focus"
 msgstr "પ્રકાશિત કરેલુ"
 
-#: ../gtk/gtkwidget.c:1052
+#: ../gtk/gtkwidget.c:1054
 msgid "Whether the widget is the focus widget within the toplevel"
 msgstr "શું આ વિજેટ ઉંચાસ્તરમાં પ્રકાશિત વિજેટ છે"
 
-#: ../gtk/gtkwidget.c:1058
+#: ../gtk/gtkwidget.c:1060
 msgid "Can default"
 msgstr "મૂળભૂત કરી શકાય છે"
 
-#: ../gtk/gtkwidget.c:1059
+#: ../gtk/gtkwidget.c:1061
 msgid "Whether the widget can be the default widget"
 msgstr "શું આ વિજેટ મૂળભૂત વિજેટ હોઇ શકે"
 
-#: ../gtk/gtkwidget.c:1065
+#: ../gtk/gtkwidget.c:1067
 msgid "Has default"
 msgstr "મૂળભૂત કરેલુ"
 
-#: ../gtk/gtkwidget.c:1066
+#: ../gtk/gtkwidget.c:1068
 msgid "Whether the widget is the default widget"
 msgstr "શું આ વિજેટ મૂળભૂત વિજેટ છે"
 
-#: ../gtk/gtkwidget.c:1072
+#: ../gtk/gtkwidget.c:1074
 msgid "Receives default"
 msgstr "મૂળભૂત મેળવે છે"
 
-#: ../gtk/gtkwidget.c:1073
+#: ../gtk/gtkwidget.c:1075
 msgid "If TRUE, the widget will receive the default action when it is focused"
 msgstr "જો ખરુ હોય તો, વિજેટ જ્યારે પ્રકાશિત થયેલુ હશે ત્યારે મૂળભૂત કાર્ય મેળવશે"
 
-#: ../gtk/gtkwidget.c:1079
+#: ../gtk/gtkwidget.c:1081
 msgid "Composite child"
 msgstr "સંયુક્ત બાળ પ્રક્રિયા"
 
-#: ../gtk/gtkwidget.c:1080
+#: ../gtk/gtkwidget.c:1082
 msgid "Whether the widget is part of a composite widget"
 msgstr "શું આ વિજેટ સંયુક્ત વિજેટનેા ભાગ છે"
 
@@ -8237,9 +8246,6 @@ msgstr "વાપરવા માટે રંગ રૂપરેખાનું
 #~ msgstr ""
 #~ "કાર્યક્રમની વેબસાઈટ માટે કડી માટેનું લેબલ. જો આ સુયોજિત નહિં હોય, તો તેમાં URL મૂળભુત "
 #~ "થઈ જશે"
-
-#~ msgid "The title of the font selection dialog"
-#~ msgstr "ફોન્ટ પસંદગી સંવાદનું શીર્ષક"
 
 #~ msgid "Tab pack type"
 #~ msgstr "ટેબ પેકનો પ્રકાર"
