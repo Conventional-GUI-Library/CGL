@@ -29,13 +29,13 @@
 
 #include "gtkbitmaskprivate.h"
 #include "gtkcssarrayvalueprivate.h"
+#include "gtkcsscolorvalueprivate.h"
 #include "gtkcsskeyframesprivate.h"
 #include "gtkcssparserprivate.h"
 #include "gtkcsssectionprivate.h"
 #include "gtkcssselectorprivate.h"
 #include "gtkcssshorthandpropertyprivate.h"
 #include "gtkcssstylefuncsprivate.h"
-#include "gtksymboliccolor.h"
 #include "gtkstyleprovider.h"
 #include "gtkstylecontextprivate.h"
 #include "gtkstylepropertiesprivate.h"
@@ -980,6 +980,7 @@ struct _WidgetPropertyValue {
 struct GtkCssRuleset
 {
   GtkCssSelector *selector;
+  GtkCssSelectorTree *selector_match;
   WidgetPropertyValue *widget_style;
   PropertyValue *styles;
   GtkBitmask *set_styles;
@@ -1005,6 +1006,7 @@ struct _GtkCssProviderPrivate
   GHashTable *keyframes;
 
   GArray *rulesets;
+  GtkCssSelectorTree *tree;
   GResource *resource;
 };
 
@@ -1265,19 +1267,6 @@ gtk_css_ruleset_add (GtkCssRuleset       *ruleset,
     ruleset->styles[i].section = NULL;
 }
 
-static gboolean
-gtk_css_ruleset_matches (GtkCssRuleset       *ruleset,
-                         const GtkCssMatcher *matcher)
-{
-  return _gtk_css_selector_matches (ruleset->selector, matcher);
-}
-
-static GtkCssChange
-gtk_css_ruleset_get_change (GtkCssRuleset *ruleset)
-{
-  return _gtk_css_selector_get_change (ruleset->selector);
-}
-
 static void
 gtk_css_scanner_destroy (GtkCssScanner *scanner)
 {
@@ -1397,7 +1386,7 @@ gtk_css_provider_init (GtkCssProvider *css_provider)
 
   priv->symbolic_colors = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                  (GDestroyNotify) g_free,
-                                                 (GDestroyNotify) gtk_symbolic_color_unref);
+                                                 (GDestroyNotify) _gtk_css_value_unref);
   priv->keyframes = g_hash_table_new_full (g_str_hash, g_str_equal,
                                            (GDestroyNotify) g_free,
                                            (GDestroyNotify) _gtk_css_value_unref);
@@ -1466,6 +1455,86 @@ gtk_css_provider_get_style (GtkStyleProvider *provider,
   return props;
 }
 
+static void
+verify_tree_match_results (GtkCssProvider *provider,
+			   const GtkCssMatcher *matcher,
+			   GPtrArray *tree_rules)
+{
+#ifdef VERIFY_TREE
+  GtkCssProviderPrivate *priv = provider->priv;
+  GtkCssRuleset *ruleset;
+  gboolean should_match;
+  int i, j;
+
+  for (i = 0; i < priv->rulesets->len; i++)
+    {
+      gboolean found = FALSE;
+
+      ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, i);
+
+      for (j = 0; j < tree_rules->len; j++)
+	{
+	  if (ruleset == tree_rules->pdata[j])
+	    {
+	      found = TRUE;
+	      break;
+	    }
+	}
+      should_match = _gtk_css_selector_matches (ruleset->selector, matcher);
+      if (found != !!should_match)
+	{
+	  g_error ("expected rule '%s' to %s, but it %s\n",
+		   _gtk_css_selector_to_string (ruleset->selector),
+		   should_match ? "match" : "not match",
+		   found ? "matched" : "didn't match");
+	}
+    }
+#endif
+}
+
+static void
+verify_tree_get_change_results (GtkCssProvider *provider,
+				const GtkCssMatcher *matcher,
+				GtkCssChange change)
+{
+#ifdef VERIFY_TREE
+  {
+    GtkCssChange verify_change = 0;
+    GPtrArray *tree_rules;
+    int i;
+
+    tree_rules = _gtk_css_selector_tree_match_all (provider->priv->tree, matcher);
+    verify_tree_match_results (provider, matcher, tree_rules);
+
+    for (i = tree_rules->len - 1; i >= 0; i--)
+      {
+	GtkCssRuleset *ruleset;
+
+	ruleset = tree_rules->pdata[i];
+
+	verify_change |= _gtk_css_selector_tree_match_get_change (ruleset->selector_match);
+      }
+
+    if (change != verify_change)
+      {
+	GString *s;
+
+	s = g_string_new ("");
+	g_string_append_printf (s, "expected change 0x%x, but it was 0x%x", verify_change, change);
+	if ((change & ~verify_change) != 0)
+	  g_string_append_printf (s, ", unexpectedly set: 0x%x", change & ~verify_change);
+	if ((~change & verify_change) != 0)
+	  g_string_append_printf (s, ", unexpectedly no set: 0x%x",  ~change & verify_change);
+	g_warning (s->str);
+	g_string_free (s, TRUE);
+      }
+
+    g_ptr_array_free (tree_rules, TRUE);
+  }
+#endif
+}
+
+
 static gboolean
 gtk_css_provider_get_style_property (GtkStyleProvider *provider,
                                      GtkWidgetPath    *path,
@@ -1476,6 +1545,7 @@ gtk_css_provider_get_style_property (GtkStyleProvider *provider,
   GtkCssProvider *css_provider = GTK_CSS_PROVIDER (provider);
   GtkCssProviderPrivate *priv = css_provider->priv;
   WidgetPropertyValue *val;
+  GPtrArray *tree_rules;
   GtkCssMatcher matcher;
   gboolean found = FALSE;
   gchar *prop_name;
@@ -1484,20 +1554,18 @@ gtk_css_provider_get_style_property (GtkStyleProvider *provider,
   if (!_gtk_css_matcher_init (&matcher, path, state))
     return FALSE;
 
+  tree_rules = _gtk_css_selector_tree_match_all (priv->tree, &matcher);
+  verify_tree_match_results (css_provider, &matcher, tree_rules);
+
   prop_name = g_strdup_printf ("-%s-%s",
                                g_type_name (pspec->owner_type),
                                pspec->name);
 
-  for (i = priv->rulesets->len - 1; i >= 0; i--)
+  for (i = tree_rules->len - 1; i >= 0; i--)
     {
-      GtkCssRuleset *ruleset;
-
-      ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, i);
+      GtkCssRuleset *ruleset = tree_rules->pdata[i];
 
       if (ruleset->widget_style == NULL)
-        continue;
-
-      if (!gtk_css_ruleset_matches (ruleset, &matcher))
         continue;
 
       for (val = ruleset->widget_style; val != NULL; val = val->next)
@@ -1526,6 +1594,7 @@ gtk_css_provider_get_style_property (GtkStyleProvider *provider,
     }
 
   g_free (prop_name);
+  g_ptr_array_free (tree_rules, TRUE);
 
   return found;
 }
@@ -1537,7 +1606,7 @@ gtk_css_style_provider_iface_init (GtkStyleProviderIface *iface)
   iface->get_style_property = gtk_css_provider_get_style_property;
 }
 
-static GtkSymbolicColor *
+static GtkCssValue *
 gtk_css_style_provider_get_color (GtkStyleProviderPrivate *provider,
                                   const char              *name)
 {
@@ -1564,25 +1633,24 @@ gtk_css_style_provider_lookup (GtkStyleProviderPrivate *provider,
   GtkCssProviderPrivate *priv;
   GtkCssRuleset *ruleset;
   guint j;
+  int i;
+  GPtrArray *tree_rules;
 
   css_provider = GTK_CSS_PROVIDER (provider);
   priv = css_provider->priv;
 
-  if (priv->rulesets->len == 0)
-    return;
+  tree_rules = _gtk_css_selector_tree_match_all (priv->tree, matcher);
+  verify_tree_match_results (css_provider, matcher, tree_rules);
 
-  for (ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, priv->rulesets->len - 1);
-       ruleset >= &g_array_index (priv->rulesets, GtkCssRuleset, 0);
-       ruleset--)
+  for (i = tree_rules->len - 1; i >= 0; i--)
     {
+      ruleset = tree_rules->pdata[i];
+
       if (ruleset->styles == NULL)
         continue;
 
       if (!_gtk_bitmask_intersects (_gtk_css_lookup_get_missing (lookup),
                                     ruleset->set_styles))
-        continue;
-
-      if (!gtk_css_ruleset_matches (ruleset, matcher))
         continue;
 
       for (j = 0; j < ruleset->n_styles; j++)
@@ -1602,6 +1670,8 @@ gtk_css_style_provider_lookup (GtkStyleProviderPrivate *provider,
       if (_gtk_bitmask_is_empty (_gtk_css_lookup_get_missing (lookup)))
         break;
     }
+
+  g_ptr_array_free (tree_rules, TRUE);
 }
 
 static GtkCssChange
@@ -1610,26 +1680,14 @@ gtk_css_style_provider_get_change (GtkStyleProviderPrivate *provider,
 {
   GtkCssProvider *css_provider;
   GtkCssProviderPrivate *priv;
-  GtkCssChange change = 0;
-  int i;
+  GtkCssChange change;
 
   css_provider = GTK_CSS_PROVIDER (provider);
   priv = css_provider->priv;
 
-  for (i = priv->rulesets->len - 1; i >= 0; i--)
-    {
-      GtkCssRuleset *ruleset;
+  change = _gtk_css_selector_tree_get_change_all (priv->tree, matcher);
 
-      ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, i);
-
-      if (ruleset->styles == NULL)
-        continue;
-
-      if (!gtk_css_ruleset_matches (ruleset, matcher))
-        continue;
-
-      change |= gtk_css_ruleset_get_change (ruleset);
-    }
+  verify_tree_get_change_results (css_provider, matcher, change);
 
   return change;
 }
@@ -1657,6 +1715,7 @@ gtk_css_provider_finalize (GObject *object)
     gtk_css_ruleset_clear (&g_array_index (priv->rulesets, GtkCssRuleset, i));
 
   g_array_free (priv->rulesets, TRUE);
+  _gtk_css_selector_tree_free (priv->tree);
 
   g_hash_table_destroy (priv->symbolic_colors);
   g_hash_table_destroy (priv->keyframes);
@@ -1794,6 +1853,9 @@ gtk_css_provider_reset (GtkCssProvider *css_provider)
   for (i = 0; i < priv->rulesets->len; i++)
     gtk_css_ruleset_clear (&g_array_index (priv->rulesets, GtkCssRuleset, i));
   g_array_set_size (priv->rulesets, 0);
+  _gtk_css_selector_tree_free (priv->tree);
+  priv->tree = NULL;
+
 }
 
 static void
@@ -1896,7 +1958,7 @@ parse_import (GtkCssScanner *scanner)
 static gboolean
 parse_color_definition (GtkCssScanner *scanner)
 {
-  GtkCssValue *symbolic;
+  GtkCssValue *color;
   char *name;
 
   gtk_css_scanner_push_section (scanner, GTK_CSS_SECTION_COLOR_DEFINITION);
@@ -1920,8 +1982,8 @@ parse_color_definition (GtkCssScanner *scanner)
       return TRUE;
     }
 
-  symbolic = _gtk_css_symbolic_value_new (scanner->parser);
-  if (symbolic == NULL)
+  color = _gtk_css_color_value_parse (scanner->parser);
+  if (color == NULL)
     {
       g_free (name);
       _gtk_css_parser_resync (scanner->parser, TRUE, 0);
@@ -1932,7 +1994,7 @@ parse_color_definition (GtkCssScanner *scanner)
   if (!_gtk_css_parser_try (scanner->parser, ";", TRUE))
     {
       g_free (name);
-      _gtk_css_value_unref (symbolic);
+      _gtk_css_value_unref (color);
       gtk_css_provider_error_literal (scanner->provider,
                                       scanner,
                                       GTK_CSS_PROVIDER_ERROR,
@@ -1944,7 +2006,7 @@ parse_color_definition (GtkCssScanner *scanner)
       return TRUE;
     }
 
-  g_hash_table_insert (scanner->provider->priv->symbolic_colors, name, symbolic);
+  g_hash_table_insert (scanner->provider->priv->symbolic_colors, name, color);
 
   gtk_css_scanner_pop_section (scanner, GTK_CSS_SECTION_COLOR_DEFINITION);
   return TRUE;
@@ -2428,8 +2490,38 @@ static void
 gtk_css_provider_postprocess (GtkCssProvider *css_provider)
 {
   GtkCssProviderPrivate *priv = css_provider->priv;
+  GtkCssSelectorTreeBuilder *builder;
+  guint i;
 
   g_array_sort (priv->rulesets, gtk_css_provider_compare_rule);
+
+  builder = _gtk_css_selector_tree_builder_new ();
+  for (i = 0; i < priv->rulesets->len; i++)
+    {
+      GtkCssRuleset *ruleset;
+
+      ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, i);
+
+      _gtk_css_selector_tree_builder_add (builder,
+					  ruleset->selector,
+					  &ruleset->selector_match,
+					  ruleset);
+    }
+
+  priv->tree = _gtk_css_selector_tree_builder_build (builder);
+  _gtk_css_selector_tree_builder_free (builder);
+
+#ifndef VERIFY_TREE
+  for (i = 0; i < priv->rulesets->len; i++)
+    {
+      GtkCssRuleset *ruleset;
+
+      ruleset = &g_array_index (priv->rulesets, GtkCssRuleset, i);
+
+      _gtk_css_selector_free (ruleset->selector);
+      ruleset->selector = NULL;
+    }
+#endif
 }
 
 static gboolean
@@ -2878,7 +2970,7 @@ gtk_css_ruleset_print (const GtkCssRuleset *ruleset,
   WidgetPropertyValue *widget_value;
   guint i;
 
-  _gtk_css_selector_print (ruleset->selector, str);
+  _gtk_css_selector_tree_match_print (ruleset->selector_match, str);
 
   g_string_append (str, " {\n");
 
@@ -2936,7 +3028,6 @@ gtk_css_provider_print_colors (GHashTable *colors,
                                GString    *str)
 {
   GList *keys, *walk;
-  char *s;
 
   keys = g_hash_table_get_keys (colors);
   /* so the output is identical for identical styles */
@@ -2945,14 +3036,12 @@ gtk_css_provider_print_colors (GHashTable *colors,
   for (walk = keys; walk; walk = walk->next)
     {
       const char *name = walk->data;
-      GtkSymbolicColor *symbolic = g_hash_table_lookup (colors, (gpointer) name);
+      GtkCssValue *color = g_hash_table_lookup (colors, (gpointer) name);
 
       g_string_append (str, "@define-color ");
       g_string_append (str, name);
       g_string_append (str, " ");
-      s = gtk_symbolic_color_to_string (symbolic);
-      g_string_append (str, s);
-      g_free (s);
+      _gtk_css_value_print (color, str);
       g_string_append (str, ";\n");
     }
 

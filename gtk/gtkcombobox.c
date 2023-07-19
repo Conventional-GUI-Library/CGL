@@ -5441,12 +5441,9 @@ gtk_combo_box_get_preferred_width (GtkWidget *widget,
   gint                   font_size, arrow_size;
   PangoContext          *context;
   PangoFontMetrics      *metrics;
-  const PangoFontDescription *font_desc;
   GtkWidget             *child;
   gint                   minimum_width = 0, natural_width = 0;
   gint                   child_min, child_nat;
-  GtkStyleContext       *style_context;
-  GtkStateFlags          state;
   GtkBorder              padding;
   gfloat                 arrow_scaling;
 
@@ -5462,15 +5459,13 @@ gtk_combo_box_get_preferred_width (GtkWidget *widget,
                         "arrow-scaling", &arrow_scaling,
                         NULL);
 
-  style_context = gtk_widget_get_style_context (widget);
-  state = gtk_widget_get_state_flags (widget);
-
   get_widget_padding (widget, &padding);
-  font_desc = gtk_style_context_get_font (style_context, state);
-
+  
   context = gtk_widget_get_pango_context (GTK_WIDGET (widget));
-  metrics = pango_context_get_metrics (context, font_desc,
-                                       pango_context_get_language (context));
+  metrics = pango_context_get_metrics (context,
+                                       pango_context_get_font_description (context),
+                                        pango_context_get_language (context));
+                                        
   font_size = PANGO_PIXELS (pango_font_metrics_get_ascent (metrics) +
                             pango_font_metrics_get_descent (metrics));
   pango_font_metrics_unref (metrics);
