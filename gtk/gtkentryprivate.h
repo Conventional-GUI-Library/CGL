@@ -85,6 +85,7 @@ void      _gtk_entry_get_borders            (GtkEntry  *entry,
 void     _gtk_entry_effective_inner_border (GtkEntry  *entry,
 					    GtkBorder *border);
 void     _gtk_entry_reset_im_context       (GtkEntry  *entry);
+GtkIMContext* _gtk_entry_get_im_context    (GtkEntry  *entry);
 void     _gtk_entry_set_is_cell_renderer   (GtkEntry  *entry,
                                             gboolean   is_cell_renderer);
 

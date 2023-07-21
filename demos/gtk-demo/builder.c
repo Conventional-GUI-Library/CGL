@@ -1,4 +1,4 @@
-/* Builder
+/* Builder :: demo.ui
  *
  * Demonstrates an interface loaded from a XML description.
  */
@@ -25,6 +25,12 @@ about_activate (GtkAction *action)
   about_dlg = GTK_WIDGET (gtk_builder_get_object (builder, "aboutdialog1"));
   gtk_dialog_run (GTK_DIALOG (about_dlg));
   gtk_widget_hide (about_dlg);
+}
+
+G_MODULE_EXPORT void
+help_activate (GtkAction *action)
+{
+  g_print ("Help not available\n");
 }
 
 GtkWidget *
