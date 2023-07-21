@@ -476,14 +476,6 @@ static void gtk_window_buildable_custom_finished (GtkBuildable  *buildable,
 						      const gchar   *tagname,
 						      gpointer       user_data);
 
-
-static void gtk_window_get_preferred_width    (GtkWidget           *widget,
-					       gint                *minimum_size,
-					       gint                *natural_size);
-static void gtk_window_get_preferred_height   (GtkWidget           *widget,
-					       gint                *minimum_size,
-					       gint                *natural_size);
-
 static void ensure_state_flag_backdrop (GtkWidget *widget);
 
 G_DEFINE_TYPE_WITH_CODE (GtkWindow, gtk_window, GTK_TYPE_BIN,
@@ -596,8 +588,6 @@ gtk_window_class_init (GtkWindowClass *klass)
   widget_class->focus = gtk_window_focus;
   widget_class->move_focus = gtk_window_move_focus;
   widget_class->draw = gtk_window_draw;
-  widget_class->get_preferred_width = gtk_window_get_preferred_width;
-  widget_class->get_preferred_height = gtk_window_get_preferred_height;
   widget_class->window_state_event = gtk_window_state_event;
   widget_class->direction_changed = gtk_window_direction_changed;
   widget_class->state_changed = gtk_window_state_changed;
@@ -6490,60 +6480,6 @@ gtk_window_real_set_focus (GtkWindow *window,
       g_object_unref (focus);
     }
 }
-
-
-static void 
-gtk_window_get_preferred_width (GtkWidget *widget,
-                                gint      *minimum_size,
-                                gint      *natural_size)
-{
-  GtkWindow *window;
-  GtkWidget *child;
-  guint border_width;
-
-  window = GTK_WINDOW (widget);
-  child  = gtk_bin_get_child (GTK_BIN (window));
-
-  border_width = gtk_container_get_border_width (GTK_CONTAINER (window));
-  *minimum_size = border_width * 2;
-  *natural_size = border_width * 2;
-
-  if (child && gtk_widget_get_visible (child))
-    {
-      gint child_min, child_nat;
-      gtk_widget_get_preferred_width (child, &child_min, &child_nat);
-
-      *minimum_size += child_min;
-      *natural_size += child_nat;
-    }
-}
-
-static void 
-gtk_window_get_preferred_height (GtkWidget *widget,
-                                 gint      *minimum_size,
-                                 gint      *natural_size)
-{
-  GtkWindow *window;
-  GtkWidget *child;
-  guint border_width;
-
-  window = GTK_WINDOW (widget);
-  child  = gtk_bin_get_child (GTK_BIN (window));
-
-  border_width = gtk_container_get_border_width (GTK_CONTAINER (window));
-  *minimum_size = border_width * 2;
-  *natural_size = border_width * 2;
-
-  if (child && gtk_widget_get_visible (child))
-    {
-      gint child_min, child_nat;
-      gtk_widget_get_preferred_height (child, &child_min, &child_nat);
-
-      *minimum_size += child_min;
-      *natural_size += child_nat;
-    }
-}
-
 
 /**
  * _gtk_window_unset_focus_and_default:

@@ -425,6 +425,7 @@ gtk_private_h_sources =		\
 	gtkcssarrayvalueprivate.h	\
 	gtkcssbgsizevalueprivate.h	\
 	gtkcssbordervalueprivate.h	\
+	gtkcsscolorvalueprivate.h	\
 	gtkcsscomputedvaluesprivate.h \
 	gtkcsscornervalueprivate.h	\
 	gtkcsscustompropertyprivate.h \
@@ -472,6 +473,7 @@ gtk_private_h_sources =		\
 	gtkfontchooserprivate.h	\
 	gtkfontchooserutils.h	\
 	gtkgradientprivate.h	\
+	gtkhslaprivate.h	\
 	gtkiconcache.h		\
 	gtkiconhelperprivate.h  \
 	gtkiconviewprivate.h	\
@@ -510,6 +512,7 @@ gtk_private_h_sources =		\
 	gtkselectionprivate.h	\
 	gtksettingsprivate.h	\
 	gtksizegroup-private.h	\
+	gtksizerequestcacheprivate.h	\
 	gtksocketprivate.h	\
 	gtkstyleanimationprivate.h \
 	gtkstylecascadeprivate.h \
@@ -619,6 +622,7 @@ gtk_base_c_sources = 		\
 	gtkcssarrayvalue.c	\
 	gtkcssbgsizevalue.c	\
 	gtkcssbordervalue.c	\
+	gtkcsscolorvalue.c	\
 	gtkcsscomputedvalues.c	\
 	gtkcsscornervalue.c	\
 	gtkcsscustomproperty.c	\
@@ -686,6 +690,7 @@ gtk_base_c_sources = 		\
 	gtkframe.c		\
 	gtkgradient.c		\
 	gtkgrid.c		\
+	gtkhsla.c		\
 	gtkhandlebox.c		\
 	gtkhbbox.c		\
 	gtkhbox.c		\
@@ -780,6 +785,7 @@ gtk_base_c_sources = 		\
 	gtksettings.c		\
 	gtksizegroup.c		\
 	gtksizerequest.c	\
+	gtksizerequestcache.c	\
 	gtkshow.c		\
 	gtkspinbutton.c		\
 	gtkspinner.c		\
