@@ -16,8 +16,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Cambridge, MA 02139, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 /*
  * Modified by the GTK+ Team and others 2003.  See the AUTHORS
@@ -556,7 +555,7 @@ gtk_font_button_init (GtkFontButton *font_button)
   font_button->priv->use_size = FALSE;
   font_button->priv->show_style = TRUE;
   font_button->priv->show_size = TRUE;
-  font_button->priv->show_preview_entry = TRUE;
+  font_button->priv->show_preview_entry = FALSE;
   font_button->priv->font_dialog = NULL;
   font_button->priv->font_family = NULL;
   font_button->priv->font_face = NULL;

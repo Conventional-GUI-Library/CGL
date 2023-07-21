@@ -13,9 +13,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -40,7 +38,7 @@
  * #GtkSizeGroup provides a mechanism for grouping a number of widgets
  * together so they all request the same amount of space.  This is
  * typically useful when you want a column of widgets to have the same
- * size, but you can't use a #GtkTable widget.
+ * size, but you can't use a #GtkGrid widget.
  *
  * In detail, the size requested for each widget in a #GtkSizeGroup is
  * the maximum of the sizes that would have been requested for each
@@ -629,70 +627,6 @@ gtk_size_group_get_widgets (GtkSizeGroup *size_group)
 {
   return size_group->priv->widgets;
 }
-
-/**
- * _gtk_size_group_bump_requisition:
- * @widget: a #GtkWidget
- * @mode: either %GTK_SIZE_GROUP_HORIZONTAL or %GTK_SIZE_GROUP_VERTICAL, depending
- *        on the dimension in which to bump the size.
- * @for_size: Size to request minimum and natural size for
- * @minimum: a pointer to the widget's minimum size
- * @natural: a pointer to the widget's natural size
- *
- * Refreshes the sizegroup while returning the groups requested
- * value in the dimension @mode.
- *
- * This function is used both to update sizegroup minimum and natural size 
- * information and widget minimum and natural sizes in multiple passes from 
- * the size request apis.
- */
-void
-_gtk_size_group_bump_requisition (GtkWidget        *widget,
-				  GtkSizeGroupMode  mode,
-                                  gint              for_size,
-				  gint             *minimum,
-				  gint             *natural)
-{
-  GHashTable *widgets;
-  GHashTableIter iter;
-  gpointer key;
-  gint    min_result = 0, nat_result = 0;
-
-  if (!_gtk_widget_get_sizegroups (widget))
-    return;
-
-  widgets = widget_get_size_group_peers (widget, mode);
-
-  g_hash_table_foreach (widgets, (GHFunc) g_object_ref, NULL);
-  
-  g_hash_table_iter_init (&iter, widgets);
-  while (g_hash_table_iter_next (&iter, &key, NULL))
-    {
-      GtkWidget *tmp_widget = key;
-      gint min_dimension, nat_dimension;
-
-      if (tmp_widget == widget)
-        {
-          min_dimension = *minimum;
-          nat_dimension = *natural;
-        }
-      else
-        {
-          _gtk_widget_compute_size_for_orientation (tmp_widget, mode, TRUE, for_size, &min_dimension, &nat_dimension);
-        }
-
-      min_result = MAX (min_result, min_dimension);
-      nat_result = MAX (nat_result, nat_dimension);
-    }
-
-  g_hash_table_foreach (widgets, (GHFunc) g_object_unref, NULL);
-
-  g_hash_table_destroy (widgets);
-
-  *minimum = min_result;
-  *natural = nat_result;
-}
-
 
 /**
  * _gtk_size_group_queue_resize:
