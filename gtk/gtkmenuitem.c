@@ -472,14 +472,24 @@ gtk_menu_item_class_init (GtkMenuItemClass *klass)
                                                                      GTK_PARAM_READABLE),
                                                   gtk_rc_property_parse_enum);
 
+  /**
+   * GtkMenuItem:horizontal-padding:
+   *
+   * Padding to left and right of the menu item.
+   *
+   * Deprecated: 3.8: use the standard padding CSS property (through objects
+   *   like #GtkStyleContext and #GtkCssProvider); the value of this style
+   *   property is ignored.
+   */
   gtk_widget_class_install_style_property (widget_class,
                                            g_param_spec_int ("horizontal-padding",
                                                              "Horizontal Padding",
                                                              "Padding to left and right of the menu item",
                                                              0,
                                                              G_MAXINT,
-                                                             3,
-                                                             GTK_PARAM_READABLE));
+                                                             0,
+                                                             GTK_PARAM_READABLE |
+                                                             G_PARAM_DEPRECATED));
 
   gtk_widget_class_install_style_property (widget_class,
                                            g_param_spec_int ("toggle-spacing",
@@ -741,8 +751,6 @@ get_arrow_size (GtkWidget *widget,
                 gint      *size,
                 gint      *spacing)
 {
-  GtkStyleContext  *style_context;
-  GtkStateFlags     state;
   PangoContext     *context;
   PangoFontMetrics *metrics;
   gfloat            arrow_scaling;
@@ -759,11 +767,9 @@ get_arrow_size (GtkWidget *widget,
     *spacing = arrow_spacing;
 
   context = gtk_widget_get_pango_context (child);
-  style_context = gtk_widget_get_style_context (child);
-  state = gtk_widget_get_state_flags (child);
 
   metrics = pango_context_get_metrics (context,
-                                       gtk_style_context_get_font (style_context, state),
+                                       pango_context_get_font_description (context),
                                        pango_context_get_language (context));
 
   *size = (PANGO_PIXELS (pango_font_metrics_get_ascent (metrics) +
@@ -797,19 +803,15 @@ gtk_menu_item_accel_width_foreach (GtkWidget *widget,
 static gint
 get_minimum_width (GtkWidget *widget)
 {
-  GtkStyleContext *style_context;
-  GtkStateFlags state;
   PangoContext *context;
   PangoFontMetrics *metrics;
   gint width;
   gint width_chars;
 
   context = gtk_widget_get_pango_context (widget);
-  style_context = gtk_widget_get_style_context (widget);
-  state = gtk_widget_get_state_flags (widget);
 
   metrics = pango_context_get_metrics (context,
-                                       gtk_style_context_get_font (style_context, state),
+                                       pango_context_get_font_description (context),
                                        pango_context_get_language (context));
 
   width = pango_font_metrics_get_approximate_char_width (metrics);
@@ -832,34 +834,15 @@ gtk_menu_item_get_preferred_width (GtkWidget *widget,
   GtkWidget *child;
   GtkWidget *parent;
   guint accel_width;
-  guint horizontal_padding;
   guint border_width;
-  GtkPackDirection pack_dir;
-  GtkPackDirection child_pack_dir;
   gint  min_width, nat_width;
   GtkStyleContext *context;
   GtkStateFlags state;
   GtkBorder padding;
 
   min_width = nat_width = 0;
-
-  gtk_widget_style_get (widget,
-                        "horizontal-padding", &horizontal_padding,
-                        NULL);
-
   bin = GTK_BIN (widget);
   parent = gtk_widget_get_parent (widget);
-
-  if (GTK_IS_MENU_BAR (parent))
-    {
-      pack_dir = gtk_menu_bar_get_pack_direction (GTK_MENU_BAR (parent));
-      child_pack_dir = gtk_menu_bar_get_child_pack_direction (GTK_MENU_BAR (parent));
-    }
-  else
-    {
-      pack_dir = GTK_PACK_DIRECTION_LTR;
-      child_pack_dir = GTK_PACK_DIRECTION_LTR;
-    }
 
   border_width = gtk_container_get_border_width (GTK_CONTAINER (widget));
 
@@ -868,13 +851,8 @@ gtk_menu_item_get_preferred_width (GtkWidget *widget,
   gtk_style_context_get_padding (context, state, &padding);
 
   min_width = (border_width * 2) + padding.left + padding.right;
-
-  if ((pack_dir == GTK_PACK_DIRECTION_LTR || pack_dir == GTK_PACK_DIRECTION_RTL) &&
-      (child_pack_dir == GTK_PACK_DIRECTION_LTR || child_pack_dir == GTK_PACK_DIRECTION_RTL))
-    min_width += 2 * horizontal_padding;
-
   nat_width = min_width;
-	  
+
   child = gtk_bin_get_child (bin);
 
   if (child != NULL && gtk_widget_get_visible (child))
@@ -929,10 +907,7 @@ gtk_menu_item_real_get_height (GtkWidget *widget,
   GtkWidget *child;
   GtkWidget *parent;
   guint accel_width;
-  guint horizontal_padding;
   guint border_width;
-  GtkPackDirection pack_dir;
-  GtkPackDirection child_pack_dir;
   gint min_height, nat_height;
   gint avail_size = 0;
 
@@ -942,39 +917,16 @@ gtk_menu_item_real_get_height (GtkWidget *widget,
   state = gtk_widget_get_state_flags (widget);
   gtk_style_context_get_padding (context, state, &padding);
 
-  gtk_widget_style_get (widget,
-                        "horizontal-padding", &horizontal_padding,
-                        NULL);
-
   bin = GTK_BIN (widget);
   parent = gtk_widget_get_parent (widget);
 
-  if (GTK_IS_MENU_BAR (parent))
-    {
-      pack_dir = gtk_menu_bar_get_pack_direction (GTK_MENU_BAR (parent));
-      child_pack_dir = gtk_menu_bar_get_child_pack_direction (GTK_MENU_BAR (parent));
-    }
-  else
-    {
-      pack_dir = GTK_PACK_DIRECTION_LTR;
-      child_pack_dir = GTK_PACK_DIRECTION_LTR;
-    }
-
   border_width = gtk_container_get_border_width (GTK_CONTAINER (widget));
   min_height   = (border_width * 2) + padding.top + padding.bottom;
-
-  if ((pack_dir == GTK_PACK_DIRECTION_TTB || pack_dir == GTK_PACK_DIRECTION_BTT) &&
-      (child_pack_dir == GTK_PACK_DIRECTION_TTB || child_pack_dir == GTK_PACK_DIRECTION_BTT))
-    min_height += 2 * horizontal_padding;
 
   if (for_size != -1)
     {
       avail_size = for_size;
       avail_size -= (border_width * 2) + padding.left + padding.right;
-
-      if ((pack_dir == GTK_PACK_DIRECTION_LTR || pack_dir == GTK_PACK_DIRECTION_RTL) &&
-          (child_pack_dir == GTK_PACK_DIRECTION_LTR || child_pack_dir == GTK_PACK_DIRECTION_RTL))
-        avail_size -= 2 * horizontal_padding;
     }
 
   nat_height = min_height;
@@ -1485,7 +1437,6 @@ gtk_menu_item_size_allocate (GtkWidget     *widget,
   GtkBin *bin;
   GtkAllocation child_allocation;
   GtkTextDirection direction;
-  GtkPackDirection pack_dir;
   GtkPackDirection child_pack_dir;
   GtkWidget *child;
   GtkWidget *parent;
@@ -1500,12 +1451,10 @@ gtk_menu_item_size_allocate (GtkWidget     *widget,
   parent = gtk_widget_get_parent (widget);
   if (GTK_IS_MENU_BAR (parent))
     {
-      pack_dir = gtk_menu_bar_get_pack_direction (GTK_MENU_BAR (parent));
       child_pack_dir = gtk_menu_bar_get_child_pack_direction (GTK_MENU_BAR (parent));
     }
   else
     {
-      pack_dir = GTK_PACK_DIRECTION_LTR;
       child_pack_dir = GTK_PACK_DIRECTION_LTR;
     }
 
@@ -1517,16 +1466,11 @@ gtk_menu_item_size_allocate (GtkWidget     *widget,
       GtkStyleContext *context;
       GtkStateFlags state;
       GtkBorder padding;
-      guint horizontal_padding;
       guint border_width;
 
       context = gtk_widget_get_style_context (widget);
       state = gtk_widget_get_state_flags (widget);
       gtk_style_context_get_padding (context, state, &padding);
-
-      gtk_widget_style_get (widget,
-                            "horizontal-padding", &horizontal_padding,
-                            NULL);
 
       border_width = gtk_container_get_border_width (GTK_CONTAINER (widget));
       child_allocation.x = border_width + padding.left;
@@ -1536,19 +1480,6 @@ gtk_menu_item_size_allocate (GtkWidget     *widget,
         padding.left - padding.right;
       child_allocation.height = allocation->height - (border_width * 2) -
         padding.top - padding.bottom;
-
-      if ((pack_dir == GTK_PACK_DIRECTION_LTR || pack_dir == GTK_PACK_DIRECTION_RTL) &&
-          (child_pack_dir == GTK_PACK_DIRECTION_LTR || child_pack_dir == GTK_PACK_DIRECTION_RTL))
-        {
-          child_allocation.x += horizontal_padding;
-          child_allocation.width -= 2 * horizontal_padding;
-        }
-      else if ((pack_dir == GTK_PACK_DIRECTION_TTB || pack_dir == GTK_PACK_DIRECTION_BTT) &&
-               (child_pack_dir == GTK_PACK_DIRECTION_TTB || child_pack_dir == GTK_PACK_DIRECTION_BTT))
-        {
-          child_allocation.y += horizontal_padding;
-          child_allocation.height -= 2 * horizontal_padding;
-        }
 
       if (child_pack_dir == GTK_PACK_DIRECTION_LTR ||
           child_pack_dir == GTK_PACK_DIRECTION_RTL)
@@ -1719,26 +1650,20 @@ gtk_menu_item_draw (GtkWidget *widget,
     {
       gint arrow_x, arrow_y;
       gint arrow_size;
-      guint horizontal_padding;
       GtkTextDirection direction;
       gdouble angle;
 
       direction = gtk_widget_get_direction (widget);
-
-      gtk_widget_style_get (widget,
-                            "horizontal-padding", &horizontal_padding,
-                            NULL);
-
       get_arrow_size (widget, child, &arrow_size, NULL);
 
       if (direction == GTK_TEXT_DIR_LTR)
         {
-          arrow_x = x + w - horizontal_padding - arrow_size;
+          arrow_x = x + w - arrow_size;
           angle = G_PI / 2;
         }
       else
         {
-          arrow_x = x + horizontal_padding;
+          arrow_x = x;
           angle = (3 * G_PI) / 2;
         }
 
@@ -1750,24 +1675,22 @@ gtk_menu_item_draw (GtkWidget *widget,
     {
       gboolean wide_separators;
       gint     separator_height;
-      guint    horizontal_padding;
 
       gtk_widget_style_get (widget,
                             "wide-separators",    &wide_separators,
                             "separator-height",   &separator_height,
-                            "horizontal-padding", &horizontal_padding,
                             NULL);
       if (wide_separators)
         gtk_render_frame (context, cr,
-                          x + horizontal_padding + padding.left,
+                          x + padding.left,
                           y + padding.top,
-                          w - (2 * horizontal_padding) - padding.left - padding.right,
+                          w - padding.left - padding.right,
                           separator_height);
       else
         gtk_render_line (context, cr,
-                         x + horizontal_padding + padding.left,
+                         x + padding.left,
                          y + padding.top,
-                         x + w - horizontal_padding - padding.right - 1,
+                         x + w - padding.right - 1,
                          y + padding.top);
     }
 
@@ -2111,8 +2034,6 @@ get_offsets (GtkMenu *menu,
              gint    *horizontal_offset,
              gint    *vertical_offset)
 {
-  gint vertical_padding;
-  gint horizontal_padding;
   GtkStyleContext *context;
   GtkStateFlags state;
   GtkBorder padding;
@@ -2120,8 +2041,6 @@ get_offsets (GtkMenu *menu,
   gtk_widget_style_get (GTK_WIDGET (menu),
                         "horizontal-offset", horizontal_offset,
                         "vertical-offset", vertical_offset,
-                        "horizontal-padding", &horizontal_padding,
-                        "vertical-padding", &vertical_padding,
                         NULL);
 
   context = gtk_widget_get_style_context (GTK_WIDGET (menu));
@@ -2129,8 +2048,7 @@ get_offsets (GtkMenu *menu,
   gtk_style_context_get_padding (context, state, &padding);
 
   *vertical_offset -= padding.top;
-  *vertical_offset -= vertical_padding;
-  *horizontal_offset += horizontal_padding;
+  *horizontal_offset += padding.left;
 }
 
 static void

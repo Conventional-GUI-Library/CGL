@@ -29,6 +29,7 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <cairo-gobject.h>
 
+#include "gtkcsscolorvalueprivate.h"
 #include "gtkcssimagegradientprivate.h"
 #include "gtkcssprovider.h"
 #include "gtkcssrgbavalueprivate.h"
@@ -173,7 +174,7 @@ rgba_value_parse (GtkCssParser *parser,
   GtkSymbolicColor *symbolic;
   GdkRGBA rgba;
 
-  symbolic = _gtk_symbolic_color_new_take_value (_gtk_css_symbolic_value_new (parser));
+  symbolic = _gtk_css_symbolic_value_new (parser);
   if (symbolic == NULL)
     return FALSE;
 
@@ -227,11 +228,11 @@ rgba_value_compute (GtkStyleProviderPrivate *provider,
       GValue new_value = G_VALUE_INIT;
       GdkRGBA rgba;
 
-      val = _gtk_symbolic_color_resolve_full (symbolic,
-                                              provider,
-                                              _gtk_css_computed_values_get_value (values, GTK_CSS_PROPERTY_COLOR),
-                                              GTK_CSS_DEPENDS_ON_COLOR,
-                                              dependencies);
+      val = _gtk_css_color_value_resolve (_gtk_symbolic_color_get_css_value (symbolic),
+                                          provider,
+                                          _gtk_css_computed_values_get_value (values, GTK_CSS_PROPERTY_COLOR),
+                                          GTK_CSS_DEPENDS_ON_COLOR,
+                                          dependencies);
       if (val != NULL)
         {
           rgba = *_gtk_css_rgba_value_get_rgba (val);
@@ -255,7 +256,7 @@ color_value_parse (GtkCssParser *parser,
   GtkSymbolicColor *symbolic;
   GdkRGBA rgba;
 
-  symbolic = _gtk_symbolic_color_new_take_value (_gtk_css_symbolic_value_new (parser));
+  symbolic = _gtk_css_symbolic_value_new (parser);
   if (symbolic == NULL)
     return FALSE;
 
@@ -312,11 +313,11 @@ color_value_compute (GtkStyleProviderPrivate *provider,
       GValue new_value = G_VALUE_INIT;
       GtkCssValue *val;
 
-      val = _gtk_symbolic_color_resolve_full ((GtkSymbolicColor *) g_value_get_boxed (value),
-                                              provider,
-                                              _gtk_css_computed_values_get_value (values, GTK_CSS_PROPERTY_COLOR),
-                                              GTK_CSS_DEPENDS_ON_COLOR,
-                                              dependencies);
+      val = _gtk_css_color_value_resolve (_gtk_symbolic_color_get_css_value (g_value_get_boxed (value)),
+                                          provider,
+                                          _gtk_css_computed_values_get_value (values, GTK_CSS_PROPERTY_COLOR),
+                                          GTK_CSS_DEPENDS_ON_COLOR,
+                                          dependencies);
       if (val != NULL)
         {
           const GdkRGBA *rgba = _gtk_css_rgba_value_get_rgba (val);
@@ -340,7 +341,7 @@ symbolic_color_value_parse (GtkCssParser *parser,
 {
   GtkSymbolicColor *symbolic;
 
-  symbolic = _gtk_symbolic_color_new_take_value (_gtk_css_symbolic_value_new (parser));
+  symbolic = _gtk_css_symbolic_value_new (parser);
   if (symbolic == NULL)
     return FALSE;
 

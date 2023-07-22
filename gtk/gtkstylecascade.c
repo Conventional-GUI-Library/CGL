@@ -144,13 +144,36 @@ gtk_style_cascade_provider_iface_init (GtkStyleProviderIface *iface)
   iface->get_icon_factory = gtk_style_cascade_get_icon_factory;
 }
 
-static GtkSymbolicColor *
+static GtkSettings *
+gtk_style_cascade_get_settings (GtkStyleProviderPrivate *provider)
+{
+  GtkStyleCascade *cascade = GTK_STYLE_CASCADE (provider);
+  GtkStyleCascadeIter iter;
+  GtkSettings *settings;
+  GtkStyleProvider *item;
+
+  for (item = gtk_style_cascade_iter_init (cascade, &iter);
+       item;
+       item = gtk_style_cascade_iter_next (cascade, &iter))
+    {
+      if (!GTK_IS_STYLE_PROVIDER_PRIVATE (item))
+        continue;
+          
+      settings = _gtk_style_provider_private_get_settings (GTK_STYLE_PROVIDER_PRIVATE (item));
+      if (settings)
+        return settings;
+    }
+
+  return NULL;
+}
+
+static GtkCssValue *
 gtk_style_cascade_get_color (GtkStyleProviderPrivate *provider,
                              const char              *name)
 {
   GtkStyleCascade *cascade = GTK_STYLE_CASCADE (provider);
   GtkStyleCascadeIter iter;
-  GtkSymbolicColor *symbolic;
+  GtkCssValue *color;
   GtkStyleProvider *item;
 
   for (item = gtk_style_cascade_iter_init (cascade, &iter);
@@ -159,9 +182,9 @@ gtk_style_cascade_get_color (GtkStyleProviderPrivate *provider,
     {
       if (GTK_IS_STYLE_PROVIDER_PRIVATE (item))
         {
-          symbolic = _gtk_style_provider_private_get_color (GTK_STYLE_PROVIDER_PRIVATE (item), name);
-          if (symbolic)
-            return symbolic;
+          color = _gtk_style_provider_private_get_color (GTK_STYLE_PROVIDER_PRIVATE (item), name);
+          if (color)
+            return color;
         }
       else
         {
@@ -254,6 +277,7 @@ static void
 gtk_style_cascade_provider_private_iface_init (GtkStyleProviderPrivateInterface *iface)
 {
   iface->get_color = gtk_style_cascade_get_color;
+  iface->get_settings = gtk_style_cascade_get_settings;
   iface->get_keyframes = gtk_style_cascade_get_keyframes;
   iface->lookup = gtk_style_cascade_lookup;
   iface->get_change = gtk_style_cascade_get_change;

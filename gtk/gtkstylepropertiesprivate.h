@@ -23,7 +23,6 @@
 #include "gtkstyleproperties.h"
 #include "gtkcssstylepropertyprivate.h"
 #include "gtkstylecontextprivate.h"
-#include "gtksymboliccolorprivate.h"
 
 G_BEGIN_DECLS
 

@@ -55,7 +55,7 @@ window1
           "menu"
           parent: unnamed-GtkComboBoxAccessible-1
           index: 0
-          state: enabled selectable sensitive
+          state: enabled sensitive
           toolkit: gtk
           <AtkComponent>
           layer: popup
@@ -192,7 +192,7 @@ window1
         "menu"
         parent: button1
         index: 0
-        state: enabled selectable sensitive
+        state: enabled sensitive
         toolkit: gtk
         <AtkComponent>
         layer: popup

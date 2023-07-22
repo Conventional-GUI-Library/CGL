@@ -1756,7 +1756,7 @@ get_size (GtkCellRenderer    *cell,
       style_context = gtk_widget_get_style_context (widget);
       state = gtk_widget_get_state_flags (widget);
 
-      font_desc = pango_font_description_copy_static (gtk_style_context_get_font (style_context, state));
+      gtk_style_context_get (style_context, state, "font", &font_desc, NULL);
       pango_font_description_merge_static (font_desc, priv->font, TRUE);
 
       if (priv->scale_set)
@@ -2144,8 +2144,6 @@ gtk_cell_renderer_text_get_preferred_width (GtkCellRenderer *cell,
 {
   GtkCellRendererTextPrivate *priv;
   GtkCellRendererText        *celltext;
-  GtkStyleContext            *style_context;
-  const PangoFontDescription *font_desc;
   PangoLayout                *layout;
   PangoContext               *context;
   PangoFontMetrics           *metrics;
@@ -2165,8 +2163,6 @@ gtk_cell_renderer_text_get_preferred_width (GtkCellRenderer *cell,
   celltext = GTK_CELL_RENDERER_TEXT (cell);
   priv = celltext->priv;
 
-  style_context = gtk_widget_get_style_context (widget);
-
   gtk_cell_renderer_get_padding (cell, &xpad, NULL);
 
   layout = get_layout (celltext, widget, NULL, 0);
@@ -2178,8 +2174,8 @@ gtk_cell_renderer_text_get_preferred_width (GtkCellRenderer *cell,
 
   /* Fetch the average size of a charachter */
   context = pango_layout_get_context (layout);
-  font_desc = gtk_style_context_get_font (style_context, 0);
-  metrics = pango_context_get_metrics (context, font_desc,
+  metrics = pango_context_get_metrics (context,
+                                       pango_context_get_font_description (context),
                                        pango_context_get_language (context));
 
   char_width = pango_font_metrics_get_approximate_char_width (metrics);

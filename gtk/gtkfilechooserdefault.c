@@ -3387,7 +3387,7 @@ shortcuts_build_popup_menu (GtkFileChooserDefault *impl)
   gtk_widget_show (item);
   gtk_menu_shell_append (GTK_MENU_SHELL (impl->browse_shortcuts_popup_menu), item);
 
-  item = gtk_menu_item_new_with_label (_("Rename..."));
+  item = gtk_menu_item_new_with_label (_("Rename…"));
   impl->browse_shortcuts_popup_menu_rename_item = item;
   g_signal_connect (item, "activate",
 		    G_CALLBACK (rename_shortcut_cb), impl);
@@ -3866,7 +3866,7 @@ copy_file_clear_cb (GtkClipboard *clipboard,
   g_slist_free (selected_files);
 }
 
-/* Callback used when the "Copy file's location" menu item is activated */
+/* Callback used when the "Copy file’s location" menu item is activated */
 static void
 copy_file_location_cb (GtkMenuItem           *item,
                        GtkFileChooserDefault *impl)
@@ -4108,7 +4108,7 @@ file_list_drag_motion_cb (GtkWidget             *widget,
   return TRUE;
 }
 
-/* Sensitizes the "Copy file's location" context menu item if there is actually
+/* Sensitizes the "Copy file’s location" context menu item if there is actually
  * a selection active.
  */
 static void
@@ -4177,7 +4177,7 @@ file_list_build_popup_menu (GtkFileChooserDefault *impl)
   impl->browse_files_popup_menu_visit_file_item		= file_list_add_image_menu_item (impl, GTK_STOCK_DIRECTORY, _("_Visit this file"),
 											 G_CALLBACK (visit_file_cb));
 
-  impl->browse_files_popup_menu_copy_file_location_item	= file_list_add_image_menu_item (impl, GTK_STOCK_COPY, _("_Copy file's location"),
+  impl->browse_files_popup_menu_copy_file_location_item	= file_list_add_image_menu_item (impl, GTK_STOCK_COPY, _("_Copy file’s location"),
 											 G_CALLBACK (copy_file_location_cb));
 
   impl->browse_files_popup_menu_add_shortcut_item	= file_list_add_image_menu_item (impl, GTK_STOCK_ADD, _("_Add to Bookmarks"),
@@ -8188,7 +8188,7 @@ find_good_size_from_style (GtkWidget *widget,
 {
   GtkStyleContext *context;
   GtkStateFlags state;
-  int font_size;
+  double font_size;
   GdkScreen *screen;
   double resolution;
 
@@ -8205,8 +8205,8 @@ find_good_size_from_style (GtkWidget *widget,
   else
     resolution = 96.0; /* wheeee */
 
-  font_size = pango_font_description_get_size (gtk_style_context_get_font (context, state));
-  font_size = PANGO_PIXELS (font_size) * resolution / 72.0;
+  gtk_style_context_get (context, state, "font-size", &font_size, NULL);
+  font_size = font_size * resolution / 72.0 + 0.5;
 
   *width = font_size * NUM_CHARS;
   *height = font_size * NUM_LINES;

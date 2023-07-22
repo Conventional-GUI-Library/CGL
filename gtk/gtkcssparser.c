@@ -259,7 +259,7 @@ gtk_css_parser_skip_comment (GtkCssParser *parser)
 
       parser->data++;
 
-      if (parser->data[-2] == '*')
+      if (len > 0 && parser->data[-2] == '*')
         return TRUE;
       if (parser->data[0] == '*')
         _gtk_css_parser_error (parser, "'/*' in comment block");

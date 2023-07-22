@@ -5736,7 +5736,6 @@ gtk_window_style_updated (GtkWidget *widget)
                               rect.width, rect.height);
 
       set_grip_shape (window);
-      gtk_widget_queue_resize (widget);
     }
 }
 

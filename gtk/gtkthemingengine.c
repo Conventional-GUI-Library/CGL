@@ -37,6 +37,7 @@
 #include "gtkcssrgbavalueprivate.h"
 #include "gtkcssshadowsvalueprivate.h"
 #include "gtkcsstypesprivate.h"
+#include "gtkhslaprivate.h"
 #include "gtkthemingengineprivate.h"
 #include "gtkroundedboxprivate.h"
 #include "gtkthemingbackgroundprivate.h"
@@ -354,16 +355,6 @@ _gtk_theming_engine_peek_property (GtkThemingEngine *engine,
   g_return_val_if_fail (GTK_IS_THEMING_ENGINE (engine), NULL);
 
   return _gtk_style_context_peek_property (engine->priv->context, property_id);
-}
-
-double
-_gtk_theming_engine_get_number (GtkThemingEngine *engine,
-                                guint             property_id,
-                                double            one_hundred_percent)
-{
-  g_return_val_if_fail (GTK_IS_THEMING_ENGINE (engine), 0.0);
-
-  return _gtk_style_context_get_number (engine->priv->context, property_id, one_hundred_percent);
 }
 
 /**
@@ -1341,14 +1332,11 @@ color_shade (const GdkRGBA *color,
              gdouble        factor,
              GdkRGBA       *color_return)
 {
-  GtkSymbolicColor *literal, *shade;
+  GtkHSLA hsla;
 
-  literal = gtk_symbolic_color_new_literal (color);
-  shade = gtk_symbolic_color_new_shade (literal, factor);
-  gtk_symbolic_color_unref (literal);
-
-  gtk_symbolic_color_resolve (shade, NULL, color_return);
-  gtk_symbolic_color_unref (shade);
+  _gtk_hsla_init_from_rgba (&hsla, color);
+  _gtk_hsla_shade (&hsla, &hsla, factor);
+  _gdk_rgba_init_from_hsla (color_return, &hsla);
 }
 
 static void
@@ -1660,6 +1648,7 @@ render_border (cairo_t       *cr,
                                      2 * other_border[GTK_CSS_LEFT]);
             render_frame_fill (cr, &other_box, other_border, colors, dont_draw);
           }
+          break;
         case GTK_BORDER_STYLE_GROOVE:
         case GTK_BORDER_STYLE_RIDGE:
           {

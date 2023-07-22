@@ -21,6 +21,7 @@
 
 #include "gtkgradientprivate.h"
 
+#include "gtkcsscolorvalueprivate.h"
 #include "gtkcssrgbavalueprivate.h"
 #include "gtkstylecontextprivate.h"
 #include "gtkstyleproperties.h"
@@ -320,11 +321,11 @@ _gtk_gradient_resolve_full (GtkGradient             *gradient,
       stop = &g_array_index (gradient->stops, ColorStop, i);
 
       /* if color resolving fails, assume transparency */
-      val = _gtk_symbolic_color_resolve_full (stop->color,
-                                              provider,
-                                              _gtk_css_computed_values_get_value (values, GTK_CSS_PROPERTY_COLOR),
-                                              GTK_CSS_DEPENDS_ON_COLOR,
-                                              &stop_deps);
+      val = _gtk_css_color_value_resolve (_gtk_symbolic_color_get_css_value (stop->color),
+                                          provider,
+                                          _gtk_css_computed_values_get_value (values, GTK_CSS_PROPERTY_COLOR),
+                                          GTK_CSS_DEPENDS_ON_COLOR,
+                                          &stop_deps);
       if (val)
         {
           rgba = *_gtk_css_rgba_value_get_rgba (val);
@@ -520,11 +521,9 @@ _gtk_gradient_transition (GtkGradient *start,
       end_stop = &g_array_index (end->stops, ColorStop, i);
 
       offset = (1 - progress) * start_stop->offset + progress * end_stop->offset;
-      color = (GtkSymbolicColor *) _gtk_css_value_transition ((GtkCssValue *) start_stop->color,
-                                                              (GtkCssValue *) end_stop->color,
-                                                              property_id,
-                                                              progress);
-      g_assert (color);
+      color = gtk_symbolic_color_new_mix (start_stop->color,
+                                          end_stop->color,
+                                          progress);
       gtk_gradient_add_color_stop (gradient, offset, color);
       gtk_symbolic_color_unref (color);
     }

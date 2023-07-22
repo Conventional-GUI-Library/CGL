@@ -1108,7 +1108,7 @@ gtk_menu_shell_leave_notify (GtkWidget        *widget,
                              GdkEventCrossing *event)
 {
   if (event->mode == GDK_CROSSING_GTK_GRAB ||
-      event->mode == GDK_CROSSING_GTK_GRAB ||
+      event->mode == GDK_CROSSING_GTK_UNGRAB ||
       event->mode == GDK_CROSSING_STATE_CHANGED)
     return TRUE;
 
@@ -1754,8 +1754,8 @@ gtk_real_menu_shell_cycle_focus (GtkMenuShell     *menu_shell,
 
   while (menu_shell && !GTK_IS_MENU_BAR (menu_shell))
     {
-      if (priv->parent_menu_shell)
-        menu_shell = GTK_MENU_SHELL (priv->parent_menu_shell);
+      if (menu_shell->priv->parent_menu_shell)
+        menu_shell = GTK_MENU_SHELL (menu_shell->priv->parent_menu_shell);
       else
         menu_shell = NULL;
     }

@@ -48,6 +48,7 @@
 #include "gtkwidgetprivate.h"
 #include "gtkentryprivate.h"
 #include "gtkstylecontextprivate.h"
+#include "gtkcssstylepropertyprivate.h"
 #include "gtktypebuiltins.h"
 #include "gtkmain.h"
 #include "gtksettings.h"
@@ -1767,6 +1768,9 @@ gtk_tree_view_init (GtkTreeView *tree_view)
 
   gtk_tree_view_do_set_vadjustment (tree_view, NULL);
   gtk_tree_view_do_set_hadjustment (tree_view, NULL);
+
+  gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (tree_view)),
+                               GTK_STYLE_CLASS_VIEW);
 }
 
 
@@ -2189,13 +2193,6 @@ gtk_tree_view_ensure_background (GtkTreeView *tree_view)
   GtkStyleContext *context;
 
   context = gtk_widget_get_style_context (GTK_WIDGET (tree_view));
-
-  gtk_style_context_save (context);
-  gtk_style_context_add_class (context, GTK_STYLE_CLASS_VIEW);
-  gtk_style_context_set_background (context, tree_view->priv->bin_window);
-  gtk_style_context_set_background (context, gtk_widget_get_window (GTK_WIDGET (tree_view)));
-  gtk_style_context_restore (context);
-
   gtk_style_context_set_background (context, tree_view->priv->header_window);
 }
 
@@ -5347,24 +5344,23 @@ gtk_tree_view_draw (GtkWidget *widget,
 {
   GtkTreeView *tree_view = GTK_TREE_VIEW (widget);
   GtkWidget   *button;
+  GtkStyleContext *context;
+
+  context = gtk_widget_get_style_context (widget);
+  gtk_render_background (context, cr,
+                         0, 0,
+                         gtk_widget_get_allocated_width (widget),
+                         gtk_widget_get_allocated_height (widget));
 
   if (gtk_cairo_should_draw_window (cr, tree_view->priv->bin_window))
     {
-      GtkStyleContext *context;
       GList *tmp_list;
-
-      context = gtk_widget_get_style_context (widget);
 
       cairo_save (cr);
 
-      gtk_style_context_save (context);
-      gtk_style_context_add_class (context, GTK_STYLE_CLASS_VIEW);
-
       gtk_cairo_transform_to_window (cr, widget, tree_view->priv->bin_window);
-
       gtk_tree_view_bin_draw (widget, cr);
 
-      gtk_style_context_restore (context);
       cairo_restore (cr);
 
       /* We can't just chain up to Container::draw as it will try to send the
@@ -5380,6 +5376,9 @@ gtk_tree_view_draw (GtkWidget *widget,
 	  gtk_container_propagate_draw (GTK_CONTAINER (tree_view), child->widget, cr);
 	}
     }
+
+  gtk_style_context_save (context);
+  gtk_style_context_remove_class (context, GTK_STYLE_CLASS_VIEW);
 
   if (gtk_cairo_should_draw_window (cr, tree_view->priv->header_window))
     {
@@ -5408,6 +5407,8 @@ gtk_tree_view_draw (GtkWidget *widget,
       gtk_container_propagate_draw (GTK_CONTAINER (tree_view),
                                     button, cr);
     }
+
+  gtk_style_context_restore (context);
 
   return FALSE;
 }
@@ -8136,9 +8137,6 @@ gtk_tree_view_set_fixed_height_mode (GtkTreeView *tree_view,
     {
       tree_view->priv->fixed_height_mode = 0;
       tree_view->priv->fixed_height = -1;
-
-      /* force a revalidation */
-      install_presize_handler (tree_view);
     }
   else 
     {
@@ -8157,10 +8155,10 @@ gtk_tree_view_set_fixed_height_mode (GtkTreeView *tree_view,
       
       tree_view->priv->fixed_height_mode = 1;
       tree_view->priv->fixed_height = -1;
-      
-      if (tree_view->priv->tree)
-	initialize_fixed_height_mode (tree_view);
     }
+
+  /* force a revalidation */
+  install_presize_handler (tree_view);
 
   g_object_notify (G_OBJECT (tree_view), "fixed-height-mode");
 }
@@ -8462,6 +8460,8 @@ gtk_tree_view_style_updated (GtkWidget *widget)
   GtkTreeView *tree_view = GTK_TREE_VIEW (widget);
   GList *list;
   GtkTreeViewColumn *column;
+  GtkStyleContext *style_context;
+  const GtkBitmask *changes;
 
   GTK_WIDGET_CLASS (gtk_tree_view_parent_class)->style_updated (widget);
 
@@ -8473,16 +8473,19 @@ gtk_tree_view_style_updated (GtkWidget *widget)
       gtk_tree_view_set_enable_tree_lines (tree_view, tree_view->priv->tree_lines_enabled);
     }
 
-  for (list = tree_view->priv->columns; list; list = list->next)
+  style_context = gtk_widget_get_style_context (widget);
+  changes = _gtk_style_context_get_changes (style_context);
+  if (changes == NULL || _gtk_css_style_property_changes_affect_size (changes))
     {
-      column = list->data;
-      _gtk_tree_view_column_cell_set_dirty (column, TRUE);
+      for (list = tree_view->priv->columns; list; list = list->next)
+	{
+	  column = list->data;
+	  _gtk_tree_view_column_cell_set_dirty (column, TRUE);
+	}
+
+      tree_view->priv->fixed_height = -1;
+      _gtk_rbtree_mark_invalid (tree_view->priv->tree);
     }
-
-  tree_view->priv->fixed_height = -1;
-  _gtk_rbtree_mark_invalid (tree_view->priv->tree);
-
-  gtk_widget_queue_resize (widget);
 }
 
 
@@ -14562,8 +14565,6 @@ gtk_tree_view_create_row_drag_icon (GtkTreeView  *tree_view,
   context = gtk_widget_get_style_context (widget);
 
   gtk_style_context_save (context);
-
-  gtk_style_context_add_class (context, GTK_STYLE_CLASS_VIEW);
   gtk_style_context_add_region (context, GTK_STYLE_REGION_COLUMN, 0);
 
   gtk_widget_style_get (widget,
@@ -16429,7 +16430,7 @@ gtk_tree_view_set_tooltip_query_cb (GtkWidget  *widget,
  * for you. @column should be set to the column in @tree_view's model
  * containing the tooltip texts, or -1 to disable this feature.
  *
- * When enabled, #GtkWidget::has-tooltip will be set to %TRUE and
+ * When enabled, #GtkWidget:has-tooltip will be set to %TRUE and
  * @tree_view will connect a #GtkWidget::query-tooltip signal handler.
  *
  * Note that the signal handler sets the text with gtk_tooltip_set_markup(),

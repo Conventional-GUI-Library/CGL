@@ -37,6 +37,7 @@
 #include "gtkcontainer.h"
 #include "gtkaccelmapprivate.h"
 #include "gtkclipboard.h"
+#include "gtkcssstylepropertyprivate.h"
 #include "gtkiconfactory.h"
 #include "gtkintl.h"
 #include "gtkmarshalers.h"
@@ -57,7 +58,6 @@
 #include "gtkbuilderprivate.h"
 #include "gtksizerequest.h"
 #include "gtkstylecontextprivate.h"
-#include "gtksymboliccolor.h"
 #include "gtkcssprovider.h"
 #include "gtkmodifierstyle.h"
 #include "gtkversion.h"
@@ -855,6 +855,8 @@ gtk_widget_draw_marshallerv (GClosure     *closure,
 				param_types);
 
   cairo_restore (cr);
+
+  va_end (args_copy);
 }
 
 static void
@@ -1940,7 +1942,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
    * button press events for buttons 4 and 5 when the wheel is turned.
    *
    * To receive this signal, the #GdkWindow associated to the widget needs
-   * to enable the #GDK_BUTTON_PRESS_MASK mask.
+   * to enable the #GDK_SCROLL_MASK mask.
    *
    * This signal will be sent to the grab widget if there is one.
    *
@@ -6546,15 +6548,27 @@ gtk_widget_real_style_updated (GtkWidget *widget)
 
   if (widget->priv->context)
     {
+      const GtkBitmask *changes = _gtk_style_context_get_changes (widget->priv->context);
+
       if (gtk_widget_get_realized (widget) &&
           gtk_widget_get_has_window (widget) &&
           !gtk_widget_get_app_paintable (widget))
         gtk_style_context_set_background (widget->priv->context,
                                           widget->priv->window);
-    }
 
-  if (widget->priv->anchored)
-    gtk_widget_queue_resize (widget);
+      if (widget->priv->anchored)
+        {
+          if (changes && _gtk_css_style_property_changes_affect_size (changes))
+            gtk_widget_queue_resize (widget);
+          else
+            gtk_widget_queue_draw (widget);
+        }
+    }
+  else
+    {
+      if (widget->priv->anchored)
+        gtk_widget_queue_resize (widget);
+    }
 }
 
 static gboolean
@@ -7095,8 +7109,6 @@ _gtk_widget_update_state_flags (GtkWidget     *widget,
       data.operation = operation;
 
       gtk_widget_propagate_state (widget, &data);
-
-      gtk_widget_queue_resize (widget);
     }
 }
 
@@ -9084,12 +9096,8 @@ gtk_widget_peek_pango_context (GtkWidget *widget)
  * by gtk_widget_create_pango_context(), this context is owned by
  * the widget (it can be used until the screen for the widget changes
  * or the widget is removed from its toplevel), and will be updated to
- * match any changes to the widget's attributes.
- *
- * If you create and keep a #PangoLayout using this context, you must
- * deal with changes to the context by calling pango_layout_context_changed()
- * on the layout in response to the #GtkWidget::style-updated and
- * #GtkWidget::direction-changed signals for the widget.
+ * match any changes to the widget's attributes. This can be tracked
+ * by using the #GtkWidget::screen-changed signal on the widget.
  *
  * Return value: (transfer none): the #PangoContext for the widget.
  **/
@@ -9117,18 +9125,21 @@ static void
 update_pango_context (GtkWidget    *widget,
 		      PangoContext *context)
 {
-  const PangoFontDescription *font_desc;
+  PangoFontDescription *font_desc;
   GtkStyleContext *style_context;
 
   style_context = gtk_widget_get_style_context (widget);
-
-  font_desc = gtk_style_context_get_font (style_context,
-                                          gtk_widget_get_state_flags (widget));
+  gtk_style_context_get (style_context,
+                         gtk_widget_get_state_flags (widget),
+                         "font", &font_desc,
+                         NULL);
 
   pango_context_set_font_description (context, font_desc);
   pango_context_set_base_dir (context,
 			      gtk_widget_get_direction (widget) == GTK_TEXT_DIR_LTR ?
 			      PANGO_DIRECTION_LTR : PANGO_DIRECTION_RTL);
+
+  pango_font_description_free (font_desc);
 }
 
 static void
@@ -9197,11 +9208,10 @@ gtk_widget_create_pango_context (GtkWidget *widget)
  * font description, and base direction for drawing text for
  * this widget.
  *
- * If you keep a #PangoLayout created in this way around, in order to
- * notify the layout of changes to the base direction or font of this
- * widget, you must call pango_layout_context_changed() in response to
- * the #GtkWidget::style-updated and #GtkWidget::direction-changed signals
- * for the widget.
+ * If you keep a #PangoLayout created in this way around, you need
+ * to re-create it when the widget #PangoContext is replaced.
+ * This can be tracked by using the #GtkWidget::screen-changed signal
+ * on the widget.
  *
  * Return value: (transfer full): the new #PangoLayout
  **/
@@ -14521,9 +14531,6 @@ _gtk_widget_style_context_invalidated (GtkWidget *widget)
        */
       widget->priv->style_update_pending = TRUE;
     }
-
-  if (widget->priv->anchored)
-    gtk_widget_queue_resize (widget);
 }
 
 /**

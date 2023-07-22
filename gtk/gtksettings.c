@@ -30,9 +30,12 @@
 #include "gtkwidget.h"
 #include "gtkprivate.h"
 #include "gtkcssproviderprivate.h"
+#include "gtkcssarrayvalueprivate.h"
+#include "gtkcssstringvalueprivate.h"
+#include "gtkcssnumbervalueprivate.h"
 #include "gtkstyleproviderprivate.h"
-#include "gtksymboliccolor.h"
 #include "gtktypebuiltins.h"
+#include "gtksymboliccolor.h"
 #include "gtkversion.h"
 
 #ifdef GDK_WINDOWING_X11
@@ -104,6 +107,8 @@ struct _GtkSettingsPrivate
   GtkCssProvider *theme_provider;
   GtkCssProvider *key_theme_provider;
   GtkStyleProperties *style;
+  GtkCssValue *default_font_family;
+  GtkCssValue *default_font_size;
 };
 
 typedef enum
@@ -1387,7 +1392,8 @@ static void
 settings_ensure_style (GtkSettings *settings)
 {
   GtkSettingsPrivate *priv = settings->priv;
-  PangoFontDescription *font_desc;
+  PangoFontDescription *description;
+  PangoFontMask mask;
   gchar *font_name, *color_scheme;
   gchar **colors;
   guint i;
@@ -1435,31 +1441,23 @@ settings_ensure_style (GtkSettings *settings)
       gtk_symbolic_color_unref (color);
     }
 
-  font_desc = pango_font_description_from_string (font_name);
-
-  /* Unset normal attributes from this description,
-   * so they do not override theme values */
-  if (pango_font_description_get_weight (font_desc) == PANGO_WEIGHT_NORMAL)
-    pango_font_description_unset_fields (font_desc,
-                                         PANGO_FONT_MASK_WEIGHT);
-
-  if (pango_font_description_get_stretch (font_desc) == PANGO_STRETCH_NORMAL)
-    pango_font_description_unset_fields (font_desc,
-                                         PANGO_FONT_MASK_STRETCH);
-
-  if (pango_font_description_get_variant (font_desc) == PANGO_VARIANT_NORMAL)
-    pango_font_description_unset_fields (font_desc,
-                                         PANGO_FONT_MASK_VARIANT);
-
-  if (pango_font_description_get_style (font_desc) == PANGO_STYLE_NORMAL)
-    pango_font_description_unset_fields (font_desc,
-                                         PANGO_FONT_MASK_STYLE);
-
-  gtk_style_properties_set (priv->style, 0,
-                            "font", font_desc,
-                            NULL);
-
-  pango_font_description_free (font_desc);
+  description = pango_font_description_from_string (font_name);
+  if (description)
+    mask = pango_font_description_get_set_fields (description);
+  else
+    mask = 0;
+ 
+  if (mask & PANGO_FONT_MASK_FAMILY)
+    priv->default_font_family = _gtk_css_array_value_new (_gtk_css_string_value_new (pango_font_description_get_family (description)));
+  else
+    priv->default_font_family = _gtk_css_array_value_new (_gtk_css_string_value_new ("Sans"));
+ 
+  if (mask & PANGO_FONT_MASK_SIZE)
+    priv->default_font_size = _gtk_css_number_value_new ((double) pango_font_description_get_size (description) / PANGO_SCALE, GTK_CSS_PX);
+  else
+    priv->default_font_size = _gtk_css_number_value_new (10.0, GTK_CSS_PX);
+ 
+  pango_font_description_free (description);
   g_strfreev (colors);
   g_free (color_scheme);
   g_free (font_name);
@@ -1484,17 +1482,6 @@ gtk_settings_provider_iface_init (GtkStyleProviderIface *iface)
   iface->get_style = gtk_settings_get_style;
 }
 
-static GtkSymbolicColor *
-gtk_settings_style_provider_get_color (GtkStyleProviderPrivate *provider,
-                                       const char              *name)
-{
-  GtkSettings *settings = GTK_SETTINGS (provider);
-
-  settings_ensure_style (settings);
-
-  return _gtk_style_provider_private_get_color (GTK_STYLE_PROVIDER_PRIVATE (settings->priv->style), name);
-}
-
 static void
 gtk_settings_style_provider_lookup (GtkStyleProviderPrivate *provider,
                                     const GtkCssMatcher     *matcher,
@@ -1511,21 +1498,36 @@ gtk_settings_style_provider_lookup (GtkStyleProviderPrivate *provider,
 
 static GtkCssChange
 gtk_settings_style_provider_get_change (GtkStyleProviderPrivate *provider,
-                                        const GtkCssMatcher     *matcher)
+					const GtkCssMatcher *matcher)
+{
+  return 0;
+}
+
+
+static GtkSettings *
+gtk_settings_style_provider_get_settings (GtkStyleProviderPrivate *provider)
+{
+  return GTK_SETTINGS (provider);
+}
+
+static GtkSymbolicColor *
+gtk_settings_style_provider_get_color (GtkStyleProviderPrivate *provider,
+                                       const char              *name)
 {
   GtkSettings *settings = GTK_SETTINGS (provider);
 
   settings_ensure_style (settings);
 
-  return _gtk_style_provider_private_get_change (GTK_STYLE_PROVIDER_PRIVATE (settings->priv->style),
-                                                 matcher);
+  return _gtk_style_provider_private_get_color (GTK_STYLE_PROVIDER_PRIVATE (settings->priv->style), name);
 }
+
 
 static void
 gtk_settings_provider_private_init (GtkStyleProviderPrivateInterface *iface)
 {
   iface->get_color = gtk_settings_style_provider_get_color;
   iface->lookup = gtk_settings_style_provider_lookup;
+  iface->get_settings = gtk_settings_style_provider_get_settings;
   iface->get_change = gtk_settings_style_provider_get_change;
 }
 
@@ -1756,6 +1758,7 @@ gtk_settings_get_property (GObject     *object,
     }
 }
 
+
 static void
 settings_invalidate_style (GtkSettings *settings)
 {
@@ -1766,7 +1769,7 @@ settings_invalidate_style (GtkSettings *settings)
       g_object_unref (priv->style);
       priv->style = NULL;
     }
-
+	
   _gtk_style_provider_private_changed (GTK_STYLE_PROVIDER_PRIVATE (settings));
 }
 
@@ -1939,6 +1942,8 @@ apply_queued_setting (GtkSettings             *settings,
   g_value_unset (&tmp_value);
 }
 
+
+
 static guint
 settings_install_property_parser (GtkSettingsClass   *class,
                                   GParamSpec         *pspec,
@@ -2030,6 +2035,7 @@ _gtk_rc_property_parser_from_type (GType type)
   else
     return NULL;
 }
+
 
 void
 gtk_settings_install_property (GParamSpec *pspec)

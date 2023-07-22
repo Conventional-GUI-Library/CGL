@@ -39,6 +39,7 @@
 #include "gtkstyleproviderprivate.h"
 #include "gtkintl.h"
 
+#include "gtksymboliccolorprivate.h"
 #include "gtkwin32themeprivate.h"
 
 /**
@@ -295,11 +296,11 @@ gtk_style_properties_provider_init (GtkStyleProviderIface *iface)
   iface->get_style = gtk_style_properties_get_style;
 }
 
-static GtkSymbolicColor *
+static GtkCssValue *
 gtk_style_properties_provider_get_color (GtkStyleProviderPrivate *provider,
                                          const char              *name)
 {
-  return gtk_style_properties_lookup_color (GTK_STYLE_PROPERTIES (provider), name);
+  return _gtk_symbolic_color_get_css_value (gtk_style_properties_lookup_color (GTK_STYLE_PROPERTIES (provider), name));
 }
 
 static void
