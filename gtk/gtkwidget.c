@@ -29,6 +29,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <locale.h>
+#include <math.h>
 
 #include <gobject/gvaluecollector.h>
 #include <gobject/gobjectnotifyqueue.c>
@@ -38,6 +39,7 @@
 #include "gtkaccelmapprivate.h"
 #include "gtkclipboard.h"
 #include "gtkcssstylepropertyprivate.h"
+#include "gtkcssnumbervalueprivate.h"
 #include "gtkiconfactory.h"
 #include "gtkintl.h"
 #include "gtkmarshalers.h"
@@ -357,6 +359,13 @@ struct _GtkWidgetPrivate
   /* SizeGroup related flags */
   guint have_size_groups      : 1;
 
+  guint opacity_group         : 1;
+  guint norender_children     : 1;
+  guint norender              : 1; /* Don't expose windows, instead recurse via draw */
+
+  guint8 alpha;
+  guint8 user_alpha;
+
   /* The widget's name. If the widget does not have a name
    * (the name is NULL), then its name (as returned by
    * "gtk_widget_get_name") is its class's name.
@@ -395,9 +404,13 @@ struct _GtkWidgetPrivate
    * GTK_NO_WINDOW flag being set).
    */
   GdkWindow *window;
+  GList *registered_windows;
 
   /* The widget's parent */
   GtkWidget *parent;
+
+  /* Animations and other things to update on clock ticks */
+  GList *tick_callbacks;
 
 #ifdef G_ENABLE_DEBUG
   /* Number of gtk_widget_push_verify_invariants () */
@@ -506,6 +519,7 @@ enum {
   PROP_TOOLTIP_MARKUP,
   PROP_TOOLTIP_TEXT,
   PROP_WINDOW,
+  PROP_OPACITY,
   PROP_DOUBLE_BUFFERED,
   PROP_HALIGN,
   PROP_VALIGN,
@@ -607,7 +621,8 @@ static PangoContext*	gtk_widget_peek_pango_context		(GtkWidget	  *widget);
 static void     	gtk_widget_update_pango_context		(GtkWidget	  *widget);
 static void		gtk_widget_propagate_state		(GtkWidget	  *widget,
 								 GtkStateData 	  *data);
-;
+static void             gtk_widget_update_alpha                 (GtkWidget        *widget);
+
 static gint		gtk_widget_event_internal		(GtkWidget	  *widget,
 								 GdkEvent	  *event);
 static gboolean		gtk_widget_real_mnemonic_activate	(GtkWidget	  *widget,
@@ -703,6 +718,13 @@ static void gtk_widget_set_device_enabled_internal (GtkWidget *widget,
                                                     GdkDevice *device,
                                                     gboolean   recurse,
                                                     gboolean   enabled);
+                                                    
+static void gtk_cairo_set_event (cairo_t        *cr,			 GdkEventExpose *event);
+static void gtk_widget_propagate_alpha (GtkWidget *widget);
+ 
+static void gtk_widget_on_frame_clock_update (GdkFrameClock *frame_clock,
+                                              GtkWidget     *widget);
+
 
 /* --- variables --- */
 static gpointer         gtk_widget_parent_class = NULL;
@@ -814,9 +836,24 @@ gtk_widget_draw_marshaller (GClosure     *closure,
                             gpointer      invocation_hint,
                             gpointer      marshal_data)
 {
+  GtkWidget *widget = g_value_get_object (&param_values[0]);
+  GdkEventExpose *tmp_event;
+  gboolean push_group;
   cairo_t *cr = g_value_get_boxed (&param_values[1]);
 
   cairo_save (cr);
+  tmp_event = _gtk_cairo_get_event (cr);
+
+  push_group =
+    widget->priv->opacity_group ||
+    (widget->priv->alpha != 255 &&
+     (!gtk_widget_get_has_window (widget) || tmp_event == NULL));
+
+  if (push_group)
+    {
+      cairo_push_group (cr);
+      gtk_cairo_set_event (cr, NULL);
+    }
 
   _gtk_marshal_BOOLEAN__BOXED (closure,
                                return_value,
@@ -825,6 +862,15 @@ gtk_widget_draw_marshaller (GClosure     *closure,
                                invocation_hint,
                                marshal_data);
 
+
+  if (push_group)
+    {
+      cairo_pop_group_to_source (cr);
+      cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+      cairo_paint_with_alpha (cr, widget->priv->alpha / 255.0);
+    }
+
+  gtk_cairo_set_event (cr, tmp_event);
   cairo_restore (cr);
 }
 
@@ -837,6 +883,9 @@ gtk_widget_draw_marshallerv (GClosure     *closure,
 			     int           n_params,
 			     GType        *param_types)
 {
+  GtkWidget *widget = GTK_WIDGET (instance);
+  GdkEventExpose *tmp_event;
+  gboolean push_group;
   cairo_t *cr;
   va_list args_copy;
 
@@ -844,6 +893,18 @@ gtk_widget_draw_marshallerv (GClosure     *closure,
   cr = va_arg (args_copy, gpointer);
 
   cairo_save (cr);
+  tmp_event = _gtk_cairo_get_event (cr);
+
+  push_group =
+    widget->priv->opacity_group ||
+    (widget->priv->alpha != 255 &&
+     (!gtk_widget_get_has_window (widget) || tmp_event == NULL));
+
+  if (push_group)
+    {
+      cairo_push_group (cr);
+      gtk_cairo_set_event (cr, NULL);
+    }
 
   _gtk_marshal_BOOLEAN__BOXEDv (closure,
 				return_value,
@@ -853,6 +914,15 @@ gtk_widget_draw_marshallerv (GClosure     *closure,
 				n_params,
 				param_types);
 
+
+  if (push_group)
+    {
+      cairo_pop_group_to_source (cr);
+      cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+      cairo_paint_with_alpha (cr, widget->priv->alpha / 255.0);
+    }
+
+  gtk_cairo_set_event (cr, tmp_event);
   cairo_restore (cr);
 
   va_end (args_copy);
@@ -1425,6 +1495,25 @@ gtk_widget_class_init (GtkWidgetClass *klass)
                                                          FALSE,
                                                          GTK_PARAM_READWRITE));
 
+  /**
+   * GtkWidget:opacity:
+   *
+   * The requested opacity of the widget. See gtk_widget_set_opacity() for
+   * more details about window opacity.
+   *
+   * Before 3.8 this was only availible in GtkWindow
+   *
+   * Since: 3.8
+   */
+  g_object_class_install_property (gobject_class,
+				   PROP_OPACITY,
+				   g_param_spec_double ("opacity",
+							P_("Opacity for Widget"),
+							P_("The opacity of the widget, from 0 to 1"),
+							0.0,
+							1.0,
+							1.0,
+							GTK_PARAM_READWRITE));
   /**
    * GtkWidget::show:
    * @widget: the object which received the signal.
@@ -3448,6 +3537,9 @@ gtk_widget_set_property (GObject         *object,
       gtk_widget_set_vexpand (widget, g_value_get_boolean (value));
       g_object_thaw_notify (G_OBJECT (widget));
       break;
+    case PROP_OPACITY:
+      gtk_widget_set_opacity (widget, g_value_get_double (value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -3604,6 +3696,9 @@ gtk_widget_get_property (GObject         *object,
                            gtk_widget_get_hexpand (widget) &&
                            gtk_widget_get_vexpand (widget));
       break;
+    case PROP_OPACITY:
+      g_value_set_double (value, gtk_widget_get_opacity (widget));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -3626,6 +3721,8 @@ gtk_widget_init (GtkWidget *widget)
   priv->allocation.y = -1;
   priv->allocation.width = 1;
   priv->allocation.height = 1;
+  priv->user_alpha = 255;
+  priv->alpha = 255;
   priv->window = NULL;
   priv->parent = NULL;
 
@@ -3915,6 +4012,8 @@ gtk_widget_unparent (GtkWidget *widget)
   if (!priv->parent)
     g_object_notify_queue_clear (G_OBJECT (widget), nqueue);
   g_object_notify_queue_thaw (G_OBJECT (widget), nqueue);
+
+  gtk_widget_propagate_alpha (widget);
 
   gtk_widget_pop_verify_invariants (widget);
   g_object_unref (widget);
@@ -4378,6 +4477,241 @@ gtk_widget_update_devices_mask (GtkWidget *widget,
     gtk_widget_set_device_enabled_internal (widget, GDK_DEVICE (l->data), recurse, TRUE);
 }
 
+typedef struct _GtkTickCallbackInfo GtkTickCallbackInfo;
+
+struct _GtkTickCallbackInfo
+{
+  guint refcount;
+
+  guint id;
+  GtkTickCallback callback;
+  gpointer user_data;
+  GDestroyNotify notify;
+
+  guint destroyed : 1;
+};
+
+static void
+ref_tick_callback_info (GtkTickCallbackInfo *info)
+{
+  info->refcount++;
+}
+
+static void
+unref_tick_callback_info (GtkWidget           *widget,
+                          GtkTickCallbackInfo *info,
+                          GList               *link)
+{
+  GtkWidgetPrivate *priv = widget->priv;
+
+  info->refcount--;
+  if (info->refcount == 0)
+    {
+      priv->tick_callbacks = g_list_delete_link (priv->tick_callbacks, link);
+      if (info->notify)
+        info->notify (info->user_data);
+      g_slice_free (GtkTickCallbackInfo, info);
+    }
+
+  if (priv->tick_callbacks == NULL && priv->realized)
+    {
+      GdkFrameClock *frame_clock = gtk_widget_get_frame_clock (widget);
+      g_signal_handlers_disconnect_by_func (frame_clock,
+                                            (gpointer) gtk_widget_on_frame_clock_update,
+                                            widget);
+      gdk_frame_clock_end_updating (frame_clock);
+    }
+}
+
+
+
+static void
+destroy_tick_callback_info (GtkWidget           *widget,
+                            GtkTickCallbackInfo *info,
+                            GList               *link)
+{
+  if (!info->destroyed)
+    {
+      info->destroyed = TRUE;
+      unref_tick_callback_info (widget, info, link);
+    }
+}
+
+static void
+gtk_widget_on_frame_clock_update (GdkFrameClock *frame_clock,
+                                  GtkWidget     *widget)
+{
+  GtkWidgetPrivate *priv = widget->priv;
+  GList *l;
+
+  g_object_ref (widget);
+
+  for (l = priv->tick_callbacks; l;)
+    {
+      GtkTickCallbackInfo *info = l->data;
+      GList *next;
+
+      ref_tick_callback_info (info);
+      if (!info->destroyed)
+        {
+          if (info->callback (widget,
+                              frame_clock,
+                              info->user_data) == G_SOURCE_REMOVE)
+            {
+              destroy_tick_callback_info (widget, info, l);
+            }
+        }
+
+      next = l->next;
+      unref_tick_callback_info (widget, info, l);
+      l = next;
+    }
+
+  g_object_unref (widget);
+}
+
+static guint tick_callback_id;
+
+/**
+ * gtk_widget_add_tick_callback:
+ * @widget: a #GtkWidget
+ * @callback: function to call for updating animations
+ * @user_data: data to pass to @callback
+ * @notify: function to call to free @user_data when the callback is removed.
+ *
+ * Queues a animation frame update and adds a callback to be called
+ * before each frame. Until the tick callback is removed, it will be
+ * called frequently (usually at the frame rate of the output device
+ * or as quickly as the application an be repainted, whichever is
+ * slower). For this reason, is most suitable for handling graphics
+ * that change every frame or every few frames. The tick callback does
+ * not automatically imply a relayout or repaint. If you want a
+ * repaint or relayout, and aren't changing widget properties that
+ * would trigger that (for example, changing the text of a #GtkLabel),
+ * then you will have to call gtk_widget_queue_resize() or
+ * gtk_widget_queue_draw_area() yourself.
+ *
+ * gdk_frame_clock_get_frame_time() should generally be used for timing
+ * continuous animations and
+ * gdk_frame_timings_get_predicted_presentation_time() if you are
+ * trying to display isolated frames particular times.
+ *
+ * This is a more convenient alternative to connecting directly to the
+ * ::update signal of GdkFrameClock, since you don't have to worry about
+ * when a #GdkFrameClock is assigned to a widget.
+ *
+ * Returns: an id for the connection of this callback. Remove the callback
+ *     by passing it to gtk_widget_remove_tick_callback()
+ *
+ * Since: 3.8
+ */
+guint
+gtk_widget_add_tick_callback (GtkWidget       *widget,
+                              GtkTickCallback  callback,
+                              gpointer         user_data,
+                              GDestroyNotify   notify)
+{
+  GtkWidgetPrivate *priv;
+  GtkTickCallbackInfo *info;
+
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), 0);
+
+  priv = widget->priv;
+
+  if (priv->tick_callbacks == NULL && priv->realized)
+    {
+      GdkFrameClock *frame_clock = gtk_widget_get_frame_clock (widget);
+      g_signal_connect (frame_clock, "update",
+                        G_CALLBACK (gtk_widget_on_frame_clock_update),
+                        widget);
+      gdk_frame_clock_begin_updating (frame_clock);
+    }
+
+  info = g_slice_new0 (GtkTickCallbackInfo);
+
+  info->refcount = 1;
+  info->id = ++tick_callback_id;
+  info->callback = callback;
+  info->user_data = user_data;
+  info->notify = notify;
+
+  priv->tick_callbacks = g_list_prepend (priv->tick_callbacks,
+                                         info);
+
+  return info->id;
+}
+
+/**
+ * gtk_widget_remove_tick_callback:
+ * @widget: a #GtkWidget
+ * @id: an id returned by gtk_widget_add_tick_callback()
+ *
+ * Removes a tick callback previously registered with
+ * gtk_widget_add_tick_callback().
+ *
+ * Since: 3.8
+ */
+void
+gtk_widget_remove_tick_callback (GtkWidget *widget,
+                                 guint      id)
+{
+  GtkWidgetPrivate *priv;
+  GList *l;
+
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+
+  priv = widget->priv;
+
+  for (l = priv->tick_callbacks; l; l = l->next)
+    {
+      GtkTickCallbackInfo *info = l->data;
+      if (info->id == id)
+        destroy_tick_callback_info (widget, info, l);
+    }
+}
+
+static void
+gtk_widget_connect_frame_clock (GtkWidget     *widget,
+                                GdkFrameClock *frame_clock)
+{
+  GtkWidgetPrivate *priv = widget->priv;
+
+  if (GTK_IS_CONTAINER (widget))
+    _gtk_container_maybe_start_idle_sizer (GTK_CONTAINER (widget));
+
+  if (priv->tick_callbacks != NULL)
+    {
+      g_signal_connect (frame_clock, "update",
+                        G_CALLBACK (gtk_widget_on_frame_clock_update),
+                        widget);
+      gdk_frame_clock_begin_updating (frame_clock);
+    }
+
+  if (priv->context)
+    gtk_style_context_set_frame_clock (priv->context, frame_clock);
+}
+
+static void
+gtk_widget_disconnect_frame_clock (GtkWidget     *widget,
+                                   GdkFrameClock *frame_clock)
+{
+  GtkWidgetPrivate *priv = widget->priv;
+
+  if (GTK_IS_CONTAINER (widget))
+    _gtk_container_stop_idle_sizer (GTK_CONTAINER (widget));
+
+  if (priv->tick_callbacks)
+    {
+      g_signal_handlers_disconnect_by_func (frame_clock,
+                                            (gpointer) gtk_widget_on_frame_clock_update,
+                                            widget);
+      gdk_frame_clock_end_updating (frame_clock);
+    }
+
+  if (priv->context)
+    gtk_style_context_set_frame_clock (priv->context, NULL);
+}
+
 /**
  * gtk_widget_realize:
  * @widget: a #GtkWidget
@@ -4458,6 +4792,9 @@ gtk_widget_realize (GtkWidget *widget)
       _gtk_widget_enable_device_events (widget);
       gtk_widget_update_devices_mask (widget, TRUE);
 
+      gtk_widget_connect_frame_clock (widget,
+                                      gtk_widget_get_frame_clock (widget));
+
       gtk_widget_pop_verify_invariants (widget);
     }
 }
@@ -4489,6 +4826,9 @@ gtk_widget_unrealize (GtkWidget *widget)
 
       if (widget->priv->mapped)
         gtk_widget_unmap (widget);
+
+      gtk_widget_disconnect_frame_clock (widget,
+                                         gtk_widget_get_frame_clock (widget));
 
       g_signal_emit (widget, widget_signals[UNREALIZE], 0);
       g_assert (!widget->priv->mapped);
@@ -4648,6 +4988,60 @@ gtk_widget_queue_resize_no_redraw (GtkWidget *widget)
   g_return_if_fail (GTK_IS_WIDGET (widget));
 
   _gtk_size_group_queue_resize (widget, 0);
+}
+
+/**
+ * gtk_widget_get_frame_clock:
+ * @widget: a #GtkWidget
+ *
+ * Obtains the frame clock for a widget. The frame clock is a global
+ * "ticker" that can be used to drive animations and repaints.  The
+ * most common reason to get the frame clock is to call
+ * gdk_frame_clock_get_frame_time(), in order to get a time to use for
+ * animating. For example you might record the start of the animation
+ * with an initial value from gdk_frame_clock_get_frame_time(), and
+ * then update the animation by calling
+ * gdk_frame_clock_get_frame_time() again during each repaint.
+ *
+ * gdk_frame_clock_request_phase() will result in a new frame on the
+ * clock, but won't necessarily repaint any widgets. To repaint a
+ * widget, you have to use gtk_widget_queue_draw() which invalidates
+ * the widget (thus scheduling it to receive a draw on the next
+ * frame). gtk_widget_queue_draw() will also end up requesting a frame
+ * on the appropriate frame clock.
+ *
+ * A widget's frame clock will not change while the widget is
+ * mapped. Reparenting a widget (which implies a temporary unmap) can
+ * change the widget's frame clock.
+ *
+ * Unrealized widgets do not have a frame clock.
+ *
+ * Since: 3.0
+ * Return value: (transfer none): a #GdkFrameClock (or #NULL if widget is unrealized)
+ */
+GdkFrameClock*
+gtk_widget_get_frame_clock (GtkWidget *widget)
+{
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), 0);
+
+  if (widget->priv->realized)
+    {
+      /* We use gtk_widget_get_toplevel() here to make it explicit that
+       * the frame clock is a property of the toplevel that a widget
+       * is anchored to; gdk_window_get_toplevel() will go up the
+       * hierarchy anyways, but should squash any funny business with
+       * reparenting windows and widgets.
+       */
+      GtkWidget *toplevel = gtk_widget_get_toplevel (widget);
+      GdkWindow *window = gtk_widget_get_window (toplevel);
+      g_assert (window != NULL);
+
+      return gdk_window_get_frame_clock (window);
+    }
+  else
+    {
+      return NULL;
+    }
 }
 
 /**
@@ -6552,6 +6946,7 @@ gtk_widget_real_style_updated (GtkWidget *widget)
   GtkWidgetPrivate *priv = widget->priv;
 
   gtk_widget_update_pango_context (widget);
+  gtk_widget_update_alpha (widget);
 
   if (priv->style != NULL &&
       priv->style != gtk_widget_get_default_style ())
@@ -7914,6 +8309,8 @@ gtk_widget_set_parent (GtkWidget *widget,
       gtk_widget_queue_compute_expand (parent);
     }
 
+  gtk_widget_propagate_alpha (widget);
+
   gtk_widget_pop_verify_invariants (widget);
 }
 
@@ -8709,6 +9106,17 @@ gtk_widget_propagate_hierarchy_changed_recurse (GtkWidget *widget,
       g_object_ref (widget);
 
       priv->anchored = new_anchored;
+
+      /* This can only happen with gtk_widget_reparent() */
+      if (priv->realized)
+        {
+          if (new_anchored)
+            gtk_widget_connect_frame_clock (widget,
+                                            gtk_widget_get_frame_clock (widget));
+          else
+            gtk_widget_disconnect_frame_clock (widget,
+                                               gtk_widget_get_frame_clock (info->previous_toplevel));
+        }
 
       g_signal_emit (widget, widget_signals[HIERARCHY_CHANGED], 0, info->previous_toplevel);
       do_screen_change (widget, info->previous_screen, info->new_screen);
@@ -10793,6 +11201,7 @@ gtk_widget_real_destroy (GtkWidget *object)
   /* gtk_object_destroy() will already hold a refcount on object */
   GtkWidget *widget = GTK_WIDGET (object);
   GtkWidgetPrivate *priv = widget->priv;
+  GList *l;
 
   if (GTK_WIDGET_GET_CLASS (widget)->priv->accessible_type != GTK_TYPE_ACCESSIBLE)
     {
@@ -10813,6 +11222,13 @@ gtk_widget_real_destroy (GtkWidget *object)
   g_object_set_qdata (G_OBJECT (widget), quark_mnemonic_labels, NULL);
 
   gtk_grab_remove (widget);
+
+  for (l = priv->tick_callbacks; l;)
+    {
+      GList *next = l->next;
+      destroy_tick_callback_info (widget, l->data, l);
+      l = next;
+    }
 
   if (priv->style)
     g_object_unref (priv->style);
@@ -10963,7 +11379,7 @@ gtk_widget_real_unrealize (GtkWidget *widget)
 
   if (gtk_widget_get_has_window (widget))
     {
-      gdk_window_set_user_data (priv->window, NULL);
+      gtk_widget_unregister_window (widget, priv->window);
       gdk_window_destroy (priv->window);
       priv->window = NULL;
     }
@@ -14207,8 +14623,81 @@ gtk_widget_set_window (GtkWidget *widget,
   if (priv->window != window)
     {
       priv->window = window;
+
+      if (gtk_widget_get_has_window (widget) && window != NULL && !gdk_window_has_native (window))
+	gdk_window_set_opacity (window,
+				priv->norender ? 0 : priv->alpha / 255.0);
+
       g_object_notify (G_OBJECT (widget), "window");
     }
+}
+
+/**
+ * gtk_widget_register_window:
+ * @widget: a #GtkWidget
+ * @window: a #GdkWindow
+ *
+ * Registers a #GdkWindow with the widget and sets it up so that
+ * the widget recieves events for it. Call gtk_widget_unregister_window()
+ * when destroying the window.
+ *
+ * Before 3.8 you needed to call gdk_window_set_user_data() directly to set
+ * this up. This is now deprecated and you should use gtk_widget_register_window()
+ * instead. Old code will keep working as is, although some new features like
+ * transparency might not work perfectly.
+ *
+ * Since: 3.8
+ */
+void
+gtk_widget_register_window (GtkWidget    *widget,
+			    GdkWindow    *window)
+{
+  GtkWidgetPrivate *priv;
+  gpointer user_data;
+
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+  g_return_if_fail (GDK_IS_WINDOW (window));
+
+  gdk_window_get_user_data (window, &user_data);
+  g_assert (user_data == NULL);
+
+  priv = widget->priv;
+
+  gdk_window_set_user_data (window, widget);
+  priv->registered_windows = g_list_prepend (priv->registered_windows, window);
+
+  if (!gtk_widget_get_has_window (widget) && !gdk_window_has_native (window))
+    gdk_window_set_opacity (window,
+			    priv->norender_children ? 0.0 : 1.0);
+}
+
+/**
+ * gtk_widget_unregister_window:
+ * @widget: a #GtkWidget
+ * @window: a #GdkWindow
+ *
+ * Unregisters a #GdkWindow from the widget that was previously set up with
+ * gtk_widget_register_window(). You need to call this when the window is
+ * no longer used by the widget, such as when you destroy it.
+ *
+ * Since: 3.8
+ */
+void
+gtk_widget_unregister_window (GtkWidget    *widget,
+			      GdkWindow    *window)
+{
+  GtkWidgetPrivate *priv;
+  gpointer user_data;
+
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+  g_return_if_fail (GDK_IS_WINDOW (window));
+
+  priv = widget->priv;
+
+  gdk_window_get_user_data (window, &user_data);
+  g_assert (user_data == widget);
+  gdk_window_set_user_data (window, NULL);
+  priv->registered_windows = g_list_remove (priv->registered_windows, window);
 }
 
 /**
@@ -14271,6 +14760,209 @@ gtk_widget_set_support_multidevice (GtkWidget *widget,
 
   if (gtk_widget_get_realized (widget))
     gdk_window_set_support_multidevice (priv->window, support_multidevice);
+}
+
+/* There are multiple alpha related sources. First of all the user can specify alpha
+ * in gtk_widget_set_opacity, secondly we can get it from the css opacity. These two
+ * are multiplied together to form the total alpha. Secondly, the user can specify
+ * an opacity group for a widget, which means we must essentially handle it as having alpha.
+ *
+ * We handle opacity in two ways. For a windowed widget, with opacity set but no opacity
+ * group we directly set the opacity of widget->window. This will cause gdk to properly
+ * redirect drawing inside the window to a buffer and do OVER paint_with_alpha.
+ *
+ * However, if the widget is not windowed, or the user specified an opacity group for the
+ * widget we do the opacity handling in the ::draw marshaller for the widget. A naive
+ * implementation of this would break for windowed widgets or descendant widgets with
+ * windows, as these would not be handled by the ::draw signal. To handle this we set
+ * all such gdkwindows as fully transparent and then override gtk_cairo_should_draw_window()
+ * to make the draw signal propagate to *all* child widgets/windows.
+ *
+ * Note: We don't make all child windows fully transparent, we stop at the first one
+ * in each branch when propagating down the hierarchy.
+ */
+
+
+/* This is called when priv->alpha or priv->opacity_group group changes, and should
+ * update priv->norender and GdkWindow opacity for this widget and any children that
+ * needs changing. It is also called whenver the parent changes, the parents
+ * norender_children state changes, or the has_window state of the widget changes.
+ */
+static void
+gtk_widget_propagate_alpha (GtkWidget *widget)
+{
+  GtkWidgetPrivate *priv = widget->priv;
+  GtkWidget *parent;
+  gboolean norender, norender_children;
+  GList *l;
+
+  parent = priv->parent;
+
+  norender =
+    /* If this widget has an opacity group, never render it */
+    priv->opacity_group ||
+    /* If the parent has norender_children, propagate that here */
+    (parent != NULL && parent->priv->norender_children);
+
+  /* Windowed widget children should norender if: */
+  norender_children =
+    /* The widget is no_window (otherwise its enought to mark it norender/alpha), and */
+    !gtk_widget_get_has_window (widget) &&
+     ( /* norender is set, or */
+      norender ||
+      /* widget has an alpha */
+      priv->alpha != 255
+       );
+
+  if (gtk_widget_get_has_window (widget))
+    {
+      if (priv->window != NULL && !gdk_window_has_native (priv->window))
+	gdk_window_set_opacity (priv->window,
+				norender ? 0 : priv->alpha / 255.0);
+    }
+  else /* !has_window */
+    {
+      for (l = priv->registered_windows; l != NULL; l = l->next)
+	{
+	  GdkWindow *w = l->data;
+	  if (!gdk_window_has_native (w))
+	    gdk_window_set_opacity (w, norender_children ? 0.0 : 1.0);
+	}
+    }
+
+  priv->norender = norender;
+  if (priv->norender_children != norender_children)
+    {
+      priv->norender_children = norender_children;
+
+      if (GTK_IS_CONTAINER (widget))
+	gtk_container_forall (GTK_CONTAINER (widget), (GtkCallback)gtk_widget_propagate_alpha, NULL);
+    }
+
+  if (gtk_widget_get_realized (widget))
+    gtk_widget_queue_draw (widget);
+}
+
+static void
+gtk_widget_update_alpha (GtkWidget *widget)
+{
+  GtkWidgetPrivate *priv;
+  double opacity;
+  guint8 alpha;
+
+  priv = widget->priv;
+
+  alpha = priv->user_alpha;
+
+  if (priv->context)
+    {
+      opacity =
+	_gtk_css_number_value_get (_gtk_style_context_peek_property (priv->context,
+								     GTK_CSS_PROPERTY_OPACITY),
+				   100);
+      opacity = CLAMP (opacity, 0.0, 1.0);
+      alpha = round (priv->user_alpha * opacity);
+    }
+
+  if (alpha == priv->alpha)
+    return;
+
+  priv->alpha = alpha;
+
+  gtk_widget_propagate_alpha (widget);
+
+}
+
+static void
+gtk_widget_set_has_opacity_group  (GtkWidget *widget,
+				   gboolean has_opacity_group)
+{
+  GtkWidgetPrivate *priv;
+
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+
+  priv = widget->priv;
+
+  has_opacity_group = !!has_opacity_group;
+
+  if (priv->opacity_group == has_opacity_group)
+    return;
+
+  priv->opacity_group = has_opacity_group;
+
+  gtk_widget_propagate_alpha (widget);
+}
+
+/**
+ * gtk_widget_set_opacity:
+ * @widget: a #GtkWidget
+ * @opacity: desired opacity, between 0 and 1
+ *
+ * Request the @widget to be rendered partially transparent,
+ * with opacity 0 being fully transparent and 1 fully opaque. (Opacity values
+ * are clamped to the [0,1] range.).
+ * This works on both toplevel widget, and child widgets, although there
+ * are some limitations:
+ *
+ * For toplevel widgets this depends on the capabilities of the windowing
+ * system. On X11 this has any effect only on X screens with a compositing manager
+ * running. See gtk_widget_is_composited(). On Windows it should work
+ * always, although setting a window's opacity after the window has been
+ * shown causes it to flicker once on Windows.
+ *
+ * For child widgets it doesn't work if any affected widget has a native window, or
+ * disables double buffering.
+ *
+ * Since: 3.8
+ **/
+void
+gtk_widget_set_opacity  (GtkWidget *widget,
+			 gdouble    opacity)
+{
+  GtkWidgetPrivate *priv;
+  guint8 alpha;
+
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+
+  priv = widget->priv;
+
+  opacity = CLAMP (opacity, 0.0, 1.0);
+
+  alpha = round (opacity * 255);
+
+  /* As a kind of hack for internal use we treat an alpha very
+     close to 1.0 (rounds to 255) but not 1.0 as specifying that
+     we want the opacity group behaviour wrt draw handling, but
+     not actually an alpha value. See bug #687842 for discussions. */
+  gtk_widget_set_has_opacity_group (widget,
+				    alpha == 255 && opacity != 1.0);
+
+  if (alpha == priv->user_alpha)
+    return;
+
+  priv->user_alpha = alpha;
+
+  gtk_widget_update_alpha (widget);
+
+}
+
+/**
+ * gtk_widget_get_opacity:
+ * @widget: a #GtkWidget
+ *
+ * Fetches the requested opacity for this widget. See
+ * gtk_widget_set_opacity().
+ *
+ * Return value: the requested opacity for this widget.
+ *
+ * Since: 3.8
+ **/
+gdouble
+gtk_widget_get_opacity (GtkWidget *widget)
+{
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), 0.0);
+
+  return widget->priv->alpha / 255.0;
 }
 
 static void
@@ -14599,6 +15291,7 @@ gtk_widget_get_style_context (GtkWidget *widget)
   if (G_UNLIKELY (priv->context == NULL))
     {
       GdkScreen *screen;
+      GdkFrameClock *frame_clock;
 
       priv->context = gtk_style_context_new ();
 
@@ -14607,6 +15300,10 @@ gtk_widget_get_style_context (GtkWidget *widget)
       screen = gtk_widget_get_screen (widget);
       if (screen)
         gtk_style_context_set_screen (priv->context, screen);
+
+      frame_clock = gtk_widget_get_frame_clock (widget);
+      if (frame_clock)
+        gtk_style_context_set_frame_clock (priv->context, frame_clock);
 
       if (priv->parent)
         gtk_style_context_set_parent (priv->context,

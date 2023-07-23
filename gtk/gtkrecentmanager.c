@@ -214,6 +214,7 @@ static void     gtk_recent_manager_set_filename        (GtkRecentManager  *manag
                                                         const gchar       *filename);
 static void     gtk_recent_manager_clamp_to_age        (GtkRecentManager  *manager,
                                                         gint               age);
+static void     gtk_recent_manager_enabled_changed     (GtkRecentManager  *manager);
 
 
 static void build_recent_items_list (GtkRecentManager  *manager);
@@ -341,6 +342,7 @@ static void
 gtk_recent_manager_init (GtkRecentManager *manager)
 {
   GtkRecentManagerPrivate *priv;
+  GtkSettings *settings;
 
   manager->priv = G_TYPE_INSTANCE_GET_PRIVATE (manager,
                                                GTK_TYPE_RECENT_MANAGER,
@@ -349,6 +351,10 @@ gtk_recent_manager_init (GtkRecentManager *manager)
 
   priv->size = 0;
   priv->filename = NULL;
+
+  settings = gtk_settings_get_default ();
+  g_signal_connect_swapped (settings, "notify::gtk-recent-files-enabled",
+                            G_CALLBACK (gtk_recent_manager_enabled_changed), manager);
 }
 
 static void
@@ -439,6 +445,13 @@ gtk_recent_manager_dispose (GObject *gobject)
 }
 
 static void
+gtk_recent_manager_enabled_changed (GtkRecentManager *manager)
+{
+  manager->priv->is_dirty = TRUE;
+  gtk_recent_manager_changed (manager);
+}
+
+static void
 gtk_recent_manager_real_changed (GtkRecentManager *manager)
 {
   GtkRecentManagerPrivate *priv = manager->priv;
@@ -466,15 +479,20 @@ gtk_recent_manager_real_changed (GtkRecentManager *manager)
         {
           GtkSettings *settings = gtk_settings_get_default ();
           gint age = 30;
+          gboolean enabled;
 
-          g_object_get (G_OBJECT (settings), "gtk-recent-files-max-age", &age, NULL);
-          if (age > 0)
-            gtk_recent_manager_clamp_to_age (manager, age);
-          else if (age == 0)
+          g_object_get (G_OBJECT (settings),
+                        "gtk-recent-files-max-age", &age,
+                        "gtk-recent-files-enabled", &enabled,
+                        NULL);
+
+          if (age == 0 || !enabled)
             {
               g_bookmark_file_free (priv->recent_items);
               priv->recent_items = g_bookmark_file_new ();
             }
+          else if (age > 0)
+            gtk_recent_manager_clamp_to_age (manager, age);
         }
 
       write_error = NULL;
@@ -876,6 +894,8 @@ gtk_recent_manager_add_full (GtkRecentManager     *manager,
 			     const GtkRecentData  *data)
 {
   GtkRecentManagerPrivate *priv;
+  GtkSettings *settings;
+  gboolean enabled;
   
   g_return_val_if_fail (GTK_IS_RECENT_MANAGER (manager), FALSE);
   g_return_val_if_fail (uri != NULL, FALSE);
@@ -928,7 +948,12 @@ gtk_recent_manager_add_full (GtkRecentManager     *manager,
 		 uri);
       return FALSE;
     }
-  
+
+  settings = gtk_settings_get_default ();
+  g_object_get (G_OBJECT (settings), "gtk-recent-files-enabled", &enabled, NULL);
+  if (!enabled)
+    return TRUE;
+
   priv = manager->priv;
 
   if (!priv->recent_items)

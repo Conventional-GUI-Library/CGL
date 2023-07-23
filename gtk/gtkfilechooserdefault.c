@@ -1741,11 +1741,31 @@ shortcuts_append_search (GtkFileChooserDefault *impl)
   impl->has_search = TRUE;
 }
 
+static gboolean
+shortcuts_get_recent_enabled (GtkWidget *widget)
+{
+  GtkSettings *settings;
+  gboolean enabled;
+
+  if (gtk_widget_has_screen (widget))
+    settings = gtk_settings_get_for_screen (gtk_widget_get_screen (widget));
+  else
+    settings = gtk_settings_get_default ();
+
+  g_object_get (settings, "gtk-recent-files-enabled", &enabled, NULL);
+  return enabled;
+}
+
 static void
 shortcuts_append_recent (GtkFileChooserDefault *impl)
 {
   GdkPixbuf *pixbuf;
   GtkTreeIter iter;
+  gboolean enabled;
+
+  enabled = shortcuts_get_recent_enabled (GTK_WIDGET (impl));
+  if (!enabled)
+    return;
 
   pixbuf = render_recent_icon (impl);
 
@@ -1761,6 +1781,8 @@ shortcuts_append_recent (GtkFileChooserDefault *impl)
   
   if (pixbuf)
     g_object_unref (pixbuf);
+
+  impl->has_recent = TRUE;
 }
 
 /* Appends an item for the user's home directory to the shortcuts model */
@@ -1876,7 +1898,7 @@ shortcuts_get_index (GtkFileChooserDefault *impl,
   if (where == SHORTCUTS_RECENT)
     goto out;
 
-  n += 1; /* we always have the recently-used item */
+  n += impl->has_recent ? 1 : 0;
 
   if (where == SHORTCUTS_RECENT_SEPARATOR)
     goto out;
@@ -5706,18 +5728,6 @@ cancel_all_operations (GtkFileChooserDefault *impl)
 
   pending_select_files_free (impl);
 
-  /* cancel all pending operations */
-  if (impl->pending_cancellables)
-    {
-      for (l = impl->pending_cancellables; l; l = l->next)
-        {
-	  GCancellable *cancellable = G_CANCELLABLE (l->data);
-	  g_cancellable_cancel (cancellable);
-        }
-      g_slist_free (impl->pending_cancellables);
-      impl->pending_cancellables = NULL;
-    }
-
   if (impl->reload_icon_cancellables)
     {
       for (l = impl->reload_icon_cancellables; l; l = l->next)
@@ -5756,6 +5766,12 @@ cancel_all_operations (GtkFileChooserDefault *impl)
     {
       g_cancellable_cancel (impl->should_respond_get_info_cancellable);
       impl->should_respond_get_info_cancellable = NULL;
+    }
+
+  if (impl->file_exists_get_info_cancellable)
+    {
+      g_cancellable_cancel (impl->file_exists_get_info_cancellable);
+      impl->file_exists_get_info_cancellable = NULL;
     }
 
   if (impl->update_from_entry_cancellable)

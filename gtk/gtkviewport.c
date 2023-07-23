@@ -256,10 +256,11 @@ gtk_viewport_init (GtkViewport *viewport)
 
 /**
  * gtk_viewport_new:
- * @hadjustment: horizontal adjustment
- * @vadjustment: vertical adjustment
+ * @hadjustment: (allow-none): horizontal adjustment
+ * @vadjustment: (allow-none): vertical adjustment
  *
- * Creates a new #GtkViewport with the given adjustments.
+ * Creates a new #GtkViewport with the given adjustments, or with default
+ * adjustments if none are given.
  *
  * Returns: a new #GtkViewport
  */
@@ -691,7 +692,7 @@ gtk_viewport_realize (GtkWidget *widget)
   window = gdk_window_new (gtk_widget_get_parent_window (widget),
                            &attributes, attributes_mask);
   gtk_widget_set_window (widget, window);
-  gdk_window_set_user_data (window, viewport);
+  gtk_widget_register_window (widget, window);
 
   viewport_get_view_allocation (viewport, &view_allocation);
   
@@ -703,7 +704,7 @@ gtk_viewport_realize (GtkWidget *widget)
 
   priv->view_window = gdk_window_new (window,
                                       &attributes, attributes_mask);
-  gdk_window_set_user_data (priv->view_window, viewport);
+  gtk_widget_register_window (widget, priv->view_window);
 
   attributes.x = - gtk_adjustment_get_value (hadjustment);
   attributes.y = - gtk_adjustment_get_value (vadjustment);
@@ -713,7 +714,7 @@ gtk_viewport_realize (GtkWidget *widget)
   attributes.event_mask = event_mask;
 
   priv->bin_window = gdk_window_new (priv->view_window, &attributes, attributes_mask);
-  gdk_window_set_user_data (priv->bin_window, viewport);
+  gtk_widget_register_window (widget, priv->bin_window);
 
   child = gtk_bin_get_child (bin);
   if (child)
@@ -733,11 +734,11 @@ gtk_viewport_unrealize (GtkWidget *widget)
   GtkViewport *viewport = GTK_VIEWPORT (widget);
   GtkViewportPrivate *priv = viewport->priv;
 
-  gdk_window_set_user_data (priv->view_window, NULL);
+  gtk_widget_unregister_window (widget, priv->view_window);
   gdk_window_destroy (priv->view_window);
   priv->view_window = NULL;
 
-  gdk_window_set_user_data (priv->bin_window, NULL);
+  gtk_widget_unregister_window (widget, priv->bin_window);
   gdk_window_destroy (priv->bin_window);
   priv->bin_window = NULL;
 

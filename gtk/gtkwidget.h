@@ -101,6 +101,23 @@ typedef void    (*GtkCallback)     (GtkWidget        *widget,
 				    gpointer          data);
 
 /**
+ * GtkTickCallback:
+ * @widget: the widget
+ * @frame_clock: the frame clock for the widget (same as calling gtk_widget_get_frame_clock())
+ * @user_data: user data passed to gtk_widget_add_tick_callback().
+ *
+ * Callback type for adding a function to update animations. See gtk_widget_add_tick_callback().
+ *
+ * Returns: %G_SOURCE_CONTINUE if the tick callback should continue to be called,
+ *  %G_SOURCE_REMOVE if the tick callback should be removed.
+ *
+ * Since: 3.8
+ */
+typedef gboolean (*GtkTickCallback) (GtkWidget     *widget,
+                                     GdkFrameClock *frame_clock,
+                                     gpointer       user_data);
+
+/**
  * GtkRequisition:
  * @width: the widget's desired width
  * @height: the widget's desired height
@@ -485,6 +502,8 @@ void	   gtk_widget_queue_draw_region   (GtkWidget	       *widget,
                                            const cairo_region_t*region);
 void	   gtk_widget_queue_resize	  (GtkWidget	       *widget);
 void	   gtk_widget_queue_resize_no_redraw (GtkWidget *widget);
+GDK_AVAILABLE_IN_3_8
+GdkFrameClock* gtk_widget_get_frame_clock (GtkWidget           *widget);
 #ifndef GTK_DISABLE_DEPRECATED
 void	   gtk_widget_size_request	  (GtkWidget	       *widget,
 					   GtkRequisition      *requisition);
@@ -643,6 +662,12 @@ gboolean              gtk_widget_get_child_visible      (GtkWidget    *widget);
 void                  gtk_widget_set_window             (GtkWidget    *widget,
                                                          GdkWindow    *window);
 GdkWindow           * gtk_widget_get_window             (GtkWidget    *widget);
+GDK_AVAILABLE_IN_3_8
+void                  gtk_widget_register_window        (GtkWidget    *widget,
+                                                         GdkWindow    *window);
+GDK_AVAILABLE_IN_3_8
+void                  gtk_widget_unregister_window      (GtkWidget    *widget,
+                                                         GdkWindow    *window);
 
 int                   gtk_widget_get_allocated_width    (GtkWidget     *widget);
 int                   gtk_widget_get_allocated_height   (GtkWidget     *widget);
@@ -677,6 +702,11 @@ void	   gtk_widget_set_device_events	  (GtkWidget	       *widget,
 void       gtk_widget_add_device_events   (GtkWidget           *widget,
                                            GdkDevice           *device,
 					   GdkEventMask         events);
+GDK_AVAILABLE_IN_3_8
+void	   gtk_widget_set_opacity	  (GtkWidget	       *widget,
+					   double		opacity);
+GDK_AVAILABLE_IN_3_8
+double	   gtk_widget_get_opacity	  (GtkWidget	       *widget);
 
 void       gtk_widget_set_device_enabled  (GtkWidget    *widget,
                                            GdkDevice    *device,
@@ -956,6 +986,18 @@ GtkWidgetPath *   gtk_widget_get_path (GtkWidget *widget);
 
 GdkModifierType   gtk_widget_get_modifier_mask (GtkWidget         *widget,
                                                 GdkModifierIntent  intent);
+
+
+
+GDK_AVAILABLE_IN_3_8
+guint gtk_widget_add_tick_callback (GtkWidget       *widget,
+                                    GtkTickCallback  callback,
+                                    gpointer         user_data,
+                                    GDestroyNotify   notify);
+
+GDK_AVAILABLE_IN_3_8
+void gtk_widget_remove_tick_callback (GtkWidget       *widget,
+                                      guint            id);
 
 G_END_DECLS
 
