@@ -104,7 +104,7 @@
  * or stock items, rather than directly, but looking up icons
  * directly is also simple. The #GtkIconTheme object acts
  * as a database of all the icons in the current theme. You
- * can create new #GtkIconTheme objects, but its much more
+ * can create new #GtkIconTheme objects, but it's much more
  * efficient to use the standard icon theme for the #GdkScreen
  * so that the icon information is shared with other people
  * looking up icons. In the case where the default screen is
@@ -3022,6 +3022,8 @@ icon_info_dup (GtkIconInfo *icon_info)
     dup->icon_file = g_object_ref (icon_info->icon_file);
   if (icon_info->loadable)
     dup->loadable = g_object_ref (icon_info->loadable);
+  if (icon_info->pixbuf)
+    dup->pixbuf = g_object_ref (icon_info->pixbuf);
 
   for (l = icon_info->emblem_infos; l != NULL; l = l->next)
     {
@@ -4880,15 +4882,18 @@ gtk_icon_theme_lookup_by_gicon (GtkIconTheme       *icon_theme,
     {
       GIcon *base, *emblem;
       GList *list, *l;
-      GtkIconInfo *emblem_info;
+      GtkIconInfo *base_info, *emblem_info;
 
       if (GTK_IS_NUMERABLE_ICON (icon))
         _gtk_numerable_icon_set_background_icon_size (GTK_NUMERABLE_ICON (icon), size / 2);
 
       base = g_emblemed_icon_get_icon (G_EMBLEMED_ICON (icon));
-      info = gtk_icon_theme_lookup_by_gicon (icon_theme, base, size, flags);
-      if (info)
+      base_info = gtk_icon_theme_lookup_by_gicon (icon_theme, base, size, flags);
+      if (base_info)
         {
+          info = icon_info_dup (base_info);
+          g_object_unref (base_info);
+
           list = g_emblemed_icon_get_emblems (G_EMBLEMED_ICON (icon));
           for (l = list; l; l = l->next)
             {
@@ -4898,9 +4903,11 @@ gtk_icon_theme_lookup_by_gicon (GtkIconTheme       *icon_theme,
               if (emblem_info)
                 info->emblem_infos = g_slist_prepend (info->emblem_infos, emblem_info);
             }
-        }
 
-      return info;
+          return info;
+        }
+      else
+        return NULL;
     }
   else if (GDK_IS_PIXBUF (icon))
     {

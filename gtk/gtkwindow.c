@@ -423,9 +423,11 @@ static GtkKeyHash *gtk_window_get_key_hash        (GtkWindow   *window);
 static void        gtk_window_free_key_hash       (GtkWindow   *window);
 static void	   gtk_window_on_composited_changed (GdkScreen *screen,
 						     GtkWindow *window);
+#ifdef GDK_WINDOWING_X11
 static void        gtk_window_on_theme_variant_changed (GtkSettings *settings,
                                                         GParamSpec  *pspec,
                                                         GtkWindow   *window);
+#endif
 static void        gtk_window_set_theme_variant         (GtkWindow  *window);
 
 static GSList      *toplevel_list = NULL;
@@ -6580,7 +6582,7 @@ gtk_window_compute_configure_request_size (GtkWindow   *window,
 				 info->resize_height > 0 ? height : NULL);
     }
 
-  /* Don't ever request zero width or height, its not supported by
+  /* Don't ever request zero width or height, it's not supported by
      gdk. The size allocation code will round it to 1 anyway but if
      we do it then the value returned from this function will is
      not comparable to the size allocation read from the GtkWindow. */
@@ -8346,6 +8348,7 @@ gtk_window_set_theme_variant (GtkWindow *window)
 #endif
 }
 
+#ifdef GDK_WINDOWING_X11
 static void
 gtk_window_on_theme_variant_changed (GtkSettings *settings,
                                      GParamSpec  *pspec,
@@ -8354,6 +8357,7 @@ gtk_window_on_theme_variant_changed (GtkSettings *settings,
   if (window->priv->type == GTK_WINDOW_TOPLEVEL)
     gtk_window_set_theme_variant (window);
 }
+#endif
 
 static void
 gtk_window_on_composited_changed (GdkScreen *screen,

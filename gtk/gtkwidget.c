@@ -1975,6 +1975,13 @@ gtk_widget_class_init (GtkWidgetClass *klass)
    *
    * This signal will be sent to the grab widget if there is one.
    *
+   * The signal handler will get a @cr with a clip region already set to the
+   * widget's dirty region, i.e. to the area that needs repainting.  Complicated
+   * widgets that want to avoid redrawing themselves completely can get the full
+   * extents of the clip region with gdk_cairo_get_clip_rectangle(), or they can
+   * get a finer-grained representation of the dirty region with
+   * cairo_copy_clip_rectangle_list().
+   *
    * Returns: %TRUE to stop other handlers from being invoked for the event.
    *   %FALSE to propagate the event further.
    */
@@ -7333,13 +7340,13 @@ gtk_widget_set_receives_default (GtkWidget *widget,
  * gtk_widget_get_receives_default:
  * @widget: a #GtkWidget
  *
- * Determines whether @widget is alyways treated as default widget
- * withing its toplevel when it has the focus, even if another widget
+ * Determines whether @widget is always treated as the default widget
+ * within its toplevel when it has the focus, even if another widget
  * is the default.
  *
  * See gtk_widget_set_receives_default().
  *
- * Return value: %TRUE if @widget acts as default widget when focussed,
+ * Return value: %TRUE if @widget acts as the default widget when focussed,
  *               %FALSE otherwise
  *
  * Since: 2.18
@@ -14666,7 +14673,7 @@ gtk_widget_register_window (GtkWidget    *widget,
   gdk_window_set_user_data (window, widget);
   priv->registered_windows = g_list_prepend (priv->registered_windows, window);
 
-  if (!gtk_widget_get_has_window (widget) && !gdk_window_has_native (window))
+  if (priv->window != window && !gdk_window_has_native (window))
     gdk_window_set_opacity (window,
 			    priv->norender_children ? 0.0 : 1.0);
 }
@@ -14798,21 +14805,25 @@ gtk_widget_propagate_alpha (GtkWidget *widget)
 
   parent = priv->parent;
 
-  norender =
-    /* If this widget has an opacity group, never render it */
-    priv->opacity_group ||
-    /* If the parent has norender_children, propagate that here */
-    (parent != NULL && parent->priv->norender_children);
+  /* Norender affects only windowed widget and means don't render widget->window in the
+     normal fashion.
+     We only set this if the parent has norender_children, because:
+     a) For an opacity group (that does not have a norender_children parent) we still
+     need to render the window or we will never get an expose event.
+     b) For alpha we set the opacity of window->widget directly, so no other
+     work is needed.
+  */
+  norender = (parent != NULL && parent->priv->norender_children);
 
-  /* Windowed widget children should norender if: */
+  /* windows under this widget should not render if:
+     a) This widget has an opacity group
+     b) This widget has alpha and is no-windowed (otherwise we'd set alpha on widget->window)
+     c) This widget has norender but is no-windowed (a windowed widget would "swallow" the norender)
+  */
   norender_children =
-    /* The widget is no_window (otherwise its enought to mark it norender/alpha), and */
-    !gtk_widget_get_has_window (widget) &&
-     ( /* norender is set, or */
-      norender ||
-      /* widget has an alpha */
-      priv->alpha != 255
-       );
+    priv->opacity_group ||
+    (!gtk_widget_get_has_window (widget) &&
+     ( norender || priv->alpha != 255));
 
   if (gtk_widget_get_has_window (widget))
     {
@@ -14820,14 +14831,12 @@ gtk_widget_propagate_alpha (GtkWidget *widget)
 	gdk_window_set_opacity (priv->window,
 				norender ? 0 : priv->alpha / 255.0);
     }
-  else /* !has_window */
+
+  for (l = priv->registered_windows; l != NULL; l = l->next)
     {
-      for (l = priv->registered_windows; l != NULL; l = l->next)
-	{
-	  GdkWindow *w = l->data;
-	  if (!gdk_window_has_native (w))
-	    gdk_window_set_opacity (w, norender_children ? 0.0 : 1.0);
-	}
+      GdkWindow *w = l->data;
+      if (w != priv->window && !gdk_window_has_native (w))
+	gdk_window_set_opacity (w, norender_children ? 0.0 : 1.0);
     }
 
   priv->norender = norender;
