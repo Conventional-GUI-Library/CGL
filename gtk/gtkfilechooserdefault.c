@@ -4931,7 +4931,7 @@ special_mode_widgets_create (GtkFileChooserDefault *impl)
 
 int is_icon_present(char * name) {
   int retval = 0;
-  GtkIconInfo * iconinfo = gtk_icon_theme_lookup_icon(gtk_icon_theme_get_default(), name, GTK_ICON_SIZE_MENU, 0);
+  GtkIconInfo * iconinfo = gtk_icon_theme_lookup_icon(gtk_icon_theme_get_default(), name, GTK_ICON_SIZE_BUTTON, 0);
   if (iconinfo != NULL) {
     retval = 1;
   }
