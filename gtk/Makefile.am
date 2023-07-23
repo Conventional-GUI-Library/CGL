@@ -693,6 +693,7 @@ gtk_base_c_sources = 		\
 	gtkframe.c		\
 	gtkgradient.c		\
 	gtkgrid.c		\
+	gtkcsdtitlebar.c		\
 	gtkhsla.c		\
 	gtkhandlebox.c		\
 	gtkhbbox.c		\
@@ -1349,6 +1350,10 @@ STOCK_ICONS = \
 	stock-icons/16/list-add.png 			\
 	stock-icons/16/media-optical.png 		\
 	stock-icons/16/window-close.png 		\
+	stock-icons/16/window-minimize.png 		\
+	stock-icons/16/window-maximize.png 		\
+	stock-icons/16/window-restore.png 		\
+	stock-icons/16/window-delete.png 		\
 	stock-icons/16/gtk-connect.png 			\
 	stock-icons/16/gtk-convert.png 			\
 	stock-icons/16/edit-clear.png 			\

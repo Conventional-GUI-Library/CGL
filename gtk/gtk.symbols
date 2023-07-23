@@ -1220,6 +1220,13 @@ gtk_hbox_get_type
 gtk_hbox_new
 gtk_hbutton_box_get_type
 gtk_hbutton_box_new
+gtk_csd_title_bar_new
+gtk_csd_title_bar_pack_start
+gtk_csd_title_bar_pack_end
+gtk_csd_title_bar_set_title
+gtk_csd_title_bar_get_title
+gtk_csd_title_bar_set_custom_title
+gtk_csd_title_bar_get_custom_title
 gtk_hpaned_get_type
 gtk_hpaned_new
 gtk_hscale_get_type

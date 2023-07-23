@@ -909,6 +909,10 @@ gtk_file_chooser_get_action (GtkFileChooser *chooser)
  * rather than the URI functions like
  * gtk_file_chooser_get_uri(),
  *
+ * On some systems non-native files may still be
+ * available using the native filesystem via a userspace
+ * filesystem (FUSE).
+ *
  * Since: 2.4
  **/
 void
@@ -1198,6 +1202,22 @@ files_to_strings (GSList  *files,
   return g_slist_reverse (strings);
 }
 
+static gchar *
+file_to_uri_with_native_path (GFile *file)
+{
+  gchar *result = NULL;
+  gchar *native;
+
+  native = g_file_get_path (file);
+  if (native)
+    {
+      result = g_filename_to_uri (native, NULL, NULL); /* NULL-GError */
+      g_free (native);
+    }
+
+  return result;
+}
+
 /**
  * gtk_file_chooser_get_filenames:
  * @chooser: a #GtkFileChooser
@@ -1346,7 +1366,9 @@ gtk_file_chooser_set_current_name  (GtkFileChooser *chooser,
  * folder.
  * 
  * Return value: The currently selected URI, or %NULL
- *  if no file is selected. Free with g_free()
+ *  if no file is selected. If gtk_file_chooser_set_local_only() is set to %TRUE
+ * (the default) a local URI will be returned for any FUSE locations.
+ * Free with g_free()
  *
  * Since: 2.4
  **/
@@ -1361,7 +1383,11 @@ gtk_file_chooser_get_uri (GtkFileChooser *chooser)
   file = gtk_file_chooser_get_file (chooser);
   if (file)
     {
-      result = g_file_get_uri (file);
+      if (gtk_file_chooser_get_local_only (chooser))
+	  result = file_to_uri_with_native_path (file);
+      else 
+          result = g_file_get_uri (file);
+
       g_object_unref (file);
     }
 
@@ -1530,7 +1556,11 @@ gtk_file_chooser_get_uris (GtkFileChooser *chooser)
 
   files = gtk_file_chooser_get_files (chooser);
 
-  result = files_to_strings (files, g_file_get_uri);
+  if (gtk_file_chooser_get_local_only (chooser))
+    result = files_to_strings (files, file_to_uri_with_native_path);
+  else
+    result = files_to_strings (files, g_file_get_uri);
+
   g_slist_foreach (files, (GFunc) g_object_unref, NULL);
   g_slist_free (files);
 

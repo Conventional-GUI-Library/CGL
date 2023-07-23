@@ -1763,3 +1763,16 @@ _gtk_file_info_consider_as_directory (GFileInfo *info)
           type == G_FILE_TYPE_SHORTCUT);
 }
 
+gboolean
+_gtk_file_has_native_path (GFile *file)
+{
+  char *local_file_path;
+  gboolean has_native_path;
+
+  /* Don't use g_file_is_native(), as we want to support FUSE paths if available */
+  local_file_path = g_file_get_path (file);
+  has_native_path = (local_file_path != NULL);
+  g_free (local_file_path);
+
+  return has_native_path;
+}

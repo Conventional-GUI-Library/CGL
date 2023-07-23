@@ -58,6 +58,7 @@ gtk/gtkbbox.c
 gtk/gtkbin.c
 gtk/gtkbindings.c
 gtk/gtkbox.c
+gtk/gtkbubblewindow.c
 gtk/gtkbuildable.c
 gtk/gtkbuilder.c
 gtk/gtkbuilder-menus.c
@@ -126,6 +127,7 @@ gtk/gtkfontchooserdialog.c
 gtk/gtkfontchooserwidget.c
 gtk/gtkframe.c
 gtk/gtkgrid.c
+gtk/gtkcsdtitlebar.c
 gtk/gtkiconfactory.c
 gtk/gtkicontheme.c
 gtk/gtkiconview.c

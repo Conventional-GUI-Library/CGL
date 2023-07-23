@@ -53,7 +53,7 @@
 #include "gtktypebuiltins.h"
 #include "gtkmain.h"
 
-#include "a11y/gtklabelaccessible.h"
+#include "a11y/gtklabelaccessibleprivate.h"
 
 /* this is in case rint() is not provided by the compiler, 
  * such as in the case of C89 compilers, like MSVC
@@ -1981,15 +1981,20 @@ gtk_label_set_text_internal (GtkLabel *label,
                              gchar    *str)
 {
   GtkLabelPrivate *priv = label->priv;
-  gboolean text_changed;
 
-  text_changed = g_strcmp0 (priv->text, str) != 0;
+  if (g_strcmp0 (priv->text, str) == 0)
+    {
+      g_free (str);
+      return;
+    }
 
+  _gtk_label_accessible_text_deleted (label);
   g_free (priv->text);
   priv->text = str;
 
-  if (text_changed)
-    gtk_label_select_region_index (label, 0, 0);
+  _gtk_label_accessible_text_inserted (label);
+
+  gtk_label_select_region_index (label, 0, 0);
 }
 
 static void
@@ -2513,16 +2518,19 @@ gtk_label_set_markup_internal (GtkLabel    *label,
   GError *error = NULL;
   PangoAttrList *attrs = NULL;
   gunichar accel_char = 0;
-  gchar *new_str;
+  gchar *str_for_display = NULL;
+  gchar *str_for_accel = NULL;
   GList *links = NULL;
 
-  if (!parse_uri_markup (label, str, &new_str, &links, &error))
+  if (!parse_uri_markup (label, str, &str_for_display, &links, &error))
     {
       g_warning ("Failed to set text from markup due to error parsing markup: %s",
                  error->message);
       g_error_free (error);
       return;
     }
+
+  str_for_accel = g_strdup (str_for_display);
 
   if (links)
     {
@@ -2551,31 +2559,51 @@ gtk_label_set_markup_internal (GtkLabel    *label,
           gchar *pattern;
           guint key;
 
-          if (separate_uline_pattern (new_str, &key, &tmp, &pattern))
+          if (separate_uline_pattern (str_for_display, &key, &tmp, &pattern))
             {
-              g_free (new_str);
-              new_str = tmp;
+              g_free (str_for_display);
+              str_for_display = tmp;
               g_free (pattern);
             }
         }
     }
 
-  if (!pango_parse_markup (new_str,
+  /* Extract the text to display */
+  if (!pango_parse_markup (str_for_display,
                            -1,
-                           with_uline ? '_' : 0,
+                           0,
                            &attrs,
                            &text,
-                           with_uline ? &accel_char : NULL,
+                           NULL,
                            &error))
     {
       g_warning ("Failed to set text from markup due to error parsing markup: %s",
                  error->message);
-      g_free (new_str);
+      g_free (str_for_display);
+      g_free (str_for_accel);
       g_error_free (error);
       return;
     }
 
-  g_free (new_str);
+  /* Extract the accelerator character */
+  if (with_uline && !pango_parse_markup (str_for_accel,
+					 -1,
+					 '_',
+					 NULL,
+					 NULL,
+					 &accel_char,
+					 &error))
+    {
+      g_warning ("Failed to set text from markup due to error parsing markup: %s",
+                 error->message);
+      g_free (str_for_display);
+      g_free (str_for_accel);
+      g_error_free (error);
+      return;
+    }
+
+  g_free (str_for_display);
+  g_free (str_for_accel);
 
   if (text)
     gtk_label_set_text_internal (label, text);

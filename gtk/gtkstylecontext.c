@@ -1070,10 +1070,10 @@ gtk_style_context_set_invalid (GtkStyleContext *context,
 
   if (invalid)
     {
-      if (priv->parent)
-        gtk_style_context_set_invalid (priv->parent, TRUE);
-      else if (GTK_IS_RESIZE_CONTAINER (priv->widget))
+      if (GTK_IS_RESIZE_CONTAINER (priv->widget))
         _gtk_container_queue_restyle (GTK_CONTAINER (priv->widget));
+      else if (priv->parent)
+        gtk_style_context_set_invalid (priv->parent, TRUE);
     }
 }
 
@@ -3293,8 +3293,19 @@ _gtk_style_context_validate (GtkStyleContext  *context,
       _gtk_bitmask_free (animation_changes);
     }
 
-  if (!_gtk_bitmask_is_empty (changes) || (change & GTK_CSS_CHANGE_FORCE_INVALIDATE))
-    gtk_style_context_do_invalidate (context, changes);
+  if (change & GTK_CSS_CHANGE_FORCE_INVALIDATE)
+    {
+      GtkBitmask *full = _gtk_bitmask_new ();
+      full = _gtk_bitmask_invert_range (full, 
+                                        0,
+                                        _gtk_css_style_property_get_n_properties ());
+      gtk_style_context_do_invalidate (context, full);
+      _gtk_bitmask_free (full);
+    }
+  else if (!_gtk_bitmask_is_empty (changes))
+    {
+      gtk_style_context_do_invalidate (context, changes);
+    }
 
   change = _gtk_css_change_for_child (change);
   for (list = priv->children; list; list = list->next)

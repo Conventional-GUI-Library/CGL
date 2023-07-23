@@ -61,8 +61,8 @@
  * int
  * main (int argc, char **argv)
  * {
- *   /&ast; Initialize i18n support &ast;/
- *   gtk_set_locale ();
+ *   /&ast; Initialize i18n support with bindtextdomain(), etc. &ast;/
+ *   ...
  *
  *   /&ast; Initialize the widget set &ast;/
  *   gtk_init (&argc, &argv);

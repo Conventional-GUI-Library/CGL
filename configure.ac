@@ -325,18 +325,6 @@ AC_ARG_ENABLE(quartz-relocation,
               [AS_HELP_STRING([--enable-quartz-relocation],
                               [enable bundle-based relocation functions])],
                               [quartz_relocation=yes])
-                              
-AC_ARG_ENABLE(wayland-cairo-gl,
-              AS_HELP_STRING([--enable-wayland-cairo-gl],
-                             [enable the use of Cairo GL in the Wayland backend]),
-              [],
-              [enable_wayland_cairo_gl=no])
-
-
-AC_ARG_ENABLE(quartz-relocation,
-              [AS_HELP_STRING([--enable-quartz-relocation],
-                              [enable bundle-based relocation functions])],
-                              [quartz_relocation=yes])
 
 cairo_backends=
 backend_immodules=
@@ -403,27 +391,20 @@ else
   AM_CONDITIONAL(USE_BROADWAY, false)
 fi
 
+DISABLE_ON_WAYLAND=''
 if test "x$enable_wayland_backend" = "xyes"; then
-  if test "x$enable_wayland_cairo_gl" = "xyes"; then
-    # Wayland can use cairo-gl
-    cairo_backends="$cairo_backends cairo-gl"
-    AC_DEFINE(GDK_WAYLAND_USE_EGL, [1], [Whether to use EGL in Wayland backend])
-  else
-    # For the cairo image backend
-    cairo_backends="$cairo_backends cairo"
-  fi
+  cairo_backends="$cairo_backends cairo"
   GDK_BACKENDS="$GDK_BACKENDS wayland"
   have_gio_unix=yes
   GDK_WINDOWING="$GDK_WINDOWING
 #define GDK_WINDOWING_WAYLAND"
+  DISABLE_ON_WAYLAND='%'
   WAYLAND_PACKAGES="wayland-client >= 1.0.0 xkbcommon >= 0.2.0 wayland-cursor"
-  if test "x$enable_wayland_cairo_gl" = "xyes"; then
-    WAYLAND_PACKAGES="$WAYLAND_PACKAGES wayland-egl egl"
-  fi
   AM_CONDITIONAL(USE_WAYLAND, true)
 else
   AM_CONDITIONAL(USE_WAYLAND, false)
 fi
+AC_SUBST(DISABLE_ON_WAYLAND)
 
 # strip leading space
 GDK_BACKENDS=${GDK_BACKENDS#* }
@@ -1516,45 +1497,6 @@ else
   fi
 fi
 
-# Check for Avahi flags
-AC_ARG_ENABLE(avahi-browsing,
-              [AS_HELP_STRING([--disable-avahi-browsing],
-                              [disable avahi browsing of printers])],,
-              [enable_avahi_browsing=auto])
-
-have_avahi_browsing=no
-if test "x$enable_avahi_browsing" != "xno" -a \
-        "x$have_cups_api_1_6" = "xyes"; then
-  AC_MSG_CHECKING([avahi-gobject])
-
-  if $PKG_CONFIG --exists avahi-gobject ; then
-    AVAHI_CFLAGS=`$PKG_CONFIG --cflags avahi-gobject`
-    AC_SUBST(AVAHI_CFLAGS)
-    AVAHI_LIBS=`$PKG_CONFIG --libs avahi-gobject`
-    AC_SUBST(AVAHI_LIBS)
-    have_avahi_gobject=yes
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-  fi
-
-  if test "x$have_avahi_gobject" = "xyes" ; then
-    AC_DEFINE([HAVE_AVAHI_BROWSING], [1], [Define to 1 if avahi-gobject available])
-    have_avahi_browsing=yes
-  else
-    AC_MSG_ERROR([
-*** avahi-gobject not found. avahi-gobject is required to build GTK+ with support
-*** for avahi browsed printers when using CUPS 1.6.
-])
-  fi
-else
-  if test "x$enable_avahi_browsing" = "xyes"; then
-    AC_MSG_ERROR([
-*** Avahi browsing support requested but CUPS 1.6 not found.
-])
-  fi
-fi
-
 # Checks to see if we should compile with PAPI backend for GTK+
 #
 
@@ -1910,7 +1852,6 @@ echo "        Dynamic modules:      $build_dynamic_modules"
 echo "        Included immodules:   $included_immodules"
 echo "        PackageKit support:   $build_packagekit"
 echo "        colord support:       $have_colord"
-echo "        Avahi browsing:       $have_avahi_browsing"
 echo "        Introspection:        $found_introspection"
 echo "        Debugging:            $enable_debug"
 echo "        Documentation:        $enable_gtk_doc"

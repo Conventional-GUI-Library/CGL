@@ -11962,8 +11962,6 @@ gtk_tree_view_remove_column (GtkTreeView       *tree_view,
                                         G_CALLBACK (column_sizing_notify),
                                         tree_view);
 
-  _gtk_tree_view_column_unset_tree_view (column);
-
   position = g_list_index (tree_view->priv->columns, column);
 
   tree_view->priv->columns = g_list_remove (tree_view->priv->columns, column);
@@ -11991,7 +11989,7 @@ gtk_tree_view_remove_column (GtkTreeView       *tree_view,
     }
 
   _gtk_tree_view_reset_header_styles (tree_view);
-
+  _gtk_tree_view_column_unset_tree_view (column);
   _gtk_tree_view_accessible_remove_column (tree_view, column, position);
 
   g_object_unref (column);
@@ -13237,7 +13235,8 @@ gtk_tree_view_real_set_cursor (GtkTreeView     *tree_view,
                                            GTK_CELL_RENDERER_FOCUSED);
     }
 
-  g_signal_emit (tree_view, tree_view_signals[CURSOR_CHANGED], 0);
+  if (!gtk_widget_in_destruction (GTK_WIDGET (tree_view)))
+    g_signal_emit (tree_view, tree_view_signals[CURSOR_CHANGED], 0);
 }
 
 /**
