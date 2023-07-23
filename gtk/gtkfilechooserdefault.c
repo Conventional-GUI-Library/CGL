@@ -4929,6 +4929,16 @@ special_mode_widgets_create (GtkFileChooserDefault *impl)
   gtk_box_pack_start (GTK_BOX (impl->browse_path_bar_hbox), impl->browse_special_mode_label, FALSE, FALSE, 0);
 }
 
+int is_icon_present(char * name) {
+  int retval = 0;
+  GtkIconInfo * iconinfo = gtk_icon_theme_lookup_icon(gtk_icon_theme_get_default(), name, GTK_ICON_SIZE_MENU, 0);
+  if (iconinfo != NULL) {
+    retval = 1;
+  }
+  gtk_icon_info_free(iconinfo);
+  return retval;
+}
+
 /* Creates the path bar's container and eveyrthing that goes in it: location button, pathbar, info bar, and Create Folder button */
 static void
 path_bar_widgets_create (GtkFileChooserDefault *impl)
@@ -4964,6 +4974,13 @@ path_bar_widgets_create (GtkFileChooserDefault *impl)
 
   /* Create Folder */
   impl->browse_new_folder_button = gtk_button_new_with_mnemonic (_("Create Fo_lder"));
+  if (is_icon_present("folder-new") == 1) {
+	  gtk_button_set_always_show_image (GTK_BUTTON(impl->browse_new_folder_button), TRUE);
+	  gtk_button_set_image (GTK_BUTTON (impl->browse_new_folder_button), gtk_image_new_from_icon_name("folder-new", GTK_ICON_SIZE_BUTTON));	  
+  } else if (is_icon_present("folder_new") == 1) {
+	  gtk_button_set_always_show_image (GTK_BUTTON(impl->browse_new_folder_button), TRUE);
+	  gtk_button_set_image (GTK_BUTTON (impl->browse_new_folder_button), gtk_image_new_from_icon_name("folder_new", GTK_ICON_SIZE_BUTTON));	  
+  }
   g_signal_connect (impl->browse_new_folder_button, "clicked",
 		    G_CALLBACK (new_folder_button_clicked), impl);
   gtk_size_group_add_widget (impl->browse_path_bar_size_group, impl->browse_new_folder_button);
