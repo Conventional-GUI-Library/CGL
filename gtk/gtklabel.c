@@ -2571,7 +2571,7 @@ gtk_label_set_markup_internal (GtkLabel    *label,
   /* Extract the text to display */
   if (!pango_parse_markup (str_for_display,
                            -1,
-                           0,
+                           with_uline ? '_' : 0,
                            &attrs,
                            &text,
                            NULL,
@@ -4596,6 +4596,8 @@ gtk_label_button_press (GtkWidget      *widget,
         {
           info->link_clicked = 1;
           gtk_widget_queue_draw (widget);
+          if (!info->selectable)
+            return TRUE;
         }
     }
 

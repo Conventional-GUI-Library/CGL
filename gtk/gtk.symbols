@@ -1203,6 +1203,8 @@ gtk_grid_insert_column
 gtk_grid_insert_next_to
 gtk_grid_insert_row
 gtk_grid_new
+gtk_grid_remove_column
+gtk_grid_remove_row
 gtk_grid_set_column_homogeneous
 gtk_grid_set_column_spacing
 gtk_grid_set_row_homogeneous
@@ -1225,6 +1227,8 @@ gtk_csd_title_bar_pack_start
 gtk_csd_title_bar_pack_end
 gtk_csd_title_bar_set_title
 gtk_csd_title_bar_get_title
+gtk_csd_title_bar_set_subtitle
+gtk_csd_title_bar_get_subtitle
 gtk_csd_title_bar_set_custom_title
 gtk_csd_title_bar_get_custom_title
 gtk_hpaned_get_type

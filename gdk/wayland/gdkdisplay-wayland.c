@@ -89,6 +89,29 @@ gdk_input_init (GdkDisplay *display)
 }
 
 static void
+init_sync_callback(void *data, struct wl_callback *callback, uint32_t serial)
+{
+  GdkWaylandDisplay *display = data;
+
+  display->init_ref_count--;
+  wl_callback_destroy(callback);
+}
+
+static const struct wl_callback_listener init_sync_listener = {
+	init_sync_callback
+};
+
+static void
+wait_for_roundtrip(GdkWaylandDisplay *display)
+{
+  struct wl_callback *callback;
+
+  display->init_ref_count++;
+  callback = wl_display_sync(display->wl_display);
+  wl_callback_add_listener(callback, &init_sync_listener, display);
+}
+
+static void
 gdk_registry_handle_global(void *data, struct wl_registry *registry, uint32_t id,
 					const char *interface, uint32_t version)
 {
@@ -112,11 +135,18 @@ gdk_registry_handle_global(void *data, struct wl_registry *registry, uint32_t id
   } else if (strcmp(interface, "wl_output") == 0) {
     output =
       wl_registry_bind(display_wayland->wl_registry, id, &wl_output_interface, 1);
-    _gdk_wayland_screen_add_output(display_wayland->screen, output);
+    _gdk_wayland_screen_add_output(display_wayland->screen, id, output);
+    /* We need another roundtrip to receive the modes and geometry
+     * events for the output, which gives us the physical properties
+     * and available modes on the output. */
+    wait_for_roundtrip(display_wayland);
   } else if (strcmp(interface, "wl_seat") == 0) {
     seat = wl_registry_bind(display_wayland->wl_registry, id, &wl_seat_interface, 1);
-    _gdk_wayland_device_manager_add_device (gdk_display->device_manager,
-					    seat);
+    _gdk_wayland_device_manager_add_seat (gdk_display->device_manager, id, seat);
+    /* We need another roundtrip to receive the wl_seat capabilities
+     * event which informs us of available input devices on this
+     * seat. */
+    wait_for_roundtrip(display_wayland);
   } else if (strcmp(interface, "wl_data_device_manager") == 0) {
       display_wayland->data_device_manager =
         wl_registry_bind(display_wayland->wl_registry, id,
@@ -130,9 +160,12 @@ gdk_registry_handle_global_remove(void               *data,
                                   uint32_t            id)
 {
   GdkWaylandDisplay *display_wayland = data;
+  GdkDisplay *display = GDK_DISPLAY (display_wayland);
 
-  /* We don't know what this item is - try as an output */
-  _gdk_wayland_screen_remove_output_by_id (display_wayland->screen, id);
+  _gdk_wayland_device_manager_remove_seat (display->device_manager, id);
+  _gdk_wayland_screen_remove_output (display_wayland->screen, id);
+
+  /* FIXME: the object needs to be destroyed here, we're leaking */
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -164,7 +197,11 @@ _gdk_wayland_display_open (const gchar *display_name)
   display_wayland->wl_registry = wl_display_get_registry(display_wayland->wl_display);
   wl_registry_add_listener(display_wayland->wl_registry, &registry_listener, display_wayland);
 
-  wl_display_dispatch(display_wayland->wl_display);
+  /* We use init_ref_count to track whether some part of our
+   * initialization still needs a roundtrip to complete. */
+  wait_for_roundtrip(display_wayland);
+  while (display_wayland->init_ref_count > 0)
+    wl_display_roundtrip(display_wayland->wl_display);
 
   display_wayland->event_source =
     _gdk_wayland_display_event_source_new (display);
@@ -204,9 +241,7 @@ gdk_wayland_display_finalize (GObject *object)
 {
   GdkWaylandDisplay *display_wayland = GDK_WAYLAND_DISPLAY (object);
 
-  /* Keymap */
-  if (display_wayland->keymap)
-    g_object_unref (display_wayland->keymap);
+  _gdk_wayland_display_finalize_cursors (display_wayland);
 
   /* input GdkDevice list */
   g_list_free_full (display_wayland->input_devices, g_object_unref);
@@ -272,7 +307,7 @@ gdk_wayland_display_flush (GdkDisplay *display)
   g_return_if_fail (GDK_IS_DISPLAY (display));
 
   if (!display->closed)
-    wl_display_flush(GDK_WAYLAND_DISPLAY (display)->wl_display);;
+    wl_display_flush(GDK_WAYLAND_DISPLAY (display)->wl_display);
 }
 
 static gboolean
@@ -564,27 +599,56 @@ gdk_wayland_display_init (GdkWaylandDisplay *display)
   display->xkb_context = xkb_context_new (0);
 }
 
+void
+gdk_wayland_display_set_cursor_theme (GdkDisplay  *display,
+                                      const gchar *name,
+                                      gint         size)
+{
+  GdkWaylandDisplay *wayland_display = GDK_WAYLAND_DISPLAY(display);
+  struct wl_cursor_theme *theme;
+
+  g_assert (wayland_display);
+  g_assert (wayland_display->shm);
+
+  theme = wl_cursor_theme_load (name, size, wayland_display->shm);
+  if (theme == NULL)
+    {
+      g_warning ("Failed to load cursor theme %s\n", name);
+      return;
+    }
+
+  _gdk_wayland_display_update_cursors (wayland_display, theme);
+
+  if (wayland_display->cursor_theme != NULL)
+    wl_cursor_theme_destroy (wayland_display->cursor_theme);
+  wayland_display->cursor_theme = theme;
+}
+
 static void
 _gdk_wayland_display_load_cursor_theme (GdkWaylandDisplay *wayland_display)
 {
-  guint w, h;
-  const gchar *theme_name;
+  guint size;
+  const gchar *name;
   GValue v = G_VALUE_INIT;
 
   g_assert (wayland_display);
   g_assert (wayland_display->shm);
 
-  _gdk_wayland_display_get_default_cursor_size (GDK_DISPLAY (wayland_display),
-                                                &w, &h);
+  g_value_init (&v, G_TYPE_INT);
+  if (gdk_setting_get ("gtk-cursor-theme-size", &v))
+    size = g_value_get_int (&v);
+  else
+    size = 32;
+  g_value_unset (&v);
+
   g_value_init (&v, G_TYPE_STRING);
   if (gdk_setting_get ("gtk-cursor-theme-name", &v))
-    theme_name = g_value_get_string (&v);
+    name = g_value_get_string (&v);
   else
-    theme_name = "default";
+    name = "default";
 
-  wayland_display->cursor_theme = wl_cursor_theme_load (theme_name,
-                                                        w,
-                                                        wayland_display->shm);
+  gdk_wayland_display_set_cursor_theme (GDK_DISPLAY (wayland_display),
+                                        name, size);
   g_value_unset (&v);
 }
 

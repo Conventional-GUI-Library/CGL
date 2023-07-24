@@ -86,6 +86,10 @@ void       gtk_grid_insert_row             (GtkGrid         *grid,
                                             gint             position);
 void       gtk_grid_insert_column          (GtkGrid         *grid,
                                             gint             position);
+void       gtk_grid_remove_row             (GtkGrid         *grid,
+                                           gint             position);
+void       gtk_grid_remove_column          (GtkGrid         *grid,
+                                            gint             position);
 void       gtk_grid_insert_next_to         (GtkGrid         *grid,
                                             GtkWidget       *sibling,
                                             GtkPositionType  side);

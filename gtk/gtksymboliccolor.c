@@ -307,6 +307,7 @@ gtk_symbolic_color_resolve (GtkSymbolicColor   *color,
                                     GTK_STYLE_PROVIDER_PRIVATE (props),
                                     current,
                                     0,
+                                    NULL,
                                     NULL);
   _gtk_css_value_unref (current);
   if (v == NULL)
@@ -355,7 +356,6 @@ GtkCssValue *
 _gtk_symbolic_color_get_css_value (GtkSymbolicColor *symbolic)
 {
   if (symbolic == NULL) {
-	  g_message("Something has gone horribly wrong because something has requested the CSS value from a NULL GtkSymbolicColor. Oh well, things still seem to work when we just return NULL in that case.");
 	  return NULL;
   }
 	

@@ -125,7 +125,24 @@ static void gdk_display_manager_get_property (GObject                *object,
 
 static guint signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (GdkDisplayManager, gdk_display_manager, G_TYPE_OBJECT)
+static void g_initable_iface_init (GInitableIface *iface);
+
+G_DEFINE_TYPE_WITH_CODE (GdkDisplayManager, gdk_display_manager, G_TYPE_OBJECT,
+                         G_IMPLEMENT_INTERFACE (G_TYPE_INITABLE, g_initable_iface_init))
+
+static gboolean
+gdk_display_manager_initable_init (GInitable     *initable,
+                                   GCancellable  *cancellable,
+                                   GError       **error)
+{
+  return TRUE;
+}
+
+static void
+g_initable_iface_init (GInitableIface *iface)
+{
+  iface->init = gdk_display_manager_initable_init;
+}
 
 static void
 gdk_display_manager_class_init (GdkDisplayManagerClass *klass)
@@ -208,6 +225,50 @@ gdk_display_manager_get_property (GObject      *object,
     }
 }
 
+static const gchar *allowed_backends;
+
+/**
+ * gdk_set_allowed_backends:
+ * @backends: a comma-separated list of backends
+ *
+ * Sets a list of backends that GDK should try to use.
+ *
+ * This can be be useful if your application does not
+ * work with certain GDK backends.
+ *
+ * By default, GDK tries all included backends.
+ *
+ * For example,
+ * <programlisting>
+ * gdk_set_allowed_backends ("wayland,quartz,*");
+ * </programlisting>
+ * instructs GDK to try the Wayland backend first,
+ * followed by the Quartz backend, and then all
+ * others.
+ *
+ * If the <envvar>GDK_BACKEND</envvar> environment variable
+ * is set, it determines what backends are tried in what
+ * order, while still respecting the set of allowed backends
+ * that are specified by this function.
+ *
+ * The possible backend names are x11, win32, quartz,
+ * broadway, wayland. You can also include a * in the
+ * list to try all remaining backends.
+ *
+ * This call must happen prior to gdk_display_open(),
+ * gtk_init(), gtk_init_with_args() or gtk_init_check()
+ * in order to take effect.
+ *
+ * Since: 3.10
+ */
+void
+gdk_set_allowed_backends (const gchar *backends)
+{
+  allowed_backends = g_strdup (backends);
+}
+
+static GdkDisplayManager *manager = NULL;
+
 /**
  * gdk_display_manager_get:
  *
@@ -216,7 +277,8 @@ gdk_display_manager_get_property (GObject      *object,
  * When called for the first time, this function consults the
  * <envar>GDK_BACKEND</envar> environment variable to find out which
  * of the supported GDK backends to use (in case GDK has been compiled
- * with multiple backends).
+ * with multiple backends). Applications can use gdk_set_allowed_backends()
+ * to limit what backends can be used.
  *
  * Returns: (transfer none): The global #GdkDisplayManager singleton;
  *     gdk_parse_args(), gdk_init(), or gdk_init_check() must have
@@ -227,44 +289,121 @@ gdk_display_manager_get_property (GObject      *object,
 GdkDisplayManager*
 gdk_display_manager_get (void)
 {
-  static GdkDisplayManager *manager = NULL;
+  gdk_display_manager_peek ();
 
-  if (!manager)
+  if (manager == NULL)
+    g_error ("No GDK backend found (%s)", allowed_backends);
+
+  return manager;
+}
+
+/**
+ * gdk_display_manager_peek:
+ *
+ * Gets the singleton #GdkDisplayManager object. If GDK could
+ * not be initialized, %NULL is returned.
+ *
+ * Returns: (transfer none): The global #GdkDisplayManager singleton,
+ *     or %NULL if GDK could not be initialized. gdk_parse_args(),
+ *     gdk_init(), or gdk_init_check() must have been called first
+ *
+ * Since: 3.10
+ */
+GdkDisplayManager *
+gdk_display_manager_peek (void)
+{
+  if (manager == NULL)
     {
-      const gchar *backend;
+      const gchar *backend_list;
+      gchar **backends;
+      gint i;
+      gboolean allow_any;
 
-      backend = g_getenv ("GDK_BACKEND");
+      if (allowed_backends == NULL)
+        allowed_backends = "*";
+      allow_any = strstr (allowed_backends, "*") != NULL;
+
+      backend_list = g_getenv ("GDK_BACKEND");
+      if (backend_list == NULL)
+        backend_list = allowed_backends;
+      backends = g_strsplit (backend_list, ",", 0);
+
+      for (i = 0; manager == NULL && backends[i] != NULL; i++)
+        {
+          const gchar *backend = backends[i];
+          gboolean any = g_str_equal (backend, "*");
+
+          if (!allow_any && !any && !strstr (allowed_backends, backend))
+            continue;
+
 #ifdef GDK_WINDOWING_QUARTZ
-      if (backend == NULL || strcmp (backend, "quartz") == 0)
-        manager = g_object_new (gdk_quartz_display_manager_get_type (), NULL);
-      else
+          if ((any && allow_any) ||
+              (any && strstr (allowed_backends, "quartz")) ||
+              g_str_equal (backend, "quartz"))
+            {
+              GDK_NOTE (MISC, g_message ("Trying quartz backend"));
+              manager = g_initable_new (gdk_quartz_display_manager_get_type (), NULL, NULL, NULL);
+              if (manager)
+                break;
+            }
 #endif
 #ifdef GDK_WINDOWING_WIN32
-      if (backend == NULL || strcmp (backend, "win32") == 0)
-        manager = g_object_new (gdk_win32_display_manager_get_type (), NULL);
-      else
+          if ((any && allow_any) ||
+              (any && strstr (allowed_backends, "win32")) ||
+              g_str_equal (backend, "win32"))
+            {
+              GDK_NOTE (MISC, g_message ("Trying win32 backend"));
+              manager = g_initable_new (gdk_win32_display_manager_get_type (), NULL, NULL, NULL);
+              if (manager)
+                break;
+            }
 #endif
 #ifdef GDK_WINDOWING_X11
-      if (backend == NULL || strcmp (backend, "x11") == 0)
-        manager = g_object_new (gdk_x11_display_manager_get_type (), NULL);
-      else
+          if ((any && allow_any) ||
+              (any && strstr (allowed_backends, "x11")) ||
+              g_str_equal (backend, "x11"))
+            {
+              GDK_NOTE (MISC, g_message ("Trying x11 backend"));
+              manager = g_initable_new (gdk_x11_display_manager_get_type (), NULL, NULL, NULL);
+              if (manager)
+                break;
+            }
 #endif
 #ifdef GDK_WINDOWING_WAYLAND
-      if (backend == NULL || strcmp (backend, "wayland") == 0)
-        manager = g_object_new (gdk_wayland_display_manager_get_type (), NULL);
-      else
+          if ((any && allow_any) ||
+              (any && strstr (allowed_backends, "wayland")) ||
+              g_str_equal (backend, "wayland"))
+            {
+              GDK_NOTE (MISC, g_message ("Trying wayland backend"));
+              manager = g_initable_new (gdk_wayland_display_manager_get_type (), NULL, NULL, NULL);
+              if (manager)
+                break;
+            }
 #endif
 #ifdef GDK_WINDOWING_BROADWAY
-      if (backend == NULL || strcmp (backend, "broadway") == 0)
-        manager = g_object_new (gdk_broadway_display_manager_get_type (), NULL);
-      else
+          if ((any && allow_any) ||
+              (any && strstr (allowed_backends, "broadway")) ||
+              g_str_equal (backend, "broadway"))
+            {
+              GDK_NOTE (MISC, g_message ("Trying broadway backend"));
+              manager = g_initable_new (gdk_broadway_display_manager_get_type (), NULL, NULL, NULL);
+              if (manager)
+                break;
+            }
 #endif
-      if (backend != NULL)
-        g_error ("Unsupported GDK backend: %s", backend);
-      else
-        g_error ("No GDK backend found");
+        }
+      g_strfreev (backends);
     }
 
+  return manager;
+}
+
+/* Used for cases where we don't actually want to instantiate a
+ * display manager if none exists.  Internal only.
+ */
+GdkDisplayManager *
+_gdk_display_manager_get_nocreate (void)
+{
   return manager;
 }
 

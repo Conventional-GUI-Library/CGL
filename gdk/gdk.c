@@ -275,9 +275,6 @@ gdk_pre_parse_libgtk_only (void)
       else if (g_str_equal (rendering_mode, "recording"))
         _gdk_rendering_mode = GDK_RENDERING_MODE_RECORDING;
     }
-
-  /* Do any setup particular to the windowing system */
-  gdk_display_manager_get ();
 }
 
   
@@ -353,7 +350,7 @@ gdk_get_display_arg_name (void)
  *
  * Opens the default display specified by command line arguments or
  * environment variables, sets it as the default display, and returns
- * it.  gdk_parse_args must have been called first. If the default
+ * it. gdk_parse_args() must have been called first. If the default
  * display has previously been set, simply returns that. An internal
  * function that should not be used by applications.
  *
@@ -366,6 +363,9 @@ gdk_display_open_default_libgtk_only (void)
   GdkDisplay *display;
 
   g_return_val_if_fail (gdk_initialized, NULL);
+
+  if (gdk_display_manager_peek () == NULL)
+    return NULL;
 
   display = gdk_display_get_default ();
   if (display)

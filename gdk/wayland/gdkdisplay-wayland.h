@@ -42,9 +42,6 @@ struct _GdkWaylandDisplay
   GdkDisplay parent_instance;
   GdkScreen *screen;
 
-  /* Keyboard related information */
-  GdkKeymap *keymap;
-
   /* input GdkDevice list */
   GList *input_devices;
 
@@ -65,8 +62,11 @@ struct _GdkWaylandDisplay
   struct wl_data_device_manager *data_device_manager;
 
   struct wl_cursor_theme *cursor_theme;
+  GSList *cursor_cache;
 
   GSource *event_source;
+
+  int init_ref_count;
 
   struct xkb_context *xkb_context;
 };

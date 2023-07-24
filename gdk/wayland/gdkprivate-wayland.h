@@ -49,9 +49,16 @@ void _gdk_wayland_window_add_focus    (GdkWindow *window);
 void _gdk_wayland_window_remove_focus (GdkWindow *window);
 
 GdkKeymap *_gdk_wayland_keymap_new (void);
-GdkKeymap *_gdk_wayland_keymap_new_from_fd (uint32_t format,
-                                            uint32_t fd, uint32_t size);
+void       _gdk_wayland_keymap_update_from_fd (GdkKeymap *keymap,
+                                               uint32_t   format,
+                                               uint32_t   fd,
+                                               uint32_t   size);
 struct xkb_state *_gdk_wayland_keymap_get_xkb_state (GdkKeymap *keymap);
+struct xkb_keymap *_gdk_wayland_keymap_get_xkb_keymap (GdkKeymap *keymap);
+
+void       _gdk_wayland_display_finalize_cursors (GdkWaylandDisplay *display);
+void       _gdk_wayland_display_update_cursors (GdkWaylandDisplay      *display,
+                                                struct wl_cursor_theme *theme);
 
 GdkCursor *_gdk_wayland_display_get_cursor_for_type (GdkDisplay    *display,
 						     GdkCursorType  cursor_type);
@@ -71,10 +78,14 @@ gboolean   _gdk_wayland_display_supports_cursor_alpha (GdkDisplay *display);
 gboolean   _gdk_wayland_display_supports_cursor_color (GdkDisplay *display);
 
 struct wl_buffer *_gdk_wayland_cursor_get_buffer (GdkCursor *cursor,
-						  int       *x,
-						  int       *y,
+                                                  guint      image_index,
+                                                  int       *x,
+                                                  int       *y,
                                                   int       *w,
                                                   int       *h);
+guint      _gdk_wayland_cursor_get_next_image_index (GdkCursor *cursor,
+                                                     guint      current_image_index,
+                                                     guint     *next_image_delay);
 
 GdkDragProtocol _gdk_wayland_window_get_drag_protocol (GdkWindow *window,
 						       GdkWindow **target);
@@ -125,10 +136,16 @@ gchar *     _gdk_wayland_display_utf8_to_string_target (GdkDisplay  *display,
 							const gchar *str);
 
 GdkDeviceManager *_gdk_wayland_device_manager_new (GdkDisplay *display);
-void              _gdk_wayland_device_manager_add_device (GdkDeviceManager *device_manager,
-							  struct wl_seat *seat);
+void              _gdk_wayland_device_manager_add_seat (GdkDeviceManager *device_manager,
+                                                        guint32           id,
+						        struct wl_seat   *seat);
+void              _gdk_wayland_device_manager_remove_seat (GdkDeviceManager *device_manager,
+                                                           guint32           id);
+
+typedef struct _GdkWaylandDeviceData GdkWaylandDeviceData;
 
 GdkKeymap *_gdk_wayland_device_get_keymap (GdkDevice *device);
+uint32_t _gdk_wayland_device_get_button_press_serial(GdkWaylandDeviceData *device);
 
 void     _gdk_wayland_display_deliver_event (GdkDisplay *display, GdkEvent *event);
 GSource *_gdk_wayland_display_event_source_new (GdkDisplay *display);
@@ -144,10 +161,11 @@ GdkWindow *_gdk_wayland_screen_create_root_window (GdkScreen *screen,
 						   int height);
 
 GdkScreen *_gdk_wayland_screen_new (GdkDisplay *display);
-void _gdk_wayland_screen_add_output (GdkScreen *scren,
+void _gdk_wayland_screen_add_output (GdkScreen        *screen,
+                                     guint32           id,
                                      struct wl_output *output);
-void _gdk_wayland_screen_remove_output_by_id (GdkScreen *screen,
-                                              guint32 id);
+void _gdk_wayland_screen_remove_output (GdkScreen *screen,
+                                        guint32 id);
 
 void _gdk_wayland_display_manager_add_display (GdkDisplayManager *manager,
 					       GdkDisplay        *display);
@@ -161,5 +179,11 @@ void _gdk_wayland_window_set_device_grabbed (GdkWindow      *window,
 
 guint32 _gdk_wayland_display_get_serial (GdkWaylandDisplay *wayland_display);
 void _gdk_wayland_display_update_serial (GdkWaylandDisplay *wayland_display, guint32 serial);
+
+struct wl_shm_pool * _create_shm_pool (struct wl_shm *shm,
+                                      int             width,
+                                      int             height,
+                                      size_t         *buf_length,
+                                      void          **data_out);
 
 #endif /* __GDK_PRIVATE_WAYLAND_H__ */
