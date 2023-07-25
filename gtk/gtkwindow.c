@@ -3421,6 +3421,22 @@ gtk_window_set_geometry_hints (GtkWindow       *window,
   gtk_widget_queue_resize_no_redraw (GTK_WIDGET (window));
 }
 
+/**
+ * gtk_window_set_titlebar:
+ * @window: a #GtkWindow
+ * @titlebar: the widget to use as titlebar
+ *
+ * Sets a custom titlebar for @window.
+ *
+ * If you set a custom titlebar, GTK+ will do its best to convince
+ * the window manager not to put its own titlebar on the window.
+ * Depending on the system, this function may not work for a window
+ * that is already visible, so you set the titlebar before calling
+ * gtk_widget_show().
+ * 
+ * Since: 3.10
+ * Deprecated: 0.1: Using client sided decorations with CGL is strongly discouraged, this function is only here for the GTK3 emulator.
+ */
 void
 gtk_window_set_titlebar (GtkWindow *window,
                          GtkWidget *titlebar)
