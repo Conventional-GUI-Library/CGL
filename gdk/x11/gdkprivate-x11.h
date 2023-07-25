@@ -168,7 +168,6 @@ gboolean _gdk_x11_display_is_root_window (GdkDisplay *display,
                                           Window      xroot_window);
 
 GdkDisplay * _gdk_x11_display_open            (const gchar *display_name);
-void _gdk_x11_display_make_default            (GdkDisplay *display);
 void _gdk_x11_display_update_grab_info        (GdkDisplay *display,
                                                GdkDevice  *device,
                                                gint        status);
@@ -248,24 +247,11 @@ void     _gdk_device_xi2_reset_scroll_valuators   (GdkX11DeviceXI2    *device);
 
 void     _gdk_x11_event_translate_keyboard_string (GdkEventKey *event);
 
-void _gdk_x11_display_manager_add_display      (GdkDisplayManager *manager,
-                                                GdkDisplay        *display);
-void _gdk_x11_display_manager_remove_display   (GdkDisplayManager *manager,
-                                                GdkDisplay        *display);
-
 GdkAtom _gdk_x11_display_manager_atom_intern   (GdkDisplayManager *manager,
                                                 const gchar       *atom_name,
                                                 gboolean           copy_name);
 gchar * _gdk_x11_display_manager_get_atom_name (GdkDisplayManager *manager,
                                                 GdkAtom            atom);
-guint   _gdk_x11_display_manager_lookup_keyval (GdkDisplayManager *manager,
-                                                const gchar       *name);
-gchar * _gdk_x11_display_manager_get_keyval_name (GdkDisplayManager *manager,
-                                                  guint              keyval);
-void    _gdk_x11_display_manager_keyval_convert_case (GdkDisplayManager *manager,
-                                                      guint              symbol,
-                                                      guint             *lower,
-                                                      guint             *upper);
 
 GdkCursor *_gdk_x11_display_get_cursor_for_type     (GdkDisplay    *display,
                                                      GdkCursorType  type);

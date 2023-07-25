@@ -40,20 +40,6 @@
 #include "gdkbroadwaywindow.h"
 
 void _gdk_broadway_resync_windows (void);
-void _gdk_broadway_windowing_init (void);
-
-gchar * _gdk_broadway_display_manager_get_atom_name (GdkDisplayManager *manager,
-						     GdkAtom atom);
-void _gdk_broadway_display_manager_add_display (GdkDisplayManager *manager,
-						GdkDisplay        *display);
-void _gdk_broadway_display_manager_remove_display (GdkDisplayManager *manager,
-						   GdkDisplay        *display);
-GdkAtom _gdk_broadway_display_manager_atom_intern_static_string (GdkDisplayManager *manager,
-								 const gchar *atom_name);
-GdkAtom _gdk_broadway_display_manager_atom_intern (GdkDisplayManager *manager,
-						   const gchar *atom_name, 
-						   gboolean     only_if_exists);
-
 
 void     _gdk_broadway_window_register_dnd (GdkWindow      *window);
 GdkDragContext * _gdk_broadway_window_drag_begin (GdkWindow *window,
@@ -92,6 +78,8 @@ gboolean _gdk_broadway_moveresize_configure_done (GdkDisplay *display,
 
 void     _gdk_broadway_selection_window_destroyed (GdkWindow *window);
 void     _gdk_broadway_window_grab_check_destroy (GdkWindow *window);
+void     _gdk_broadway_window_grab_check_unmap (GdkWindow *window,
+						gulong     serial);
 
 void _gdk_keymap_keys_changed     (GdkDisplay      *display);
 gint _gdk_broadway_get_group_for_state (GdkDisplay      *display,
@@ -100,8 +88,6 @@ void _gdk_keymap_add_virtual_modifiers_compat (GdkKeymap       *keymap,
                                                GdkModifierType *modifiers);
 gboolean _gdk_keymap_key_is_modifier   (GdkKeymap       *keymap,
 					guint            keycode);
-
-void _gdk_broadway_initialize_locale (void);
 
 void _gdk_broadway_screen_events_init   (GdkScreen *screen);
 GdkVisual *_gdk_broadway_screen_get_system_visual (GdkScreen * screen);

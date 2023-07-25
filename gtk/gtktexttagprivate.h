@@ -80,8 +80,6 @@ struct _GtkTextTagPrivate
 
   /* Whether these margins accumulate or override */
   guint accumulative_margin : 1;
-
-  guint pad1 : 1;
 };
 
 

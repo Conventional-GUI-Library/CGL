@@ -173,12 +173,6 @@ gtk_font_chooser_widget_get_property (GObject         *object,
 static void
 gtk_font_chooser_widget_finalize (GObject *object)
 {
-  GtkFontChooserWidget *fontchooser = GTK_FONT_CHOOSER_WIDGET (object);
-  GtkFontChooserWidgetPrivate *priv = fontchooser->priv;
-
-  if (priv->font_sel_widget)
-    gtk_widget_destroy(priv->font_sel_widget);
-
   G_OBJECT_CLASS (gtk_font_chooser_widget_parent_class)->finalize (object);
 }
 

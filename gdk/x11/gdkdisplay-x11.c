@@ -140,6 +140,7 @@ static const char *const precache_atoms[] = {
   "_NET_WM_STATE_ABOVE",
   "_NET_WM_STATE_BELOW",
   "_NET_WM_STATE_FULLSCREEN",
+  "_NET_WM_STATE_HIDDEN",
   "_NET_WM_STATE_MODAL",
   "_NET_WM_STATE_MAXIMIZED_VERT",
   "_NET_WM_STATE_MAXIMIZED_HORZ",
@@ -149,8 +150,17 @@ static const char *const precache_atoms[] = {
   "_NET_WM_SYNC_REQUEST",
   "_NET_WM_SYNC_REQUEST_COUNTER",
   "_NET_WM_WINDOW_TYPE",
+  "_NET_WM_WINDOW_TYPE_COMBO",
+  "_NET_WM_WINDOW_TYPE_DIALOG",
+  "_NET_WM_WINDOW_TYPE_DND",
+  "_NET_WM_WINDOW_TYPE_DROPDOWN_MENU",
+  "_NET_WM_WINDOW_TYPE_MENU",
   "_NET_WM_WINDOW_TYPE_NORMAL",
+  "_NET_WM_WINDOW_TYPE_POPUP_MENU",
+  "_NET_WM_WINDOW_TYPE_TOOLTIP",
+  "_NET_WM_WINDOW_TYPE_UTILITY",
   "_NET_WM_USER_TIME",
+  "_NET_WM_USER_TIME_WINDOW",
   "_NET_VIRTUAL_ROOTS",
   "GDK_SELECTION",
   "_NET_WM_STATE_FOCUSED"
@@ -166,8 +176,6 @@ G_DEFINE_TYPE_WITH_CODE (GdkX11Display, gdk_x11_display, GDK_TYPE_DISPLAY,
 static void
 gdk_x11_display_init (GdkX11Display *display)
 {
-  _gdk_x11_display_manager_add_display (gdk_display_manager_get (),
-                                        GDK_DISPLAY (display));
 }
 
 static void
@@ -1865,8 +1873,6 @@ gdk_x11_display_dispose (GObject *object)
   GdkX11Display *display_x11 = GDK_X11_DISPLAY (object);
   gint           i;
 
-  _gdk_x11_display_manager_remove_display (gdk_display_manager_get (), display);
-
   g_list_foreach (display_x11->input_devices, (GFunc) g_object_run_dispose, NULL);
 
   for (i = 0; i < ScreenCount (display_x11->xdisplay); i++)
@@ -2030,8 +2036,8 @@ gdk_x11_display_get_xdisplay (GdkDisplay *display)
   return GDK_X11_DISPLAY (display)->xdisplay;
 }
 
-void
-_gdk_x11_display_make_default (GdkDisplay *display)
+static void
+gdk_x11_display_make_default (GdkDisplay *display)
 {
   GdkX11Display *display_x11 = GDK_X11_DISPLAY (display);
   const gchar *startup_id;
@@ -2826,6 +2832,7 @@ gdk_x11_display_class_init (GdkX11DisplayClass * class)
   display_class->beep = gdk_x11_display_beep;
   display_class->sync = gdk_x11_display_sync;
   display_class->flush = gdk_x11_display_flush;
+  display_class->make_default = gdk_x11_display_make_default;
   display_class->has_pending = gdk_x11_display_has_pending;
   display_class->queue_events = _gdk_x11_display_queue_events;
   display_class->get_default_group = gdk_x11_display_get_default_group;

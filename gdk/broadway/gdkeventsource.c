@@ -247,7 +247,7 @@ _gdk_broadway_events_got_input (BroadwayInputMsg *message)
     break;
   case BROADWAY_EVENT_GRAB_NOTIFY:
   case BROADWAY_EVENT_UNGRAB_NOTIFY:
-    _gdk_display_device_grab_update (display, display->core_pointer, NULL, message->base.serial);
+    _gdk_display_device_grab_update (display, display->core_pointer, display->core_pointer, message->base.serial);
     break;
 
   case BROADWAY_EVENT_CONFIGURE_NOTIFY:
@@ -256,10 +256,6 @@ _gdk_broadway_events_got_input (BroadwayInputMsg *message)
       {
 	window->x = message->configure_notify.x;
 	window->y = message->configure_notify.y;
-	window->width = message->configure_notify.width;
-	window->height = message->configure_notify.height;
-	_gdk_window_update_size (window);
-	_gdk_broadway_window_resize_surface (window);
 
 	event = gdk_event_new (GDK_CONFIGURE);
 	event->configure.window = g_object_ref (window);

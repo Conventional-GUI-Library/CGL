@@ -26,6 +26,7 @@
 
 #include "gdkconfig.h"
 #include "gdkdisplaymanagerprivate.h"
+#include "gdkdisplayprivate.h"
 #include "gdkinternals.h"
 #include "gdkkeysprivate.h"
 #include "gdkmarshalers.h"
@@ -151,8 +152,6 @@ gdk_display_manager_class_init (GdkDisplayManagerClass *klass)
 
   object_class->set_property = gdk_display_manager_set_property;
   object_class->get_property = gdk_display_manager_get_property;
-
-  klass->keyval_convert_case = _gdk_display_manager_real_keyval_convert_case;
 
   /**
    * GdkDisplayManager::display-opened:
@@ -398,15 +397,6 @@ gdk_display_manager_peek (void)
   return manager;
 }
 
-/* Used for cases where we don't actually want to instantiate a
- * display manager if none exists.  Internal only.
- */
-GdkDisplayManager *
-_gdk_display_manager_get_nocreate (void)
-{
-  return manager;
-}
-
 /**
  * gdk_display_manager_get_default_display:
  * @manager: a #GdkDisplayManager
@@ -421,7 +411,7 @@ _gdk_display_manager_get_nocreate (void)
 GdkDisplay *
 gdk_display_manager_get_default_display (GdkDisplayManager *manager)
 {
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->get_default_display (manager);
+  return manager->default_display;
 }
 
 /**
@@ -478,7 +468,10 @@ void
 gdk_display_manager_set_default_display (GdkDisplayManager *manager,
                                          GdkDisplay        *display)
 {
-  GDK_DISPLAY_MANAGER_GET_CLASS (manager)->set_default_display (manager, display);
+  manager->default_display = display;
+
+  if (display)
+    GDK_DISPLAY_GET_CLASS (display)->make_default (display);
 
   g_object_notify (G_OBJECT (manager), "default-display");
 }
@@ -498,7 +491,7 @@ gdk_display_manager_set_default_display (GdkDisplayManager *manager,
 GSList *
 gdk_display_manager_list_displays (GdkDisplayManager *manager)
 {
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->list_displays (manager);
+  return g_slist_copy (manager->displays);
 }
 
 /**
@@ -520,68 +513,28 @@ gdk_display_manager_open_display (GdkDisplayManager *manager,
   return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->open_display (manager, name);
 }
 
-/**
- * gdk_atom_intern:
- * @atom_name: a string.
- * @only_if_exists: if %TRUE, GDK is allowed to not create a new atom, but
- *   just return %GDK_NONE if the requested atom doesn't already
- *   exists. Currently, the flag is ignored, since checking the
- *   existance of an atom is as expensive as creating it.
- *
- * Finds or creates an atom corresponding to a given string.
- *
- * Returns: (transfer none): the atom corresponding to @atom_name.
- */
-GdkAtom
-gdk_atom_intern (const gchar *atom_name,
-                 gboolean     only_if_exists)
+void
+_gdk_display_manager_add_display (GdkDisplayManager *manager,
+                                  GdkDisplay        *display)
 {
-  GdkDisplayManager *manager = gdk_display_manager_get ();
+  if (manager->displays == NULL)
+    gdk_display_manager_set_default_display (manager, display);
 
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->atom_intern (manager, atom_name, TRUE);
+  manager->displays = g_slist_prepend (manager->displays, display);
 }
 
-/**
- * gdk_atom_intern_static_string:
- * @atom_name: a static string
- *
- * Finds or creates an atom corresponding to a given string.
- *
- * Note that this function is identical to gdk_atom_intern() except
- * that if a new #GdkAtom is created the string itself is used rather
- * than a copy. This saves memory, but can only be used if the string
- * will <emphasis>always</emphasis> exist. It can be used with statically
- * allocated strings in the main program, but not with statically
- * allocated memory in dynamically loaded modules, if you expect to
- * ever unload the module again (e.g. do not use this function in
- * GTK+ theme engines).
- *
- * Returns: (transfer none): the atom corresponding to @atom_name
- *
- * Since: 2.10
- */
-GdkAtom
-gdk_atom_intern_static_string (const gchar *atom_name)
+/* NB: This function can be called multiple times per display. */
+void
+_gdk_display_manager_remove_display (GdkDisplayManager *manager,
+                                     GdkDisplay        *display)
 {
-  GdkDisplayManager *manager = gdk_display_manager_get ();
+  manager->displays = g_slist_remove (manager->displays, display);
 
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->atom_intern (manager, atom_name, FALSE);
-}
-
-/**
- * gdk_atom_name:
- * @atom: a #GdkAtom.
- *
- * Determines the string corresponding to an atom.
- *
- * Returns: a newly-allocated string containing the string
- *   corresponding to @atom. When you are done with the
- *   return value, you should free it using g_free().
- */
-gchar *
-gdk_atom_name (GdkAtom atom)
-{
-  GdkDisplayManager *manager = gdk_display_manager_get ();
-
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->get_atom_name (manager, atom);
+  if (manager->default_display == display)
+    {
+      if (manager->displays)
+        gdk_display_manager_set_default_display (manager, manager->displays->data);
+      else
+        gdk_display_manager_set_default_display (manager, NULL);
+    }
 }

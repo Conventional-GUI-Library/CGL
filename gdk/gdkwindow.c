@@ -3499,24 +3499,22 @@ static void
 gdk_window_flush_outstanding_moves (GdkWindow *window)
 {
   GdkWindow *impl_window;
-  GList *l, *outstanding;
   GdkWindowRegionMove *move;
 
   impl_window = gdk_window_get_impl_window (window);
-  outstanding = impl_window->outstanding_moves;
-  impl_window->outstanding_moves = NULL;
 
-  for (l = outstanding; l != NULL; l = l->next)
+  while (impl_window->outstanding_moves)
     {
-      move = l->data;
+      move = impl_window->outstanding_moves->data;
+      impl_window->outstanding_moves = 
+	g_list_delete_link (impl_window->outstanding_moves,
+			    impl_window->outstanding_moves);
 
       do_move_region_bits_on_impl (impl_window,
 				   move->dest_region, move->dx, move->dy);
 
       gdk_window_region_move_free (move);
     }
-
-  g_list_free (outstanding);
 }
 
 /**
@@ -4072,6 +4070,7 @@ gdk_window_process_updates_internal (GdkWindow *window)
   GdkWindowImplClass *impl_class;
   gboolean save_region = FALSE;
   GdkRectangle clip_box;
+  int iteration;
 
   /* Ensure the window lives while updating it */
   g_object_ref (window);
@@ -4079,8 +4078,15 @@ gdk_window_process_updates_internal (GdkWindow *window)
   /* If an update got queued during update processing, we can get a
    * window in the update queue that has an empty update_area.
    * just ignore it.
+   *
+   * We run this multiple times if needed because on win32 the
+   * first run can cause new (synchronous) updates from
+   * gdk_window_flush_outstanding_moves(). However, we
+   * limit it to two iterations to avoid any potential loops.
    */
-  if (window->update_area)
+  iteration = 0;
+  while (window->update_area &&
+	 iteration++ < 2)
     {
       cairo_region_t *update_area = window->update_area;
       window->update_area = NULL;

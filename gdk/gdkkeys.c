@@ -190,28 +190,6 @@ gdk_keymap_init (GdkKeymap *keymap)
  */
 
 /**
- * gdk_keyval_convert_case:
- * @symbol: a keyval
- * @lower: (out): return location for lowercase version of @symbol
- * @upper: (out): return location for uppercase version of @symbol
- *
- * Obtains the upper- and lower-case versions of the keyval @symbol.
- * Examples of keyvals are #GDK_KEY_a, #GDK_KEY_Enter, #GDK_KEY_F1, etc.
- */
-void
-gdk_keyval_convert_case (guint symbol,
-                         guint *lower,
-                         guint *upper)
-{
-  GdkDisplayManager *manager = _gdk_display_manager_get_nocreate ();
-
-  if (manager)
-    GDK_DISPLAY_MANAGER_GET_CLASS (manager)->keyval_convert_case (manager, symbol, lower, upper);
-  else
-    _gdk_display_manager_real_keyval_convert_case (NULL, symbol, lower, upper);
-}
-
-/**
  * gdk_keyval_to_upper:
  * @keyval: a key value.
  *
@@ -696,6 +674,7 @@ gdk_keymap_get_modifier_mask (GdkKeymap         *keymap,
   return GDK_KEYMAP_GET_CLASS (keymap)->get_modifier_mask (keymap, intent);
 }
 
+#include "gdkkeynames.c"
 
 /**
  * gdk_keyval_name:
@@ -714,10 +693,7 @@ gdk_keymap_get_modifier_mask (GdkKeymap         *keymap,
 gchar *
 gdk_keyval_name (guint keyval)
 {
-  GdkDisplayManager *manager = gdk_display_manager_get ();
-
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->get_keyval_name (manager,
-                                                                   keyval);
+  return _gdk_keyval_name (keyval);
 }
 
 /**
@@ -736,20 +712,27 @@ gdk_keyval_name (guint keyval)
 guint
 gdk_keyval_from_name (const gchar *keyval_name)
 {
-  GdkDisplayManager *manager = gdk_display_manager_get ();
-
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->lookup_keyval (manager,
-                                                                 keyval_name);
+  return _gdk_keyval_from_name (keyval_name);
 }
 
+/**
+ * gdk_keyval_convert_case:
+ * @symbol: a keyval
+ * @lower: (out): return location for lowercase version of @symbol
+ * @upper: (out): return location for uppercase version of @symbol
+ *
+ * Obtains the upper- and lower-case versions of the keyval @symbol.
+ * Examples of keyvals are #GDK_KEY_a, #GDK_KEY_Enter, #GDK_KEY_F1, etc.
+ */
 void
-_gdk_display_manager_real_keyval_convert_case (GdkDisplayManager *manager,
-                                               guint              symbol,
-                                               guint             *lower,
-                                               guint             *upper)
+gdk_keyval_convert_case (guint symbol,
+                         guint *lower,
+                         guint *upper)
 {
-  guint xlower = symbol;
-  guint xupper = symbol;
+  guint xlower, xupper;
+
+  xlower = symbol;
+  xupper = symbol;
 
   /* Check for directly encoded 24-bit UCS characters: */
   if ((symbol & 0xff000000) == 0x01000000)

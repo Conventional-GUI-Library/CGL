@@ -17,6 +17,8 @@
 @define-color error_fg_color rgb (166, 38, 38);
 @define-color error_bg_color rgb (237, 54, 54);
 
+@define-color success_bg_color #4e9a06;
+
 * {
   color: @fg_color;
   border-color: shade (@bg_color, 0.6);
@@ -37,6 +39,13 @@ GtkWindow, .button, .slider {
 .expander:hover,
 GtkTreeView.view.expander:selected:hover {
   color: @text_color;
+}
+
+GtkTreeView.dnd {
+    border-color: @internal_element_color;
+    border-radius: 0;
+    border-width: 1px;
+    border-style: solid;
 }
 
 *:insensitive {
@@ -185,6 +194,26 @@ GtkTreeView.view.expander:selected:hover {
   border-width: 1px;
 }
 
+.level-bar.indicator-discrete {
+    margin: 1px;
+}
+
+.level-bar.fill-block {
+    background-color: @selected_bg_color;
+}
+
+.level-bar.fill-block.level-low {
+    background-color: @warning_bg_color;
+}
+
+.level-bar.fill-block.level-high {
+    background-color: @success_bg_color;
+}
+
+.level-bar.fill-block.empty-fill-block {
+    background-color: @base_color;
+}
+
 GtkCheckButton:hover,
 GtkCheckButton:selected,
 GtkRadioButton:hover,
@@ -248,31 +277,15 @@ GtkScrolledWindow.frame {
   padding: 0;
 }
 
-.level-bar.indicator-discrete {
-    margin: 1px;
-}
-
-.level-bar.fill-block {
-    background-color: @selected_bg_color;
-}
-
-.level-bar.fill-block.level-low {
-    background-color: @warning_bg_color;
-}
-
-.level-bar.fill-block.level-high {
-    background-color: @success_bg_color;
-}
-
-.level-bar.fill-block.empty-fill-block {
-    background-color: @base_color;
-}
-
 .menu,
 .menubar,
 .toolbar {
   border-style: outset;
   border-width: 1px;
+}
+
+.menu {
+  background-color: @bg_color;
 }
 
 .menu:hover,
@@ -716,6 +729,18 @@ GtkCalendar.button:hover {
 }
 
 .spinner:active {
+   background-image: -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.916667)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.833333)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.75)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.666667)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.583333)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.5)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.416667)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.333333)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.25)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.166667)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(alpha(currentColor, 0.0833333)), to(transparent)),
+                     -gtk-gradient(radial, center center, 0, center center, 0.5, to(currentColor), to(transparent));
   animation: spinner 1s infinite linear;
 }
 

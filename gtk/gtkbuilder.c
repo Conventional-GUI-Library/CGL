@@ -216,6 +216,10 @@
  * <link linkend="GtkFileFilter-BUILDER-UI">GtkFileFilter</link>,
  * <link linkend="GtkTextTagTable-BUILDER-UI">GtkTextTagTable</link>.
  * </para>
+ * <para>
+ * Additionally, since 3.10 a special &lt;template&gt; tag has been added to the format
+ * allowing one to <link linkend="GtkWidget-BUILDER-TEMPLATES">define a widget class's components</link>.
+ * </para>
  * </refsect2>
  * <refsect2>
  * <title>Embedding other XML</title>
@@ -270,10 +274,12 @@ struct _GtkBuilderPrivate
 {
   gchar *domain;
   GHashTable *objects;
+  GHashTable *callbacks;
   GSList *delayed_properties;
   GSList *signals;
   gchar *filename;
   gchar *resource_prefix;
+  GType template_type;
 };
 
 G_DEFINE_TYPE (GtkBuilder, gtk_builder, G_TYPE_OBJECT)
@@ -458,8 +464,9 @@ gtk_builder_get_parameters (GtkBuilder  *builder,
                             GType        object_type,
                             const gchar *object_name,
                             GSList      *properties,
+			    GParamFlags  filter_flags,
                             GArray      **parameters,
-                            GArray      **construct_parameters)
+                            GArray      **filtered_parameters)
 {
   GSList *l;
   GParamSpec *pspec;
@@ -470,8 +477,10 @@ gtk_builder_get_parameters (GtkBuilder  *builder,
   oclass = g_type_class_ref (object_type);
   g_assert (oclass != NULL);
 
-  *parameters = g_array_new (FALSE, FALSE, sizeof (GParameter));
-  *construct_parameters = g_array_new (FALSE, FALSE, sizeof (GParameter));
+  if (parameters)
+    *parameters = g_array_new (FALSE, FALSE, sizeof (GParameter));
+  if (filtered_parameters)
+    *filtered_parameters = g_array_new (FALSE, FALSE, sizeof (GParameter));
 
   for (l = properties; l; l = l->next)
     {
@@ -529,10 +538,16 @@ gtk_builder_get_parameters (GtkBuilder  *builder,
           continue;
         }
 
-      if (pspec->flags & (G_PARAM_CONSTRUCT | G_PARAM_CONSTRUCT_ONLY))
-        g_array_append_val (*construct_parameters, parameter);
+      if (pspec->flags & filter_flags)
+	{
+	  if (filtered_parameters)
+	    g_array_append_val (*filtered_parameters, parameter);
+	}
       else
-        g_array_append_val (*parameters, parameter);
+	{
+	  if (parameters)
+	    g_array_append_val (*parameters, parameter);
+	}
     }
 
   g_type_class_unref (oclass);
@@ -606,6 +621,7 @@ _gtk_builder_construct (GtkBuilder *builder,
   GtkBuildableIface *iface;
   gboolean custom_set_property;
   GtkBuildable *buildable;
+  GParamFlags param_filter_flags;
 
   g_assert (info->class_name != NULL);
   object_type = gtk_builder_get_type_from_name (builder, info->class_name);
@@ -618,10 +634,39 @@ _gtk_builder_construct (GtkBuilder *builder,
 		   info->class_name);
       return NULL;
     }
+  else if (builder->priv->template_type != 0 &&
+	   g_type_is_a (object_type, builder->priv->template_type))
+    {
+      g_set_error (error,
+		   GTK_BUILDER_ERROR,
+		   GTK_BUILDER_ERROR_OBJECT_TYPE_REFUSED,
+		   "Refused to build object of type `%s' because it "
+		   "conforms to the template type `%s', avoiding infinite recursion.",
+		   info->class_name, g_type_name (builder->priv->template_type));
+      return NULL;
+    }
+
+  /* If there is a manual constructor (like UIManager), or if this is a
+   * reference to an internal child, then we filter out construct-only
+   * and warn that they cannot be set.
+   *
+   * Otherwise if we are calling g_object_newv(), we want to pass
+   * both G_PARAM_CONSTRUCT and G_PARAM_CONSTRUCT_ONLY to the
+   * object's constructor.
+   *
+   * Passing all construct properties to g_object_newv() slightly
+   * improves performance as the construct properties will only be set once.
+   */
+  if (info->constructor ||
+      (info->parent && ((ChildInfo*)info->parent)->internal_child != NULL))
+    param_filter_flags = G_PARAM_CONSTRUCT_ONLY;
+  else
+    param_filter_flags = G_PARAM_CONSTRUCT | G_PARAM_CONSTRUCT_ONLY;
 
   gtk_builder_get_parameters (builder, object_type,
                               info->id,
                               info->properties,
+			      param_filter_flags,
                               &parameters,
                               &construct_parameters);
 
@@ -731,6 +776,61 @@ _gtk_builder_construct (GtkBuilder *builder,
   g_object_unref (obj);
   
   return obj;
+}
+
+void
+_gtk_builder_apply_properties (GtkBuilder *builder,
+			       ObjectInfo *info,
+			       GError **error)
+{
+  GArray *parameters;
+  GType object_type;
+  GtkBuildableIface *iface;
+  GtkBuildable *buildable;
+  gboolean custom_set_property;
+  gint i;
+
+  g_assert (info->object != NULL);
+  g_assert (info->class_name != NULL);
+  object_type = gtk_builder_get_type_from_name (builder, info->class_name);
+
+  /* Fetch all properties that are not construct-only */
+  gtk_builder_get_parameters (builder, object_type,
+                              info->id,
+                              info->properties,
+			      G_PARAM_CONSTRUCT_ONLY,
+                              &parameters, NULL);
+
+  custom_set_property = FALSE;
+  buildable = NULL;
+  iface = NULL;
+  if (GTK_IS_BUILDABLE (info->object))
+    {
+      buildable = GTK_BUILDABLE (info->object);
+      iface = GTK_BUILDABLE_GET_IFACE (info->object);
+      if (iface->set_buildable_property)
+        custom_set_property = TRUE;
+    }
+
+  for (i = 0; i < parameters->len; i++)
+    {
+      GParameter *param = &g_array_index (parameters, GParameter, i);
+      if (custom_set_property)
+        iface->set_buildable_property (buildable, builder, param->name, &param->value);
+      else
+        g_object_set_property (info->object, param->name, &param->value);
+
+#if G_ENABLE_DEBUG
+      if (gtk_get_debug_flags () & GTK_DEBUG_BUILDER)
+        {
+          gchar *str = g_strdup_value_contents ((const GValue*)&param->value);
+          g_print ("set %s: %s = %s\n", info->id, param->name, str);
+          g_free (str);
+        }
+#endif      
+      g_value_unset (&param->value);
+    }
+  g_array_free (parameters, TRUE);
 }
 
 void
@@ -976,6 +1076,48 @@ gtk_builder_add_objects_from_file (GtkBuilder   *builder,
                                     &tmp_error);
 
   g_free (buffer);
+
+  if (tmp_error != NULL)
+    {
+      g_propagate_error (error, tmp_error);
+      return 0;
+    }
+
+  return 1;
+}
+
+/* Main private entry point for building composite container
+ * components from template XML
+ */
+guint
+_gtk_builder_extend_with_template (GtkBuilder    *builder,
+				   GtkWidget     *widget,
+				   GType          template_type,
+				   const gchar   *buffer,
+				   gsize          length,
+				   GError       **error)
+{
+  GError *tmp_error;
+
+  g_return_val_if_fail (GTK_IS_BUILDER (builder), 0);
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), 0);
+  g_return_val_if_fail (g_type_name (template_type) != NULL, 0);
+  g_return_val_if_fail (g_type_is_a (G_OBJECT_TYPE (widget), template_type), 0);
+  g_return_val_if_fail (buffer && buffer[0], 0);
+
+  tmp_error = NULL;
+
+  g_free (builder->priv->filename);
+  g_free (builder->priv->resource_prefix);
+  builder->priv->filename = g_strdup (".");
+  builder->priv->resource_prefix = NULL;
+  builder->priv->template_type = template_type;
+
+  gtk_builder_expose_object (builder, g_type_name (template_type), G_OBJECT (widget));
+  _gtk_builder_parser_parse_buffer (builder, "<input>",
+                                    buffer, length,
+                                    NULL,
+                                    &tmp_error);
 
   if (tmp_error != NULL)
     {
@@ -1390,11 +1532,22 @@ gtk_builder_connect_signals_default (GtkBuilder    *builder,
 {
   GCallback func;
   connect_args *args = (connect_args*)user_data;
-  
-  if (!g_module_symbol (args->module, handler_name, (gpointer)&func))
+
+  func = gtk_builder_lookup_callback_symbol (builder, handler_name);
+
+  if (!func)
     {
-      g_warning ("Could not find signal handler '%s'", handler_name);
-      return;
+      /* Only error out for missing GModule support if we've not
+       * found the symbols explicitly added with gtk_builder_add_callback_symbol()
+       */
+      if (args->module == NULL)
+	g_error ("gtk_builder_connect_signals() requires working GModule");
+  
+      if (!g_module_symbol (args->module, handler_name, (gpointer)&func))
+	{
+	  g_warning ("Could not find signal handler '%s'", handler_name);
+	  return;
+	}
     }
 
   if (connect_object)
@@ -1410,14 +1563,20 @@ gtk_builder_connect_signals_default (GtkBuilder    *builder,
  * @user_data: a pointer to a structure sent in as user data to all signals
  *
  * This method is a simpler variation of gtk_builder_connect_signals_full().
- * It uses #GModule's introspective features (by opening the module %NULL) 
+ * It uses symbols explicitly added to @builder with prior calls to
+ * gtk_builder_add_callback_symbol(). In the case that symbols are not
+ * explicitly added; it uses #GModule's introspective features (by opening the module %NULL) 
  * to look at the application's symbol table. From here it tries to match
  * the signal handler names given in the interface description with
  * symbols in the application and connects the signals. Note that this
  * function can only be called once, subsequent calls will do nothing.
  * 
- * Note that this function will not work correctly if #GModule is not
- * supported on the platform.
+ * Note that unless gtk_builder_add_callback_symbol() is called for
+ * all signal callbacks which are referenced by the loaded XML, this 
+ * function will require that #GModule be supported on the platform.
+ * 
+ * If you rely on #GModule support to lookup callbacks in the symbol table,
+ * the following details should be noted:
  *
  * When compiling applications for Windows, you must declare signal callbacks
  * with #G_MODULE_EXPORT, or they will not be put in the symbol table.
@@ -1435,17 +1594,17 @@ gtk_builder_connect_signals (GtkBuilder *builder,
   
   g_return_if_fail (GTK_IS_BUILDER (builder));
   
-  if (!g_module_supported ())
-    g_error ("gtk_builder_connect_signals() requires working GModule");
-
   args = g_slice_new0 (connect_args);
-  args->module = g_module_open (NULL, G_MODULE_BIND_LAZY);
   args->data = user_data;
+
+  if (g_module_supported ())
+    args->module = g_module_open (NULL, G_MODULE_BIND_LAZY);
   
   gtk_builder_connect_signals_full (builder,
                                     gtk_builder_connect_signals_default,
                                     args);
-  g_module_close (args->module);
+  if (args->module)
+    g_module_close (args->module);
 
   g_slice_free (connect_args, args);
 }
@@ -2121,4 +2280,115 @@ _gtk_builder_get_absolute_filename (GtkBuilder *builder, const gchar *string)
   g_free (dirname);
   
   return filename;
+}
+
+GType
+_gtk_builder_get_template_type (GtkBuilder *builder)
+{
+  return builder->priv->template_type;
+}
+
+/**
+ * gtk_builder_add_callback_symbol:
+ * @builder: a #GtkBuilder
+ * @callback_name: The name of the callback, as expected in the XML
+ * @callback_symbol: (scope async): The callback pointer
+ *
+ * Adds the @callback_symbol to the scope of @builder under the given @callback_name.
+ *
+ * Using this function overrides the behavior of gtk_builder_connect_signals()
+ * for any callback symbols that are added. Using this method allows for better
+ * encapsulation as it does not require that callback symbols be declared in
+ * the global namespace.
+ *
+ * Since: 3.10
+ */
+void
+gtk_builder_add_callback_symbol (GtkBuilder    *builder,
+				 const gchar   *callback_name,
+				 GCallback      callback_symbol)
+{
+  g_return_if_fail (GTK_IS_BUILDER (builder));
+  g_return_if_fail (callback_name && callback_name[0]);
+  g_return_if_fail (callback_symbol != NULL);
+
+  if (!builder->priv->callbacks)
+    builder->priv->callbacks = g_hash_table_new_full (g_str_hash, g_str_equal,
+						      g_free, NULL);
+
+  g_hash_table_insert (builder->priv->callbacks, g_strdup (callback_name), callback_symbol);
+}
+
+/**
+ * gtk_builder_add_callback_symbols:
+ * @builder: a #GtkBuilder
+ * @first_callback_name: The name of the callback, as expected in the XML
+ * @first_callback_symbol: (scope async): The callback pointer
+ * @...: A list of callback name and callback symbol pairs terminated with %NULL
+ *
+ * A convenience function to add many callbacks instead of calling
+ * gtk_builder_add_callback_symbol() for each symbol.
+ *
+ * Since: 3.10
+ */
+void
+gtk_builder_add_callback_symbols (GtkBuilder    *builder,
+				  const gchar   *first_callback_name,
+				  GCallback      first_callback_symbol,
+				  ...)
+{
+  va_list var_args;
+  const gchar *callback_name;
+  GCallback callback_symbol;
+
+  g_return_if_fail (GTK_IS_BUILDER (builder));
+  g_return_if_fail (first_callback_name && first_callback_name[0]);
+  g_return_if_fail (first_callback_symbol != NULL);
+
+  callback_name = first_callback_name;
+  callback_symbol = first_callback_symbol;
+
+  va_start (var_args, first_callback_symbol);
+
+  do {
+
+    gtk_builder_add_callback_symbol (builder, callback_name, callback_symbol);
+
+    callback_name = va_arg (var_args, const gchar*);
+
+    if (callback_name)
+      callback_symbol = va_arg (var_args, GCallback);
+
+  } while (callback_name != NULL);
+
+  va_end (var_args);
+}
+
+/**
+ * gtk_builder_lookup_callback_symbol:
+ * @builder: a #GtkBuilder
+ * @callback_name: The name of the callback
+ *
+ * Fetches a symbol previously added to @builder
+ * with gtk_builder_add_callback_symbols()
+ *
+ * This function is intended for possible use in language bindings
+ * or for any case that one might be cusomizing signal connections
+ * using gtk_builder_connect_signals_full()
+ *
+ * Returns: The callback symbol in @builder for @callback_name, or %NULL
+ *
+ * Since: 3.10
+ */
+GCallback
+gtk_builder_lookup_callback_symbol (GtkBuilder    *builder,
+				    const gchar   *callback_name)
+{
+  g_return_val_if_fail (GTK_IS_BUILDER (builder), NULL);
+  g_return_val_if_fail (callback_name && callback_name[0], NULL);
+
+  if (!builder->priv->callbacks)
+    return NULL;
+
+  return g_hash_table_lookup (builder->priv->callbacks, callback_name);
 }

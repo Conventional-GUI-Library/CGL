@@ -25,6 +25,7 @@
 #include "gdkdisplayprivate.h"
 
 #include "gdkdeviceprivate.h"
+#include "gdkdisplaymanagerprivate.h"
 #include "gdkevents.h"
 #include "gdkwindowimpl.h"
 #include "gdkinternals.h"
@@ -82,6 +83,11 @@ static guint signals[LAST_SIGNAL] = { 0 };
 G_DEFINE_TYPE (GdkDisplay, gdk_display, G_TYPE_OBJECT)
 
 static void
+gdk_display_real_make_default (GdkDisplay *display)
+{
+}
+
+static void
 gdk_display_class_init (GdkDisplayClass *class)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (class);
@@ -91,6 +97,8 @@ gdk_display_class_init (GdkDisplayClass *class)
 
   class->get_app_launch_context = gdk_display_real_get_app_launch_context;
   class->window_type = GDK_TYPE_WINDOW;
+
+  class->make_default = gdk_display_real_make_default;
 
   /**
    * GdkDisplay::opened:
@@ -199,6 +207,8 @@ gdk_display_init (GdkDisplay *display)
 
   g_signal_connect (display, "opened",
                     G_CALLBACK (gdk_display_opened), NULL);
+
+  _gdk_display_manager_add_display (gdk_display_manager_get (), display);
 }
 
 static void
@@ -208,6 +218,8 @@ gdk_display_dispose (GObject *object)
   GdkDeviceManager *device_manager;
 
   device_manager = gdk_display_get_device_manager (GDK_DISPLAY (object));
+
+  _gdk_display_manager_remove_display (gdk_display_manager_get (), display);
 
   g_list_free_full (display->queued_events, (GDestroyNotify) gdk_event_free);
   display->queued_events = NULL;

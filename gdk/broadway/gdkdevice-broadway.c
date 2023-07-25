@@ -188,7 +188,7 @@ gdk_broadway_device_query_state (GdkDevice        *device,
   if (root_y)
     *root_y = device_root_y;
   if (win_x)
-    *win_x = device_root_y - toplevel->x;
+    *win_x = device_root_x - toplevel->x;
   if (win_y)
     *win_y = device_root_y - toplevel->y;
   if (mask)
@@ -210,6 +210,29 @@ gdk_broadway_device_query_state (GdkDevice        *device,
 
   return;
 }
+
+void
+_gdk_broadway_window_grab_check_unmap (GdkWindow *window,
+				       gulong     serial)
+{
+  GdkDisplay *display = gdk_window_get_display (window);
+  GdkDeviceManager *device_manager;
+  GList *devices, *d;
+
+  device_manager = gdk_display_get_device_manager (display);
+
+  /* Get all devices */
+  devices = gdk_device_manager_list_devices (device_manager, GDK_DEVICE_TYPE_MASTER);
+  devices = g_list_concat (devices, gdk_device_manager_list_devices (device_manager, GDK_DEVICE_TYPE_SLAVE));
+  devices = g_list_concat (devices, gdk_device_manager_list_devices (device_manager, GDK_DEVICE_TYPE_FLOATING));
+
+  /* End all grabs on the newly hidden window */
+  for (d = devices; d; d = d->next)
+    _gdk_display_end_device_grab (display, d->data, serial, window, TRUE);
+
+  g_list_free (devices);
+}
+
 
 void
 _gdk_broadway_window_grab_check_destroy (GdkWindow *window)

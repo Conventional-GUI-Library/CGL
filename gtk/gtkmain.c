@@ -122,7 +122,6 @@
 #include "gtkmodulesprivate.h"
 #include "gtkprivate.h"
 #include "gtkrecentmanager.h"
-#include "gtkresources.h"
 #include "gtkselectionprivate.h"
 #include "gtksettingsprivate.h"
 #include "gtktooltip.h"
@@ -833,7 +832,7 @@ do_post_parse_initialization (int    *argc,
       g_warning ("Whoever translated default:LTR did so wrongly.\n");
   }
 
-  _gtk_register_resource ();
+  _gtk_ensure_resources ();
 
   _gtk_accel_map_init ();
 
@@ -1801,7 +1800,7 @@ gtk_main_do_event (GdkEvent *event)
               if (GTK_IS_WINDOW (window))
                 {
                   if (mnemonics_visible)
-                    _gtk_window_set_auto_mnemonics_visible (GTK_WINDOW (window));
+                    _gtk_window_schedule_mnemonics_visible (GTK_WINDOW (window));
                   else
                     gtk_window_set_mnemonics_visible (GTK_WINDOW (window), FALSE);
                 }

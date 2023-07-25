@@ -38,44 +38,6 @@
 #include <string.h>
 
 
-/**
- * SECTION:properties
- * @Short_description: Functions to manipulate properties on windows
- * @Title: Properties and Atoms
- *
- * Each window under X can have any number of associated
- * <firstterm>properties</firstterm> attached to it.
- * Properties are arbitrary chunks of data identified by
- * <firstterm>atom</firstterm>s. (An <firstterm>atom</firstterm>
- * is a numeric index into a string table on the X server. They are used
- * to transfer strings efficiently between clients without
- * having to transfer the entire string.) A property
- * has an associated type, which is also identified
- * using an atom.
- *
- * A property has an associated <firstterm>format</firstterm>,
- * an integer describing how many bits are in each unit
- * of data inside the property. It must be 8, 16, or 32.
- * When data is transferred between the server and client,
- * if they are of different endianesses it will be byteswapped
- * as necessary according to the format of the property.
- * Note that on the client side, properties of format 32
- * will be stored with one unit per <emphasis>long</emphasis>,
- * even if a long integer has more than 32 bits on the platform.
- * (This decision was apparently made for Xlib to maintain
- * compatibility with programs that assumed longs were 32
- * bits, at the expense of programs that knew better.)
- *
- * The functions in this section are used to add, remove
- * and change properties on windows, to convert atoms
- * to and from strings and to manipulate some types of
- * data commonly stored in X window properties.
- */
-
-
-static GPtrArray *virtual_atom_array;
-static GHashTable *virtual_atom_hash;
-
 static const gchar xatoms_string[] = 
   /* These are all the standard predefined X atoms */
   "\0"  /* leave a space for None, even though it is not a predefined atom */
@@ -235,14 +197,12 @@ gdk_x11_atom_to_xatom_for_display (GdkDisplay *display,
 
   if (!xatom)
     {
-      char *name;
-
-      g_return_val_if_fail (ATOM_TO_INDEX (atom) < virtual_atom_array->len, None);
-
-      name = g_ptr_array_index (virtual_atom_array, ATOM_TO_INDEX (atom));
+      char *name = gdk_atom_name (atom);
 
       xatom = XInternAtom (GDK_DISPLAY_XDISPLAY (display), name, FALSE);
       insert_atom_pair (display, atom, xatom);
+
+      g_free (name);
     }
 
   return xatom;
@@ -377,68 +337,6 @@ gdk_x11_xatom_to_atom (Atom xatom)
   return gdk_x11_xatom_to_atom_for_display (gdk_display_get_default (), xatom);
 }
 
-static void
-virtual_atom_check_init (void)
-{
-  if (!virtual_atom_hash)
-    {
-      gint i;
-
-      virtual_atom_hash = g_hash_table_new (g_str_hash, g_str_equal);
-      virtual_atom_array = g_ptr_array_new ();
-
-      for (i = 0; i < G_N_ELEMENTS (xatoms_offset); i++)
-        {
-          g_ptr_array_add (virtual_atom_array, (gchar *)(xatoms_string + xatoms_offset[i]));
-          g_hash_table_insert (virtual_atom_hash, (gchar *)(xatoms_string + xatoms_offset[i]),
-                               GUINT_TO_POINTER (i));
-        }
-    }
-}
-
-GdkAtom
-_gdk_x11_display_manager_atom_intern (GdkDisplayManager *manager,
-                                      const gchar       *atom_name,
-                                      gboolean           dup)
-{
-  GdkAtom result;
-
-  virtual_atom_check_init ();
-
-  result = GDK_POINTER_TO_ATOM (g_hash_table_lookup (virtual_atom_hash, atom_name));
-  if (!result)
-    {
-      result = INDEX_TO_ATOM (virtual_atom_array->len);
-
-      g_ptr_array_add (virtual_atom_array, dup ? g_strdup (atom_name) : (gchar *)atom_name);
-      g_hash_table_insert (virtual_atom_hash,
-                           g_ptr_array_index (virtual_atom_array,
-                                              ATOM_TO_INDEX (result)),
-                                              GDK_ATOM_TO_POINTER (result));
-    }
-
-  return result;
-}
-
-static const gchar *
-get_atom_name (GdkAtom atom)
-{
-  virtual_atom_check_init ();
-
-  if (ATOM_TO_INDEX (atom) < virtual_atom_array->len)
-    return g_ptr_array_index (virtual_atom_array, ATOM_TO_INDEX (atom));
-  else
-    return NULL;
-}
-
-
-gchar *
-_gdk_x11_display_manager_get_atom_name (GdkDisplayManager *manager,
-                                        GdkAtom            atom)
-{
-  return g_strdup (get_atom_name (atom));
-}
-
 /**
  * gdk_x11_get_xatom_by_name_for_display:
  * @display: a #GdkDisplay
@@ -519,7 +417,7 @@ gdk_x11_get_xatom_name_for_display (GdkDisplay *display,
 {
   g_return_val_if_fail (GDK_IS_DISPLAY (display), NULL);
 
-  return get_atom_name (gdk_x11_xatom_to_atom_for_display (display, xatom));
+  return _gdk_atom_name_const (gdk_x11_xatom_to_atom_for_display (display, xatom));
 }
 
 /**
@@ -538,7 +436,7 @@ gdk_x11_get_xatom_name_for_display (GdkDisplay *display,
 const gchar *
 gdk_x11_get_xatom_name (Atom xatom)
 {
-  return get_atom_name (gdk_x11_xatom_to_atom (xatom));
+  return _gdk_atom_name_const (gdk_x11_xatom_to_atom (xatom));
 }
 
 gboolean
