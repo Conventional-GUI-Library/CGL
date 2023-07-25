@@ -1222,6 +1222,7 @@ gtk_hbox_get_type
 gtk_hbox_new
 gtk_hbutton_box_get_type
 gtk_hbutton_box_new
+gtk_csd_title_bar_get_type
 gtk_csd_title_bar_new
 gtk_csd_title_bar_pack_start
 gtk_csd_title_bar_pack_end
@@ -4059,4 +4060,5 @@ gtk_window_type_get_type
 gtk_window_unfullscreen
 gtk_window_unmaximize
 gtk_window_unstick
+gtk_window_set_titlebar
 gtk_wrap_mode_get_type

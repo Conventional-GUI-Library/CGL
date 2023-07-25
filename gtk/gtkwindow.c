@@ -3422,7 +3422,7 @@ gtk_window_set_geometry_hints (GtkWindow       *window,
 }
 
 void
-_gtk_window_set_titlebar (GtkWindow *window,
+gtk_window_set_titlebar (GtkWindow *window,
                          GtkWidget *titlebar)
 {
   GtkWidget *widget = GTK_WIDGET (window);
