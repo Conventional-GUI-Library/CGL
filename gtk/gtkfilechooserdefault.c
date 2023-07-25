@@ -4975,8 +4975,10 @@ path_bar_widgets_create (GtkFileChooserDefault *impl)
   /* Create Folder */
   impl->browse_new_folder_button = gtk_button_new_with_mnemonic (_("Create Fo_lder"));
   if (is_icon_present("folder-new") == 1) {
+	  gtk_button_set_always_show_image (GTK_BUTTON(impl->browse_new_folder_button), TRUE);
 	  gtk_button_set_image (GTK_BUTTON (impl->browse_new_folder_button), gtk_image_new_from_icon_name("folder-new", GTK_ICON_SIZE_BUTTON));	  
   } else if (is_icon_present("folder_new") == 1) {
+	  gtk_button_set_always_show_image (GTK_BUTTON(impl->browse_new_folder_button), TRUE);
 	  gtk_button_set_image (GTK_BUTTON (impl->browse_new_folder_button), gtk_image_new_from_icon_name("folder_new", GTK_ICON_SIZE_BUTTON));	  
   }
   g_signal_connect (impl->browse_new_folder_button, "clicked",
