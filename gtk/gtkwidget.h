@@ -36,7 +36,7 @@
 #include <gtk/gtkadjustment.h>
 #include <gtk/gtkstyle.h>
 #include <gtk/gtkborder.h>
-#include <gtk/gtkbuilder.h>
+#include <gtk/gtktypes.h>
 #include <gtk/gtksettings.h>
 #include <gtk/gtkstylecontext.h>
 #include <gtk/gtkwidgetpath.h>

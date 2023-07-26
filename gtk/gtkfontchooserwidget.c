@@ -298,7 +298,10 @@ gtk_font_chooser_widget_set_filter_func (GtkFontChooser  *chooser,
                                          gpointer          data,
                                          GDestroyNotify    destroy)
 {
-	g_warning("The gtk_font_chooser_widget_set_filter_func function is currently not implemented");
+	puts("lol");
+  GtkFontChooserWidget *fontchooser = GTK_FONT_CHOOSER_WIDGET (chooser);
+  GtkFontChooserWidgetPrivate *priv = fontchooser->priv;
+  gtk_font_selection_set_filter_func(GTK_FONT_SELECTION(priv->font_sel_widget), filter, data, destroy);
 }
 
 static void

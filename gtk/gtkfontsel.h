@@ -38,6 +38,7 @@
 
 #include <gtk/gtkdialog.h>
 #include <gtk/gtkbox.h>
+#include <gtk/gtkfontchooser.h>
 
 
 G_BEGIN_DECLS
@@ -137,6 +138,7 @@ void         gtk_font_selection_set_preview_text  (GtkFontSelection *fontsel,
 gboolean     gtk_font_selection_get_show_preview (GtkFontSelection *fontsel);
 void     gtk_font_selection_set_show_preview (GtkFontSelection *fontsel, gboolean show_preview);
 
+void gtk_font_selection_set_filter_func (GtkFontSelection *fontsel, GtkFontFilterFunc filter, gpointer data, GDestroyNotify    destroy);
 
 /*****************************************************************************
  * GtkFontSelectionDialog functions.

@@ -39,6 +39,7 @@
 
 #undef GTK_DISABLE_DEPRECATED
 
+#include "gtkfontchooser.h"
 #include "gtkfontsel.h"
 
 #include "gtkbutton.h"
@@ -57,7 +58,6 @@
 #include "gtkbuildable.h"
 #include "gtkorientable.h"
 #include "gtkprivate.h"
-
 
 /**
  * SECTION:gtkfontsel
@@ -100,6 +100,10 @@ struct _GtkFontSelectionPrivate
   PangoFontFace *face;          /* Current face */
 
   gint size;
+  
+  GtkFontFilterFunc filter_func;
+  gpointer          filter_data;
+  GDestroyNotify    filter_data_destroy;
 };
 
 
@@ -372,6 +376,9 @@ gtk_font_selection_init (GtkFontSelection *fontsel)
   gtk_box_set_spacing (GTK_BOX (fontsel), 12);
   priv->size = 12 * PANGO_SCALE;
   
+  // Font filtering functions
+  priv->filter_func = NULL;
+
   /* Create the table of font, style & size. */
   table = gtk_table_new (3, 3, FALSE);
   gtk_widget_show (table);
@@ -816,52 +823,66 @@ cmp_families (const void *a, const void *b)
 }
 
 static void
-gtk_font_selection_show_available_fonts (GtkFontSelection *fontsel)
-{
-  GtkFontSelectionPrivate *priv = fontsel->priv;
-  GtkListStore *model;
-  PangoFontFamily **families;
-  PangoFontFamily *match_family = NULL;
+gtk_font_selection_show_available_fonts(GtkFontSelection * fontsel) {
+  GtkFontSelectionPrivate * priv = fontsel -> priv;
+  GtkListStore * model;
+  PangoFontFamily ** families;
+  PangoFontFamily * match_family = NULL;
   gint n_families, i;
   GtkTreeIter match_row;
 
-  model = GTK_LIST_STORE (gtk_tree_view_get_model (GTK_TREE_VIEW (priv->family_list)));
+  model = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(priv -> family_list)));
 
-  pango_context_list_families (gtk_widget_get_pango_context (GTK_WIDGET (fontsel)),
-			       &families, &n_families);
-  qsort (families, n_families, sizeof (PangoFontFamily *), cmp_families);
+  pango_context_list_families(gtk_widget_get_pango_context(GTK_WIDGET(fontsel)), &families, & n_families);
+  qsort(families, n_families, sizeof(PangoFontFamily * ), cmp_families);
 
-  gtk_list_store_clear (model);
+  gtk_list_store_clear(model);
 
-  for (i=0; i<n_families; i++)
-    {
-      const gchar *name = pango_font_family_get_name (families[i]);
-      GtkTreeIter iter;
+  for (i = 0; i < n_families; i++) {
+			
+	const gchar * name;
+	GtkTreeIter iter;
 
-      gtk_list_store_append (model, &iter);
-      gtk_list_store_set (model, &iter,
-			  FAMILY_COLUMN, families[i],
-			  FAMILY_NAME_COLUMN, name,
-			  -1);
-      
-      if (i == 0 || !g_ascii_strcasecmp (name, "sans"))
+	if (priv->filter_func != NULL)
 	{
-	  match_family = families[i];
-	  match_row = iter;
+		PangoFontFace** font_faces;
+		gint face_count;
+		gint ffi;
+		
+		pango_font_family_list_faces(families[i], &font_faces, &face_count);
+		
+		for (ffi = 0; ffi < face_count; ffi++) {
+			if (priv->filter_func (families[i], font_faces[ffi], priv->filter_data)) {
+				goto fontsel_addfamily;
+			}
+		}
+    } else {
+		fontsel_addfamily:
+		{
+			name = pango_font_family_get_name(families[i]);
+			GtkTreeIter iter;
+
+			gtk_list_store_append(model, &iter);
+			gtk_list_store_set(model, &iter,FAMILY_COLUMN, families[i], FAMILY_NAME_COLUMN, name, -1);	
+		}
 	}
-    }
 
-  gtk_font_selection_ref_family (fontsel, match_family);
-  if (match_family)
-    {
-      set_cursor_to_iter (GTK_TREE_VIEW (priv->family_list), &match_row);
-#ifdef INCLUDE_FONT_ENTRIES
-      gtk_entry_set_text (GTK_ENTRY (priv->font_entry), 
-			  pango_font_family_get_name (match_family));
-#endif /* INCLUDE_FONT_ENTRIES */
+    if (i == 0 || !g_ascii_strcasecmp(name, "sans")) {
+      match_family = families[i];
+      match_row = iter;
     }
+  }
 
-  g_free (families);
+  gtk_font_selection_ref_family(fontsel, match_family);
+  if (match_family) {
+    set_cursor_to_iter(GTK_TREE_VIEW(priv -> family_list), & match_row);
+    #ifdef INCLUDE_FONT_ENTRIES
+    gtk_entry_set_text(GTK_ENTRY(priv -> font_entry),
+      pango_font_family_get_name(match_family));
+    #endif /* INCLUDE_FONT_ENTRIES */
+  }
+
+  g_free(families);
 }
 
 static int
@@ -937,14 +958,22 @@ gtk_font_selection_show_available_styles (GtkFontSelection *fontsel)
 
   for (i=0; i < n_faces; i++)
     {
-      GtkTreeIter iter;
-      const gchar *str = pango_font_face_get_face_name (faces[i]);
-
-      gtk_list_store_append (model, &iter);
-      gtk_list_store_set (model, &iter,
-			  FACE_COLUMN, faces[i],
-			  FACE_NAME_COLUMN, str,
-			  -1);
+		GtkTreeIter iter;
+		const gchar *str;	
+		if (priv->filter_func != NULL)
+		{
+			if (priv->filter_func(pango_font_face_get_family(faces[i]), faces[i], priv->filter_data)) {
+				goto fontsel_addface;
+			}
+		} else {
+			fontsel_addface:
+			{
+				str = pango_font_face_get_face_name (faces[i]);
+				
+				gtk_list_store_append (model, &iter);
+				gtk_list_store_set (model, &iter, FACE_COLUMN, faces[i], FACE_NAME_COLUMN, str, -1);
+			}
+		}		
 
       if (i == 0)
 	{
@@ -981,6 +1010,25 @@ gtk_font_selection_show_available_styles (GtkFontSelection *fontsel)
 
   g_free (faces);
 }
+
+void
+gtk_font_selection_set_filter_func (GtkFontSelection *fontsel,
+                                         GtkFontFilterFunc filter,
+                                         gpointer          data,
+                                         GDestroyNotify    destroy)
+{
+  GtkFontSelectionPrivate *priv = fontsel->priv;
+
+  if (priv->filter_data_destroy)
+    priv->filter_data_destroy (priv->filter_data);
+
+  priv->filter_func = filter;
+  priv->filter_data = data;
+  priv->filter_data_destroy = destroy;
+
+  gtk_font_selection_reload_fonts(fontsel);
+}
+
 
 /* This selects a style when the user selects a font. It just uses the first
    available style at present. I was thinking of trying to maintain the
