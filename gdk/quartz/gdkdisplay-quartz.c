@@ -134,8 +134,7 @@ _gdk_quartz_display_open (const gchar *display_name)
   _gdk_quartz_dnd_init ();
 #endif
 
-  g_signal_emit_by_name (gdk_display_manager_get (),
-			 "display_opened", _gdk_display);
+  g_signal_emit_by_name (_gdk_display, "opened");
 
   return _gdk_display;
 }
@@ -283,17 +282,12 @@ G_DEFINE_TYPE (GdkQuartzDisplay, gdk_quartz_display, GDK_TYPE_DISPLAY)
 static void
 gdk_quartz_display_init (GdkQuartzDisplay *display)
 {
-  _gdk_quartz_display_manager_add_display (gdk_display_manager_get (),
-                                           GDK_DISPLAY_OBJECT (display));
 }
 
 static void
 gdk_quartz_display_dispose (GObject *object)
 {
   GdkQuartzDisplay *display_quartz = GDK_QUARTZ_DISPLAY (object);
-
-  _gdk_quartz_display_manager_remove_display (gdk_display_manager_get (),
-                                              GDK_DISPLAY_OBJECT (object));
 
   g_list_foreach (display_quartz->input_devices,
                   (GFunc) g_object_run_dispose, NULL);

@@ -145,6 +145,7 @@ struct _GdkDisplayClass
   void                       (*flush)              (GdkDisplay *display);
   gboolean                   (*has_pending)        (GdkDisplay *display);
   void                       (*queue_events)       (GdkDisplay *display);
+  void                       (*make_default)       (GdkDisplay *display);
   GdkWindow *                (*get_default_group)  (GdkDisplay *display);
   gboolean                   (*supports_selection_notification) (GdkDisplay *display);
   gboolean                   (*request_selection_notification)  (GdkDisplay *display,
@@ -239,6 +240,7 @@ struct _GdkDisplayClass
                                                         const gchar    *text);
 
   /* Signals */
+  void                   (*opened)                     (GdkDisplay     *display);
   void (*closed) (GdkDisplay *display,
                   gboolean    is_error);
 };

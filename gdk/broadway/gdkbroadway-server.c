@@ -506,7 +506,7 @@ make_valid_fs_char (char c)
 {
   char chars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890";
 
-  return chars[c % sizeof (chars)];
+  return chars[c % (sizeof (chars) - 1)];
 }
 
 /* name must have at least space for 34 bytes */
@@ -581,6 +581,13 @@ _gdk_broadway_server_create_surface (int                 width,
 
   res = ftruncate (fd, data->data_size);
   g_assert (res != -1);
+
+  res = posix_fallocate (fd, 0, data->data_size);
+  if (res != 0)
+    {
+      shm_unlink (data->name);
+      g_error ("Not enough shared memory for window surface");
+    }
 
   data->data = mmap(0, data->data_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0); 
   (void) close(fd);

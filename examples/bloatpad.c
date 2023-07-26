@@ -33,6 +33,29 @@ new_window (GApplication *app,
 }
 
 static void
+change_busy_state (GSimpleAction *action,
+                   GVariant      *state,
+                   gpointer       user_data)
+{
+  GtkWindow *window = user_data;
+  GApplication *application = G_APPLICATION (gtk_window_get_application (window));
+
+  /* do this twice to test multiple busy counter increases */
+  if (g_variant_get_boolean (state))
+    {
+      g_application_mark_busy (application);
+      g_application_mark_busy (application);
+    }
+  else
+    {
+      g_application_unmark_busy (application);
+      g_application_unmark_busy (application);
+    }
+
+  g_simple_action_set_state (action, state);
+}
+
+static void
 bloat_pad_activate (GApplication *application)
 {
   new_window (application, NULL);

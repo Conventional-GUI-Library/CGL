@@ -225,34 +225,16 @@ function flushSurface(surface)
 	    context.save();
 	    context.beginPath();
 
-	    var minx;
-	    var miny;
-	    var maxx;
-	    var maxy;
 	    for (var j = 0; j < cmd.rects.length; j++) {
 		var rect = cmd.rects[j];
 		context.rect(rect.x, rect.y, rect.w, rect.h);
-		if (j == 0) {
-		    minx = rect.x;
-		    miny = rect.y;
-		    maxx = rect.x + rect.w;
-		    maxy = rect.y + rect.h;
-		} else {
-		    if (rect.x < minx)
-			minx = rect.x;
-		    if (rect.y < miny)
-			miny = rect.y;
-		    if (rect.x + rect.w > maxx)
-			maxx = rect.x + rect.w;
-		    if (rect.y + rect.h > maxy)
-			maxy = rect.y + rect.h;
-		}
 	    }
 	    context.clip();
-	    context.globalCompositeOperation = "copy";
-	    context.drawImage(context.canvas,
-			      minx - cmd.dx, miny - cmd.dy, maxx - minx, maxy - miny,
-			      minx, miny, maxx - minx, maxy - miny);
+	    // This seems to break chrome when src overlaps dest
+	    // But source-over should be fine for rgb surfaces anyway
+	    //context.globalCompositeOperation = "copy";
+	    context.drawImage(surface.canvas,
+			      cmd.dx, cmd.dy);
 	    context.restore();
 	    break;
 
@@ -496,12 +478,6 @@ function cmdMoveResizeSurface(id, has_pos, x, y, has_size, w, h)
 	    var xOffset = surface.x;
 	    var yOffset = surface.y;
 
-	    var transientToplevel = getTransientToplevel(surface);
-	    if (transientToplevel) {
-		xOffset = surface.x - transientToplevel.x;
-		yOffset = surface.y - transientToplevel.y;
-	    }
-
 	    var element = surface.canvas;
 	    if (surface.frame) {
 		element = surface.frame;
@@ -543,6 +519,21 @@ function handleCommands(cmd)
 	var command = cmd.get_char();
 	lastSerial = cmd.get_32();
 	switch (command) {
+	case 'l':
+	    login ();
+	    break;
+
+	case 'L':
+	    if (loginDiv != null)
+		loginDiv.parentNode.removeChild(loginDiv);
+	    start ();
+	    break;
+
+	case 'D':
+	    alert ("disconnected");
+	    inputSocket = null;
+	    break;
+
 	case 's': // create new surface
 	    id = cmd.get_16();
 	    x = cmd.get_16s();
@@ -742,8 +733,12 @@ BinCommands.prototype.get_32 = function() {
 };
 BinCommands.prototype.get_image_url = function() {
     var size = this.get_32();
-    var png_blob = new Blob ([this.arraybuffer.slice (this.pos, this.pos + size)], {type:"image/png"});
-    var url = URL.createObjectURL(png_blob, {oneTimeOnly: true});
+    var png_blob = new Blob ([new Uint8Array (this.arraybuffer, this.pos, size)], {type:"image/png"});
+    var url;
+    if (window.webkitURL)
+	url = window.webkitURL.createObjectURL(png_blob);
+    else
+	url = window.URL.createObjectURL(png_blob, {oneTimeOnly: true});
     this.pos = this.pos + size;
     return url;
 };
@@ -2590,7 +2585,7 @@ function onMouseWheel(ev)
     var id = getSurfaceId(ev);
     var pos = getPositionsFromEvent(ev, id);
 
-    var offset = ev.detail ? ev.detail : ev.wheelDelta;
+    var offset = ev.detail ? ev.detail : -ev.wheelDelta;
     var dir = 0;
     if (offset > 0)
 	dir = 1;
@@ -2631,6 +2626,47 @@ function newWS(loc) {
     return ws;
 }
 
+function start()
+{
+    setupDocument(document);
+
+    var w, h;
+    w = window.innerWidth;
+    h = window.innerHeight;
+    window.onresize = function(ev) {
+	var w, h;
+	w = window.innerWidth;
+	h = window.innerHeight;
+	sendInput ("d", [w, h]);
+    };
+    sendInput ("d", [w, h]);
+}
+
+var loginDiv = null;
+function login()
+{
+    if (loginDiv == null) {
+	var div = document.createElement('div');
+	document.body.appendChild(div);
+	div.innerHTML = "Please enter password<br>";
+	div.style.marginTop = "40px";
+	div.style.textAlign = "center";
+
+	var input = document.createElement("input");
+	input.setAttribute("type", "password");
+	div.appendChild(input);
+	input.focus ();
+	input.onkeyup = function(e) {
+	    if (e.keyCode === 13 && input.value != "") {
+		inputSocket.send ("l" + input.value);
+	    }
+	}
+	loginDiv = div;
+    } else {
+	alert ("Wrong password");
+    }
+}
+
 function connect()
 {
     var url = window.location.toString();
@@ -2639,7 +2675,7 @@ function connect()
 	var params = query_string[1].split("&");
     }
 
-    var loc = window.location.toString().replace("http:", "ws:");
+    var loc = window.location.toString().replace("http:", "ws:").replace("https:", "wss:");
     loc = loc.substr(0, loc.lastIndexOf('/')) + "/socket";
 
     var supports_binary = newWS (loc + "-test").binaryType == "blob";
@@ -2652,23 +2688,13 @@ function connect()
 
     ws.onopen = function() {
 	inputSocket = ws;
-	var w, h;
-	w = window.innerWidth;
-	h = window.innerHeight;
-	window.onresize = function(ev) {
-	    var w, h;
-	    w = window.innerWidth;
-	    h = window.innerHeight;
-	    sendInput ("d", [w, h]);
-	};
-	sendInput ("d", [w, h]);
     };
     ws.onclose = function() {
+	if (inputSocket != null)
+	    alert ("disconnected");
 	inputSocket = null;
     };
     ws.onmessage = function(event) {
 	handleMessage(event.data);
     };
-
-    setupDocument(document);
 }

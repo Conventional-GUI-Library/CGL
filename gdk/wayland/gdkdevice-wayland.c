@@ -255,13 +255,11 @@ gdk_wayland_device_query_state (GdkDevice        *device,
     *root_window = gdk_screen_get_root_window (default_screen);
   if (child_window)
     *child_window = wd->pointer_focus;
-  /* Do something clever for relative here */
-#if 0
+  /* TODO: Do something clever for relative here */
   if (root_x)
-    *root_x = wd->x;
+    *root_x = wd->surface_x;
   if (root_y)
-    *root_y = wd->y;
-#endif
+    *root_y = wd->surface_y;
   if (win_x)
     *win_x = wd->surface_x;
   if (win_y)
@@ -829,6 +827,7 @@ keyboard_handle_keymap (void               *data,
 
   g_signal_emit_by_name (device->keymap, "keys-changed");
   g_signal_emit_by_name (device->keymap, "state-changed");
+  g_signal_emit_by_name (device->keymap, "direction-changed");
 }
 
 static void
@@ -901,22 +900,6 @@ keyboard_handle_leave (void               *data,
 
 static gboolean
 keyboard_repeat (gpointer data);
-
-static GdkModifierType
-get_modifier (struct xkb_state *state)
-{
-  GdkModifierType modifiers = 0;
-  modifiers |= (xkb_state_mod_name_is_active (state, XKB_MOD_NAME_SHIFT, XKB_STATE_MODS_EFFECTIVE) > 0)?GDK_SHIFT_MASK:0;
-  modifiers |= (xkb_state_mod_name_is_active (state, XKB_MOD_NAME_CAPS, XKB_STATE_MODS_EFFECTIVE) > 0)?GDK_LOCK_MASK:0;
-  modifiers |= (xkb_state_mod_name_is_active (state, XKB_MOD_NAME_CTRL, XKB_STATE_MODS_EFFECTIVE) > 0)?GDK_CONTROL_MASK:0;
-  modifiers |= (xkb_state_mod_name_is_active (state, XKB_MOD_NAME_ALT, XKB_STATE_MODS_EFFECTIVE) > 0)?GDK_MOD1_MASK:0;
-  modifiers |= (xkb_state_mod_name_is_active (state, "Mod2", XKB_STATE_MODS_EFFECTIVE) > 0)?GDK_MOD2_MASK:0;
-  modifiers |= (xkb_state_mod_name_is_active (state, "Mod3", XKB_STATE_MODS_EFFECTIVE) > 0)?GDK_MOD3_MASK:0;
-  modifiers |= (xkb_state_mod_name_is_active (state, XKB_MOD_NAME_LOGO, XKB_STATE_MODS_EFFECTIVE) > 0)?GDK_MOD4_MASK:0;
-  modifiers |= (xkb_state_mod_name_is_active (state, "Mod5", XKB_STATE_MODS_EFFECTIVE) > 0)?GDK_MOD5_MASK:0;
-
-  return modifiers;
-}
 
 static void
 translate_keyboard_string (GdkEventKey *event)
@@ -1023,7 +1006,7 @@ deliver_key_event(GdkWaylandDeviceData *device,
   sym = xkb_state_key_get_one_sym (xkb_state, key);
 
   device->time = time;
-  device->modifiers = get_modifier (xkb_state);
+  device->modifiers = gdk_keymap_get_modifier_state (keymap);
 
   event = gdk_event_new (state ? GDK_KEY_PRESS : GDK_KEY_RELEASE);
   event->key.window = device->keyboard_focus?g_object_ref (device->keyboard_focus):NULL;
@@ -1031,10 +1014,9 @@ deliver_key_event(GdkWaylandDeviceData *device,
   event->button.time = time;
   event->key.state = device->modifiers;
   event->key.group = 0;
-  event->key.hardware_keycode = sym;
+  event->key.hardware_keycode = key;
   event->key.keyval = sym;
-
-  event->key.is_modifier = device->modifiers > 0;
+  event->key.is_modifier = _gdk_wayland_keymap_key_is_modifier (keymap, key);
 
   translate_keyboard_string (&event->key);
 
@@ -1122,14 +1104,18 @@ keyboard_handle_modifiers (void               *data,
   GdkWaylandDeviceData *device = data;
   GdkKeymap *keymap;
   struct xkb_state *xkb_state;
+  PangoDirection direction;
 
   keymap = device->keymap;
+  direction = gdk_keymap_get_direction (keymap);
   xkb_state = _gdk_wayland_keymap_get_xkb_state (keymap);
   device->modifiers = mods_depressed | mods_latched | mods_locked;
 
   xkb_state_update_mask (xkb_state, mods_depressed, mods_latched, mods_locked, group, 0, 0);
 
   g_signal_emit_by_name (keymap, "state-changed");
+  if (direction != gdk_keymap_get_direction (keymap))
+    g_signal_emit_by_name (keymap, "direction-changed");
 }
 
 static const struct wl_pointer_listener pointer_listener = {

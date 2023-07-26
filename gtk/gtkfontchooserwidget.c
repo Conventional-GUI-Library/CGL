@@ -173,12 +173,6 @@ gtk_font_chooser_widget_get_property (GObject         *object,
 static void
 gtk_font_chooser_widget_finalize (GObject *object)
 {
-  GtkFontChooserWidget *fontchooser = GTK_FONT_CHOOSER_WIDGET (object);
-  GtkFontChooserWidgetPrivate *priv = fontchooser->priv;
-
-  if (priv->font_sel_widget)
-    gtk_widget_destroy(priv->font_sel_widget);
-
   G_OBJECT_CLASS (gtk_font_chooser_widget_parent_class)->finalize (object);
 }
 
@@ -304,7 +298,9 @@ gtk_font_chooser_widget_set_filter_func (GtkFontChooser  *chooser,
                                          gpointer          data,
                                          GDestroyNotify    destroy)
 {
-	g_warning("The gtk_font_chooser_widget_set_filter_func function is currently not implemented");
+  GtkFontChooserWidget *fontchooser = GTK_FONT_CHOOSER_WIDGET (chooser);
+  GtkFontChooserWidgetPrivate *priv = fontchooser->priv;
+  gtk_font_selection_set_filter_func(GTK_FONT_SELECTION(priv->font_sel_widget), filter, data, destroy);
 }
 
 static void

@@ -26,6 +26,7 @@
 
 #include "gdkconfig.h"
 #include "gdkdisplaymanagerprivate.h"
+#include "gdkdisplayprivate.h"
 #include "gdkinternals.h"
 #include "gdkkeysprivate.h"
 #include "gdkmarshalers.h"
@@ -33,6 +34,7 @@
 
 #ifdef GDK_WINDOWING_X11
 #include "x11/gdkx.h"
+#include "x11/gdkprivate-x11.h"
 #endif
 
 #ifdef GDK_WINDOWING_QUARTZ
@@ -41,18 +43,22 @@
  * "generic" GDK source code.
  */
 #include "quartz/gdkquartzdisplaymanager.h"
+#include "quartz/gdkprivate-quartz.h"
 #endif
 
 #ifdef GDK_WINDOWING_BROADWAY
 #include "broadway/gdkbroadwaydisplaymanager.h"
+#include "broadway/gdkprivate-broadway.h"
 #endif
 
 #ifdef GDK_WINDOWING_WIN32
 #include "win32/gdkwin32.h"
+#include "win32/gdkprivate-win32.h"
 #endif
 
 #ifdef GDK_WINDOWING_WAYLAND
 #include "wayland/gdkwayland.h"
+#include "wayland/gdkprivate-wayland.h"
 #endif
 
 /**
@@ -151,8 +157,6 @@ gdk_display_manager_class_init (GdkDisplayManagerClass *klass)
 
   object_class->set_property = gdk_display_manager_set_property;
   object_class->get_property = gdk_display_manager_get_property;
-
-  klass->keyval_convert_case = _gdk_display_manager_real_keyval_convert_case;
 
   /**
    * GdkDisplayManager::display-opened:
@@ -297,6 +301,34 @@ gdk_display_manager_get (void)
   return manager;
 }
 
+typedef struct _GdkBackend GdkBackend;
+
+struct _GdkBackend {
+  const char *name;
+  GType (* get_backend_type) (void);
+  GdkDisplay * (* open_display) (const char *name);
+};
+
+GdkBackend gdk_backends[] = {
+#ifdef GDK_WINDOWING_QUARTZ
+  { "quartz",   gdk_quartz_display_manager_get_type,    _gdk_quartz_display_open },
+#endif
+#ifdef GDK_WINDOWING_WIN32
+  { "win32",    gdk_win32_display_manager_get_type,     _gdk_win32_display_open },
+#endif
+#ifdef GDK_WINDOWING_X11
+  { "x11",      gdk_x11_display_manager_get_type,       _gdk_x11_display_open },
+#endif
+#ifdef GDK_WINDOWING_WAYLAND
+  { "wayland",  gdk_wayland_display_manager_get_type,   _gdk_wayland_display_open },
+#endif
+#ifdef GDK_WINDOWING_BROADWAY
+  { "broadway", gdk_broadway_display_manager_get_type,  _gdk_broadway_display_open },
+#endif
+  /* NULL-terminating this array so we can use commas above */
+  { NULL, NULL }
+};
+
 /**
  * gdk_display_manager_peek:
  *
@@ -316,7 +348,7 @@ gdk_display_manager_peek (void)
     {
       const gchar *backend_list;
       gchar **backends;
-      gint i;
+      gint i, j;
       gboolean allow_any;
 
       if (allowed_backends == NULL)
@@ -336,74 +368,22 @@ gdk_display_manager_peek (void)
           if (!allow_any && !any && !strstr (allowed_backends, backend))
             continue;
 
-#ifdef GDK_WINDOWING_QUARTZ
-          if ((any && allow_any) ||
-              (any && strstr (allowed_backends, "quartz")) ||
-              g_str_equal (backend, "quartz"))
+          for (j = 0; gdk_backends[j].name != NULL; j++)
             {
-              GDK_NOTE (MISC, g_message ("Trying quartz backend"));
-              manager = g_initable_new (gdk_quartz_display_manager_get_type (), NULL, NULL, NULL);
-              if (manager)
-                break;
+              if ((any && allow_any) ||
+                  (any && strstr (allowed_backends, gdk_backends[j].name)) ||
+                  g_str_equal (backend, gdk_backends[j].name))
+                {
+                  GDK_NOTE (MISC, g_message ("Trying %s backend", gdk_backends[j].name));
+                  manager = g_initable_new (gdk_backends[j].get_backend_type (), NULL, NULL, NULL);
+                  if (manager)
+                    break;
+                }
             }
-#endif
-#ifdef GDK_WINDOWING_WIN32
-          if ((any && allow_any) ||
-              (any && strstr (allowed_backends, "win32")) ||
-              g_str_equal (backend, "win32"))
-            {
-              GDK_NOTE (MISC, g_message ("Trying win32 backend"));
-              manager = g_initable_new (gdk_win32_display_manager_get_type (), NULL, NULL, NULL);
-              if (manager)
-                break;
-            }
-#endif
-#ifdef GDK_WINDOWING_X11
-          if ((any && allow_any) ||
-              (any && strstr (allowed_backends, "x11")) ||
-              g_str_equal (backend, "x11"))
-            {
-              GDK_NOTE (MISC, g_message ("Trying x11 backend"));
-              manager = g_initable_new (gdk_x11_display_manager_get_type (), NULL, NULL, NULL);
-              if (manager)
-                break;
-            }
-#endif
-#ifdef GDK_WINDOWING_WAYLAND
-          if ((any && allow_any) ||
-              (any && strstr (allowed_backends, "wayland")) ||
-              g_str_equal (backend, "wayland"))
-            {
-              GDK_NOTE (MISC, g_message ("Trying wayland backend"));
-              manager = g_initable_new (gdk_wayland_display_manager_get_type (), NULL, NULL, NULL);
-              if (manager)
-                break;
-            }
-#endif
-#ifdef GDK_WINDOWING_BROADWAY
-          if ((any && allow_any) ||
-              (any && strstr (allowed_backends, "broadway")) ||
-              g_str_equal (backend, "broadway"))
-            {
-              GDK_NOTE (MISC, g_message ("Trying broadway backend"));
-              manager = g_initable_new (gdk_broadway_display_manager_get_type (), NULL, NULL, NULL);
-              if (manager)
-                break;
-            }
-#endif
         }
       g_strfreev (backends);
     }
 
-  return manager;
-}
-
-/* Used for cases where we don't actually want to instantiate a
- * display manager if none exists.  Internal only.
- */
-GdkDisplayManager *
-_gdk_display_manager_get_nocreate (void)
-{
   return manager;
 }
 
@@ -421,7 +401,7 @@ _gdk_display_manager_get_nocreate (void)
 GdkDisplay *
 gdk_display_manager_get_default_display (GdkDisplayManager *manager)
 {
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->get_default_display (manager);
+  return manager->default_display;
 }
 
 /**
@@ -478,7 +458,10 @@ void
 gdk_display_manager_set_default_display (GdkDisplayManager *manager,
                                          GdkDisplay        *display)
 {
-  GDK_DISPLAY_MANAGER_GET_CLASS (manager)->set_default_display (manager, display);
+  manager->default_display = display;
+
+  if (display)
+    GDK_DISPLAY_GET_CLASS (display)->make_default (display);
 
   g_object_notify (G_OBJECT (manager), "default-display");
 }
@@ -498,7 +481,7 @@ gdk_display_manager_set_default_display (GdkDisplayManager *manager,
 GSList *
 gdk_display_manager_list_displays (GdkDisplayManager *manager)
 {
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->list_displays (manager);
+  return g_slist_copy (manager->displays);
 }
 
 /**
@@ -517,71 +500,45 @@ GdkDisplay *
 gdk_display_manager_open_display (GdkDisplayManager *manager,
                                   const gchar       *name)
 {
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->open_display (manager, name);
+  guint i;
+
+  for (i = 0; gdk_backends[i].name != NULL; i++)
+    {
+      if (G_OBJECT_TYPE (manager) == gdk_backends[i].get_backend_type ())
+        {
+          return gdk_backends[i].open_display (name);
+        }
+    }
+
+  g_assert_not_reached ();
+
+  return NULL;
 }
 
-/**
- * gdk_atom_intern:
- * @atom_name: a string.
- * @only_if_exists: if %TRUE, GDK is allowed to not create a new atom, but
- *   just return %GDK_NONE if the requested atom doesn't already
- *   exists. Currently, the flag is ignored, since checking the
- *   existance of an atom is as expensive as creating it.
- *
- * Finds or creates an atom corresponding to a given string.
- *
- * Returns: (transfer none): the atom corresponding to @atom_name.
- */
-GdkAtom
-gdk_atom_intern (const gchar *atom_name,
-                 gboolean     only_if_exists)
+void
+_gdk_display_manager_add_display (GdkDisplayManager *manager,
+                                  GdkDisplay        *display)
 {
-  GdkDisplayManager *manager = gdk_display_manager_get ();
+  if (manager->displays == NULL)
+    gdk_display_manager_set_default_display (manager, display);
 
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->atom_intern (manager, atom_name, TRUE);
+  manager->displays = g_slist_prepend (manager->displays, display);
+
+  g_signal_emit (manager, signals[DISPLAY_OPENED], 0, display);
 }
 
-/**
- * gdk_atom_intern_static_string:
- * @atom_name: a static string
- *
- * Finds or creates an atom corresponding to a given string.
- *
- * Note that this function is identical to gdk_atom_intern() except
- * that if a new #GdkAtom is created the string itself is used rather
- * than a copy. This saves memory, but can only be used if the string
- * will <emphasis>always</emphasis> exist. It can be used with statically
- * allocated strings in the main program, but not with statically
- * allocated memory in dynamically loaded modules, if you expect to
- * ever unload the module again (e.g. do not use this function in
- * GTK+ theme engines).
- *
- * Returns: (transfer none): the atom corresponding to @atom_name
- *
- * Since: 2.10
- */
-GdkAtom
-gdk_atom_intern_static_string (const gchar *atom_name)
+/* NB: This function can be called multiple times per display. */
+void
+_gdk_display_manager_remove_display (GdkDisplayManager *manager,
+                                     GdkDisplay        *display)
 {
-  GdkDisplayManager *manager = gdk_display_manager_get ();
+  manager->displays = g_slist_remove (manager->displays, display);
 
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->atom_intern (manager, atom_name, FALSE);
-}
-
-/**
- * gdk_atom_name:
- * @atom: a #GdkAtom.
- *
- * Determines the string corresponding to an atom.
- *
- * Returns: a newly-allocated string containing the string
- *   corresponding to @atom. When you are done with the
- *   return value, you should free it using g_free().
- */
-gchar *
-gdk_atom_name (GdkAtom atom)
-{
-  GdkDisplayManager *manager = gdk_display_manager_get ();
-
-  return GDK_DISPLAY_MANAGER_GET_CLASS (manager)->get_atom_name (manager, atom);
+  if (manager->default_display == display)
+    {
+      if (manager->displays)
+        gdk_display_manager_set_default_display (manager, manager->displays->data);
+      else
+        gdk_display_manager_set_default_display (manager, NULL);
+    }
 }

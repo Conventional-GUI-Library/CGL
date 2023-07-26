@@ -32,11 +32,6 @@ void            _gtk_window_internal_set_focus (GtkWindow *window,
 void            _gtk_window_reposition         (GtkWindow *window,
                                                 gint       x,
                                                 gint       y);
-void            _gtk_window_constrain_size     (GtkWindow *window,
-                                                gint       width,
-                                                gint       height,
-                                                gint      *new_width,
-                                                gint      *new_height);
 void            _gtk_window_group_add_grab    (GtkWindowGroup *window_group,
                                                GtkWidget      *widget);
 void            _gtk_window_group_remove_grab (GtkWindowGroup *window_group,
@@ -71,7 +66,6 @@ void            _gtk_window_get_wmclass            (GtkWindow  *window,
 void            _gtk_window_set_allocation         (GtkWindow           *window,
                                                     const GtkAllocation *allocation,
                                                     GtkAllocation       *allocation_out);
-GdkWindow *     _gtk_window_get_content_window     (GtkWindow           *window);
 
 
 
@@ -90,7 +84,7 @@ gboolean        _gtk_window_query_nonaccels     (GtkWindow      *window,
                                                  guint           accel_key,
                                                  GdkModifierType accel_mods);
 
-void            _gtk_window_set_auto_mnemonics_visible (GtkWindow *window);
+void            _gtk_window_schedule_mnemonics_visible (GtkWindow *window);
 
 G_END_DECLS
 

@@ -25,7 +25,7 @@ clean-local:
 	rm -rf output/ || true
 
 EXTRA_DIST += \
-	align-expand.sh \
+	align-expand.sh 
 	background-area.css \
 	background-area.ref.ui \
 	background-area.ui \

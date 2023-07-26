@@ -2402,7 +2402,7 @@ gtk_tree_view_update_height (GtkTreeView *tree_view)
       if (button == NULL)
         continue;
 
-      gtk_widget_get_preferred_size (button, NULL, &requisition);
+      gtk_widget_get_preferred_size (button, &requisition, NULL);
       tree_view->priv->header_height = MAX (tree_view->priv->header_height, requisition.height);
     }
 
@@ -2592,7 +2592,7 @@ gtk_tree_view_size_allocate_columns (GtkWidget *widget,
   natural_width = tree_view->priv->natural_width;
   n_expand_columns = tree_view->priv->n_expand_columns;
 
-  width = MAX (widget_allocation.width, natural_width);
+  width = MAX (widget_allocation.width, minimum_width);
 
   /* We change the width here.  The user might have been resizing columns,
    * which changes the total width of the tree view.  This is of
@@ -6487,7 +6487,7 @@ validate_visible_area (GtkTreeView *tree_view)
        * in an inconsistent state if we call top_row_to_dy. */
 
       gtk_widget_get_preferred_size (GTK_WIDGET (tree_view),
-                                     NULL, &requisition);
+                                     &requisition, NULL);
       gtk_adjustment_set_upper (tree_view->priv->hadjustment,
                                 MAX (gtk_adjustment_get_upper (tree_view->priv->hadjustment), requisition.width));
       gtk_adjustment_set_upper (tree_view->priv->vadjustment,
@@ -6704,8 +6704,8 @@ do_validate_rows (GtkTreeView *tree_view, gboolean queue_resize)
        * untill we've recieved an allocation (never update scroll adjustments from size-requests).
        */
       prevent_recursion_hack = TRUE;
-      gtk_tree_view_get_preferred_width (GTK_WIDGET (tree_view), NULL, &requisition.width);
-      gtk_tree_view_get_preferred_height (GTK_WIDGET (tree_view), NULL, &requisition.height);
+      gtk_tree_view_get_preferred_width (GTK_WIDGET (tree_view), &requisition.width, NULL);
+      gtk_tree_view_get_preferred_height (GTK_WIDGET (tree_view), &requisition.height, NULL);
       prevent_recursion_hack = FALSE;
 
       /* If rows above the current position have changed height, this has
@@ -6777,7 +6777,7 @@ do_presize_handler (GtkTreeView *tree_view)
       GtkRequisition requisition;
 
       gtk_widget_get_preferred_size (GTK_WIDGET (tree_view),
-                                     NULL, &requisition);
+                                     &requisition, NULL);
 
       gtk_adjustment_set_upper (tree_view->priv->hadjustment,
                                 MAX (gtk_adjustment_get_upper (tree_view->priv->hadjustment), requisition.width));
@@ -14417,7 +14417,7 @@ gtk_tree_view_get_dest_row_at_pos (GtkTreeView             *tree_view,
   gint cell_y;
   gint bin_x, bin_y;
   gdouble offset_into_row;
-  gdouble third;
+  gdouble fourth;
   GdkRectangle cell;
   GtkTreeViewColumn *column = NULL;
   GtkTreePath *tmp_path = NULL;
@@ -14439,8 +14439,8 @@ gtk_tree_view_get_dest_row_at_pos (GtkTreeView             *tree_view,
   if (tree_view->priv->tree == NULL)
     return FALSE;
 
-  /* If in the top third of a row, we drop before that row; if
-   * in the bottom third, drop after that row; if in the middle,
+  /* If in the top fourth of a row, we drop before that row; if
+   * in the bottom fourth, drop after that row; if in the middle,
    * and the row has children, drop into the row.
    */
   gtk_tree_view_convert_widget_to_bin_window_coords (tree_view, drag_x, drag_y,
@@ -14467,11 +14467,11 @@ gtk_tree_view_get_dest_row_at_pos (GtkTreeView             *tree_view,
 
   tmp_path = NULL;
 
-  third = cell.height / 3.0;
+  fourth = cell.height / 4.0;
 
   if (pos)
     {
-      if (offset_into_row < third)
+      if (offset_into_row < fourth)
         {
           *pos = GTK_TREE_VIEW_DROP_BEFORE;
         }
@@ -14479,7 +14479,7 @@ gtk_tree_view_get_dest_row_at_pos (GtkTreeView             *tree_view,
         {
           *pos = GTK_TREE_VIEW_DROP_INTO_OR_BEFORE;
         }
-      else if (offset_into_row < third * 2.0)
+      else if (offset_into_row < cell.height - fourth)
         {
           *pos = GTK_TREE_VIEW_DROP_INTO_OR_AFTER;
         }
@@ -15040,7 +15040,7 @@ gtk_tree_view_search_position_func (GtkTreeView *tree_view,
   gdk_window_get_origin (tree_window, &tree_x, &tree_y);
   tree_width = gdk_window_get_width (tree_window);
   tree_height = gdk_window_get_height (tree_window);
-  gtk_widget_get_preferred_size (search_dialog, NULL, &requisition);
+  gtk_widget_get_preferred_size (search_dialog, &requisition, NULL);
 
   if (tree_x + tree_width > gdk_screen_get_width (screen))
     x = gdk_screen_get_width (screen) - requisition.width;
@@ -15619,7 +15619,7 @@ _gtk_tree_view_add_editable (GtkTreeView       *tree_view,
   cell_area->y += pre_val - (int)gtk_adjustment_get_value (tree_view->priv->vadjustment);
 
   gtk_widget_get_preferred_size (GTK_WIDGET (cell_editable),
-                                 NULL, &requisition);
+                                 &requisition, NULL);
 
   tree_view->priv->draw_keyfocus = TRUE;
 

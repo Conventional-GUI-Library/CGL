@@ -67,14 +67,6 @@ typedef struct _GtkTextAttributes GtkTextAttributes;
 
 typedef struct _GtkTextAppearance GtkTextAppearance;
 
-/**
- * GtkTextAttributes:
- *
- * Using #GtkTextAttributes directly should rarely be necessary.
- * It's primarily useful with gtk_text_iter_get_attributes().
- * As with most GTK+ structs, the fields in this struct should only
- * be read, never modified directly.
- */
 struct _GtkTextAppearance
 {
   /*< public >*/
@@ -110,6 +102,14 @@ struct _GtkTextAppearance
 #endif
 };
 
+/**
+ * GtkTextAttributes:
+ *
+ * Using #GtkTextAttributes directly should rarely be necessary.
+ * It's primarily useful with gtk_text_iter_get_attributes().
+ * As with most GTK+ structs, the fields in this struct should only
+ * be read, never modified directly.
+ */
 struct _GtkTextAttributes
 {
   /*< private >*/
@@ -144,6 +144,7 @@ struct _GtkTextAttributes
   PangoLanguage *language;
 
   /*< private >*/
+  /* Paragraph background */
   GdkColor *pg_bg_color;
 
   /*< public >*/
@@ -159,6 +160,7 @@ struct _GtkTextAttributes
   guint editable : 1;
 
   /*< private >*/
+  /* Paragraph background */
   GdkRGBA *pg_bg_rgba;
 
   guint padding[3];

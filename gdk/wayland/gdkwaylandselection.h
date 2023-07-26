@@ -19,7 +19,7 @@
  * Modified by the GTK+ Team and others 1997-2000.  See the AUTHORS
  * file for a list of people on the GTK+ Team.  See the ChangeLog
  * files for a list of changes.  These files are distributed with
- * GTK+ at ftp://ftp.gtk.org/pub/gtk/.
+ * GTK+ at ftp://ftp.gtk.org/pub/gtk/. 
  */
 
 #ifndef __GDK_WAYLAND_SELECTION_H__
@@ -34,18 +34,33 @@
 G_BEGIN_DECLS
 
 #if defined (GTK_COMPILATION) || defined (GDK_COMPILATION)
-#define gdk_wayland_selection_add_targets gdk_wayland_selection_add_targets_libgtk_only
-GDK_AVAILABLE_IN_ALL
-void
-gdk_wayland_selection_add_targets (GdkWindow *window,
-                                   GdkAtom    selection,
-                                   guint      ntargets,
-                                   GdkAtom   *targets);
+#define gdk_wayland_device_get_selection_type_atoms gdk_wayland_device_get_selection_type_atoms_libgtk_only
+int
+gdk_wayland_device_get_selection_type_atoms (GdkDevice  *device,
+                                             GdkAtom   **atoms_out);
 
-#define gdk_wayland_selection_clear_targets gdk_wayland_selection_clear_targets_libgtk_only
-GDK_AVAILABLE_IN_ALL
-void
-gdk_wayland_selection_clear_targets (GdkDisplay *display, GdkAtom selection);
+typedef void (*GdkDeviceWaylandRequestContentCallback) (GdkDevice *device, const gchar *data, gsize len, gpointer userdata);
+
+#define gdk_wayland_device_request_selection_content gdk_wayland_device_request_selection_content_libgtk_only
+gboolean
+gdk_wayland_device_request_selection_content (GdkDevice                              *device,
+                                              const gchar                            *requested_mime_type,
+                                              GdkDeviceWaylandRequestContentCallback  cb,
+                                              gpointer                                userdata);
+
+typedef gchar *(*GdkDeviceWaylandOfferContentCallback) (GdkDevice *device, const gchar *mime_type, gssize *len, gpointer userdata);
+
+#define gdk_wayland_device_offer_selection_content gdk_wayland_device_offer_selection_content_libgtk_only
+gboolean
+gdk_wayland_device_offer_selection_content (GdkDevice                             *gdk_device,
+                                            const gchar                          **mime_types,
+                                            gint                                   nr_mime_types,
+                                            GdkDeviceWaylandOfferContentCallback   cb,
+                                            gpointer                               userdata);
+
+#define gdk_wayland_device_clear_selection_content gdk_wayland_device_clear_selection_content_libgtk_only
+gboolean
+gdk_wayland_device_clear_selection_content (GdkDevice *gdk_device);
 
 #endif
 

@@ -332,6 +332,8 @@ gtk_buildable_get_type
 gtk_buildable_parser_finished
 gtk_buildable_set_buildable_property
 gtk_buildable_set_name
+gtk_builder_add_callback_symbol
+gtk_builder_add_callback_symbols
 gtk_builder_add_from_file
 gtk_builder_add_from_resource
 gtk_builder_add_from_string
@@ -348,6 +350,7 @@ gtk_builder_get_objects
 gtk_builder_get_translation_domain
 gtk_builder_get_type_from_name
 gtk_builder_get_type
+gtk_builder_lookup_callback_symbol
 gtk_builder_new
 gtk_builder_set_translation_domain
 gtk_builder_value_from_string
@@ -1165,6 +1168,7 @@ gtk_font_selection_set_font_name
 gtk_font_selection_set_preview_text
 gtk_font_selection_set_show_preview
 gtk_font_selection_get_show_preview
+gtk_font_selection_set_filter_func
 gtk_frame_get_label
 gtk_frame_get_label_align
 gtk_frame_get_label_widget
@@ -1188,6 +1192,7 @@ gtk_get_major_version
 gtk_get_micro_version
 gtk_get_minor_version
 gtk_get_option_group
+gtk_glade_catalog_init
 gtk_grab_add
 gtk_grab_get_current
 gtk_grab_remove
@@ -3682,6 +3687,8 @@ gtk_widget_add_tick_callback
 gtk_widget_can_activate_accel
 gtk_widget_child_focus
 gtk_widget_child_notify
+gtk_widget_class_automate_child
+gtk_widget_class_declare_callback
 gtk_widget_class_find_style_property
 gtk_widget_class_install_style_property
 gtk_widget_class_install_style_property_parser
@@ -3689,6 +3696,9 @@ gtk_widget_class_list_style_properties
 gtk_widget_class_path
 gtk_widget_class_set_accessible_role
 gtk_widget_class_set_accessible_type
+gtk_widget_class_set_connect_func
+gtk_widget_class_set_template
+gtk_widget_class_set_template_from_resource
 gtk_widget_compute_expand
 gtk_widget_create_pango_context
 gtk_widget_create_pango_layout
@@ -3706,6 +3716,7 @@ gtk_widget_get_allocated_width
 gtk_widget_get_allocation
 gtk_widget_get_ancestor
 gtk_widget_get_app_paintable
+gtk_widget_get_automated_child
 gtk_widget_get_can_default
 gtk_widget_get_can_focus
 gtk_widget_get_child_requisition
@@ -3784,6 +3795,7 @@ gtk_widget_help_type_get_type
 gtk_widget_hide
 gtk_widget_hide_on_delete
 gtk_widget_in_destruction
+gtk_widget_init_template
 gtk_widget_input_shape_combine_region
 gtk_widget_intersect
 gtk_widget_is_ancestor

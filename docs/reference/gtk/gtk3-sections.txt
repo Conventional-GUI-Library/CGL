@@ -539,6 +539,9 @@ gtk_builder_get_objects
 gtk_builder_expose_object
 gtk_builder_connect_signals
 gtk_builder_connect_signals_full
+gtk_builder_add_callback_symbol
+gtk_builder_add_callback_symbols
+gtk_builder_lookup_callback_symbol
 gtk_builder_set_translation_domain
 gtk_builder_get_translation_domain
 gtk_builder_get_type_from_name
@@ -3532,11 +3535,11 @@ gtk_text_mark_get_type
 <TITLE>GtkTextTag</TITLE>
 GtkTextTag
 GtkWrapMode
-GtkTextAttributes
 gtk_text_tag_new
 gtk_text_tag_get_priority
 gtk_text_tag_set_priority
 gtk_text_tag_event
+GtkTextAttributes
 GtkTextAppearance
 gtk_text_attributes_new
 gtk_text_attributes_copy
@@ -5330,6 +5333,18 @@ gtk_widget_get_vexpand_set
 gtk_widget_set_vexpand_set
 gtk_widget_queue_compute_expand
 gtk_widget_compute_expand
+
+<SUBSECTION Templates>
+gtk_widget_init_template
+gtk_widget_class_set_template
+gtk_widget_class_set_template_from_resource
+gtk_widget_get_automated_child
+gtk_widget_class_bind_child
+gtk_widget_class_bind_child_internal
+gtk_widget_class_automate_child
+gtk_widget_class_bind_callback
+gtk_widget_class_declare_callback
+gtk_widget_class_set_connect_func
 
 <SUBSECTION Standard>
 GTK_WIDGET

@@ -16,12 +16,12 @@
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __GTK_BUILDER_H__
-#define __GTK_BUILDER_H__
-
 #if !defined (__GTK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
+
+#ifndef __GTK_BUILDER_H__
+#define __GTK_BUILDER_H__
 
 #include <gtk/gtkwidget.h>
 
@@ -36,7 +36,6 @@ G_BEGIN_DECLS
 
 #define GTK_BUILDER_ERROR                (gtk_builder_error_quark ())
 
-typedef struct _GtkBuilder        GtkBuilder;
 typedef struct _GtkBuilderClass   GtkBuilderClass;
 typedef struct _GtkBuilderPrivate GtkBuilderPrivate;
 
@@ -73,7 +72,9 @@ typedef enum
   GTK_BUILDER_ERROR_MISSING_PROPERTY_VALUE,
   GTK_BUILDER_ERROR_INVALID_VALUE,
   GTK_BUILDER_ERROR_VERSION_MISMATCH,
-  GTK_BUILDER_ERROR_DUPLICATE_ID
+  GTK_BUILDER_ERROR_DUPLICATE_ID,
+  GTK_BUILDER_ERROR_OBJECT_TYPE_REFUSED,
+  GTK_BUILDER_ERROR_TEMPLATE_MISMATCH
 } GtkBuilderError;
 
 GQuark gtk_builder_error_quark (void);
@@ -103,14 +104,6 @@ struct _GtkBuilderClass
   void (*_gtk_reserved8) (void);
 };
 
-typedef void (*GtkBuilderConnectFunc) (GtkBuilder    *builder,
-				       GObject       *object,
-				       const gchar   *signal_name,
-				       const gchar   *handler_name,
-				       GObject       *connect_object,
-				       GConnectFlags  flags,
-				       gpointer       user_data);
-
 GType        gtk_builder_get_type                (void) G_GNUC_CONST;
 GtkBuilder*  gtk_builder_new                     (void);
 
@@ -128,6 +121,7 @@ guint        gtk_builder_add_objects_from_file   (GtkBuilder    *builder,
                                                   const gchar   *filename,
                                                   gchar        **object_ids,
                                                   GError       **error);
+GDK_AVAILABLE_IN_3_4
 guint        gtk_builder_add_objects_from_resource(GtkBuilder    *builder,
                                                   const gchar   *resource_path,
                                                   gchar        **object_ids,
@@ -165,6 +159,16 @@ gboolean     gtk_builder_value_from_string_type  (GtkBuilder    *builder,
                                                   const gchar  	*string,
                                                   GValue       	*value,
 						  GError       **error);
+void         gtk_builder_add_callback_symbol     (GtkBuilder    *builder,
+						  const gchar   *callback_name,
+						  GCallback      callback_symbol);
+void         gtk_builder_add_callback_symbols    (GtkBuilder    *builder,
+						  const gchar   *first_callback_name,
+						  GCallback      first_callback_symbol,
+						  ...) G_GNUC_NULL_TERMINATED;
+GCallback    gtk_builder_lookup_callback_symbol  (GtkBuilder    *builder,
+						  const gchar   *callback_name);
+
 
 /**
  * GTK_BUILDER_WARN_INVALID_CHILD_TYPE:

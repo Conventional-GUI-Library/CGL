@@ -55,8 +55,6 @@ G_DEFINE_TYPE (GdkBroadwayDisplay, gdk_broadway_display, GDK_TYPE_DISPLAY)
 static void
 gdk_broadway_display_init (GdkBroadwayDisplay *display)
 {
-  _gdk_broadway_display_manager_add_display (gdk_display_manager_get (),
-					     GDK_DISPLAY_OBJECT (display));
   display->id_ht = g_hash_table_new (NULL, NULL);
 }
 
@@ -173,7 +171,6 @@ _gdk_broadway_display_open (const gchar *display_name)
     }
 
   g_signal_emit_by_name (display, "opened");
-  g_signal_emit_by_name (gdk_display_manager_get (), "display-opened", display);
 
   return display;
 }
@@ -256,9 +253,6 @@ static void
 gdk_broadway_display_dispose (GObject *object)
 {
   GdkBroadwayDisplay *broadway_display = GDK_BROADWAY_DISPLAY (object);
-
-  _gdk_broadway_display_manager_remove_display (gdk_display_manager_get (),
-						GDK_DISPLAY_OBJECT (object));
 
   g_list_foreach (broadway_display->input_devices, (GFunc) g_object_run_dispose, NULL);
 

@@ -40,9 +40,6 @@
 
 #include "config.h"
 
-#define GDK_SCREEN_DISPLAY(screen)    (GDK_SCREEN_WAYLAND (screen)->display)
-#define GDK_WINDOW_SCREEN(win)	      (gdk_window_get_screen (win))
-#define GDK_WINDOW_DISPLAY(win)       (GDK_SCREEN_WAYLAND (GDK_WINDOW_SCREEN (win))->display)
 #define GDK_WINDOW_IS_WAYLAND(win)    (GDK_IS_WINDOW_IMPL_WAYLAND (((GdkWindow *)win)->impl))
 
 void _gdk_wayland_window_add_focus    (GdkWindow *window);
@@ -55,6 +52,8 @@ void       _gdk_wayland_keymap_update_from_fd (GdkKeymap *keymap,
                                                uint32_t   size);
 struct xkb_state *_gdk_wayland_keymap_get_xkb_state (GdkKeymap *keymap);
 struct xkb_keymap *_gdk_wayland_keymap_get_xkb_keymap (GdkKeymap *keymap);
+gboolean           _gdk_wayland_keymap_key_is_modifier (GdkKeymap *keymap,
+                                                        guint      keycode);
 
 void       _gdk_wayland_display_finalize_cursors (GdkWaylandDisplay *display);
 void       _gdk_wayland_display_update_cursors (GdkWaylandDisplay      *display,
@@ -79,8 +78,8 @@ gboolean   _gdk_wayland_display_supports_cursor_color (GdkDisplay *display);
 
 struct wl_buffer *_gdk_wayland_cursor_get_buffer (GdkCursor *cursor,
                                                   guint      image_index,
-                                                  int       *x,
-                                                  int       *y,
+                                                  int       *hotspot_x,
+                                                  int       *hotspot_y,
                                                   int       *w,
                                                   int       *h);
 guint      _gdk_wayland_cursor_get_next_image_index (GdkCursor *cursor,
@@ -154,7 +153,6 @@ void     _gdk_wayland_display_queue_events (GdkDisplay *display);
 GdkAppLaunchContext *_gdk_wayland_display_get_app_launch_context (GdkDisplay *display);
 
 GdkDisplay *_gdk_wayland_display_open (const gchar *display_name);
-void        _gdk_wayland_display_make_default (GdkDisplay *display);
 
 GdkWindow *_gdk_wayland_screen_create_root_window (GdkScreen *screen,
 						   int width,

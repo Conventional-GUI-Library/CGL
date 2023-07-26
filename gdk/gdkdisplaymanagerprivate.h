@@ -31,41 +31,25 @@ typedef struct _GdkDisplayManagerClass GdkDisplayManagerClass;
 struct _GdkDisplayManager
 {
   GObject parent_instance;
+
+  GdkDisplay *default_display;
+
+  GSList *displays;
 };
 
 struct _GdkDisplayManagerClass
 {
   GObjectClass parent_class;
 
-  GSList *     (*list_displays)       (GdkDisplayManager *manager);
-  GdkDisplay * (*get_default_display) (GdkDisplayManager *manager);
-  void         (*set_default_display) (GdkDisplayManager *manager,
-                                       GdkDisplay        *display);
-  GdkDisplay * (*open_display)        (GdkDisplayManager *manager,
-                                       const gchar       *name);
-
-  /* FIXME the following should really be frontend-only, not vfuncs */
-  GdkAtom      (*atom_intern)         (GdkDisplayManager *manager,
-                                       const gchar       *atom_name,
-                                       gboolean           copy_name);
-  gchar *      (*get_atom_name)       (GdkDisplayManager *manager,
-                                       GdkAtom            atom);
-  guint        (*lookup_keyval)       (GdkDisplayManager *manager,
-                                       const gchar       *name);
-  gchar *      (*get_keyval_name)     (GdkDisplayManager *manager,
-                                       guint              keyval);
-  void         (*keyval_convert_case) (GdkDisplayManager *manager,
-                                       guint              keyval,
-                                       guint             *lower,
-                                       guint             *upper);
-
   /* signals */
   void         (*display_opened)      (GdkDisplayManager *manager,
                                        GdkDisplay        *display);
 };
 
-GdkDisplayManager *
-_gdk_display_manager_get_nocreate (void);
+void            _gdk_display_manager_add_display        (GdkDisplayManager      *manager,
+                                                         GdkDisplay             *display);
+void            _gdk_display_manager_remove_display     (GdkDisplayManager      *manager,
+                                                         GdkDisplay             *display);
 
 G_END_DECLS
 

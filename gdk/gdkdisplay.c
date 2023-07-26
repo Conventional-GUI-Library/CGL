@@ -25,6 +25,7 @@
 #include "gdkdisplayprivate.h"
 
 #include "gdkdeviceprivate.h"
+#include "gdkdisplaymanagerprivate.h"
 #include "gdkevents.h"
 #include "gdkwindowimpl.h"
 #include "gdkinternals.h"
@@ -82,6 +83,36 @@ static guint signals[LAST_SIGNAL] = { 0 };
 G_DEFINE_TYPE (GdkDisplay, gdk_display, G_TYPE_OBJECT)
 
 static void
+gdk_display_real_make_default (GdkDisplay *display)
+{
+}
+
+static void
+device_removed_cb (GdkDeviceManager *device_manager,
+                   GdkDevice        *device,
+                   GdkDisplay       *display)
+{
+  g_hash_table_remove (display->multiple_click_info, device);
+  g_hash_table_remove (display->device_grabs, device);
+  g_hash_table_remove (display->pointers_info, device);
+
+  /* FIXME: change core pointer and remove from device list */
+}
+
+static void
+gdk_display_real_opened (GdkDisplay *display)
+{
+  GdkDeviceManager *device_manager;
+
+  device_manager = gdk_display_get_device_manager (display);
+
+  g_signal_connect (device_manager, "device-removed",
+                    G_CALLBACK (device_removed_cb), display);
+
+  _gdk_display_manager_add_display (gdk_display_manager_get (), display);
+}
+
+static void
 gdk_display_class_init (GdkDisplayClass *class)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (class);
@@ -91,6 +122,9 @@ gdk_display_class_init (GdkDisplayClass *class)
 
   class->get_app_launch_context = gdk_display_real_get_app_launch_context;
   class->window_type = GDK_TYPE_WINDOW;
+
+  class->opened = gdk_display_real_opened;
+  class->make_default = gdk_display_real_make_default;
 
   /**
    * GdkDisplay::opened:
@@ -103,7 +137,8 @@ gdk_display_class_init (GdkDisplayClass *class)
     g_signal_new (g_intern_static_string ("opened"),
 		  G_OBJECT_CLASS_TYPE (object_class),
                   G_SIGNAL_RUN_LAST,
-                  0, NULL, NULL,
+		  G_STRUCT_OFFSET (GdkDisplayClass, opened),
+                  NULL, NULL,
                   g_cclosure_marshal_VOID__VOID,
                   G_TYPE_NONE, 0);
 
@@ -158,29 +193,6 @@ free_device_grabs_foreach (gpointer key,
 }
 
 static void
-device_removed_cb (GdkDeviceManager *device_manager,
-                   GdkDevice        *device,
-                   GdkDisplay       *display)
-{
-  g_hash_table_remove (display->multiple_click_info, device);
-  g_hash_table_remove (display->device_grabs, device);
-  g_hash_table_remove (display->pointers_info, device);
-
-  /* FIXME: change core pointer and remove from device list */
-}
-
-static void
-gdk_display_opened (GdkDisplay *display)
-{
-  GdkDeviceManager *device_manager;
-
-  device_manager = gdk_display_get_device_manager (display);
-
-  g_signal_connect (device_manager, "device-removed",
-                    G_CALLBACK (device_removed_cb), display);
-}
-
-static void
 gdk_display_init (GdkDisplay *display)
 {
   display->double_click_time = 250;
@@ -196,9 +208,6 @@ gdk_display_init (GdkDisplay *display)
 
   display->multiple_click_info = g_hash_table_new_full (NULL, NULL, NULL,
                                                         (GDestroyNotify) g_free);
-
-  g_signal_connect (display, "opened",
-                    G_CALLBACK (gdk_display_opened), NULL);
 }
 
 static void
@@ -208,6 +217,8 @@ gdk_display_dispose (GObject *object)
   GdkDeviceManager *device_manager;
 
   device_manager = gdk_display_get_device_manager (GDK_DISPLAY (object));
+
+  _gdk_display_manager_remove_display (gdk_display_manager_get (), display);
 
   g_list_free_full (display->queued_events, (GDestroyNotify) gdk_event_free);
   display->queued_events = NULL;
