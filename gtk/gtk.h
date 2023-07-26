@@ -157,6 +157,7 @@
 #include <gtk/gtkpagesetup.h>
 #include <gtk/gtkpapersize.h>
 #include <gtk/gtkpaned.h>
+#include <gtk/gtkplacessidebar.h>
 #include <gtk/gtkprintcontext.h>
 #include <gtk/gtkprintoperation.h>
 #include <gtk/gtkprintoperationpreview.h>
@@ -175,6 +176,7 @@
 #include <gtk/gtkrecentchooserwidget.h>
 #include <gtk/gtkrecentfilter.h>
 #include <gtk/gtkrecentmanager.h>
+#include <gtk/gtkrevealer.h>
 #include <gtk/gtkscale.h>
 #include <gtk/gtkscalebutton.h>
 #include <gtk/gtkscrollable.h>
@@ -191,6 +193,8 @@
 #include <gtk/gtksizerequest.h>
 #include <gtk/gtkspinbutton.h>
 #include <gtk/gtkspinner.h>
+#include <gtk/gtkstack.h>
+#include <gtk/gtkstackswitcher.h>
 #include <gtk/gtkstatusbar.h>
 #include <gtk/gtkstatusicon.h>
 #include <gtk/gtkstock.h>

@@ -13,9 +13,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -44,7 +42,8 @@
  *
  * Children are added using gtk_grid_attach(). They can span multiple
  * rows or columns. It is also possible to add a child next to an
- * existing child, using gtk_grid_attach_next_to().
+ * existing child, using gtk_grid_attach_next_to(). The behaviour of
+ * GtkGrid when several children occupy the same grid cell is undefined.
  *
  * GtkGrid can be used like a #GtkBox by just using gtk_container_add(),
  * which will place children next to each other in the direction determined
@@ -1509,7 +1508,7 @@ gtk_grid_attach (GtkGrid   *grid,
  * gtk_grid_attach_next_to:
  * @grid: a #GtkGrid
  * @child: the widget to add
- * @sibling (allow-none): the child of @grid that @child will be placed
+ * @sibling: (allow-none): the child of @grid that @child will be placed
  *     next to, or %NULL to place @child at the beginning or end
  * @side: the side of @sibling that @child is positioned next to
  * @width: the number of columns that @child will span
@@ -1617,9 +1616,13 @@ gtk_grid_get_child_at (GtkGrid *grid,
                        gint     left,
                        gint     top)
 {
-  GtkGridPrivate *priv = grid->priv;
+  GtkGridPrivate *priv;
   GtkGridChild *child;
   GList *list;
+
+  g_return_val_if_fail (GTK_IS_GRID (grid), NULL);
+
+  priv = grid->priv;
 
   for (list = priv->children; list; list = list->next)
     {
@@ -1652,12 +1655,14 @@ void
 gtk_grid_insert_row (GtkGrid *grid,
                      gint     position)
 {
-  GtkGridPrivate *priv = grid->priv;
+  GtkGridPrivate *priv;
   GtkGridChild *child;
   GList *list;
   gint top, height;
 
   g_return_if_fail (GTK_IS_GRID (grid));
+
+  priv = grid->priv;
 
   for (list = priv->children; list; list = list->next)
     {
@@ -1747,12 +1752,14 @@ void
 gtk_grid_insert_column (GtkGrid *grid,
                         gint     position)
 {
-  GtkGridPrivate *priv = grid->priv;
+  GtkGridPrivate *priv;
   GtkGridChild *child;
   GList *list;
   gint left, width;
 
   g_return_if_fail (GTK_IS_GRID (grid));
+
+  priv = grid->priv;
 
   for (list = priv->children; list; list = list->next)
     {

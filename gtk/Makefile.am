@@ -277,6 +277,7 @@ gtk_public_h_sources = 		\
 	gtkoverlay.h		\
 	gtkpagesetup.h		\
 	gtkpaned.h		\
+	gtkplacessidebar.h	\
 	gtkpapersize.h		\
 	gtkplug.h		\
 	gtkprintcontext.h	\
@@ -297,6 +298,7 @@ gtk_public_h_sources = 		\
 	gtkrecentchooserwidget.h \
 	gtkrecentfilter.h	\
 	gtkrecentmanager.h	\
+	gtkrevealer.h		\
 	gtkscale.h		\
 	gtkscalebutton.h	\
 	gtkscrollable.h		\
@@ -314,6 +316,8 @@ gtk_public_h_sources = 		\
 	gtksocket.h		\
 	gtkspinbutton.h		\
 	gtkspinner.h		\
+	gtkstack.h		\
+	gtkstackswitcher.h	\
 	gtkstatusbar.h		\
 	gtkstatusicon.h		\
 	gtkstock.h		\
@@ -414,6 +418,8 @@ gtk_private_h_sources =		\
 	gtkbindingsprivate.h	\
 	gtkbitmaskprivate.h	\
 	gtkbitmaskprivateimpl.h	\
+	gtkbookmarksmanager.h	\
+	gtktrashmonitor.h	\	
 	gtkborderimageprivate.h \
 	gtkboxprivate.h         \
 	gtkbuilderprivate.h	\
@@ -749,6 +755,9 @@ gtk_base_c_sources = 		\
 	gtkoverlay.c		\
 	gtkpagesetup.c		\
 	gtkpaned.c		\
+	gtkplacessidebar.c	\
+	gtkbookmarksmanager.c	\
+	gtktrashmonitor.c	\
 	gtkpango.c		\
 	gtkpapersize.c		\
 	gtkpathbar.c		\
@@ -778,6 +787,7 @@ gtk_base_c_sources = 		\
 	gtkrecentfilter.c	\
 	gtkrecentmanager.c	\
 	gtkresources.c		\
+	gtkrevealer.c		\
 	gtkroundedbox.c		\
 	gtkscale.c		\
 	gtkscalebutton.c	\
@@ -795,6 +805,8 @@ gtk_base_c_sources = 		\
 	gtkshow.c		\
 	gtkspinbutton.c		\
 	gtkspinner.c		\
+	gtkstack.c		\
+	gtkstackswitcher.c	\
 	gtkstatusbar.c		\
 	gtkstatusicon.c		\
 	gtkstock.c		\
@@ -1286,7 +1298,9 @@ endif
 #
 # Installed tools
 #
-bin_PROGRAMS = gtk-query-immodules-3.0
+bin_PROGRAMS = \
+	gtk-query-immodules-3.0	\
+	gtk-launch
 
 if BUILD_ICON_CACHE
 bin_PROGRAMS += gtk-update-icon-cache
@@ -1333,11 +1347,8 @@ gtk_update_icon_cache_LDADD = $(GDK_PIXBUF_LIBS)
 gtk_update_icon_cache_SOURCES = updateiconcache.c
 endif
 
-if HAVE_GIO_UNIX
-bin_PROGRAMS += gtk-launch
 gtk_launch_LDADD = $(LDADDS)
 gtk_launch_SOURCES = gtk-launch.c
-endif
 
 .PHONY: files test test-debug
 

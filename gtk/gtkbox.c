@@ -12,9 +12,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -28,7 +26,7 @@
  * SECTION:gtkbox
  * @Short_description: A container box
  * @Title: GtkBox
- * @See_also: #GtkFrame, #GtkTable, #GtkLayout
+ * @See_also: #GtkFrame, #GtkGrid, #GtkLayout
  *
  * The GtkBox widget organizes child widgets into a rectangular area.
  *
@@ -81,13 +79,14 @@
 
 #include "gtkbox.h"
 #include "gtkboxprivate.h"
+#include "gtkintl.h"
 #include "gtkorientable.h"
 #include "gtkorientableprivate.h"
-#include "gtksizerequest.h"
-#include "gtktypebuiltins.h"
 #include "gtkprivate.h"
+#include "gtktypebuiltins.h"
+#include "gtksizerequest.h"
+#include "gtkwidgetpath.h"
 #include "gtkwidgetprivate.h"
-#include "gtkintl.h"
 #include "a11y/gtkcontaineraccessible.h"
 
 

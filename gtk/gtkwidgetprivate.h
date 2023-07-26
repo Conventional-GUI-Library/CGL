@@ -72,7 +72,13 @@ void _gtk_widget_compute_size_for_orientation  (GtkWidget         *widget,
                                                 gint               for_size,
                                                 gint              *minimum_size,
                                                 gint              *natural_size);
-
+void _gtk_widget_get_preferred_size_for_size   (GtkWidget         *widget,
+                                                GtkOrientation     orientation,
+                                                gint               size,
+                                                gint              *minimum,
+                                                gint              *natural,
+                                                gint              *minimum_baseline,
+                                                gint              *natural_baseline);
 gboolean _gtk_widget_get_translation_to_window (GtkWidget      *widget,
                                                 GdkWindow      *window,
                                                 int            *x,

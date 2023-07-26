@@ -42,7 +42,7 @@ feature of the shell. If you enclose a command in backticks
 substituted into the command line before execution. So to compile
 a GTK+ Hello, World, you would type the following:
 <programlisting>
-$ cc `pkg-config --cflags --libs gtk+-3.0` hello.c -o hello
+$ cc `pkg-config --cflags gtk+-3.0` hello.c -o hello `pkg-config --libs gtk+-3.0`
 </programlisting>
 </para>
 

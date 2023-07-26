@@ -26,6 +26,7 @@
 #include "gdkwindow.h"
 #include "gdkwindowimpl.h"
 #include "gdkdisplay-wayland.h"
+#include "gdkframeclockprivate.h"
 #include "gdkprivate-wayland.h"
 #include "gdkinternals.h"
 #include "gdkdeviceprivate.h"
@@ -95,6 +96,9 @@ struct _GdkWindowImplWayland
 
   GdkCursor *cursor;
 
+  /* The wl_outputs that this window currently touches */
+  GSList *outputs;
+
   struct wl_surface *surface;
   struct wl_shell_surface *shell_surface;
   unsigned int mapped : 1;
@@ -140,6 +144,9 @@ struct _GdkWindowImplWayland
     } saved_fullscreen, saved_maximized;
 
   gboolean use_custom_surface;
+
+  gboolean pending_commit;
+  gint64 pending_frame_counter;
 };
 
 struct _GdkWindowImplWaylandClass
@@ -256,6 +263,145 @@ get_default_title (void)
   return title;
 }
 
+static void
+fill_presentation_time_from_frame_time (GdkFrameTimings *timings,
+                                        guint32          frame_time)
+{
+  /* The timestamp in a wayland frame is a msec time value that in some
+   * way reflects the time at which the server started drawing the frame.
+   * This is not useful from our perspective.
+   *
+   * However, for the DRM backend of Weston, on reasonably recent
+   * Linux, we know that the time is the
+   * clock_gettime(CLOCK_MONOTONIC) value at the vblank, and that
+   * backend starts drawing immediately after receiving the vblank
+   * notification. If we detect this, and make the assumption that the
+   * compositor will finish drawing before the next vblank, we can
+   * then determine the presentation time as the frame time we
+   * recieved plus one refresh interval.
+   *
+   * If a backend is using clock_gettime(CLOCK_MONOTONIC), but not
+   * picking values right at the vblank, then the presentation times
+   * we compute won't be accurate, but not really worse than then
+   * the alternative of not providing presentation times at all.
+   *
+   * The complexity here is dealing with the fact that we receive
+   * only the low 32 bits of the CLOCK_MONOTONIC value in milliseconds.
+   */
+  gint64 now_monotonic = g_get_monotonic_time ();
+  gint64 now_monotonic_msec = now_monotonic / 1000;
+  uint32_t now_monotonic_low = (uint32_t)now_monotonic_msec;
+
+  if (frame_time - now_monotonic_low < 1000 ||
+      frame_time - now_monotonic_low > (uint32_t)-1000)
+    {
+      /* Timestamp we received is within one second of the current time.
+       */
+      gint64 last_frame_time = now_monotonic + (gint64)1000 * (gint32)(frame_time - now_monotonic_low);
+      if ((gint32)now_monotonic_low < 0 && (gint32)frame_time > 0)
+        last_frame_time += (gint64)1000 * G_GINT64_CONSTANT(0x100000000);
+      else if ((gint32)now_monotonic_low > 0 && (gint32)frame_time < 0)
+        last_frame_time -= (gint64)1000 * G_GINT64_CONSTANT(0x100000000);
+
+      timings->presentation_time = last_frame_time + timings->refresh_interval;
+    }
+}
+
+static void
+frame_callback (void               *data,
+                struct wl_callback *callback,
+                uint32_t            time)
+{
+  GdkWindow *window = data;
+  GdkWindowImplWayland *impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
+  GdkWaylandDisplay *wayland_display = GDK_WAYLAND_DISPLAY (gdk_window_get_display (window));
+  GdkFrameClock *clock = gdk_window_get_frame_clock (window);
+  GdkFrameTimings *timings;
+
+  wl_callback_destroy (callback);
+  _gdk_frame_clock_thaw (clock);
+
+  timings = gdk_frame_clock_get_timings (clock, impl->pending_frame_counter);
+  impl->pending_frame_counter = 0;
+
+  if (timings == NULL)
+    return;
+
+  timings->refresh_interval = 16667; /* default to 1/60th of a second */
+  if (impl->outputs)
+    {
+      /* We pick a random output out of the outputs that the window touches
+       * The rate here is in milli-hertz */
+      int refresh_rate = _gdk_wayland_screen_get_output_refresh_rate (wayland_display->screen,
+                                                                      impl->outputs->data);
+      if (refresh_rate != 0)
+        timings->refresh_interval = G_GINT64_CONSTANT(1000000000) / refresh_rate;
+    }
+
+  fill_presentation_time_from_frame_time (timings, time);
+
+  timings->complete = TRUE;
+
+#ifdef G_ENABLE_DEBUG
+  if ((_gdk_debug_flags & GDK_DEBUG_FRAMES) != 0)
+    _gdk_frame_clock_debug_print_timings (clock, timings);
+#endif
+}
+
+static const struct wl_callback_listener listener = {
+  frame_callback
+};
+
+static void
+on_frame_clock_before_paint (GdkFrameClock *clock,
+                             GdkWindow     *window)
+{
+  GdkFrameTimings *timings = gdk_frame_clock_get_current_timings (clock);
+  gint64 presentation_time;
+  gint64 refresh_interval;
+
+  gdk_frame_clock_get_refresh_info (clock,
+                                    timings->frame_time,
+                                    &refresh_interval, &presentation_time);
+
+  if (presentation_time != 0)
+    {
+      /* Assume the algorithm used by the DRM backend of Weston - it
+       * starts drawing at the next vblank after receiving the commit
+       * for this frame, and presentation occurs at the vblank
+       * after that.
+       */
+      timings->predicted_presentation_time = presentation_time + refresh_interval;
+    }
+  else
+    {
+      /* As above, but we don't actually know the phase of the vblank,
+       * so just assume that we're half way through a refresh cycle.
+       */
+      timings->predicted_presentation_time = timings->frame_time + refresh_interval / 2 + refresh_interval;
+    }
+}
+
+static void
+on_frame_clock_after_paint (GdkFrameClock *clock,
+                            GdkWindow     *window)
+{
+  GdkWindowImplWayland *impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
+  struct wl_callback *callback;
+
+  if (!impl->pending_commit)
+    return;
+
+  impl->pending_commit = FALSE;
+  impl->pending_frame_counter = gdk_frame_clock_get_frame_counter (clock);
+
+  callback = wl_surface_frame (impl->surface);
+  wl_callback_add_listener (callback, &listener, window);
+  _gdk_frame_clock_freeze (clock);
+
+  wl_surface_commit (impl->surface);
+}
+
 void
 _gdk_wayland_display_create_window_impl (GdkDisplay    *display,
 					 GdkWindow     *window,
@@ -266,6 +412,7 @@ _gdk_wayland_display_create_window_impl (GdkDisplay    *display,
 					 gint           attributes_mask)
 {
   GdkWindowImplWayland *impl;
+  GdkFrameClock *frame_clock;
   const char *title;
 
   impl = g_object_new (GDK_TYPE_WINDOW_IMPL_WAYLAND, NULL);
@@ -306,6 +453,13 @@ _gdk_wayland_display_create_window_impl (GdkDisplay    *display,
 
   if (attributes_mask & GDK_WA_TYPE_HINT)
     gdk_window_set_type_hint (window, attributes->type_hint);
+
+  frame_clock = gdk_window_get_frame_clock (window);
+
+  g_signal_connect (frame_clock, "before-paint",
+                    G_CALLBACK (on_frame_clock_before_paint), window);
+  g_signal_connect (frame_clock, "after-paint",
+                    G_CALLBACK (on_frame_clock_after_paint), window);
 }
 
 static const cairo_user_data_key_t gdk_wayland_cairo_key;
@@ -368,6 +522,7 @@ gdk_wayland_window_attach_image (GdkWindow *window)
 
   /* Attach this new buffer to the surface */
   wl_surface_attach (impl->surface, data->buffer, dx, dy);
+  impl->pending_commit = TRUE;
 }
 
 static void
@@ -478,28 +633,34 @@ gdk_wayland_create_cairo_surface (GdkWaylandDisplay *display,
   return surface;
 }
 
-/* On this first call this creates a double reference - the first reference
- * is held by the GdkWindowImplWayland struct - since unlike other backends
- * the Cairo surface is not just a cheap wrapper around some other backing.
- * It is the buffer itself.
- */
-static cairo_surface_t *
-gdk_wayland_window_ref_cairo_surface (GdkWindow *window)
+static void
+gdk_wayland_window_ensure_cairo_surface (GdkWindow *window)
 {
   GdkWindowImplWayland *impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
-  GdkWaylandDisplay *display_wayland =
-    GDK_WAYLAND_DISPLAY (gdk_window_get_display (impl->wrapper));
-
-  if (GDK_WINDOW_DESTROYED (impl->wrapper))
-    return NULL;
-
   if (!impl->cairo_surface)
     {
+      GdkWaylandDisplay *display_wayland =
+        GDK_WAYLAND_DISPLAY (gdk_window_get_display (impl->wrapper));
+
       impl->cairo_surface =
 	gdk_wayland_create_cairo_surface (display_wayland,
 				      impl->wrapper->width,
 				      impl->wrapper->height);
     }
+}
+
+/* Unlike other backends the Cairo surface is not just a cheap wrapper
+ * around some other backing.  It is the buffer itself.
+ */
+static cairo_surface_t *
+gdk_wayland_window_ref_cairo_surface (GdkWindow *window)
+{
+  GdkWindowImplWayland *impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
+
+  if (GDK_WINDOW_DESTROYED (impl->wrapper))
+    return NULL;
+
+  gdk_wayland_window_ensure_cairo_surface (window);
 
   cairo_surface_reference (impl->cairo_surface);
 
@@ -518,8 +679,6 @@ gdk_window_impl_wayland_finalize (GObject *object)
 
   if (impl->cursor)
     g_object_unref (impl->cursor);
-  if (impl->server_surface)
-    cairo_surface_destroy (impl->server_surface);
 
   G_OBJECT_CLASS (_gdk_window_impl_wayland_parent_class)->finalize (object);
 }
@@ -639,6 +798,28 @@ gdk_wayland_window_map (GdkWindow *window)
 }
 
 static void
+surface_enter (void *data,
+               struct wl_surface *wl_surface,
+               struct wl_output *output)
+{
+  GdkWindow *window = GDK_WINDOW (data);
+  GdkWindowImplWayland *impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
+
+  impl->outputs = g_slist_prepend (impl->outputs, output);
+}
+
+static void
+surface_leave (void *data,
+               struct wl_surface *wl_surface,
+               struct wl_output *output)
+{
+  GdkWindow *window = GDK_WINDOW (data);
+  GdkWindowImplWayland *impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
+
+  impl->outputs = g_slist_remove (impl->outputs, output);
+}
+
+static void
 shell_surface_handle_configure(void *data,
                                struct wl_shell_surface *shell_surface,
                                uint32_t edges,
@@ -686,11 +867,29 @@ shell_surface_ping (void                    *data,
   wl_shell_surface_pong(shell_surface, serial);
 }
 
+static const struct wl_surface_listener surface_listener = {
+  surface_enter,
+  surface_leave
+};
+
 static const struct wl_shell_surface_listener shell_surface_listener = {
   shell_surface_ping,
   shell_surface_handle_configure,
   shell_surface_popup_done
 };
+
+static void
+gdk_wayland_window_create_surface (GdkWindow  *window)
+{
+  GdkWindowImplWayland *impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
+  GdkWaylandDisplay *display_wayland = GDK_WAYLAND_DISPLAY (gdk_window_get_display (window));
+
+  impl->surface = wl_compositor_create_surface (display_wayland->compositor);
+
+  wl_surface_set_user_data(impl->surface, window);
+  wl_surface_add_listener(impl->surface,
+                          &surface_listener, window);
+}
 
 static void
 gdk_wayland_window_show (GdkWindow *window, gboolean already_mapped)
@@ -709,10 +908,7 @@ gdk_wayland_window_show (GdkWindow *window, gboolean already_mapped)
     gdk_wayland_window_set_user_time (window, impl->user_time);
 
   if (!impl->surface)
-    {
-      impl->surface = wl_compositor_create_surface(display_wayland->compositor);
-      wl_surface_set_user_data(impl->surface, window);
-    }
+    gdk_wayland_window_create_surface (window);
 
   if (!impl->shell_surface &&
       !impl->use_custom_surface &&
@@ -738,7 +934,8 @@ gdk_wayland_window_show (GdkWindow *window, gboolean already_mapped)
 }
 
 static void
-gdk_wayland_window_hide (GdkWindow *window)
+gdk_wayland_window_hide_surface (GdkWindow *window,
+                                 gboolean   is_destroy)
 {
   GdkWindowImplWayland *impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
 
@@ -746,7 +943,7 @@ gdk_wayland_window_hide (GdkWindow *window)
     {
       if (impl->shell_surface)
         wl_shell_surface_destroy(impl->shell_surface);
-      if (impl->use_custom_surface)
+      if (impl->use_custom_surface && !is_destroy)
         {
           wl_surface_attach (impl->surface, NULL, 0, 0);
           wl_surface_commit (impl->surface);
@@ -755,21 +952,27 @@ gdk_wayland_window_hide (GdkWindow *window)
         {
           wl_surface_destroy(impl->surface);
           impl->surface = NULL;
+
+          g_slist_free (impl->outputs);
+          impl->outputs = NULL;
         }
       impl->shell_surface = NULL;
       cairo_surface_destroy(impl->server_surface);
       impl->server_surface = NULL;
       impl->mapped = FALSE;
     }
+}
 
+static void
+gdk_wayland_window_hide (GdkWindow *window)
+{
+  gdk_wayland_window_hide_surface (window, FALSE);
   _gdk_window_clear_update_area (window);
 }
 
 static void
 gdk_window_wayland_withdraw (GdkWindow *window)
 {
-  GdkWindowImplWayland *impl;
-
   if (!window->destroyed)
     {
       if (GDK_WINDOW_IS_MAPPED (window))
@@ -777,26 +980,7 @@ gdk_window_wayland_withdraw (GdkWindow *window)
 
       g_assert (!GDK_WINDOW_IS_MAPPED (window));
 
-      impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
-      if (impl->surface)
-        {
-          if (impl->shell_surface)
-            wl_shell_surface_destroy(impl->shell_surface);
-          if (impl->use_custom_surface)
-            {
-              wl_surface_attach (impl->surface, NULL, 0, 0);
-              wl_surface_commit (impl->surface);
-            }
-          else if (impl->surface)
-            {
-              wl_surface_destroy(impl->surface);
-              impl->surface = NULL;
-            }
-          impl->shell_surface = NULL;
-          cairo_surface_destroy(impl->server_surface);
-          impl->server_surface = NULL;
-          impl->mapped = FALSE;
-        }
+      gdk_wayland_window_hide_surface (window, FALSE);
     }
 }
 
@@ -1027,21 +1211,19 @@ gdk_wayland_window_destroy (GdkWindow *window,
 
   g_return_if_fail (GDK_IS_WINDOW (window));
 
+  /* We don't have nested windows */
+  g_return_if_fail (!recursing);
+  /* Wayland windows can't be externally destroyed; we may possibly
+   * eventually want to use this path at display close-down */
+  g_return_if_fail (!foreign_destroy);
+
+  gdk_wayland_window_hide_surface (window, TRUE);
+
   if (impl->cairo_surface)
     {
       cairo_surface_finish (impl->cairo_surface);
       cairo_surface_set_user_data (impl->cairo_surface, &gdk_wayland_cairo_key,
 				   NULL, NULL);
-    }
-
-  if (!recursing && !foreign_destroy)
-    {
-      if (impl->shell_surface)
-        wl_shell_surface_destroy(impl->shell_surface);
-      if (impl->surface)
-        wl_surface_destroy(impl->surface);
-      impl->shell_surface = NULL;
-      impl->surface = NULL;
     }
 }
 
@@ -1623,8 +1805,10 @@ gdk_wayland_window_process_updates_recurse (GdkWindow      *window,
 
   gdk_wayland_window_map (window);
 
-  if (impl->cairo_surface)
-    gdk_wayland_window_attach_image (window);
+  gdk_wayland_window_ensure_cairo_surface (window);
+  gdk_wayland_window_attach_image (window);
+
+  _gdk_window_process_updates_recurse (window, region);
 
   n = cairo_region_num_rectangles(region);
   for (i = 0; i < n; i++)
@@ -1632,10 +1816,8 @@ gdk_wayland_window_process_updates_recurse (GdkWindow      *window,
       cairo_region_get_rectangle (region, i, &rect);
       wl_surface_damage (impl->surface,
                          rect.x, rect.y, rect.width, rect.height);
-      wl_surface_commit(impl->surface);
+      impl->pending_commit = TRUE;
     }
-
-  _gdk_window_process_updates_recurse (window, region);
 }
 
 static void
@@ -1897,18 +2079,13 @@ void
 gdk_wayland_window_set_use_custom_surface (GdkWindow *window)
 {
   GdkWindowImplWayland *impl;
-  GdkWaylandDisplay *display;
 
   g_return_if_fail (GDK_IS_WAYLAND_WINDOW (window));
 
   impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
 
   if (!impl->surface)
-    {
-      display = GDK_WAYLAND_DISPLAY (gdk_window_get_display (window));
-      impl->surface = wl_compositor_create_surface (display->compositor);
-      wl_surface_set_user_data (impl->surface, window);
-    }
+    gdk_wayland_window_create_surface (window);
 
   impl->use_custom_surface = TRUE;
 }

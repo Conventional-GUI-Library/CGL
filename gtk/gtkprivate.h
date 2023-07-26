@@ -53,6 +53,8 @@ G_BEGIN_DECLS
 #define GTK_DEFAULT_ACCEL_MOD_MASK_VIRTUAL GDK_META_MASK
 #endif
 
+#define OPPOSITE_ORIENTATION(_orientation) (1 - (_orientation))
+
 #ifdef G_DISABLE_CAST_CHECKS
 /* This is true for debug no and minimum */
 #define gtk_internal_return_if_fail(__expr) G_STMT_START{ (void)0; }G_STMT_END

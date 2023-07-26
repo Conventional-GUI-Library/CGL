@@ -38,11 +38,12 @@
 #endif
 
 #ifdef GDK_WINDOWING_QUARTZ
-/* We immediately include gdkquartzdisplaymanager.h here instead of
- * gdkquartz.h so that we do not have to enable -xobjective-c for the
- * "generic" GDK source code.
+/* When the gdk_quartz_display_open function is removed We can
+ * immediately include gdkquartzdisplaymanager.h here instead of
+ * gdkprivate-quartz.h so that we won't have to enable -xobjective-c
+ * for the "generic" GDK source code.
+ * #include "quartz/gdkquartzdisplaymanager.h"
  */
-#include "quartz/gdkquartzdisplaymanager.h"
 #include "quartz/gdkprivate-quartz.h"
 #endif
 
@@ -309,7 +310,7 @@ struct _GdkBackend {
   GdkDisplay * (* open_display) (const char *name);
 };
 
-GdkBackend gdk_backends[] = {
+static GdkBackend gdk_backends[] = {
 #ifdef GDK_WINDOWING_QUARTZ
   { "quartz",   gdk_quartz_display_manager_get_type,    _gdk_quartz_display_open },
 #endif

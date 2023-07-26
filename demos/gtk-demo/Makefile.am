@@ -39,10 +39,12 @@ demos =						\
 	pickers.c				\
 	pixbufs.c				\
 	printing.c				\
+	revealer.c				\
 	rotated_text.c				\
 	search_entry.c				\
 	sizegroup.c				\
 	spinner.c				\
+	stack.c					\
 	stock_browser.c				\
 	textview.c				\
 	textscroll.c				\
@@ -85,7 +87,7 @@ gsettings_SCHEMAS = \
 @GSETTINGS_RULES@
 
 demos.h: @REBUILD@ $(demos) geninclude.pl
-	$(AM_V_GEN) (here=`pwd` ; cd $(srcdir) && $(PERL) $$here/geninclude.pl $(demos)) > demos.h
+	 $(AM_V_GEN) (here=`pwd` ; cd $(srcdir) && $(PERL) $$here/geninclude.pl $(demos)) > demos.h
 
 gtk3_demo_SOURCES = 		\
 	$(demos)		\
@@ -110,6 +112,8 @@ RESOURCES=	$(demos)			\
 		application.ui			\
 		demo.ui				\
 		menus.ui			\
+		stack.ui			\
+		revealer.ui			\
 		theming.ui			\
 		alphatest.png			\
 		apple-red.png			\

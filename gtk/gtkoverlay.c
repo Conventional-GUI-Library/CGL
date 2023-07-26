@@ -401,6 +401,10 @@ gtk_overlay_get_child_position (GtkOverlay    *overlay,
     case GTK_ALIGN_END:
       alloc->x += main_alloc.width - req.width;
       break;
+    case GTK_ALIGN_BASELINE:
+    default:
+      g_assert_not_reached ();
+      break;
     }
 
   alloc->y = main_alloc.y;
@@ -419,6 +423,10 @@ gtk_overlay_get_child_position (GtkOverlay    *overlay,
       break;
     case GTK_ALIGN_END:
       alloc->y += main_alloc.height - req.height;
+      break;
+    case GTK_ALIGN_BASELINE:
+    default:
+      g_assert_not_reached ();
       break;
     }
 

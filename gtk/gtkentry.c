@@ -9884,4 +9884,3 @@ gtk_entry_get_attributes (GtkEntry *entry)
 
   return entry->priv->attrs;
 }
-
