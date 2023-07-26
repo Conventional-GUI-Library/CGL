@@ -40,6 +40,7 @@ gtk/gtkaccellabel.c
 gtk/gtkaccelmap.c
 gtk/gtkaccessible.c
 gtk/gtkactionable.c
+gtk/gtkbookmarksmanager.c
 gtk/gtkaction.c
 gtk/gtkactiongroup.c
 gtk/gtkactivatable.c
@@ -193,6 +194,7 @@ gtk/gtkrecentchooser.c
 gtk/gtkrecentchooserdefault.c
 gtk/gtkrecentchoosermenu.c
 gtk/gtkrecentmanager.c
+gtk/gtkrevealer.c
 gtk/gtkscalebutton.c
 gtk/gtkscale.c
 gtk/gtkscrollable.c
@@ -207,6 +209,8 @@ gtk/gtksizerequest.c
 gtk/gtksocket.c
 gtk/gtkspinbutton.c
 gtk/gtkspinner.c
+gtk/gtkstack.c
+gtk/gtkstackswitcher.c
 gtk/gtkstatusbar.c
 gtk/gtkstatusicon.c
 gtk/gtkstock.c

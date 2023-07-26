@@ -122,7 +122,9 @@ noinst_PROGRAMS =  $(TEST_PROGS)	\
 	testanimation			\
 	testpixbuf-save			\
 	testpixbuf-color		\
-	testpixbuf-scale		
+	testpixbuf-scale		\
+	teststack			\
+	testrevealer
 
 if USE_X11
 noinst_PROGRAMS += testerrors
@@ -234,6 +236,8 @@ testanimation_DEPENDENCIES = $(TEST_DEPS)
 testpixbuf_save_DEPENDENCIES = $(TEST_DEPS)
 testpixbuf_color_DEPENDENCIES = $(TEST_DEPS)
 testpixbuf_scale_DEPENDENCIES = $(TEST_DEPS)
+teststack_DEPENDENCIES = $(TEST_DEPS)
+testrevealer_DEPENDENCIES = $(TEST_DEPS)
 
 testboxcss_SOURCES =	\
 	testboxcss.c	\
@@ -413,6 +417,10 @@ testpixbuf_color_SOURCES = testpixbuf-color.c
 
 testpixbuf_save_SOURCES = testpixbuf-save.c
 
+
+teststack_SOURCES = teststack.c
+
+testrevealer_SOURCES = testrevealer.c
 
 EXTRA_DIST += 			\
 	gradient1.png		\
