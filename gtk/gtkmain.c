@@ -238,6 +238,8 @@ static GSList *key_snoopers = NULL;
 
 static guint debug_flags = 0;              /* Global GTK debug flag */
 
+gboolean enable_gtk2_workaround = FALSE;
+
 #ifdef G_ENABLE_DEBUG
 static const GDebugKey gtk_debug_keys[] = {
   {"misc", GTK_DEBUG_MISC},
@@ -758,8 +760,9 @@ do_pre_parse_initialization (int    *argc,
   pre_initialized = TRUE;
 
   if (_gtk_module_has_mixed_deps (NULL))
-    g_error ("GTK+ 2.x symbols detected. Using GTK+ 2.x and GTK+ 3 in the same process is not supported");
-
+    g_message ("GTK+ 2.x symbols detected. Things may break!");
+	enable_gtk2_workaround = TRUE;
+	
   gdk_pre_parse_libgtk_only ();
   gdk_event_handler_set ((GdkEventFunc)gtk_main_do_event, NULL, NULL);
 
@@ -1016,7 +1019,10 @@ gtk_init_with_args (gint                 *argc,
     return FALSE;
 
   gtk_group = gtk_get_option_group (TRUE);
-
+  if (enable_gtk2_workaround) {
+	  return TRUE;
+  }
+  
   context = g_option_context_new (parameter_string);
   g_option_context_add_group (context, gtk_group);
   g_option_context_set_translation_domain (context, translation_domain);
@@ -1069,6 +1075,9 @@ gtk_parse_args (int    *argc,
   g_option_context_set_ignore_unknown_options (option_context, TRUE);
   g_option_context_set_help_enabled (option_context, FALSE);
   gtk_group = gtk_get_option_group (FALSE);
+  if (enable_gtk2_workaround) {
+	  return TRUE;
+  }
   g_option_context_set_main_group (option_context, gtk_group);
   if (!g_option_context_parse (option_context, argc, argv, &error))
     {
