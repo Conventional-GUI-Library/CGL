@@ -14,9 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -865,11 +863,7 @@ _post_write_data (GtkCupsRequest *request)
         }
 
 
-#if HAVE_CUPS_API_1_2
       if (httpWrite2 (request->http, buffer, bytes) < bytes)
-#else
-      if (httpWrite (request->http, buffer, (int) bytes) < bytes)
-#endif /* HAVE_CUPS_API_1_2 */
         {
           int http_errno;
 
@@ -1443,11 +1437,7 @@ _get_read_data (GtkCupsRequest *request)
 
   request->poll_state = GTK_CUPS_HTTP_READ;
 
-#if HAVE_CUPS_API_1_2
   bytes = httpRead2 (request->http, buffer, sizeof (buffer));
-#else
-  bytes = httpRead (request->http, buffer, sizeof (buffer));
-#endif /* HAVE_CUPS_API_1_2 */
   request->bytes_received += bytes;
 
   GTK_NOTE (PRINTING,
@@ -1474,11 +1464,7 @@ _get_read_data (GtkCupsRequest *request)
     }
 
   /* Stop if we do not expect any more data or EOF was received. */
-#if HAVE_CUPS_API_1_2
   if (httpGetLength2 (request->http) <= request->bytes_received || bytes == 0)
-#else
-  if (httpGetLength (request->http) <= request->bytes_received || bytes == 0)
-#endif /* HAVE_CUPS_API_1_2 */
     {
       request->state = GTK_CUPS_GET_DONE;
       request->poll_state = GTK_CUPS_HTTP_IDLE;
@@ -1536,7 +1522,6 @@ GtkCupsConnectionTest *
 gtk_cups_connection_test_new (const char *server)
 {
   GtkCupsConnectionTest *result = NULL;
-#ifdef HAVE_CUPS_API_1_2
   gchar                 *port_str = NULL;
 
   result = g_new (GtkCupsConnectionTest, 1);
@@ -1556,9 +1541,6 @@ gtk_cups_connection_test_new (const char *server)
   result->at_init = GTK_CUPS_CONNECTION_NOT_AVAILABLE;
 
   result->at_init = gtk_cups_connection_test_get_state (result);
-#else
-  result = g_new (GtkCupsConnectionTest, 1);
-#endif
 
   return result;
 }
@@ -1572,7 +1554,6 @@ gtk_cups_connection_test_new (const char *server)
 GtkCupsConnectionState 
 gtk_cups_connection_test_get_state (GtkCupsConnectionTest *test)
 {
-#ifdef HAVE_CUPS_API_1_2
   GtkCupsConnectionState result = GTK_CUPS_CONNECTION_NOT_AVAILABLE;
   http_addrlist_t       *iter;
   gint                   error_code;
@@ -1653,9 +1634,6 @@ gtk_cups_connection_test_get_state (GtkCupsConnectionTest *test)
 
       return result;
     }
-#else
-  return GTK_CUPS_CONNECTION_AVAILABLE;
-#endif
 }
 
 /* This function frees memory used by the GtkCupsConnectionTest structure.
@@ -1666,7 +1644,6 @@ gtk_cups_connection_test_free (GtkCupsConnectionTest *test)
   if (test == NULL)
     return;
 
-#ifdef HAVE_CUPS_API_1_2
   test->current_addr = NULL;
   test->last_wrong_addr = NULL;
   httpAddrFreeList (test->addrlist);
@@ -1675,6 +1652,5 @@ gtk_cups_connection_test_free (GtkCupsConnectionTest *test)
       close (test->socket);
       test->socket = -1;
     }
-#endif
   g_free (test);
 }
