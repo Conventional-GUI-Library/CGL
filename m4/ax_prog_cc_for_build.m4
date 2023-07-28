@@ -39,7 +39,7 @@ AC_DEFUN([AX_PROG_CC_FOR_BUILD], [dnl
 AC_REQUIRE([AC_PROG_CC])dnl
 AC_REQUIRE([AC_PROG_CPP])dnl
 AC_REQUIRE([AC_EXEEXT])dnl
-AC_REQUIRE([AC_CANONICAL_HOST])dnl
+AC_REQUIRE([AC_CANONICAL_SYSTEM])dnl
 
 dnl Use the standard macros, but make them use other variable names
 dnl

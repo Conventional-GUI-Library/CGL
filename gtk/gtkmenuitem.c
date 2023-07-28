@@ -1671,12 +1671,12 @@ gtk_menu_item_draw (GtkWidget *widget,
 
       if (direction == GTK_TEXT_DIR_LTR)
         {
-          arrow_x = x + w - arrow_size - padding.right;
+          arrow_x = x + w - arrow_size;
           angle = G_PI / 2;
         }
       else
         {
-          arrow_x = x + padding.left;
+          arrow_x = x;
           angle = (3 * G_PI) / 2;
         }
 

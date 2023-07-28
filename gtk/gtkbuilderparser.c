@@ -1128,15 +1128,15 @@ end_element (GMarkupParseContext *context,
 
           if (prop_info->translatable && prop_info->text->len)
             {
-              const gchar *translated;
-
-              translated = _gtk_builder_parser_translate (data->domain,
-                                                          prop_info->context,
-                                                          prop_info->text->str);
-              g_string_assign (prop_info->text, translated);
+              prop_info->data = g_strdup (_gtk_builder_parser_translate (data->domain,
+                                                                         prop_info->context,
+                                                                         prop_info->text->str));
+              g_string_free (prop_info->text, TRUE);
             }
-
-          prop_info->data = g_string_free (prop_info->text, FALSE);
+          else
+            {
+              prop_info->data = g_string_free (prop_info->text, FALSE);
+            }
 
           object_info->properties =
             g_slist_prepend (object_info->properties, prop_info);

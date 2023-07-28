@@ -42,7 +42,7 @@ static gint available_depths[1];
 static GdkVisualType available_types[1];
 
 void
-_gdk_visual_init (GdkScreen *screen)
+_gdk_visual_init (void)
 {
   struct
   {
@@ -61,7 +61,7 @@ _gdk_visual_init (GdkScreen *screen)
   gint map_entries = 0;
 
   system_visual = g_object_new (GDK_TYPE_VISUAL, NULL);
-  system_visual->screen = screen;
+  system_visual->screen = gdk_screen_get_default();
 
   if (rastercaps & RC_PALETTE)
     {

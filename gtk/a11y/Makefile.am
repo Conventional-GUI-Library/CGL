@@ -25,7 +25,6 @@ gtka11y_c_sources =			\
 	gtklabelaccessible.c		\
 	gtklevelbaraccessible.c \
 	gtklinkbuttonaccessible.c	\
-	gtklistboxaccessible.c		\
 	gtklockbuttonaccessible.c	\
 	gtkmenuaccessible.c		\
 	gtkmenushellaccessible.c	\
@@ -73,7 +72,6 @@ gtka11yinclude_HEADERS =		\
 	gtklabelaccessible.h		\
 	gtklevelbaraccessible.h \
 	gtklinkbuttonaccessible.h	\
-	gtklistboxaccessible.h		\
 	gtklockbuttonaccessible.h	\
 	gtkmenuaccessible.h		\
 	gtkmenuitemaccessible.h		\
@@ -109,7 +107,6 @@ gtka11y_private_h_sources =		\
 	gtkcolorswatchaccessibleprivate.h \
 	gtkiconviewaccessibleprivate.h	\
 	gtklabelaccessibleprivate.h 	\
-	gtklistboxaccessibleprivate.h	\
 	gtklockbuttonaccessibleprivate.h \
 	gtktextviewaccessibleprivate.h  \
 	gtktreeviewaccessibleprivate.h	\

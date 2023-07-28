@@ -8657,7 +8657,7 @@ gtk_window_move_resize (GtkWindow *window)
 
       /* And run the resize queue.
        */
-      gtk_widget_size_allocate (widget, &allocation);
+      gtk_container_resize_children (container);
     }
   
   /* We have now processed a move/resize since the last position
