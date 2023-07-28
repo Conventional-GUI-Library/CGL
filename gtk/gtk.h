@@ -136,6 +136,7 @@
 #include <gtk/gtklevelbar.h>
 #include <gtk/gtklayout.h>
 #include <gtk/gtklinkbutton.h>
+#include <gtk/gtklistbox.h>
 #include <gtk/gtkliststore.h>
 #include <gtk/gtklockbutton.h>
 #include <gtk/gtkmain.h>
@@ -182,6 +183,7 @@
 #include <gtk/gtkscrollable.h>
 #include <gtk/gtkscrollbar.h>
 #include <gtk/gtkscrolledwindow.h>
+#include <gtk/gtksearchbar.h>
 #include <gtk/gtksearchentry.h>
 #include <gtk/gtkselection.h>
 #include <gtk/gtkseparator.h>
