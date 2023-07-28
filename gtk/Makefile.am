@@ -404,9 +404,9 @@ gtk_private_type_h_sources = \
 
 # GTK+ header files that don't get installed
 gtk_private_h_sources =		\
-	gactionmuxer.h		\
-	gactionobserver.h	\
-	gactionobservable.h	\
+	gtkactionmuxer.h	\
+	gtkactionobserver.h	\
+	gtkactionobservable.h	\
 	gtkapplicationprivate.h	\
 	gtkaccelgroupprivate.h	\
 	gtkaccelmapprivate.h	\
@@ -495,6 +495,7 @@ gtk_private_h_sources =		\
 	gtkmenuitemprivate.h	\
 	gtkmenushellprivate.h	\
 	gtkmenutracker.h	\
+	gtkmenutrackeritem.h	\
 	gtkmnemonichash.h	\
 	gtkmodelmenuitem.h	\
 	gtkmodifierstyle.h	\
@@ -508,6 +509,7 @@ gtk_private_h_sources =		\
 	gtkprintoperation-private.h \
 	gtkprintutils.h		\
 	gtkprivate.h		\
+	gtkpixelcacheprivate.h	\
 	gtkquery.h		\
 	gtkrbtree.h		\
 	gtkrecentchooserdefault.h \
@@ -554,9 +556,9 @@ gtk_private_h_sources =		\
 
 # GTK+ C sources to build the library from
 gtk_base_c_sources = 		\
-	gactionmuxer.c		\
-	gactionobserver.c	\
-	gactionobservable.c	\
+	gtkactionmuxer.c		\
+	gtkactionobserver.c	\
+	gtkactionobservable.c	\
 	gtkactionable.c		\
  	gtkquery.c		\
 	gtksearchentry.c	\
@@ -740,6 +742,7 @@ gtk_base_c_sources = 		\
 	gtkmenuitem.c		\
 	gtkmenushell.c		\
 	gtkmenutracker.c	\
+	gtkmenutrackeritem.c	\
 	gtkmenutoolbutton.c	\
 	gtkmessagedialog.c	\
 	gtkmisc.c		\
@@ -770,6 +773,7 @@ gtk_base_c_sources = 		\
 	gtkprivate.c		\
 	gtkprivatetypebuiltins.c \
 	gtkprogressbar.c	\
+	gtkpixelcache.c		\
 	gtkradioaction.c	\
 	gtkradiobutton.c	\
 	gtkradiomenuitem.c	\
@@ -1255,7 +1259,8 @@ LDADDS =								\
 if HAVE_INTROSPECTION
 introspection_files = \
     $(filter-out %private.h gtktextdisplay.h gtktextlayout.h, $(gtkinclude_HEADERS)) \
-    $(gtk_base_c_sources) \
+    $(filter-out  gtkclipboard-quartz.c gtkdnd-quartz.c, \
+    $(gtk_base_c_sources)) \
     gtkprintoperation-unix.c \
     gtktypebuiltins.h \
     gtktypebuiltins.c

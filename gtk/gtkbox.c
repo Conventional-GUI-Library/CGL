@@ -148,9 +148,6 @@ struct _GtkBoxChild
 static void gtk_box_size_allocate         (GtkWidget              *widget,
                                            GtkAllocation          *allocation);
 
-static void gtk_box_compute_expand     (GtkWidget      *widget,
-                                        gboolean       *hexpand,
-                                        gboolean       *vexpand);
 static void gtk_box_direction_changed  (GtkWidget        *widget,
                                         GtkTextDirection  previous_direction);
 
@@ -221,7 +218,6 @@ gtk_box_class_init (GtkBoxClass *class)
   widget_class->get_preferred_height           = gtk_box_get_preferred_height;
   widget_class->get_preferred_height_for_width = gtk_box_get_preferred_height_for_width;
   widget_class->get_preferred_width_for_height = gtk_box_get_preferred_width_for_height;
-  widget_class->compute_expand                 = gtk_box_compute_expand;
   widget_class->direction_changed              = gtk_box_direction_changed;
 
   container_class->add = gtk_box_add;
@@ -267,6 +263,9 @@ gtk_box_class_init (GtkBoxClass *class)
    * Note that the #GtkWidget:halign, #GtkWidget:valign, #GtkWidget:hexpand
    * and #GtkWidget:vexpand properties are the preferred way to influence
    * child size allocation in containers.
+   *
+   * In contrast to #GtkWidget::hexpand, the expand child property does
+   * not cause the box to expand itself.
    */
   gtk_container_class_install_child_property (container_class,
 					      CHILD_PROP_EXPAND,

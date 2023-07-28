@@ -483,7 +483,7 @@ struct _GtkWidgetPrivate
   SizeRequestCache requests;
 
   /* actions attached to this or any parent widget */
-  GActionMuxer *muxer;
+  GtkActionMuxer *muxer;
 
   /* The widget's window or its parent window if it does
    * not have a window. (Which will be indicated by the
@@ -11311,6 +11311,9 @@ gtk_widget_dispose (GObject *object)
 
   g_clear_object (&priv->muxer);
 
+  while (priv->attached_windows)
+    gtk_window_set_attached_to (priv->attached_windows->data, NULL);
+
   G_OBJECT_CLASS (gtk_widget_parent_class)->dispose (object);
 }
 
@@ -15662,7 +15665,7 @@ void
 _gtk_widget_update_parent_muxer (GtkWidget *widget)
 {
   GtkWidget *parent;
-  GActionMuxer *parent_muxer;
+  GtkActionMuxer *parent_muxer;
 
   if (widget->priv->muxer == NULL)
     return;
@@ -15674,15 +15677,15 @@ _gtk_widget_update_parent_muxer (GtkWidget *widget)
 
   parent_muxer = parent ? _gtk_widget_get_action_muxer (parent) : NULL;
 
-  g_action_muxer_set_parent (widget->priv->muxer, parent_muxer);
+  gtk_action_muxer_set_parent (widget->priv->muxer, parent_muxer);
 }
 
-GActionMuxer *
+GtkActionMuxer *
 _gtk_widget_get_action_muxer (GtkWidget *widget)
 {
   if (widget->priv->muxer == NULL)
     {
-      widget->priv->muxer = g_action_muxer_new ();
+      widget->priv->muxer = gtk_action_muxer_new ();
       _gtk_widget_update_parent_muxer (widget);
     }
 
@@ -15707,7 +15710,7 @@ gtk_widget_insert_action_group (GtkWidget    *widget,
                                 const gchar  *name,
                                 GActionGroup *group)
 {
-  GActionMuxer *muxer;
+  GtkActionMuxer *muxer;
 
   g_return_if_fail (GTK_IS_WIDGET (widget));
   g_return_if_fail (name != NULL);
@@ -15715,9 +15718,9 @@ gtk_widget_insert_action_group (GtkWidget    *widget,
   muxer = _gtk_widget_get_action_muxer (widget);
 
   if (group)
-    g_action_muxer_insert (muxer, name, group);
+    gtk_action_muxer_insert (muxer, name, group);
   else
-    g_action_muxer_remove (muxer, name);
+    gtk_action_muxer_remove (muxer, name);
 }
 
 /****************************************************************

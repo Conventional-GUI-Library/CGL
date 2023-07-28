@@ -31,6 +31,7 @@
 G_BEGIN_DECLS
 
 /* --- Gtk+ Test Utility API --- */
+void            gtk_test_widget_wait_for_draw   (GtkWidget      *widget);
 void            gtk_test_init                   (int            *argcp,
                                                  char         ***argvp,
                                                  ...);

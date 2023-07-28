@@ -2900,7 +2900,7 @@ settings_update_provider (GdkScreen       *screen,
                           GtkCssProvider **old,
                           GtkCssProvider  *new)
 {
-  if (*old != new)
+  if (screen != NULL && *old != new)
     {
       if (*old)
         {
@@ -3283,6 +3283,7 @@ gtk_settings_load_from_key_file (GtkSettings       *settings,
           }
 
         case G_TYPE_INT:
+        case G_TYPE_UINT:
           {
             gint i_val;
 

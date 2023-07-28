@@ -92,7 +92,8 @@ void     _gtk_entry_set_is_cell_renderer   (GtkEntry  *entry,
 gchar*   _gtk_entry_get_display_text       (GtkEntry *entry,
                                             gint      start_pos,
                                             gint      end_pos);
-
+void     _gtk_entry_grab_focus             (GtkEntry  *entry,
+                                            gboolean   select_all);
 G_END_DECLS
 
 #endif /* __GTK_ENTRY_PRIVATE_H__ */

@@ -964,7 +964,7 @@ update_places (GtkPlacesSidebar *sidebar)
 		   SECTION_DEVICES,
 		   sidebar->hostname, icon, mount_uri,
 		   NULL, NULL, NULL, 0,
-		   _("Open the contents of the File System"));
+		   _("Open the contents of the file system"));
 	g_object_unref (icon);
 
 	/* add mounts that has no volume (/etc/mtab mounts, ftp, sftp,...) */
@@ -1123,7 +1123,6 @@ update_places (GtkPlacesSidebar *sidebar)
 			   name, icon, mount_uri,
 			   NULL, NULL, mount, 0, tooltip);
 		g_object_unref (root);
-		g_object_unref (mount);
 		g_object_unref (icon);
 		g_free (name);
 		g_free (mount_uri);
@@ -1606,6 +1605,7 @@ drag_motion_callback (GtkTreeView *tree_view,
 
 	action = 0;
 	drop_as_bookmarks = FALSE;
+	path = NULL;
 
 	if (!sidebar->drag_data_received) {
 		if (!get_drag_data (tree_view, context, time)) {
@@ -1613,7 +1613,6 @@ drag_motion_callback (GtkTreeView *tree_view,
 		}
 	}
 
-	path = NULL;
 	res = compute_drop_position (tree_view, x, y, &path, &pos, sidebar);
 
 	if (!res) {
@@ -1769,8 +1768,18 @@ drop_files_as_bookmarks (GtkPlacesSidebar *sidebar,
 
 	for (l = files; l; l = l->next) {
 		GFile *f = G_FILE (l->data);
+		GFileInfo *info = g_file_query_info (f,
+						     G_FILE_ATTRIBUTE_STANDARD_TYPE,
+						     G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+						     NULL,
+						     NULL);
 
-		_gtk_bookmarks_manager_insert_bookmark (sidebar->bookmarks_manager, f, position++, NULL); /* NULL-GError */
+		if (info) {
+			if (_gtk_file_info_consider_as_directory (info))
+				_gtk_bookmarks_manager_insert_bookmark (sidebar->bookmarks_manager, f, position++, NULL); /* NULL-GError */
+
+			g_object_unref (info);
+		}
 	}
 }
 
@@ -3568,11 +3577,14 @@ hostname_proxy_new_cb (GObject      *source_object,
 {
 	GtkPlacesSidebar *sidebar = user_data;
 	GError *error = NULL;
+        GDBusProxy *proxy;
 
-	sidebar->hostnamed_proxy = g_dbus_proxy_new_for_bus_finish (res, &error);
+	proxy = g_dbus_proxy_new_for_bus_finish (res, &error);
+        if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+          return;
+
+        sidebar->hostnamed_proxy = proxy;
 	g_clear_object (&sidebar->hostnamed_cancellable);
-
-	g_object_unref (sidebar);
 
 	if (error != NULL) {
 		g_debug ("Failed to create D-Bus proxy: %s", error->message);
@@ -3833,7 +3845,7 @@ gtk_places_sidebar_init (GtkPlacesSidebar *sidebar)
 				  "org.freedesktop.hostname1",
 				  sidebar->hostnamed_cancellable,
 				  hostname_proxy_new_cb,
- 				  g_object_ref (sidebar));
+ 				  sidebar);
 
 	sidebar->drop_state = DROP_STATE_NORMAL;
 	sidebar->new_bookmark_index = -1;

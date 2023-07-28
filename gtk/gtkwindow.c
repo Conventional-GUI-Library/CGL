@@ -104,6 +104,11 @@
  * <object class="GtkAccelGroup" id="accelgroup1"/>
  * ]]></programlisting>
  * </example>
+ * <para>
+ * The GtkWindow implementation of the GtkBuildable interface
+ * supports setting a child as the titlebar by specifying "titlebar" as
+ * the "type" attribute of a <tag class="starttag">child</tag> element.
+ * </para>
  * </refsect2>
  */
 
@@ -143,6 +148,7 @@ struct _GtkWindowPrivate
 
   guint    mnemonics_display_timeout_id;
 
+  gint title_height;
   GtkWidget *title_box;
   GtkWidget *title_icon;
   GtkWidget *title_min_button;
@@ -159,6 +165,7 @@ struct _GtkWindowPrivate
    * and on unrealize (for size).
    */
   guint    need_default_position     : 1;
+  guint    need_default_size         : 1;
 
   guint    above_initially           : 1;
   guint    accept_focus              : 1;
@@ -203,6 +210,7 @@ struct _GtkWindowPrivate
   guint    client_decorated          : 1; /* Decorations drawn client-side */
   guint    custom_title              : 1; /* app-provided titlebar */
   guint    fullscreen                : 1;
+  guint    tiled                     : 1;
 
 };
 
@@ -512,6 +520,10 @@ static void gtk_window_get_property (GObject         *object,
 
 /* GtkBuildable */
 static void gtk_window_buildable_interface_init  (GtkBuildableIface *iface);
+static void gtk_window_buildable_add_child (GtkBuildable *buildable,
+                                            GtkBuilder   *builder,
+                                            GObject      *child,
+                                            const gchar  *type);
 static void gtk_window_buildable_set_buildable_property (GtkBuildable        *buildable,
 							 GtkBuilder          *builder,
 							 const gchar         *name,
@@ -531,6 +543,7 @@ static void gtk_window_buildable_custom_finished (GtkBuildable  *buildable,
 						      gpointer       user_data);
 
 static void ensure_state_flag_backdrop (GtkWidget *widget);
+static void unset_titlebar (GtkWindow *window);
 
 G_DEFINE_TYPE_WITH_CODE (GtkWindow, gtk_window, GTK_TYPE_BIN,
                          G_IMPLEMENT_INTERFACE (GTK_TYPE_BUILDABLE,
@@ -1274,6 +1287,7 @@ gtk_window_init (GtkWindow *window)
   priv->resizable = TRUE;
   priv->configure_notify_received = FALSE;
   priv->position = GTK_WIN_POS_NONE;
+  priv->need_default_size = TRUE;
   priv->need_default_position = TRUE;
   priv->modal = FALSE;
   priv->gdk_type_hint = GDK_WINDOW_TYPE_HINT_NORMAL;
@@ -1557,6 +1571,21 @@ gtk_window_buildable_interface_init (GtkBuildableIface *iface)
   iface->parser_finished = gtk_window_buildable_parser_finished;
   iface->custom_tag_start = gtk_window_buildable_custom_tag_start;
   iface->custom_finished = gtk_window_buildable_custom_finished;
+  iface->add_child = gtk_window_buildable_add_child;
+}
+
+static void
+gtk_window_buildable_add_child (GtkBuildable *buildable,
+                                GtkBuilder   *builder,
+                                GObject      *child,
+                                const gchar  *type)
+{
+  if (type && strcmp (type, "titlebar") == 0)
+    gtk_window_set_titlebar (GTK_WINDOW (buildable), GTK_WIDGET (child));
+  else if (!type)
+    gtk_container_add (GTK_CONTAINER (buildable), GTK_WIDGET (child));
+  else
+    GTK_BUILDER_WARN_INVALID_CHILD_TYPE (buildable, type);
 }
 
 static void
@@ -1764,7 +1793,7 @@ gtk_window_set_title (GtkWindow   *window,
   if (gtk_widget_get_realized (widget))
     gdk_window_set_title (gtk_widget_get_window (widget), priv->title);
 
-  if (priv->title_box != NULL)
+  if (GTK_IS_CSD_TITLE_BAR (priv->title_box) && !priv->custom_title)
     gtk_csd_title_bar_set_title (GTK_CSD_TITLE_BAR (priv->title_box), priv->title);
 
   g_object_notify (G_OBJECT (window), "title");
@@ -2511,7 +2540,6 @@ remove_attach_widget (GtkWindow *window)
     {
       _gtk_widget_remove_attached_window (priv->attach_widget, window);
 
-      g_object_unref (priv->attach_widget);
       priv->attach_widget = NULL;
     }
 }
@@ -2523,6 +2551,7 @@ gtk_window_dispose (GObject *object)
 
   gtk_window_set_focus (window, NULL);
   gtk_window_set_default (window, NULL);
+  unset_titlebar (window);
 
   remove_attach_widget (GTK_WINDOW (object));
 
@@ -2760,8 +2789,6 @@ gtk_window_set_attached_to (GtkWindow *window,
   if (priv->attach_widget)
     {
       _gtk_widget_add_attached_window (priv->attach_widget, window);
-
-      g_object_ref (priv->attach_widget);
     }
 
   /* Update the style, as the widget path might change. */
@@ -3415,6 +3442,22 @@ gtk_window_set_geometry_hints (GtkWindow       *window,
   gtk_widget_queue_resize_no_redraw (GTK_WIDGET (window));
 }
 
+static void
+unset_titlebar (GtkWindow *window)
+{
+  GtkWindowPrivate *priv = window->priv;
+
+  if (priv->title_box != NULL)
+    {
+      gtk_widget_unparent (priv->title_box);
+      priv->title_box = NULL;
+      priv->title_icon = NULL;
+      priv->title_min_button = NULL;
+      priv->title_max_button = NULL;
+      priv->title_close_button = NULL;
+    }
+}
+
 /**
  * gtk_window_set_titlebar:
  * @window: a #GtkWindow
@@ -3441,15 +3484,7 @@ gtk_window_set_titlebar (GtkWindow *window,
 
   g_return_if_fail (GTK_IS_WINDOW (window));
 
-  if (priv->title_box != NULL)
-    {
-      gtk_widget_unparent (priv->title_box);
-      priv->title_box = NULL;
-      priv->title_icon = NULL;
-      priv->title_min_button = NULL;
-      priv->title_max_button = NULL;
-      priv->title_close_button = NULL;
-    }
+  unset_titlebar (window);
 
   priv->custom_title = TRUE;
   priv->title_box = titlebar;
@@ -3458,6 +3493,8 @@ gtk_window_set_titlebar (GtkWindow *window,
   visual = gdk_screen_get_rgba_visual (gtk_widget_get_screen (widget));
   if (visual)
     gtk_widget_set_visual (widget, visual);
+
+  gtk_widget_queue_resize (widget);
 }
 
 /**
@@ -4994,16 +5031,27 @@ update_window_buttons (GtkWindow *window)
   GtkWindowPrivate *priv = window->priv;
   gboolean maximized;
 
-  if (priv->custom_title)
+  if (priv->title_box == NULL)
     return;
 
   maximized = gtk_window_get_maximized (window);
 
+  if (priv->fullscreen ||
+      (maximized && priv->hide_titlebar_when_maximized))
+    {
+      gtk_widget_hide (priv->title_box);
+      return;
+    }
+  else
+    {
+      gtk_widget_show (priv->title_box);
+    }
+
+  if (priv->custom_title)
+    return;
+
   if (priv->decorated &&
-      priv->client_decorated &&
-      !priv->fullscreen &&
-      !(maximized && priv->hide_titlebar_when_maximized) &&
-      priv->title_box != NULL)
+      priv->client_decorated)
     {
       gchar *layout_desc;
       gchar **tokens, **t;
@@ -5125,13 +5173,6 @@ update_window_buttons (GtkWindow *window)
           g_strfreev (tokens);
         }
       g_free (layout_desc);
-
-      gtk_widget_show (priv->title_box);
-    }
-  else
-    {
-      if (priv->title_box != NULL)
-        gtk_widget_hide (priv->title_box);
     }
 }
 
@@ -5376,6 +5417,7 @@ gtk_window_map (GtkWidget *widget)
     }
 
   /* No longer use the default settings */
+  priv->need_default_size = FALSE;
   priv->need_default_position = FALSE;
 
   if (priv->reset_type_hint)
@@ -5866,6 +5908,7 @@ gtk_window_unrealize (GtkWidget *widget)
    *
    * Default positioning is reset on unmap, instead of unrealize.
    */
+  priv->need_default_size = TRUE;
   info = gtk_window_get_geometry_info (window, FALSE);
   if (info)
     {
@@ -6087,7 +6130,8 @@ get_decoration_size (GtkWidget *widget,
   if (!priv->client_decorated)
     return;
 
-  if (gtk_window_get_maximized (GTK_WINDOW (widget)))
+  if (gtk_window_get_maximized (GTK_WINDOW (widget)) ||
+      GTK_WINDOW (widget)->priv->tiled)
     return;
 
   state = gtk_widget_get_state_flags (widget);
@@ -6345,9 +6389,8 @@ _gtk_window_set_allocation (GtkWindow           *window,
   GtkWidget *widget = (GtkWidget *)window;
   GtkWindowPrivate *priv = window->priv;
   GtkAllocation child_allocation;
-  guint border_width;
+  gint border_width;
   GtkBorder window_border = { 0 };
-  gint title_height = 0;
 
   g_assert (allocation != NULL);
   g_assert (allocation_out != NULL);
@@ -6361,6 +6404,8 @@ _gtk_window_set_allocation (GtkWindow           *window,
   child_allocation.y = 0;
   child_allocation.width = allocation->width;
   child_allocation.height = allocation->height;
+
+  priv->title_height = 0;
 
   if (priv->title_box != NULL &&
       priv->decorated &&
@@ -6377,9 +6422,9 @@ _gtk_window_set_allocation (GtkWindow           *window,
       gtk_widget_get_preferred_height_for_width (priv->title_box,
                                                  title_allocation.width,
                                                  NULL,
-                                                 &title_height);
+                                                 &priv->title_height);
 
-      title_allocation.height = title_height;
+      title_allocation.height = priv->title_height;
 
       gtk_widget_size_allocate (priv->title_box, &title_allocation);
     }
@@ -6388,10 +6433,10 @@ _gtk_window_set_allocation (GtkWindow           *window,
       !priv->fullscreen)
     {
       child_allocation.x += window_border.left;
-      child_allocation.y += window_border.top + title_height;
+      child_allocation.y += window_border.top + priv->title_height;
       child_allocation.width -= window_border.left + window_border.right;
       child_allocation.height -= window_border.top + window_border.bottom +
-                                title_height;
+                                 priv->title_height;
     }
 
   if (gtk_widget_get_realized (widget))
@@ -6524,7 +6569,14 @@ gtk_window_state_event (GtkWidget           *widget,
         (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) ? 1 : 0;
     }
 
-  if (event->changed_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED))
+  if (event->changed_mask & GDK_WINDOW_STATE_TILED)
+    {
+      priv->tiled =
+        (event->new_window_state & GDK_WINDOW_STATE_TILED) ? 1 : 0;
+    }
+
+
+  if (event->changed_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_TILED))
     {
       update_window_buttons (window);
       gtk_widget_queue_draw (GTK_WIDGET (window));
@@ -6976,7 +7028,7 @@ get_active_region_type (GtkWindow *window, GdkEventAny *event, gint x, gint y)
         return i;
     }
 
-  if (priv->title_box != NULL)
+  if (priv->title_box != NULL && gtk_widget_get_visible (priv->title_box))
     {
       gtk_widget_get_allocation (priv->title_box, &allocation);
       if (allocation.x <= x && allocation.x + allocation.width > x &&
@@ -7839,6 +7891,7 @@ gtk_window_compute_configure_request_size (GtkWindow   *window,
                                            gint        *width,
                                            gint        *height)
 {
+  GtkWindowPrivate *priv = window->priv;
   GtkWindowGeometryInfo *info;
   int w, h;
 
@@ -7848,46 +7901,52 @@ gtk_window_compute_configure_request_size (GtkWindow   *window,
   
   info = gtk_window_get_geometry_info (window, FALSE);
 
-  gtk_window_guess_default_size (window, width, height);
+  if (priv->need_default_size)
+    {
+      gtk_window_guess_default_size (window, width, height);
+      gtk_window_get_remembered_size (window, &w, &h);
+      *width = MAX (*width, w);
+      *height = MAX (*height, h);
 
-  /* If window is empty so requests 0, default to random nonzero size */
-   if (*width == 0 && *height == 0)
-     {
-       *width = 200;
-       *height = 200;
-     }
+      /* If window is empty so requests 0, default to random nonzero size */
+      if (*width == 0 && *height == 0)
+        {
+          *width = 200;
+          *height = 200;
+        }
 
-   /* Override with default size */
-   if (info)
-     {
-       if (info->default_width > 0)
-         *width = info->default_width;
-       if (info->default_height > 0)
-         *height = info->default_height;
+      /* Override with default size */
+      if (info)
+        {
+          if (info->default_width > 0)
+            *width = info->default_width;
+          if (info->default_height > 0)
+            *height = info->default_height;
 
-       if (info->default_is_geometry)
-         geometry_size_to_pixels (geometry, flags,
+          if (info->default_is_geometry)
+            geometry_size_to_pixels (geometry, flags,
                                   info->default_width > 0 ? width : NULL,
                                   info->default_height > 0 ? height : NULL);
-     }
-
-  /* Override with last size of this window */
-  gtk_window_get_remembered_size (window, &w, &h);
-  *width = MAX (*width, w);
-  *height = MAX (*height, h);
+        }
+    }
+  else
+    {
+      /* Default to keeping current size */
+      gtk_window_get_remembered_size (window, width, height);
+    }
 
   /* Override any size with gtk_window_resize() values */
   if (info)
     {
       if (info->resize_width > 0)
-	*width = info->resize_width;
+       *width = info->resize_width;
       if (info->resize_height > 0)
-	*height = info->resize_height;
+       *height = info->resize_height;
 
       if (info->resize_is_geometry)
-	geometry_size_to_pixels (geometry, flags,
-				 info->resize_width > 0 ? width : NULL,
-				 info->resize_height > 0 ? height : NULL);
+       geometry_size_to_pixels (geometry, flags,
+                                info->resize_width > 0 ? width : NULL,
+                                info->resize_height > 0 ? height : NULL);
     }
 
   /* Don't ever request zero width or height, it's not supported by
@@ -8857,6 +8916,7 @@ gtk_window_draw (GtkWidget *widget,
       if (priv->client_decorated &&
           priv->decorated &&
           !priv->fullscreen &&
+          !priv->tiled &&
           !gtk_window_get_maximized (GTK_WINDOW (widget)))
         {
           gtk_style_context_save (context);
@@ -8880,8 +8940,8 @@ gtk_window_draw (GtkWidget *widget,
           gtk_style_context_restore (context);
         }
 
-      if (priv->title_box)
-        title_height = gtk_widget_get_allocated_height (priv->title_box);
+      if (priv->title_box && gtk_widget_get_visible (priv->title_box))
+        title_height = priv->title_height;
       else
         title_height = 0;
 

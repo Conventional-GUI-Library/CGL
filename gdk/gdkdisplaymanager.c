@@ -48,7 +48,6 @@
 #endif
 
 #ifdef GDK_WINDOWING_BROADWAY
-#include "broadway/gdkbroadwaydisplaymanager.h"
 #include "broadway/gdkprivate-broadway.h"
 #endif
 
@@ -58,7 +57,6 @@
 #endif
 
 #ifdef GDK_WINDOWING_WAYLAND
-#include "wayland/gdkwayland.h"
 #include "wayland/gdkprivate-wayland.h"
 #endif
 
@@ -132,24 +130,7 @@ static void gdk_display_manager_get_property (GObject                *object,
 
 static guint signals[LAST_SIGNAL] = { 0 };
 
-static void g_initable_iface_init (GInitableIface *iface);
-
-G_DEFINE_TYPE_WITH_CODE (GdkDisplayManager, gdk_display_manager, G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (G_TYPE_INITABLE, g_initable_iface_init))
-
-static gboolean
-gdk_display_manager_initable_init (GInitable     *initable,
-                                   GCancellable  *cancellable,
-                                   GError       **error)
-{
-  return TRUE;
-}
-
-static void
-g_initable_iface_init (GInitableIface *iface)
-{
-  iface->init = gdk_display_manager_initable_init;
-}
+G_DEFINE_TYPE (GdkDisplayManager, gdk_display_manager, G_TYPE_OBJECT)
 
 static void
 gdk_display_manager_class_init (GdkDisplayManagerClass *klass)
@@ -272,7 +253,32 @@ gdk_set_allowed_backends (const gchar *backends)
   allowed_backends = g_strdup (backends);
 }
 
-static GdkDisplayManager *manager = NULL;
+typedef struct _GdkBackend GdkBackend;
+
+struct _GdkBackend {
+  const char *name;
+  GdkDisplay * (* open_display) (const char *name);
+};
+
+static GdkBackend gdk_backends[] = {
+#ifdef GDK_WINDOWING_QUARTZ
+  { "quartz",   _gdk_quartz_display_open },
+#endif
+#ifdef GDK_WINDOWING_WIN32
+  { "win32",    _gdk_win32_display_open },
+#endif
+#ifdef GDK_WINDOWING_X11
+  { "x11",      _gdk_x11_display_open },
+#endif
+#ifdef GDK_WINDOWING_WAYLAND
+  { "wayland",  _gdk_wayland_display_open },
+#endif
+#ifdef GDK_WINDOWING_BROADWAY
+  { "broadway", _gdk_broadway_display_open },
+#endif
+  /* NULL-terminating this array so we can use commas above */
+  { NULL, NULL }
+};
 
 /**
  * gdk_display_manager_get:
@@ -294,97 +300,11 @@ static GdkDisplayManager *manager = NULL;
 GdkDisplayManager*
 gdk_display_manager_get (void)
 {
-  gdk_display_manager_peek ();
+  static GdkDisplayManager *manager = NULL;
 
   if (manager == NULL)
-    g_error ("No GDK backend found (%s)", allowed_backends);
-
-  return manager;
-}
-
-typedef struct _GdkBackend GdkBackend;
-
-struct _GdkBackend {
-  const char *name;
-  GType (* get_backend_type) (void);
-  GdkDisplay * (* open_display) (const char *name);
-};
-
-static GdkBackend gdk_backends[] = {
-#ifdef GDK_WINDOWING_QUARTZ
-  { "quartz",   gdk_quartz_display_manager_get_type,    _gdk_quartz_display_open },
-#endif
-#ifdef GDK_WINDOWING_WIN32
-  { "win32",    gdk_win32_display_manager_get_type,     _gdk_win32_display_open },
-#endif
-#ifdef GDK_WINDOWING_X11
-  { "x11",      gdk_x11_display_manager_get_type,       _gdk_x11_display_open },
-#endif
-#ifdef GDK_WINDOWING_WAYLAND
-  { "wayland",  gdk_wayland_display_manager_get_type,   _gdk_wayland_display_open },
-#endif
-#ifdef GDK_WINDOWING_BROADWAY
-  { "broadway", gdk_broadway_display_manager_get_type,  _gdk_broadway_display_open },
-#endif
-  /* NULL-terminating this array so we can use commas above */
-  { NULL, NULL }
-};
-
-/**
- * gdk_display_manager_peek:
- *
- * Gets the singleton #GdkDisplayManager object. If GDK could
- * not be initialized, %NULL is returned.
- *
- * Returns: (transfer none): The global #GdkDisplayManager singleton,
- *     or %NULL if GDK could not be initialized. gdk_parse_args(),
- *     gdk_init(), or gdk_init_check() must have been called first
- *
- * Since: 3.10
- */
-GdkDisplayManager *
-gdk_display_manager_peek (void)
-{
-  if (manager == NULL)
-    {
-      const gchar *backend_list;
-      gchar **backends;
-      gint i, j;
-      gboolean allow_any;
-
-      if (allowed_backends == NULL)
-        allowed_backends = "*";
-      allow_any = strstr (allowed_backends, "*") != NULL;
-
-      backend_list = g_getenv ("GDK_BACKEND");
-      if (backend_list == NULL)
-        backend_list = allowed_backends;
-      backends = g_strsplit (backend_list, ",", 0);
-
-      for (i = 0; manager == NULL && backends[i] != NULL; i++)
-        {
-          const gchar *backend = backends[i];
-          gboolean any = g_str_equal (backend, "*");
-
-          if (!allow_any && !any && !strstr (allowed_backends, backend))
-            continue;
-
-          for (j = 0; gdk_backends[j].name != NULL; j++)
-            {
-              if ((any && allow_any) ||
-                  (any && strstr (allowed_backends, gdk_backends[j].name)) ||
-                  g_str_equal (backend, gdk_backends[j].name))
-                {
-                  GDK_NOTE (MISC, g_message ("Trying %s backend", gdk_backends[j].name));
-                  manager = g_initable_new (gdk_backends[j].get_backend_type (), NULL, NULL, NULL);
-                  if (manager)
-                    break;
-                }
-            }
-        }
-      g_strfreev (backends);
-    }
-
+    manager = g_object_new (GDK_TYPE_DISPLAY_MANAGER, NULL);
+  
   return manager;
 }
 
@@ -501,19 +421,48 @@ GdkDisplay *
 gdk_display_manager_open_display (GdkDisplayManager *manager,
                                   const gchar       *name)
 {
-  guint i;
+  const gchar *backend_list;
+  GdkDisplay *display;
+  gchar **backends;
+  gint i, j;
+  gboolean allow_any;
 
-  for (i = 0; gdk_backends[i].name != NULL; i++)
+  if (allowed_backends == NULL)
+    allowed_backends = "*";
+  allow_any = strstr (allowed_backends, "*") != NULL;
+
+  backend_list = g_getenv ("GDK_BACKEND");
+  if (backend_list == NULL)
+    backend_list = allowed_backends;
+  backends = g_strsplit (backend_list, ",", 0);
+
+  display = NULL;
+
+  for (i = 0; display == NULL && backends[i] != NULL; i++)
     {
-      if (G_OBJECT_TYPE (manager) == gdk_backends[i].get_backend_type ())
+      const gchar *backend = backends[i];
+      gboolean any = g_str_equal (backend, "*");
+
+      if (!allow_any && !any && !strstr (allowed_backends, backend))
+        continue;
+
+      for (j = 0; gdk_backends[j].name != NULL; j++)
         {
-          return gdk_backends[i].open_display (name);
+          if ((any && allow_any) ||
+              (any && strstr (allowed_backends, gdk_backends[j].name)) ||
+              g_str_equal (backend, gdk_backends[j].name))
+            {
+              GDK_NOTE (MISC, g_message ("Trying %s backend", gdk_backends[j].name));
+              display = gdk_backends[j].open_display (name);
+              if (display)
+                break;
+            }
         }
     }
 
-  g_assert_not_reached ();
+  g_strfreev (backends);
 
-  return NULL;
+  return display;
 }
 
 void

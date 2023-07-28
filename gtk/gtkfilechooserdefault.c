@@ -1026,17 +1026,23 @@ error_with_file_under_nonfolder (GtkFileChooserDefault *impl,
 		parent_file, error);
 }
 
+static void
+error_filename_to_long_dialog (GtkFileChooserDefault *impl)
+{
+  error_message (impl,
+                 _("Cannot create file as the filename is to long"),
+                 _("Try using a shorter name."));
+}
+
 /* Shows an error about not being able to select a folder because a file with
  * the same name is already there.
  */
 static void
-error_selecting_folder_over_existing_file_dialog (GtkFileChooserDefault *impl,
-						  GFile                 *file)
+error_selecting_folder_over_existing_file_dialog (GtkFileChooserDefault *impl)
 {
-  error_dialog (impl,
-		_("You may only select folders.  The item that you selected is not a folder; "
-                  "try using a different item."),
-		file, NULL);
+  error_message (impl,
+                 _("You may only select folders"),
+                 _("The item that you selected is not a folder try using a different item."));
 }
 
 /* Shows an error dialog about not being able to create a filename */
@@ -8637,7 +8643,7 @@ file_exists_get_info_cb (GCancellable *cancellable,
 	      request_response_and_add_to_recent_list (data->impl);
 	    }
 	  else
-	    error_selecting_folder_over_existing_file_dialog (data->impl, data->file);
+	    error_selecting_folder_over_existing_file_dialog (data->impl);
 	}
     }
   else if (data->impl->action == GTK_FILE_CHOOSER_ACTION_SAVE)
@@ -8645,7 +8651,10 @@ file_exists_get_info_cb (GCancellable *cancellable,
       if (is_folder)
 	change_folder_and_display_error (data->impl, data->file, TRUE);
       else
-	needs_parent_check = TRUE;
+        if (!file_exists && g_error_matches (error, G_IO_ERROR, G_IO_ERROR_FILENAME_TOO_LONG))
+          error_filename_to_long_dialog (data->impl);
+        else
+          needs_parent_check = TRUE;
     }
   else
     {

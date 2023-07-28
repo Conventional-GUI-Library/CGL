@@ -31,6 +31,12 @@
 #include "gtkthemingengineprivate.h"
 #include "gtkpango.h"
 
+#include <math.h>
+
+/* The blur of _gtk_cairo_blur_surface only approximately ends at radius,
+   so we add an extra pixel to make the clips less dramatic */
+#define CLIP_RADIUS_EXTRA 4
+
 struct _GtkCssValue {
   GTK_CSS_VALUE_BASE
   guint inset :1;
@@ -314,7 +320,7 @@ gtk_css_shadow_value_start_drawing (const GtkCssValue *shadow,
   cairo_rectangle_int_t clip_rect;
   cairo_surface_t *surface;
   cairo_t *blur_cr;
-  gdouble radius;
+  gdouble radius, clip_radius;
 
   radius = _gtk_css_number_value_get (shadow->radius, 0);
   if (radius == 0.0)
@@ -322,11 +328,13 @@ gtk_css_shadow_value_start_drawing (const GtkCssValue *shadow,
 
   gdk_cairo_get_clip_rectangle (cr, &clip_rect);
 
+  clip_radius = radius + CLIP_RADIUS_EXTRA;
+
   /* Create a larger surface to center the blur. */
   surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
-                                        clip_rect.width + 2 * radius,
-                                        clip_rect.height + 2 * radius);
-  cairo_surface_set_device_offset (surface, radius - clip_rect.x, radius - clip_rect.y);
+                                        clip_rect.width + 2 * clip_radius,
+                                        clip_rect.height + 2 * clip_radius);
+  cairo_surface_set_device_offset (surface, clip_radius - clip_rect.x, clip_radius - clip_rect.y);
   blur_cr = cairo_create (surface);
   cairo_set_user_data (blur_cr, &shadow_key, cairo_reference (cr), (cairo_destroy_func_t) cairo_destroy);
 
@@ -475,49 +483,239 @@ _gtk_css_shadow_value_get_geometry (const GtkCssValue *shadow,
     *spread = _gtk_css_number_value_get (shadow->spread, 0);
 }
 
+static gboolean
+has_empty_clip (cairo_t *cr)
+{
+  double x1, y1, x2, y2;
+
+  cairo_clip_extents (cr, &x1, &y1, &x2, &y2);
+  return x1 == x2 && y1 == y2;
+}
+
+static void
+draw_shadow (const GtkCssValue   *shadow,
+	     cairo_t             *cr,
+	     GtkRoundedBox       *box,
+	     GtkRoundedBox       *clip_box,
+	     gboolean             blur)
+{
+  cairo_t *shadow_cr;
+
+  if (has_empty_clip (cr))
+    return;
+
+  if (blur)
+    shadow_cr = gtk_css_shadow_value_start_drawing (shadow, cr);
+  else
+    shadow_cr = cr;
+
+  cairo_set_fill_rule (shadow_cr, CAIRO_FILL_RULE_EVEN_ODD);
+  _gtk_rounded_box_path (box, shadow_cr);
+  if (shadow->inset)
+    _gtk_rounded_box_clip_path (clip_box, shadow_cr);
+
+  gdk_cairo_set_source_rgba (shadow_cr, _gtk_css_rgba_value_get_rgba (shadow->color));
+  cairo_fill (shadow_cr);
+
+  if (blur)
+    gtk_css_shadow_value_finish_drawing (shadow, shadow_cr);
+}
+
 void
 _gtk_css_shadow_value_paint_box (const GtkCssValue   *shadow,
                                  cairo_t             *cr,
                                  const GtkRoundedBox *padding_box)
 {
   GtkRoundedBox box, clip_box;
-  double spread, radius;
+  double spread, radius, clip_radius, x, y, outside;
 
   g_return_if_fail (shadow->class == &GTK_CSS_VALUE_SHADOW);
 
   cairo_save (cr);
+
+  spread = _gtk_css_number_value_get (shadow->spread, 0);
+  radius = _gtk_css_number_value_get (shadow->radius, 0);
+  clip_radius = radius + CLIP_RADIUS_EXTRA;
+  x = _gtk_css_number_value_get (shadow->hoffset, 0);
+  y = _gtk_css_number_value_get (shadow->voffset, 0);
 
   if (shadow->inset)
     {
       _gtk_rounded_box_path (padding_box, cr);
       cairo_clip (cr);
     }
+  else
+    {
+      cairo_set_fill_rule (cr, CAIRO_FILL_RULE_EVEN_ODD);
+      _gtk_rounded_box_path (padding_box, cr);
+
+      outside = spread + clip_radius + MAX (fabs (x), fabs (y));
+      clip_box = *padding_box;
+      _gtk_rounded_box_grow (&clip_box, outside, outside, outside, outside);
+      _gtk_rounded_box_clip_path (&clip_box, cr);
+
+      cairo_clip (cr);
+    }
+
+  if (has_empty_clip (cr))
+    {
+      cairo_restore (cr);
+      return;
+    }
 
   box = *padding_box;
-  _gtk_rounded_box_move (&box,
-                         _gtk_css_number_value_get (shadow->hoffset, 0),
-                         _gtk_css_number_value_get (shadow->voffset, 0));
-  spread = _gtk_css_number_value_get (shadow->spread, 0);
+  _gtk_rounded_box_move (&box, x, y);
+
   if (shadow->inset)
     _gtk_rounded_box_shrink (&box, spread, spread, spread, spread);
   else /* Outset */
     _gtk_rounded_box_grow (&box, spread, spread, spread, spread);
 
   clip_box = *padding_box;
-  radius = _gtk_css_number_value_get (shadow->radius, 0);
-  _gtk_rounded_box_shrink (&clip_box, -radius, -radius, -radius, -radius);
+  _gtk_rounded_box_shrink (&clip_box, -clip_radius, -clip_radius, -clip_radius, -clip_radius);
 
-  cr = gtk_css_shadow_value_start_drawing (shadow, cr);
+  if (radius == 0)
+    draw_shadow (shadow, cr, &box, &clip_box, FALSE);
+  else
+    {
+      int i, x1, x2, y1, y2;
+      cairo_region_t *remaining;
+      cairo_rectangle_int_t r;
 
-  cairo_set_fill_rule (cr, CAIRO_FILL_RULE_EVEN_ODD);
-  _gtk_rounded_box_path (&box, cr);
-  if (shadow->inset)
-    _gtk_rounded_box_clip_path (&clip_box, cr);
+      /* For the blurred case we divide the rendering into 9 parts,
+       * 4 of the corners, 4 for the horizonat/vertical lines and
+       * one for the interior. We make the non-interior parts
+       * large enought to fit the full radius of the blur, so that
+       * the interior part can be drawn solidly.
+       */
 
-  gdk_cairo_set_source_rgba (cr, _gtk_css_rgba_value_get_rgba (shadow->color));
-  cairo_fill (cr);
+      if (shadow->inset)
+	{
+	  /* In the inset case we want to paint the whole clip-box.
+	   * We could remove the part of "box" where the blur doesn't
+	   * reach, but computing that is a bit tricky since the
+	   * rounded corners are on the "inside" of it. */
+	  r.x = floor (clip_box.box.x);
+	  r.y = floor (clip_box.box.y);
+	  r.width = ceil (clip_box.box.x + clip_box.box.width) - r.x;
+	  r.height = ceil (clip_box.box.y + clip_box.box.height) - r.y;
+	  remaining = cairo_region_create_rectangle (&r);
+	}
+      else
+	{
+	  /* In the outset case we want to paint the entire box, plus as far
+	   * as the radius reaches from it */
+	  r.x = floor (box.box.x - clip_radius);
+	  r.y = floor (box.box.y - clip_radius);
+	  r.width = ceil (box.box.x + box.box.width + clip_radius) - r.x;
+	  r.height = ceil (box.box.y + box.box.height + clip_radius) - r.y;
 
-  cr = gtk_css_shadow_value_finish_drawing (shadow, cr);
+	  remaining = cairo_region_create_rectangle (&r);
+	}
+
+      /* First do the corners of box */
+      for (i = 0; i < 4; i++)
+	{
+	  if (i == GTK_CSS_TOP_LEFT || i == GTK_CSS_BOTTOM_LEFT)
+	    {
+	      x1 = floor (box.box.x - clip_radius);
+	      x2 = ceil (box.box.x + box.corner[i].horizontal + clip_radius);
+	    }
+	  else
+	    {
+	      x1 = floor (box.box.x + box.box.width - box.corner[i].horizontal - clip_radius);
+	      x2 = ceil (box.box.x + box.box.width + clip_radius);
+	    }
+
+	  if (i == GTK_CSS_TOP_LEFT || i == GTK_CSS_TOP_RIGHT)
+	    {
+	      y1 = floor (box.box.y - clip_radius);
+	      y2 = ceil (box.box.y + box.corner[i].vertical + clip_radius);
+	    }
+	  else
+	    {
+	      y1 = floor (box.box.y + box.box.height - box.corner[i].vertical - clip_radius);
+	      y2 = ceil (box.box.y + box.box.height + clip_radius);
+	    }
+
+
+	  cairo_save (cr);
+	  cairo_rectangle (cr, x1, y1, x2 - x1, y2 - y1);
+	  cairo_clip (cr);
+	  /* Also clip with remaining to ensure we never draw any area twice */
+	  gdk_cairo_region (cr, remaining);
+	  cairo_clip (cr);
+	  draw_shadow (shadow, cr, &box, &clip_box, TRUE);
+	  cairo_restore (cr);
+
+	  /* We drew the region, remove it from remaining */
+	  r.x = x1;
+	  r.y = y1;
+	  r.width = x2 - x1;
+	  r.height = y2 - y1;
+	  cairo_region_subtract_rectangle (remaining, &r);
+	}
+
+      /* Then the sides */
+      for (i = 0; i < 4; i++)
+	{
+	  if (i == GTK_CSS_TOP || i == GTK_CSS_BOTTOM)
+	    {
+	      x1 = floor (box.box.x - clip_radius);
+	      x2 = ceil (box.box.x + box.box.width + clip_radius);
+	    }
+	  else if (i == GTK_CSS_LEFT)
+	    {
+	      x1 = floor (box.box.x -clip_radius);
+	      x2 = ceil (box.box.x + clip_radius);
+	    }
+	  else
+	    {
+	      x1 = floor (box.box.x + box.box.width -clip_radius);
+	      x2 = ceil (box.box.x + box.box.width + clip_radius);
+	    }
+
+	  if (i == GTK_CSS_LEFT || i == GTK_CSS_RIGHT)
+	    {
+	      y1 = floor (box.box.y - clip_radius);
+	      y2 = ceil (box.box.y + box.box.height + clip_radius);
+	    }
+	  else if (i == GTK_CSS_TOP)
+	    {
+	      y1 = floor (box.box.y -clip_radius);
+	      y2 = ceil (box.box.y + clip_radius);
+	    }
+	  else
+	    {
+	      y1 = floor (box.box.y + box.box.height -clip_radius);
+	      y2 = ceil (box.box.y + box.box.height + clip_radius);
+	    }
+
+	  cairo_save (cr);
+	  cairo_rectangle (cr, x1, y1, x2 - x1, y2 - y1);
+	  cairo_clip (cr);
+	  /* Also clip with remaining to ensure we never draw any area twice */
+	  gdk_cairo_region (cr, remaining);
+	  cairo_clip (cr);
+	  draw_shadow (shadow, cr, &box, &clip_box, TRUE);
+	  cairo_restore (cr);
+
+	  /* We drew the region, remove it from remaining */
+	  r.x = x1;
+	  r.y = y1;
+	  r.width = x2 - x1;
+	  r.height = y2 - y1;
+	  cairo_region_subtract_rectangle (remaining, &r);
+	}
+
+      /* Then the rest, which needs no blurring */
+
+      cairo_save (cr);
+      gdk_cairo_region (cr, remaining);
+      cairo_clip (cr);
+      draw_shadow (shadow, cr, &box, &clip_box, FALSE);
+      cairo_restore (cr);
+    }
 
   cairo_restore (cr);
 }

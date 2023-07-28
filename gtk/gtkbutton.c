@@ -1783,10 +1783,13 @@ gtk_button_button_press (GtkWidget      *widget,
 	gtk_widget_grab_focus (widget);
 
       if (event->button == GDK_BUTTON_PRIMARY)
-        g_signal_emit (button, button_signals[PRESSED], 0);
+        {
+          g_signal_emit (button, button_signals[PRESSED], 0);
+          return GDK_EVENT_STOP;
+        }
     }
 
-  return TRUE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 static gboolean
@@ -1799,9 +1802,10 @@ gtk_button_button_release (GtkWidget      *widget,
     {
       button = GTK_BUTTON (widget);
       g_signal_emit (button, button_signals[RELEASED], 0);
+      return GDK_EVENT_STOP;
     }
 
-  return TRUE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 static gboolean
@@ -1817,13 +1821,15 @@ gtk_button_touch (GtkWidget     *widget,
         gtk_widget_grab_focus (widget);
 
       g_signal_emit (button, button_signals[PRESSED], 0);
+      return GDK_EVENT_STOP;
     }
   else if (event->type == GDK_TOUCH_END)
     {
       g_signal_emit (button, button_signals[RELEASED], 0);
+      return GDK_EVENT_STOP;
     }
 
-  return TRUE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 static gboolean
