@@ -185,9 +185,9 @@ void           gtk_list_box_drag_unhighlight_row         (GtkListBox            
 void           gtk_list_box_drag_highlight_row           (GtkListBox                    *list_box,
                                                           GtkListBoxRow                 *row);
 GtkWidget*     gtk_list_box_new                          (void);
-void           gtk_list_box_set_placeholder              (GtkListBox                    *list_box,
+void           gtk_list_box_set_placeholder              (GtkListBox                    *list_box, GtkWidget                     *placeholder);
 gboolean       gtk_list_box_get_activate_on_single_click (GtkListBox                    *list_box);
-                                                          GtkWidget                     *placeholder);
+                                                          
 
 G_END_DECLS
 
