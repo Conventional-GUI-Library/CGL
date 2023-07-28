@@ -10,5 +10,6 @@
     <file alias="cursor/dnd-none.png">cursor_dnd_none.png</file>
     <file alias="cursor/dnd-move.png">cursor_dnd_move.png</file>
     <file alias="cursor/dnd-copy.png">cursor_dnd_copy.png</file>
+    <file compressed="true">gtksearchbar.ui</file>
   </gresource>
 </gresources>

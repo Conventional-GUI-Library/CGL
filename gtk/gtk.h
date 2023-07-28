@@ -87,6 +87,9 @@
 #include <gtk/gtkcomboboxtext.h>
 #include <gtk/gtkcomboboxentry.h>
 #include <gtk/gtkcontainer.h>
+#if defined(CGL_ENABLE_SEMIPRIVATES) || defined(GTK_COMPILATION)						
+#include <gtk/gtkcsdtitlebar.h>
+#endif
 #include <gtk/gtkcssprovider.h>
 #include <gtk/gtkcsssection.h>
 #include <gtk/gtkdebug.h>
@@ -136,6 +139,7 @@
 #include <gtk/gtklevelbar.h>
 #include <gtk/gtklayout.h>
 #include <gtk/gtklinkbutton.h>
+#include <gtk/gtklistbox.h>
 #include <gtk/gtkliststore.h>
 #include <gtk/gtklockbutton.h>
 #include <gtk/gtkmain.h>
@@ -182,6 +186,7 @@
 #include <gtk/gtkscrollable.h>
 #include <gtk/gtkscrollbar.h>
 #include <gtk/gtkscrolledwindow.h>
+#include <gtk/gtksearchbar.h>
 #include <gtk/gtksearchentry.h>
 #include <gtk/gtkselection.h>
 #include <gtk/gtkseparator.h>

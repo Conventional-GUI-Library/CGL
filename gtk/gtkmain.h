@@ -165,6 +165,8 @@ GtkWidget *gtk_get_event_widget         (GdkEvent        *event);
 
 void       gtk_propagate_event          (GtkWidget       *widget,
                                          GdkEvent        *event);
+                                       
+void cgl_set_gtk3_emulation(gboolean value);
 
 
 G_END_DECLS

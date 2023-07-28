@@ -239,6 +239,7 @@ static GSList *key_snoopers = NULL;
 static guint debug_flags = 0;              /* Global GTK debug flag */
 
 gboolean enable_gtk2_workaround = FALSE;
+gboolean enable_gtk3_emulation = FALSE;
 
 #ifdef G_ENABLE_DEBUG
 static const GDebugKey gtk_debug_keys[] = {
@@ -258,6 +259,18 @@ static const GDebugKey gtk_debug_keys[] = {
   {"no-css-cache", GTK_DEBUG_NO_CSS_CACHE}
 };
 #endif /* G_ENABLE_DEBUG */
+
+gboolean _cgl_get_gtk3_emulation (void)
+{
+
+  return enable_gtk3_emulation;
+}
+
+void cgl_set_gtk3_emulation(gboolean value)
+{
+
+  enable_gtk3_emulation = value;
+}
 
 /**
  * gtk_get_major_version:

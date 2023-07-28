@@ -36,6 +36,7 @@ gboolean _gtk_single_string_accumulator (GSignalInvocationHint *ihint,
 gchar *_gtk_get_lc_ctype (void);
 
 gboolean _gtk_module_has_mixed_deps (GModule *module);
+gboolean _cgl_get_gtk3_emulation (void);
 
 G_END_DECLS
 

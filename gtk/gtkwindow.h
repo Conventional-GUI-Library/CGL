@@ -187,8 +187,10 @@ void       gtk_window_set_geometry_hints       (GtkWindow           *window,
 						GtkWidget           *geometry_widget,
 						GdkGeometry         *geometry,
 						GdkWindowHints       geom_mask);
+#if defined(CGL_ENABLE_SEMIPRIVATES) || defined(GTK_COMPILATION)						
 void     gtk_window_set_titlebar           (GtkWindow    *window,
                                             GtkWidget    *titlebar);
+#endif
 void	   gtk_window_set_screen	       (GtkWindow	    *window,
 						GdkScreen	    *screen);
 GdkScreen* gtk_window_get_screen	       (GtkWindow	    *window);

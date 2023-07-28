@@ -40,6 +40,7 @@
 #include "gtkcssshadowsvalueprivate.h"
 #include "gtkkeyhash.h"
 #include "gtkmain.h"
+#include "gtkmainprivate.h"
 #include "gtkmnemonichash.h"
 #include "gtkmenubar.h"
 #include "gtkiconfactory.h"
@@ -1581,7 +1582,11 @@ gtk_window_buildable_add_child (GtkBuildable *buildable,
                                 const gchar  *type)
 {
   if (type && strcmp (type, "titlebar") == 0)
-    gtk_window_set_titlebar (GTK_WINDOW (buildable), GTK_WIDGET (child));
+	if(_cgl_get_gtk3_emulation) {
+		gtk_window_set_titlebar (GTK_WINDOW (buildable), GTK_WIDGET (child));
+	} else {
+	    gtk_container_add (GTK_CONTAINER (buildable), GTK_WIDGET (child));
+	}
   else if (!type)
     gtk_container_add (GTK_CONTAINER (buildable), GTK_WIDGET (child));
   else
@@ -3478,6 +3483,10 @@ void
 gtk_window_set_titlebar (GtkWindow *window,
                          GtkWidget *titlebar)
 {
+  if(!_cgl_get_gtk3_emulation) {
+	return;
+  }
+  
   GtkWidget *widget = GTK_WIDGET (window);
   GtkWindowPrivate *priv = window->priv;
   GdkVisual *visual;
@@ -8657,7 +8666,7 @@ gtk_window_move_resize (GtkWindow *window)
 
       /* And run the resize queue.
        */
-      gtk_container_resize_children (container);
+      gtk_widget_size_allocate (widget, &allocation);
     }
   
   /* We have now processed a move/resize since the last position
