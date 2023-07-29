@@ -932,7 +932,7 @@ child_property_notify_dispatcher (GObject     *object,
 /* We guard against the draw signal callbacks modifying the state of the
  * cairo context by surounding it with save/restore.
  * Maybe we should also cairo_new_path() just to be sure?
- */
+
 static void
 gtk_widget_draw_marshaller (GClosure     *closure,
                             GValue       *return_value,
@@ -1032,7 +1032,8 @@ gtk_widget_draw_marshallerv (GClosure     *closure,
 
   va_end (args_copy);
 }
-
+ */
+ 
 /* We guard against the draw signal callbacks modifying the state of the
  * cairo context by surounding it with save/restore.
  * Maybe we should also cairo_new_path() just to be sure?

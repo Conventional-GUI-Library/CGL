@@ -56,6 +56,7 @@
 #include "gtkbox.h"
 #include "gtkbutton.h"
 #include "gtkcsdtitlebar.h"
+#include "gtkcssrgbavalueprivate.h"
 #include "a11y/gtkwindowaccessible.h"
 #include "gtkstyle.h"
 
@@ -1597,7 +1598,7 @@ gtk_window_buildable_add_child (GtkBuildable *buildable,
                                 const gchar  *type)
 {
   if (type && strcmp (type, "titlebar") == 0)
-	if(_cgl_get_gtk3_emulation) {
+	if(_cgl_get_gtk3_emulation()) {
 		gtk_window_set_titlebar (GTK_WINDOW (buildable), GTK_WIDGET (child));
 	} else {
 	    gtk_container_add (GTK_CONTAINER (buildable), GTK_WIDGET (child));
@@ -3498,7 +3499,8 @@ void
 gtk_window_set_titlebar (GtkWindow *window,
                          GtkWidget *titlebar)
 {
-  if(!_cgl_get_gtk3_emulation) {
+  if(!_cgl_get_gtk3_emulation()) {
+    gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (titlebar));
 	return;
   }
   
@@ -5131,9 +5133,9 @@ update_window_buttons (GtkWindow *window)
               else
                 gtk_style_context_add_class (gtk_widget_get_style_context (box), "right");
               if (i == 0)
-                gtk_header_bar_pack_start (GTK_HEADER_BAR (priv->title_box), box);
+                gtk_csd_title_bar_pack_start (GTK_CSD_TITLE_BAR (priv->title_box), box);
               else
-                gtk_header_bar_pack_end (GTK_HEADER_BAR (priv->title_box), box);
+                gtk_csd_title_bar_pack_start (GTK_CSD_TITLE_BAR (priv->title_box), box);
 
               t = g_strsplit (tokens[i], ",", -1);
               for (j = 0; t[j]; j++)
