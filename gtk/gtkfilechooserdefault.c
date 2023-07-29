@@ -7447,13 +7447,12 @@ static gchar *
 gtk_file_chooser_default_get_current_name (GtkFileChooser *chooser)
 {
   GtkFileChooserDefault *impl = GTK_FILE_CHOOSER_DEFAULT (chooser);
-  GtkFileChooserDefaultPrivate *priv = impl->priv;
 
-  g_return_val_if_fail (priv->action == GTK_FILE_CHOOSER_ACTION_SAVE ||
-	                priv->action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER,
+  g_return_val_if_fail (impl->action == GTK_FILE_CHOOSER_ACTION_SAVE ||
+	                impl->action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER,
 	                NULL);
 
-  return g_strdup (gtk_entry_get_text (GTK_ENTRY (priv->location_entry)));
+  return g_strdup (gtk_entry_get_text (GTK_ENTRY (impl->location_entry)));
 }
 
 static gboolean
