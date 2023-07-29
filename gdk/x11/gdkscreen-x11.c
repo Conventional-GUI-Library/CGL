@@ -149,6 +149,9 @@ gdk_x11_screen_dispose (GObject *object)
   if (x11_screen->root_window)
     _gdk_window_destroy (x11_screen->root_window, TRUE);
 
+  for (i = 0; i < x11_screen->nvisuals; i++)
+    g_object_run_dispose (G_OBJECT (x11_screen->visuals[i]));
+
   G_OBJECT_CLASS (gdk_x11_screen_parent_class)->dispose (object);
 
   x11_screen->xdisplay = NULL;
@@ -1470,6 +1473,7 @@ gdk_x11_screen_supports_net_wm_hint (GdkScreen *screen,
   GdkX11Screen *x11_screen;
   NetWmSupportedAtoms *supported_atoms;
   GdkDisplay *display;
+  Atom atom;
 
   g_return_val_if_fail (GDK_IS_SCREEN (screen), FALSE);
 
@@ -1521,13 +1525,12 @@ gdk_x11_screen_supports_net_wm_hint (GdkScreen *screen,
   if (supported_atoms->atoms == NULL)
     return FALSE;
 
-  i = 0;
-  while (i < supported_atoms->n_atoms)
-    {
-      if (supported_atoms->atoms[i] == gdk_x11_atom_to_xatom_for_display (display, property))
-        return TRUE;
+  atom = gdk_x11_atom_to_xatom_for_display (display, property);
 
-      ++i;
+  for (i = 0; i < supported_atoms->n_atoms; i++)
+    {
+      if (supported_atoms->atoms[i] == atom)
+        return TRUE;
     }
 
   return FALSE;

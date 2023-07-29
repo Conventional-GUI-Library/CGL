@@ -39,7 +39,7 @@ AC_DEFUN([AX_PROG_CC_FOR_BUILD], [dnl
 AC_REQUIRE([AC_PROG_CC])dnl
 AC_REQUIRE([AC_PROG_CPP])dnl
 AC_REQUIRE([AC_EXEEXT])dnl
-AC_REQUIRE([AC_CANONICAL_SYSTEM])dnl
+AC_REQUIRE([AC_CANONICAL_HOST])dnl
 
 dnl Use the standard macros, but make them use other variable names
 dnl
@@ -57,6 +57,7 @@ pushdef([CPP], CPP_FOR_BUILD)dnl
 pushdef([CFLAGS], CFLAGS_FOR_BUILD)dnl
 pushdef([CPPFLAGS], CPPFLAGS_FOR_BUILD)dnl
 pushdef([LDFLAGS], LDFLAGS_FOR_BUILD)dnl
+pushdef([LIBS], LIBS_FOR_BUILD)dnl
 pushdef([host], build)dnl
 pushdef([host_alias], build_alias)dnl
 pushdef([host_cpu], build_cpu)dnl
@@ -98,6 +99,7 @@ popdef([host_vendor])dnl
 popdef([host_cpu])dnl
 popdef([host_alias])dnl
 popdef([host])dnl
+popdef([LIBS])dnl
 popdef([LDFLAGS])dnl
 popdef([CPPFLAGS])dnl
 popdef([CFLAGS])dnl

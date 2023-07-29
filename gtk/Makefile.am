@@ -257,6 +257,7 @@ gtk_public_h_sources = 		\
 	gtklayout.h		\
 	gtklevelbar.h	\
 	gtklinkbutton.h		\
+	gtklistbox.h		\
 	gtkliststore.h		\
 	gtklockbutton.h		\
 	gtkmain.h		\
@@ -304,6 +305,7 @@ gtk_public_h_sources = 		\
 	gtkscrollable.h		\
 	gtkscrollbar.h		\
 	gtkscrolledwindow.h	\
+	gtksearchbar.h		\
 	gtksearchentry.h	\
 	gtkselection.h		\
 	gtkseparator.h		\
@@ -480,6 +482,7 @@ gtk_private_h_sources =		\
 	gtkfilesystemmodel.h	\
 	gtkfontchooserprivate.h	\
 	gtkfontchooserutils.h	\
+	gtkcsdtitlebarprivate.h	\
 	gtkgradientprivate.h	\
 	gtkhslaprivate.h	\
 	gtkiconcache.h		\
@@ -561,6 +564,7 @@ gtk_base_c_sources = 		\
 	gtkactionobservable.c	\
 	gtkactionable.c		\
  	gtkquery.c		\
+ 	gtksearchbar.c		\
 	gtksearchentry.c	\
  	gtksearchengine.c	\
  	gtksearchenginesimple.c	\
@@ -732,6 +736,7 @@ gtk_base_c_sources = 		\
 	gtklayout.c		\
 	gtklevelbar.c	\
 	gtklinkbutton.c		\
+	gtklistbox.c		\
 	gtkliststore.c		\
 	gtklockbutton.c		\
 	gtkmain.c		\
@@ -1082,6 +1087,16 @@ DND_CURSORS = \
 	cursor_dnd_move.png				\
 	cursor_dnd_none.png
 
+COMPOSITE_TEMPLATES =	\		
+	gtksearchbar.ui			
+
+template_headers = $(COMPOSITE_TEMPLATES:.ui=.ui.h)
+
+MAINTAINERCLEANFILES += $(template_headers)
+
+%.ui.h: %.ui extract-strings$(BUILD_EXEEXT)
+	$(AM_V_GEN) ./extract-strings$(BUILD_EXEEXT) $< > $@
+
 #
 # rules to generate built sources
 #
@@ -1127,7 +1142,7 @@ gtktypebuiltins.c: @REBUILD@ $(gtk_public_h_sources) gtktypebuiltins.c.template
 gtkresources.h: gtk.gresource.xml
 	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) $(srcdir)/gtk.gresource.xml \
 		--target=$@ --sourcedir=$(srcdir) --c-name _gtk --generate-header --manual-register
-gtkresources.c: gtk.gresource.xml gtk-default.css gtk-win32.css $(DND_CURSORS)
+gtkresources.c: gtk.gresource.xml gtk-default.css gtk-win32.css $(DND_CURSORS) $(COMPOSITE_TEMPLATES) $(template_headers)
 	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) $(srcdir)/gtk.gresource.xml \
 		--target=$@ --sourcedir=$(srcdir) --c-name _gtk --generate-source --manual-register
 
@@ -1245,6 +1260,7 @@ distclean-local:
 	if test $(srcdir) != .; then \
 	  rm -f $(MAINTAINERCLEANFILES); \
 	  rm -rf stock-icons; \
+	  rm -f extract-strings$(EXEEXT); \
 	fi
 
 DEPS = libgtk-3.la $(top_builddir)/gdk/libgdk-3.la
@@ -1354,6 +1370,17 @@ endif
 
 gtk_launch_LDADD = $(LDADDS)
 gtk_launch_SOURCES = gtk-launch.c
+
+# The extract_strings tool is a build utility that runs on the build system.
+extract_strings_sources = extract-strings.c
+extract_strings_cppflags =
+extract_strings_cflags = $(GLIB_CFLAGS_FOR_BUILD)
+extract_strings_ldadd = $(GLIB_LIBS_FOR_BUILD)
+extract-strings$(BUILD_EXEEXT): $(extract_strings_sources)
+	@rm -f extract-strings$(BUILD_EXEEXT)
+	$(AM_V_CCLD)$(CC_FOR_BUILD) $(extract_strings_cppflags) $(CPPFLAGS_FOR_BUILD) $(extract_strings_cflags) $(CFLAGS_FOR_BUILD) $^ $(LDFLAGS_FOR_BUILD) $(extract_strings_ldadd) $(LIBS_FOR_BUILD) -o $@
+EXTRA_DIST += $(extract_strings_sources)
+
 
 .PHONY: files test test-debug
 

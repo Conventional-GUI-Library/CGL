@@ -366,12 +366,7 @@
  * </refsect2>
  */
 
-/* Add flags here that should not be propagated to children. By default,
- * all flags will be set on children (think prelight or active), but we
- * might want to not do this for some.
- */
-#define GTK_STATE_FLAGS_DONT_PROPAGATE (GTK_STATE_FLAG_FOCUSED | GTK_STATE_FLAG_DIR_LTR | GTK_STATE_FLAG_DIR_RTL)
-#define GTK_STATE_FLAGS_DO_PROPAGATE (~GTK_STATE_FLAGS_DONT_PROPAGATE)
+#define GTK_STATE_FLAGS_DO_PROPAGATE (GTK_STATE_FLAG_INSENSITIVE|GTK_STATE_FLAG_BACKDROP)
 
 #define WIDGET_CLASS(w)	 GTK_WIDGET_GET_CLASS (w)
 #define	INIT_PATH_SIZE	(512)
@@ -1033,6 +1028,64 @@ gtk_widget_draw_marshallerv (GClosure     *closure,
     }
 
   gtk_cairo_set_event (cr, tmp_event);
+  cairo_restore (cr);
+
+  va_end (args_copy);
+}
+
+/* We guard against the draw signal callbacks modifying the state of the
+ * cairo context by surounding it with save/restore.
+ * Maybe we should also cairo_new_path() just to be sure?
+ */
+static void
+gtk_widget_draw_marshaller (GClosure     *closure,
+                            GValue       *return_value,
+                            guint         n_param_values,
+                            const GValue *param_values,
+                            gpointer      invocation_hint,
+                            gpointer      marshal_data)
+{
+  cairo_t *cr = g_value_get_boxed (&param_values[1]);
+
+  cairo_save (cr);
+
+  _gtk_marshal_BOOLEAN__BOXED (closure,
+                               return_value,
+                               n_param_values,
+                               param_values,
+                               invocation_hint,
+                               marshal_data);
+
+
+  cairo_restore (cr);
+}
+
+static void
+gtk_widget_draw_marshallerv (GClosure     *closure,
+			     GValue       *return_value,
+			     gpointer      instance,
+			     va_list       args,
+			     gpointer      marshal_data,
+			     int           n_params,
+			     GType        *param_types)
+{
+  cairo_t *cr;
+  va_list args_copy;
+
+  G_VA_COPY (args_copy, args);
+  cr = va_arg (args_copy, gpointer);
+
+  cairo_save (cr);
+
+  _gtk_marshal_BOOLEAN__BOXEDv (closure,
+				return_value,
+				instance,
+				args,
+				marshal_data,
+				n_params,
+				param_types);
+
+
   cairo_restore (cr);
 
   va_end (args_copy);

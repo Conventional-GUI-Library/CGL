@@ -71,6 +71,11 @@ libgdk_broadway_la_SOURCES =		\
 	gdkbroadway-server.h	\
 	gdkbroadway-server.c
 
+if OS_UNIX
+libgdk_broadway_la_LIBADD = \
+	-lrt
+endif
+
 broadwayd_SOURCES = \
 	broadway-protocol.h		\
 	broadwayd.c 			\
@@ -79,7 +84,11 @@ broadwayd_SOURCES = \
 	broadway-output.h		\
 	broadway-output.c
 
+if OS_WIN32
+broadwayd_LDADD = $(GDK_DEP_LIBS) -lcrypt -lws2_32
+else
 broadwayd_LDADD = $(GDK_DEP_LIBS) -lrt -lcrypt
+endif
 
 MAINTAINERCLEANFILES = $(broadway_built_sources)
 EXTRA_DIST += $(broadway_built_sources)

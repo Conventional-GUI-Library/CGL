@@ -36,7 +36,6 @@ G_BEGIN_DECLS
 
 typedef struct _GtkStack GtkStack;
 typedef struct _GtkStackClass GtkStackClass;
-typedef struct _GtkStackPrivate GtkStackPrivate;
 
 typedef enum {
   GTK_STACK_TRANSITION_TYPE_NONE,
@@ -44,12 +43,13 @@ typedef enum {
   GTK_STACK_TRANSITION_TYPE_SLIDE_RIGHT,
   GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT,
   GTK_STACK_TRANSITION_TYPE_SLIDE_UP,
-  GTK_STACK_TRANSITION_TYPE_SLIDE_DOWN
+  GTK_STACK_TRANSITION_TYPE_SLIDE_DOWN,
+  GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT,
+  GTK_STACK_TRANSITION_TYPE_SLIDE_UP_DOWN
 } GtkStackTransitionType;
 
 struct _GtkStack {
   GtkContainer parent_instance;
-  GtkStackPrivate *priv;
 };
 
 struct _GtkStackClass {

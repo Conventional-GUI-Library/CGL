@@ -1,6 +1,39 @@
 /* This list defines the GTK+ ABI. It is used to generate the gtk.def
  * file.
  */
+
+gtk_window_close
+gtk_file_chooser_get_current_name
+gtk_builder_new_from_file
+gtk_builder_new_from_resource 
+gtk_builder_new_from_string
+gtk_list_box_row_get_type
+gtk_list_box_row_new
+gtk_list_box_row_get_header
+gtk_list_box_row_set_header
+gtk_list_box_row_changed
+gtk_list_box_get_type
+gtk_list_box_get_selected_row
+gtk_list_box_get_row_at_index
+gtk_list_box_get_row_at_y
+gtk_list_box_select_row
+gtk_list_box_set_adjustment
+gtk_list_box_get_adjustment
+gtk_list_box_set_selection_mode
+gtk_list_box_get_selection_mode
+gtk_list_box_set_filter_func
+gtk_list_box_set_header_func
+gtk_list_box_invalidate_filter
+gtk_list_box_get_activate_on_single_click
+gtk_list_box_accessible_get_type
+gtk_list_box_invalidate_sort
+gtk_list_box_set_placeholder
+gtk_list_box_invalidate_headers
+gtk_list_box_set_sort_func
+gtk_list_box_set_activate_on_single_click
+gtk_list_box_drag_unhighlight_row
+gtk_list_box_drag_highlight_row
+gtk_list_box_new
 gtk_about_dialog_add_credit_section
 gtk_about_dialog_get_artists
 gtk_about_dialog_get_authors
@@ -4120,3 +4153,4 @@ gtk_window_unmaximize
 gtk_window_unstick
 gtk_window_set_titlebar
 gtk_wrap_mode_get_type
+cgl_set_gtk3_emulation

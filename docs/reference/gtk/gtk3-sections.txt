@@ -499,6 +499,55 @@ gtk_box_get_type
 </SECTION>
 
 <SECTION>
+<FILE>gtklistbox</FILE>
+<TITLE>GtkListBox</TITLE>
+GtkListBox
+GtkListBoxRow
+GtkListBoxFilterFunc
+GtkListBoxSortFunc
+GtkListBoxUpdateHeaderFunc
+
+gtk_list_box_new
+gtk_list_box_select_row
+gtk_list_box_get_selected_row
+
+gtk_list_box_set_selection_mode
+gtk_list_box_get_selection_mode
+gtk_list_box_set_activate_on_single_click
+gtk_list_box_get_activate_on_single_click
+gtk_list_box_get_adjustment
+gtk_list_box_set_adjustment
+gtk_list_box_set_placeholder
+gtk_list_box_get_row_at_index
+gtk_list_box_get_row_at_y
+gtk_list_box_invalidate_filter
+gtk_list_box_invalidate_headers
+gtk_list_box_invalidate_sort
+gtk_list_box_set_filter_func
+gtk_list_box_set_header_func
+gtk_list_box_set_sort_func
+gtk_list_box_drag_highlight_row
+gtk_list_box_drag_unhighlight_row
+
+gtk_list_box_row_new
+gtk_list_box_row_changed
+gtk_list_box_row_get_header
+gtk_list_box_row_get_type
+gtk_list_box_row_set_header
+
+<SUBSECTION Standard>
+GTK_IS_LIST_BOX
+GTK_IS_LIST_BOX_CLASS
+GTK_IS_LIST_BOX_ROW
+GTK_IS_LIST_BOX_ROW_CLASS
+GTK_TYPE_LIST_BOX
+GTK_TYPE_LIST_BOX_ROW
+
+<SUBSECTION Private>
+gtk_list_box_get_type
+</SECTION>
+
+<SECTION>
 <FILE>gtkbuildable</FILE>
 GtkBuildable
 GtkBuildableIface
@@ -549,6 +598,13 @@ gtk_builder_value_from_string
 gtk_builder_value_from_string_type
 GTK_BUILDER_WARN_INVALID_CHILD_TYPE
 GTK_BUILDER_ERROR
+<SUBSECTION>
+gtk_builder_new
+gtk_builder_add_from_file
+gtk_builder_add_from_resource
+gtk_builder_add_from_string
+gtk_builder_add_objects_from_file
+gtk_builder_add_objects_from_string
 <SUBSECTION Standard>
 GTK_BUILDER
 GTK_IS_BUILDER
@@ -1255,6 +1311,7 @@ gtk_file_chooser_get_do_overwrite_confirmation
 gtk_file_chooser_set_create_folders
 gtk_file_chooser_get_create_folders
 gtk_file_chooser_set_current_name
+gtk_file_chooser_get_current_name
 gtk_file_chooser_get_filename
 gtk_file_chooser_set_filename
 gtk_file_chooser_select_filename
@@ -2994,6 +3051,23 @@ GTK_SCROLLED_WINDOW_GET_CLASS
 <SUBSECTION Private>
 gtk_scrolled_window_get_type
 GtkScrolledWindowPrivate
+</SECTION>
+
+<SECTION>
+<FILE>gtksearchbar</FILE>
+<TITLE>GtkSearchBar</TITLE>
+GtkSearchBar
+gtk_search_bar_new
+gtk_search_bar_handle_event
+<SUBSECTION Standard>
+GTK_TYPE_SEARCH_BAR
+GTK_SEARCH_BAR
+GTK_SEARCH_BAR_CLASS
+GTK_IS_SEARCH_BAR
+GTK_IS_SEARCH_BAR_CLASS
+GTK_SEARCH_BAR_GET_CLASS
+<SUBSECTION Private>
+gtk_search_bar_get_type
 </SECTION>
 
 <SECTION>
@@ -5399,6 +5473,7 @@ gtk_window_get_default_widget
 gtk_window_set_default
 gtk_window_present
 gtk_window_present_with_time
+gtk_window_close
 gtk_window_iconify
 gtk_window_deiconify
 gtk_window_stick
