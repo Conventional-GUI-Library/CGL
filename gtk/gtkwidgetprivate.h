@@ -33,6 +33,7 @@
 
 G_BEGIN_DECLS
 
+void          _gtk_widget_scale_changed     (GtkWidget *widget);
 void         _gtk_widget_set_visible_flag   (GtkWidget *widget,
                                              gboolean   visible);
 gboolean     _gtk_widget_get_in_reparent    (GtkWidget *widget);

@@ -1,6 +1,10 @@
 /* This file lists all exported symbols. It is used to generate
  * the gdk.def file used to control exports on Windows.
  */
+gdk_device_get_position_double
+gdk_device_get_window_at_position_double
+gdk_window_get_device_position_double
+gdk_window_get_scale_factor
 gdk_add_option_entries_libgtk_only
 gdk_app_launch_context_get_type
 gdk_app_launch_context_new

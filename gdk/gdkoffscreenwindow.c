@@ -141,18 +141,11 @@ _gdk_offscreen_window_create_surface (GdkWindow *offscreen,
                                       gint       width,
                                       gint       height)
 {
-  cairo_surface_t *similar;
-  cairo_surface_t *surface;
-
   g_return_val_if_fail (GDK_IS_OFFSCREEN_WINDOW (offscreen->impl), NULL);
 
-  similar = _gdk_window_ref_cairo_surface (offscreen->parent);
-
-  surface = cairo_surface_create_similar (similar, CAIRO_CONTENT_COLOR_ALPHA, width, height);
-
-  cairo_surface_destroy (similar);
-
-  return surface;
+  return gdk_window_create_similar_surface (offscreen->parent,
+					    CAIRO_CONTENT_COLOR_ALPHA, 
+					    width, height);
 }
 
 void
@@ -287,12 +280,12 @@ gdk_offscreen_window_get_root_coords (GdkWindow *window,
 static gboolean
 gdk_offscreen_window_get_device_state (GdkWindow       *window,
                                        GdkDevice       *device,
-                                       gint            *x,
-                                       gint            *y,
+                                       gdouble         *x,
+                                       gdouble         *y,
                                        GdkModifierType *mask)
 {
   GdkOffscreenWindow *offscreen;
-  int tmpx, tmpy;
+  double tmpx, tmpy;
   double dtmpx, dtmpy;
   GdkModifierType tmpmask;
 
@@ -303,18 +296,18 @@ gdk_offscreen_window_get_device_state (GdkWindow       *window,
   offscreen = GDK_OFFSCREEN_WINDOW (window->impl);
   if (offscreen->embedder != NULL)
     {
-      gdk_window_get_device_position (offscreen->embedder, device, &tmpx, &tmpy, &tmpmask);
+      gdk_window_get_device_position_double (offscreen->embedder, device, &tmpx, &tmpy, &tmpmask);
       from_embedder (window,
 		     tmpx, tmpy,
 		     &dtmpx, &dtmpy);
-      tmpx = floor (dtmpx + 0.5);
-      tmpy = floor (dtmpy + 0.5);
+      tmpx = dtmpx;
+      tmpy = dtmpy;
     }
 
   if (x)
-    *x = tmpx;
+    *x = round (tmpx);
   if (y)
-    *y = tmpy;
+    *y = round (tmpy);
   if (mask)
     *mask = tmpmask;
   return TRUE;
@@ -723,6 +716,16 @@ gdk_offscreen_window_get_frame_extents (GdkWindow    *window,
   rect->height = window->height;
 }
 
+static gint
+gdk_offscreen_window_get_scale_factor (GdkWindow *window)
+{
+
+  if (GDK_WINDOW_DESTROYED (window))
+    return 1;
+
+  return gdk_window_get_scale_factor (window->parent);
+}
+
 static void
 gdk_offscreen_window_class_init (GdkOffscreenWindowClass *klass)
 {
@@ -810,4 +813,5 @@ gdk_offscreen_window_class_init (GdkOffscreenWindowClass *klass)
   impl_class->get_property = NULL;
   impl_class->change_property = NULL;
   impl_class->delete_property = NULL;
+  impl_class->get_scale_factor = gdk_offscreen_window_get_scale_factor;
 }

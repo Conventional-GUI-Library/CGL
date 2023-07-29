@@ -224,6 +224,7 @@ struct _GdkWindow
   guint native_visibility : 2; /* the native visibility of a impl windows */
   guint viewable : 1; /* mapped and all parents mapped */
   guint applied_shape : 1;
+  guint in_update : 1;
   GdkFullscreenMode fullscreen_mode;
 
   /* The GdkWindow that has the impl, ref:ed if another window.
@@ -378,7 +379,7 @@ void _gdk_window_invalidate_for_expose (GdkWindow       *window,
                                         cairo_region_t       *region);
 
 GdkWindow * _gdk_window_find_child_at (GdkWindow *window,
-                                       int x, int y);
+                                       double x, double y);
 GdkWindow * _gdk_window_find_descendant_at (GdkWindow *toplevel,
                                             double x, double y,
                                             double *found_x,
@@ -400,8 +401,8 @@ void _gdk_synthesize_crossing_events (GdkDisplay                 *display,
                                       GdkDevice                  *device,
                                       GdkDevice                  *source_device,
 				      GdkCrossingMode             mode,
-				      gint                        toplevel_x,
-				      gint                        toplevel_y,
+				      gdouble                     toplevel_x,
+				      gdouble                     toplevel_y,
 				      GdkModifierType             mask,
 				      guint32                     time_,
 				      GdkEvent                   *event_in_queue,

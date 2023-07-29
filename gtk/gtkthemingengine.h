@@ -71,6 +71,7 @@ struct _GtkThemingEngine
  *                   or #GtkProgressBar.
  * @render_icon_pixbuf: Renders an icon as a #GdkPixbuf.
  * @render_icon: Renders an icon given as a #GdkPixbuf.
+ * @render_icon_surface: Renders an icon given as a #cairo_surface_t.
  *
  * Base class for theming engines.
  */
@@ -175,9 +176,14 @@ struct _GtkThemingEngineClass
 			GdkPixbuf        *pixbuf,
                         gdouble           x,
                         gdouble           y);
+  void (* render_icon_surface) (GtkThemingEngine *engine,
+				cairo_t          *cr,
+				cairo_surface_t  *surface,
+				gdouble           x,
+				gdouble           y);
 
   /*< private >*/
-  gpointer padding[15];
+  gpointer padding[14];
 };
 
 GType gtk_theming_engine_get_type (void) G_GNUC_CONST;

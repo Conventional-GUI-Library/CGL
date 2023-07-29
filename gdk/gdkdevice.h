@@ -230,7 +230,15 @@ gboolean gdk_device_grab_info_libgtk_only (GdkDisplay  *display,
                                            GdkDevice   *device,
                                            GdkWindow  **grab_window,
                                            gboolean    *owner_events);
-
+void     gdk_device_get_position_double (GdkDevice         *device,
+                                         GdkScreen        **screen,
+                                         gdouble           *x,
+                                         gdouble           *y);
+GdkWindow *
+         gdk_device_get_window_at_position_double
+                                 (GdkDevice         *device,
+                                  gdouble           *win_x,
+                                  gdouble           *win_y);
 
 G_END_DECLS
 

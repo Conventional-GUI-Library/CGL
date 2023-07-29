@@ -30,7 +30,6 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
 
 AC_CANONICAL_HOST
-AC_CANONICAL_TARGET
 
 # Define a string for the earliest version that this release has
 # backwards binary compatibility with for all interfaces a module
@@ -42,7 +41,7 @@ AC_CANONICAL_TARGET
 m4_define([gtk_binary_version], [0.1.0])
 
 # required versions of other packages
-m4_define([glib_required_version], [2.37.0])
+m4_define([glib_required_version], [2.37.2])
 m4_define([pango_required_version], [1.32.4])
 m4_define([atk_required_version], [2.7.4])
 m4_define([cairo_required_version], [1.10.0])
@@ -384,6 +383,9 @@ fi
 if test "x$enable_broadway_backend" = xyes; then
   GDK_BACKENDS="$GDK_BACKENDS broadway"
   cairo_backends="$cairo_backends cairo"
+  if test "$os_unix" = "yes"; then
+    have_gio_unix=yes
+  fi  
   GDK_WINDOWING="$GDK_WINDOWING
 #define GDK_WINDOWING_BROADWAY"
   GDK_EXTRA_LIBS="$GDK_EXTRA_LIBS -lz"
@@ -400,7 +402,7 @@ if test "x$enable_wayland_backend" = "xyes"; then
   GDK_WINDOWING="$GDK_WINDOWING
 #define GDK_WINDOWING_WAYLAND"
   DISABLE_ON_WAYLAND='%'
-  WAYLAND_PACKAGES="wayland-client >= 1.0.0 xkbcommon >= 0.2.0 wayland-cursor"
+  WAYLAND_PACKAGES="wayland-client >= 1.1.90 xkbcommon >= 0.2.0 wayland-cursor"
   AM_CONDITIONAL(USE_WAYLAND, true)
 else
   AM_CONDITIONAL(USE_WAYLAND, false)
@@ -716,6 +718,11 @@ fi
 
 CFLAGS="-DGDK_PIXBUF_DISABLE_DEPRECATED $CFLAGS"
 
+PKG_PROG_PKG_CONFIG_FOR_BUILD
+GLIB_CFLAGS_FOR_BUILD=`$PKG_CONFIG_FOR_BUILD --cflags glib-2.0 gobject-2.0 gmodule-no-export-2.0`
+GLIB_LIBS_FOR_BUILD=`$PKG_CONFIG_FOR_BUILD --libs glib-2.0 gobject-2.0 gmodule-no-export-2.0`
+AC_SUBST(GLIB_CFLAGS_FOR_BUILD)
+AC_SUBST(GLIB_LIBS_FOR_BUILD)
 
 dnl
 dnl Check for bind_textdomain_codeset, including -lintl if GLib brings it in.
@@ -728,6 +735,9 @@ LIBS=$gtk_save_LIBS
 AC_CHECK_HEADERS(pwd.h,
                  AC_DEFINE(HAVE_PWD_H, 1,
                            [Define to 1 if pwd.h is available]))
+AC_CHECK_HEADERS(sys/mman.h,
+                 AC_DEFINE(HAVE_SYS_MMAN_H, 1,
+                           [Define to 1 if mman.h is available]))
 AC_CHECK_HEADERS(sys/time.h,
                  AC_DEFINE(HAVE_SYS_TIME_H, 1,
                            [Define to 1 if time.h is available]))
@@ -1315,6 +1325,17 @@ else
         LIBS="$gtk_save_LIBS"
 fi
 
+# Check for cairo_set_device_scale, as we don't want to depend hard on
+# this until there is a stable release with it
+CAIRO_CFLAGS=`$PKG_CONFIG --cflags cairo`
+CAIRO_LIBS=`$PKG_CONFIG --libs cairo`
+CFLAGS="$CFLAGS $CAIRO_CFLAGS"
+gtk_save_LIBS="$LIBS"
+LIBS="$CAIRO_LIBS $LIBS"
+AC_CHECK_FUNCS(cairo_surface_set_device_scale)
+LIBS="$gtk_save_LIBS"
+
+
 CFLAGS="$saved_cflags"
 LDFLAGS="$saved_ldflags"
 
@@ -1799,6 +1820,7 @@ docs/reference/libgail-util/version.xml
 docs/tools/Makefile
 build/Makefile
 build/win32/Makefile
+build/win32/crypt/Makefile
 build/win32/vs9/Makefile
 build/win32/vs10/Makefile
 gdk/Makefile

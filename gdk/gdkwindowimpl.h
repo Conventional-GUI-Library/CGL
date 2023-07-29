@@ -51,6 +51,11 @@ struct _GdkWindowImplClass
 
   cairo_surface_t *
                (* ref_cairo_surface)    (GdkWindow       *window);
+  cairo_surface_t *
+               (* create_similar_image_surface) (GdkWindow *     window,
+                                                 cairo_format_t  format,
+                                                 int             width,
+                                                 int             height);
 
   void         (* show)                 (GdkWindow       *window,
 					 gboolean         already_mapped);
@@ -98,8 +103,8 @@ struct _GdkWindowImplClass
                                          gint            *root_y);
   gboolean     (* get_device_state)     (GdkWindow       *window,
                                          GdkDevice       *device,
-                                         gint            *x,
-                                         gint            *y,
+                                         gdouble         *x,
+                                         gdouble         *y,
                                          GdkModifierType *mask);
 
   cairo_region_t * (* get_shape)        (GdkWindow       *window);
@@ -292,6 +297,8 @@ struct _GdkWindowImplClass
                                            gint            n_elements);
   void         (*delete_property)         (GdkWindow      *window,
                                            GdkAtom         property);
+
+  gint         (* get_scale_factor)       (GdkWindow      *window);
 };
 
 /* Interface Functions */

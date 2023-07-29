@@ -807,6 +807,18 @@ gtk_menu_shell_button_release (GtkWidget      *widget,
   GtkMenuShell *menu_shell = GTK_MENU_SHELL (widget);
   GtkMenuShellPrivate *priv = menu_shell->priv;
 
+  if (priv->parent_menu_shell &&
+      (event->time - GTK_MENU_SHELL (priv->parent_menu_shell)->priv->activate_time) < MENU_SHELL_TIMEOUT)
+    {
+      /* The button-press originated in the parent menu bar and we are
+       * a pop-up menu. It was a quick press-and-release so we don't want
+       * to activate an item but we leave the popup in place instead.
+       * https://bugzilla.gnome.org/show_bug.cgi?id=703069
+       */
+      GTK_MENU_SHELL (priv->parent_menu_shell)->priv->activate_time = 0;
+      return TRUE;
+    }
+
   if (priv->active)
     {
       GtkWidget *menu_item;
@@ -2110,12 +2122,24 @@ gtk_menu_shell_tracker_insert_func (GtkMenuTrackerItem *item,
 
   if (gtk_menu_tracker_item_get_is_separator (item))
     {
+      const gchar *label;
+
       widget = gtk_separator_menu_item_new ();
 
-      /* For separators, we bind to the "label" property in case there
-       * is a section heading.
+      /* For separators, we may have a section heading, so check the
+       * "label" property.
+       *
+       * Note: we only do this once, and we only do it if the label is
+       * non-NULL because even setting a NULL label on the separator
+       * will be enough to create a GtkLabel and add it, changing the
+       * appearance in the process.
        */
-      g_object_bind_property (item, "label", widget, "label", G_BINDING_SYNC_CREATE);
+
+      label = gtk_menu_tracker_item_get_label (item);
+      if (label)
+        gtk_menu_item_set_label (GTK_MENU_ITEM (widget), label);
+
+      gtk_widget_show (widget);
     }
   else if (gtk_menu_tracker_item_get_has_submenu (item))
     {
@@ -2151,6 +2175,8 @@ gtk_menu_shell_tracker_insert_func (GtkMenuTrackerItem *item,
           g_signal_connect (submenu, "show", G_CALLBACK (gtk_menu_shell_submenu_shown), item);
           g_signal_connect (submenu, "hide", G_CALLBACK (gtk_menu_shell_submenu_hidden), item);
         }
+
+      gtk_widget_show (widget);
     }
   else
     {

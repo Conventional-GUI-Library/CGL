@@ -1824,8 +1824,8 @@ gdk_quartz_window_get_root_origin (GdkWindow *window,
 static GdkWindow *
 gdk_window_quartz_get_device_state_helper (GdkWindow       *window,
                                            GdkDevice       *device,
-                                           gint            *x,
-                                           gint            *y,
+                                           gdouble         *x,
+                                           gdouble         *y,
                                            GdkModifierType *mask)
 {
   NSPoint point;
@@ -1886,8 +1886,8 @@ gdk_window_quartz_get_device_state_helper (GdkWindow       *window,
 static gboolean
 gdk_window_quartz_get_device_state (GdkWindow       *window,
                                     GdkDevice       *device,
-                                    gint            *x,
-                                    gint            *y,
+                                    gdouble          *x,
+                                    gdouble          *y,
                                     GdkModifierType *mask)
 {
   return gdk_window_quartz_get_device_state_helper (window,
@@ -2338,14 +2338,18 @@ window_type_hint_to_level (GdkWindowTypeHint hint)
       return NSTornOffMenuWindowLevel;
 
     case GDK_WINDOW_TYPE_HINT_DOCK:
+      return NSFloatingWindowLevel; /* NSDockWindowLevel is deprecated, and not replaced */
+
     case GDK_WINDOW_TYPE_HINT_UTILITY:
+    case GDK_WINDOW_TYPE_HINT_DIALOG:  /* Dialog window */
       return NSFloatingWindowLevel;
 
     case GDK_WINDOW_TYPE_HINT_NORMAL:  /* Normal toplevel window */
-    case GDK_WINDOW_TYPE_HINT_DIALOG:  /* Dialog window */
     case GDK_WINDOW_TYPE_HINT_TOOLBAR: /* Window used to implement toolbars */
-    case GDK_WINDOW_TYPE_HINT_DESKTOP: /* N/A */
-      break;
+      return NSNormalWindowLevel;
+
+    case GDK_WINDOW_TYPE_HINT_DESKTOP:
+      return kCGDesktopWindowLevelKey; /* doesn't map to any real Cocoa model */
 
     default:
       break;
@@ -3046,6 +3050,26 @@ gdk_quartz_window_get_input_shape (GdkWindow *window)
   return NULL;
 }
 
+/* Protocol to build cleanly for OSX < 10.7 */
+@protocol ScaleFactor
+- (CGFloat) backingScaleFactor;
+@end
+
+static gint
+gdk_quartz_window_get_scale_factor (GdkWindow *window)
+{
+  GdkWindowImplQuartz *impl;
+
+  if (GDK_WINDOW_DESTROYED (window))
+    return 1;
+
+  impl = GDK_WINDOW_IMPL_QUARTZ (window->impl);
+
+  if (gdk_quartz_osx_version() >= GDK_OSX_LION)
+    return [(id <ScaleFactor>) impl->toplevel backingScaleFactor];
+
+  return 1;
+}
 
 static void
 gdk_window_impl_quartz_class_init (GdkWindowImplQuartzClass *klass)
@@ -3084,6 +3108,7 @@ gdk_window_impl_quartz_class_init (GdkWindowImplQuartzClass *klass)
   impl_class->resize_cairo_surface = gdk_window_quartz_resize_cairo_surface;
   impl_class->get_shape = gdk_quartz_window_get_shape;
   impl_class->get_input_shape = gdk_quartz_window_get_input_shape;
+  impl_class->get_scale_factor = gdk_quartz_window_get_scale_factor;
 
   impl_class->focus = gdk_quartz_window_focus;
   impl_class->set_type_hint = gdk_quartz_window_set_type_hint;

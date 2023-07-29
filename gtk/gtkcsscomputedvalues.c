@@ -114,6 +114,7 @@ maybe_unref_section (gpointer section)
 void
 _gtk_css_computed_values_compute_value (GtkCssComputedValues    *values,
                                         GtkStyleProviderPrivate *provider,
+					int                      scale,
                                         GtkCssComputedValues    *parent_values,
                                         guint                    id,
                                         GtkCssValue             *specified,
@@ -143,7 +144,7 @@ _gtk_css_computed_values_compute_value (GtkCssComputedValues    *values,
   else
     _gtk_css_value_ref (specified);
 
-  value = _gtk_css_value_compute (specified, id, provider, values, parent_values, &dependencies);
+  value = _gtk_css_value_compute (specified, id, provider, scale, values, parent_values, &dependencies);
 
   _gtk_css_computed_values_set_value (values, id, value, dependencies, section);
 
@@ -446,6 +447,7 @@ gtk_css_computed_values_create_css_animations (GtkCssComputedValues    *values,
                                                GtkCssComputedValues    *parent_values,
                                                gint64                   timestamp,
                                                GtkStyleProviderPrivate *provider,
+					       int                      scale,
                                                GtkCssComputedValues    *source)
 {
   GtkCssValue *durations, *delays, *timing_functions, *animations;
@@ -490,7 +492,7 @@ gtk_css_computed_values_create_css_animations (GtkCssComputedValues    *values,
           if (keyframes == NULL)
             continue;
 
-          keyframes = _gtk_css_keyframes_compute (keyframes, provider, values, parent_values);
+          keyframes = _gtk_css_keyframes_compute (keyframes, provider, scale, values, parent_values);
 
           animation = _gtk_css_animation_new (name,
                                               keyframes,
@@ -515,11 +517,12 @@ _gtk_css_computed_values_create_animations (GtkCssComputedValues    *values,
                                             GtkCssComputedValues    *parent_values,
                                             gint64                   timestamp,
                                             GtkStyleProviderPrivate *provider,
+					    int                      scale,
                                             GtkCssComputedValues    *source)
 {
   if (source != NULL)
     gtk_css_computed_values_create_css_transitions (values, timestamp, source);
-  gtk_css_computed_values_create_css_animations (values, parent_values, timestamp, provider, source);
+  gtk_css_computed_values_create_css_animations (values, parent_values, timestamp, provider, scale, source);
 }
 
 GtkBitmask *

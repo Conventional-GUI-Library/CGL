@@ -366,12 +366,7 @@
  * </refsect2>
  */
 
-/* Add flags here that should not be propagated to children. By default,
- * all flags will be set on children (think prelight or active), but we
- * might want to not do this for some.
- */
-#define GTK_STATE_FLAGS_DONT_PROPAGATE (GTK_STATE_FLAG_FOCUSED | GTK_STATE_FLAG_DIR_LTR | GTK_STATE_FLAG_DIR_RTL)
-#define GTK_STATE_FLAGS_DO_PROPAGATE (~GTK_STATE_FLAGS_DONT_PROPAGATE)
+#define GTK_STATE_FLAGS_DO_PROPAGATE (GTK_STATE_FLAG_INSENSITIVE|GTK_STATE_FLAG_BACKDROP)
 
 #define WIDGET_CLASS(w)	 GTK_WIDGET_GET_CLASS (w)
 #define	INIT_PATH_SIZE	(512)
@@ -623,7 +618,8 @@ enum {
   PROP_VEXPAND,
   PROP_HEXPAND_SET,
   PROP_VEXPAND_SET,
-  PROP_EXPAND
+  PROP_EXPAND,
+  PROP_SCALE_FACTOR
 };
 
 typedef	struct	_GtkStateData	 GtkStateData;
@@ -937,7 +933,7 @@ child_property_notify_dispatcher (GObject     *object,
 /* We guard against the draw signal callbacks modifying the state of the
  * cairo context by surounding it with save/restore.
  * Maybe we should also cairo_new_path() just to be sure?
- */
+
 static void
 gtk_widget_draw_marshaller (GClosure     *closure,
                             GValue       *return_value,
@@ -1033,6 +1029,65 @@ gtk_widget_draw_marshallerv (GClosure     *closure,
     }
 
   gtk_cairo_set_event (cr, tmp_event);
+  cairo_restore (cr);
+
+  va_end (args_copy);
+}
+ */
+ 
+/* We guard against the draw signal callbacks modifying the state of the
+ * cairo context by surounding it with save/restore.
+ * Maybe we should also cairo_new_path() just to be sure?
+ */
+static void
+gtk_widget_draw_marshaller (GClosure     *closure,
+                            GValue       *return_value,
+                            guint         n_param_values,
+                            const GValue *param_values,
+                            gpointer      invocation_hint,
+                            gpointer      marshal_data)
+{
+  cairo_t *cr = g_value_get_boxed (&param_values[1]);
+
+  cairo_save (cr);
+
+  _gtk_marshal_BOOLEAN__BOXED (closure,
+                               return_value,
+                               n_param_values,
+                               param_values,
+                               invocation_hint,
+                               marshal_data);
+
+
+  cairo_restore (cr);
+}
+
+static void
+gtk_widget_draw_marshallerv (GClosure     *closure,
+			     GValue       *return_value,
+			     gpointer      instance,
+			     va_list       args,
+			     gpointer      marshal_data,
+			     int           n_params,
+			     GType        *param_types)
+{
+  cairo_t *cr;
+  va_list args_copy;
+
+  G_VA_COPY (args_copy, args);
+  cr = va_arg (args_copy, gpointer);
+
+  cairo_save (cr);
+
+  _gtk_marshal_BOOLEAN__BOXEDv (closure,
+				return_value,
+				instance,
+				args,
+				marshal_data,
+				n_params,
+				param_types);
+
+
   cairo_restore (cr);
 
   va_end (args_copy);
@@ -1624,6 +1679,25 @@ gtk_widget_class_init (GtkWidgetClass *klass)
 							1.0,
 							1.0,
 							GTK_PARAM_READWRITE));
+
+  /**
+   * GtkWidget:scale-factor:
+   *
+   * The scale factor of the widget. See gtk_widget_get_scale_factor() for
+   * more details about widget scaling.
+   *
+   * Since: 3.10
+   */
+  g_object_class_install_property (gobject_class,
+                                   PROP_SCALE_FACTOR,
+                                   g_param_spec_int ("scale-factor",
+                                                     P_("Scale factor"),
+                                                     P_("The scaling factor of the window"),
+                                                     1,
+                                                     G_MAXINT,
+                                                     1,
+                                                     GTK_PARAM_READABLE));
+
   /**
    * GtkWidget::show:
    * @widget: the object which received the signal.
@@ -3818,6 +3892,9 @@ gtk_widget_get_property (GObject         *object,
     case PROP_OPACITY:
       g_value_set_double (value, gtk_widget_get_opacity (widget));
       break;
+    case PROP_SCALE_FACTOR:
+      g_value_set_int (value, gtk_widget_get_scale_factor (widget));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -4911,6 +4988,8 @@ gtk_widget_realize (GtkWidget *widget)
       _gtk_widget_enable_device_events (widget);
       gtk_widget_update_devices_mask (widget, TRUE);
 
+      if (priv->context)
+	gtk_style_context_set_scale (priv->context, gtk_widget_get_scale_factor (widget));
       gtk_widget_connect_frame_clock (widget,
                                       gtk_widget_get_frame_clock (widget));
 
@@ -10114,6 +10193,53 @@ gtk_widget_has_screen (GtkWidget *widget)
   g_return_val_if_fail (GTK_IS_WIDGET (widget), FALSE);
 
   return (gtk_widget_get_screen_unchecked (widget) != NULL);
+}
+
+void
+_gtk_widget_scale_changed (GtkWidget *widget)
+{
+  GtkWidgetPrivate *priv;
+
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+
+  priv = widget->priv;
+
+  if (priv->context)
+    gtk_style_context_set_scale (priv->context, gtk_widget_get_scale_factor (widget));
+
+  g_object_notify (G_OBJECT (widget), "scale-factor");
+
+  gtk_widget_queue_draw (widget);
+
+  if (GTK_IS_CONTAINER (widget))
+    gtk_container_forall (GTK_CONTAINER (widget),
+                          (GtkCallback) _gtk_widget_scale_changed,
+                          NULL);
+}
+
+gint
+gtk_widget_get_scale_factor (GtkWidget *widget)
+{
+  GtkWidget *toplevel;
+  GdkScreen *screen;
+
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), 1);
+
+  if (gtk_widget_get_realized (widget))
+    return gdk_window_get_scale_factor (gtk_widget_get_window (widget));
+
+  toplevel = gtk_widget_get_toplevel (widget);
+  if (toplevel && toplevel != widget)
+    return gtk_widget_get_scale_factor (toplevel);
+
+  /* else fall back to something that is more likely to be right than
+   * just returning 1:
+   */
+  screen = gtk_widget_get_screen (widget);
+  if (screen)
+    return gdk_screen_get_monitor_scale_factor (screen, 0);
+
+  return 1;
 }
 
 /**
@@ -15599,6 +15725,7 @@ gtk_widget_get_style_context (GtkWidget *widget)
       priv->context = gtk_style_context_new ();
 
       gtk_style_context_set_state (priv->context, priv->state_flags);
+      gtk_style_context_set_scale (priv->context, gtk_widget_get_scale_factor (widget));
 
       screen = gtk_widget_get_screen (widget);
       if (screen)

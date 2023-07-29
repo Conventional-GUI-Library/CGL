@@ -62,6 +62,8 @@ typedef struct _GtkImageClass         GtkImageClass;
  *  This image type was added in GTK+ 2.6
  * @GTK_IMAGE_GICON: the widget contains a #GIcon.
  *  This image type was added in GTK+ 2.14
+ * @GTK_IMAGE_SURFACE: the widget contains a #cairo_surface_t.
+ *  This image type was added in GTK+ 3.10
  *
  * Describes the image data representation used by a #GtkImage. If you
  * want to get the image from the widget, you can only get the
@@ -79,7 +81,8 @@ typedef enum
   GTK_IMAGE_ICON_SET,
   GTK_IMAGE_ANIMATION,
   GTK_IMAGE_ICON_NAME,
-  GTK_IMAGE_GICON
+  GTK_IMAGE_GICON,
+  GTK_IMAGE_SURFACE
 } GtkImageType;
 
 /**
@@ -122,6 +125,8 @@ GtkWidget* gtk_image_new_from_icon_name (const gchar     *icon_name,
 					 GtkIconSize      size);
 GtkWidget* gtk_image_new_from_gicon     (GIcon           *icon,
 					 GtkIconSize      size);
+GDK_AVAILABLE_IN_3_10
+GtkWidget* gtk_image_new_from_surface   (cairo_surface_t *surface);
 
 void gtk_image_clear              (GtkImage        *image);
 void gtk_image_set_from_file      (GtkImage        *image,
@@ -164,7 +169,8 @@ void       gtk_image_get_gicon     (GtkImage              *image,
 				    GIcon                **gicon,
 				    GtkIconSize           *size);
 gint       gtk_image_get_pixel_size (GtkImage             *image);
-
+void gtk_image_set_from_surface   (GtkImage        *image,
+				   cairo_surface_t *surface);
 G_END_DECLS
 
 #endif /* __GTK_IMAGE_H__ */

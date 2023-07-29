@@ -201,6 +201,24 @@ struct _GtkStyleContextClass
 #define GTK_STYLE_CLASS_BUTTON "button"
 
 /**
+ * GTK_STYLE_CLASS_LIST:
+ *
+ * A CSS class to match lists.
+ *
+ * This is used by #GtkListBox.
+ */
+#define GTK_STYLE_CLASS_LIST "list"
+
+/**
+ * GTK_STYLE_CLASS_LIST_ROW:
+ *
+ * A CSS class to match list rowss.
+ *
+ * This is used by #GtkListBoxRow.
+ */
+#define GTK_STYLE_CLASS_LIST_ROW "list-row"
+
+/**
  * GTK_STYLE_CLASS_CALENDAR:
  *
  * A CSS class to match calendars.
@@ -774,6 +792,12 @@ void          gtk_style_context_set_state    (GtkStyleContext *context,
                                               GtkStateFlags    flags);
 GtkStateFlags gtk_style_context_get_state    (GtkStyleContext *context);
 
+GDK_AVAILABLE_IN_3_10
+void          gtk_style_context_set_scale    (GtkStyleContext *context,
+                                              gint             scale);
+GDK_AVAILABLE_IN_3_10
+gint          gtk_style_context_get_scale    (GtkStyleContext *context);
+
 GDK_DEPRECATED_IN_3_6
 gboolean      gtk_style_context_state_is_running (GtkStyleContext *context,
                                                   GtkStateType     state,
@@ -820,7 +844,18 @@ GtkIconSet * gtk_style_context_lookup_icon_set (GtkStyleContext *context,
 GdkPixbuf  * gtk_icon_set_render_icon_pixbuf   (GtkIconSet      *icon_set,
                                                 GtkStyleContext *context,
                                                 GtkIconSize      size);
-
+void        gtk_render_icon_surface (GtkStyleContext    *context,
+				     cairo_t            *cr,
+				     cairo_surface_t    *surface,
+				     gdouble             x,
+				     gdouble             y);
+cairo_surface_t  *
+gtk_icon_set_render_icon_surface               (GtkIconSet      *icon_set,
+						GtkStyleContext *context,
+						GtkIconSize      size,
+						int              scale,
+						GdkWindow       *for_window);
+ 
 void        gtk_style_context_set_screen (GtkStyleContext *context,
                                           GdkScreen       *screen);
 GdkScreen * gtk_style_context_get_screen (GtkStyleContext *context);

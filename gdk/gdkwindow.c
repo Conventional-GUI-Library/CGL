@@ -890,8 +890,9 @@ should_apply_clip_as_shape (GdkWindow *window)
     gdk_window_has_impl (window) &&
     /* Not for offscreens */
     !gdk_window_is_offscreen (window) &&
-    /* or for toplevels */
-    !gdk_window_is_toplevel (window) &&
+    /* or for non-shaped toplevels */
+    (!gdk_window_is_toplevel (window) ||
+     window->shape != NULL || window->applied_shape) &&
     /* or for foreign windows */
     window->window_type != GDK_WINDOW_FOREIGN &&
     /* or for the root window */
@@ -3045,7 +3046,8 @@ gdk_window_begin_paint_region (GdkWindow       *window,
   GdkWindowPaint *paint, *implicit_paint;
   GdkWindow *impl_window;
   GSList *list;
-
+  double sx, sy;
+  
   g_return_if_fail (GDK_IS_WINDOW (window));
 
   if (GDK_WINDOW_DESTROYED (window))
@@ -3135,7 +3137,10 @@ gdk_window_begin_paint_region (GdkWindow       *window,
       cairo_destroy (cr);
     }
 
-  cairo_surface_set_device_offset (paint->surface, -clip_box.x, -clip_box.y);
+#ifdef HAVE_CAIRO_SURFACE_SET_DEVICE_SCALE
+      cairo_surface_get_device_scale (paint->surface, &sx, &sy);
+#endif
+      cairo_surface_set_device_offset (paint->surface, -clip_box.x*sx, -clip_box.y*sy);
 
   for (list = window->paint_stack; list != NULL; list = list->next)
     {
@@ -4071,6 +4076,8 @@ gdk_window_process_updates_internal (GdkWindow *window)
   /* Ensure the window lives while updating it */
   g_object_ref (window);
 
+  window->in_update = TRUE;
+
   /* If an update got queued during update processing, we can get a
    * window in the update queue that has an empty update_area.
    * just ignore it.
@@ -4223,6 +4230,8 @@ gdk_window_process_updates_internal (GdkWindow *window)
 	 no actual invalid area */
       gdk_window_flush_outstanding_moves (window);
     }
+       
+  window->in_update = FALSE;
 
   g_object_unref (window);
 }
@@ -4349,60 +4358,76 @@ enum {
   PROCESS_UPDATES_WITH_SAME_CLOCK_CHILDREN
 };
 
+static GList *
+find_impl_windows_to_update (GList      *list,
+                             GdkWindow  *window,
+                             gint        recurse_mode)
+{
+	  GList *node;
+
+  if (GDK_WINDOW_DESTROYED (window))
+    return list;
+
+  /* Recurse first, so that we process updates in reverse stacking
+   * order so composition or painting over achieves the desired effect
+   * for offscreen windows
+   */
+  if (recurse_mode != PROCESS_UPDATES_NO_RECURSE)
+    {
+      for (node = window->children; node; node = node->next)
+        {
+         GdkWindow *child = node->data;
+
+          if (recurse_mode == PROCESS_UPDATES_WITH_ALL_CHILDREN ||
+              (recurse_mode == PROCESS_UPDATES_WITH_SAME_CLOCK_CHILDREN &&
+               child->frame_clock == NULL))
+            {
+              list = find_impl_windows_to_update (list, child, recurse_mode);
+            }
+        }
+    }
+
+  /* add reference count so the window cannot be deleted in a callback */
+  if (window->impl_window == window)
+    list = g_list_prepend (list, g_object_ref (window));
+
+  return list;
+}
+
+
 static void
 gdk_window_process_updates_with_mode (GdkWindow     *window,
                                       int            recurse_mode)
 {
-  GdkWindow *impl_window;
+  GList *list = NULL;
+  GList *node;
 
   g_return_if_fail (GDK_IS_WINDOW (window));
 
   if (GDK_WINDOW_DESTROYED (window))
     return;
 
-  /* Make sure the window lives during the expose callouts */
-  g_object_ref (window);
-
-  impl_window = gdk_window_get_impl_window (window);
-  if ((impl_window->update_area ||
-       impl_window->outstanding_moves) &&
-      !impl_window->update_freeze_count &&
-      !gdk_window_is_toplevel_frozen (window) &&
-
-      /* Don't recurse into process_updates_internal, we'll
-       * do the update later when idle instead. */
-      impl_window->implicit_paint == NULL)
+  list = find_impl_windows_to_update (list, window, recurse_mode);
+  
+  if (window->impl_window != window)
+    list = g_list_prepend (list, g_object_ref (window->impl_window)); 
+     
+  for (node = list; node; node = node->next)
     {
-      gdk_window_process_updates_internal ((GdkWindow *)impl_window);
-      gdk_window_remove_update_window ((GdkWindow *)impl_window);
+		GdkWindow *impl_window = node->data;
+	    if (impl_window->update_area &&
+          !impl_window->update_freeze_count &&
+          !gdk_window_is_toplevel_frozen (impl_window) &&
+           /* Don't recurse into process_updates_internal, we'll
+           * do the update later when idle instead. */
+          !impl_window->in_update)
+        {
+          gdk_window_process_updates_internal (impl_window);
+          gdk_window_remove_update_window (impl_window);        
+        }
     }
 
-  if (recurse_mode != PROCESS_UPDATES_NO_RECURSE)
-    {
-      /* process updates in reverse stacking order so composition or
-       * painting over achieves the desired effect for offscreen windows
-       */
-      GList *node, *children;
-
-      children = g_list_copy (window->children);
-      g_list_foreach (children, (GFunc)g_object_ref, NULL);
-
-      for (node = g_list_last (children); node; node = node->prev)
-	{
-          GdkWindow *child = node->data;
-          if (recurse_mode == PROCESS_UPDATES_WITH_ALL_CHILDREN ||
-              (recurse_mode == PROCESS_UPDATES_WITH_SAME_CLOCK_CHILDREN &&
-               child->frame_clock == NULL))
-            {
-              gdk_window_process_updates (child, TRUE);
-            }
-	  g_object_unref (child);
-	}
-
-      g_list_free (children);
-    }
-
-  g_object_unref (window);
+g_list_free_full (list, g_object_unref);
 }
 
 /**
@@ -5140,30 +5165,30 @@ gdk_window_get_pointer (GdkWindow	  *window,
 }
 
 /**
- * gdk_window_get_device_position:
+ * gdk_window_get_device_position_double:
  * @window: a #GdkWindow.
  * @device: pointer #GdkDevice to query to.
  * @x: (out) (allow-none): return location for the X coordinate of @device, or %NULL.
  * @y: (out) (allow-none): return location for the Y coordinate of @device, or %NULL.
  * @mask: (out) (allow-none): return location for the modifier mask, or %NULL.
  *
- * Obtains the current device position and modifier state.
+ * Obtains the current device position in doubles and modifier state.
  * The position is given in coordinates relative to the upper left
  * corner of @window.
  *
  * Return value: (transfer none): The window underneath @device (as with
  * gdk_device_get_window_at_position()), or %NULL if the window is not known to GDK.
  *
- * Since: 3.0
+ * Since: 3.10
  **/
 GdkWindow *
-gdk_window_get_device_position (GdkWindow       *window,
-                                GdkDevice       *device,
-                                gint            *x,
-                                gint            *y,
-                                GdkModifierType *mask)
+gdk_window_get_device_position_double (GdkWindow       *window,
+                                       GdkDevice       *device,
+                                       double          *x,
+                                       double          *y,
+                                       GdkModifierType *mask)
 {
-  gint tmp_x, tmp_y;
+  gdouble tmp_x, tmp_y;
   GdkModifierType tmp_mask;
   gboolean normal_child;
 
@@ -5191,6 +5216,44 @@ gdk_window_get_device_position (GdkWindow       *window,
   if (normal_child)
     return _gdk_window_find_child_at (window, tmp_x, tmp_y);
   return NULL;
+}
+
+/**
+ * gdk_window_get_device_position:
+ * @window: a #GdkWindow.
+ * @device: pointer #GdkDevice to query to.
+ * @x: (out) (allow-none): return location for the X coordinate of @device, or %NULL.
+ * @y: (out) (allow-none): return location for the Y coordinate of @device, or %NULL.
+ * @mask: (out) (allow-none): return location for the modifier mask, or %NULL.
+ *
+ * Obtains the current device position and modifier state.
+ * The position is given in coordinates relative to the upper left
+ * corner of @window.
+ *
+ * Use gdk_window_get_device_position_double() if you need subpixel precision.
+ *
+ * Return value: (transfer none): The window underneath @device (as with
+ * gdk_device_get_window_at_position()), or %NULL if the window is not known to GDK.
+ *
+ * Since: 3.0
+ **/
+GdkWindow *
+gdk_window_get_device_position (GdkWindow       *window,
+                                GdkDevice       *device,
+                                gint            *x,
+                                gint            *y,
+                                GdkModifierType *mask)
+{
+  gdouble tmp_x, tmp_y;
+
+  window = gdk_window_get_device_position_double (window, device,
+                                                  &tmp_x, &tmp_y, mask);
+  if (x)
+    *x = round (tmp_x);
+  if (y)
+    *y = round (tmp_y);
+
+  return window;
 }
 
 /**
@@ -8033,8 +8096,8 @@ pick_embedded_child (GdkWindow *window,
 
 GdkWindow *
 _gdk_window_find_child_at (GdkWindow *window,
-			   int        x,
-                           int        y)
+			   double     x,
+                           double     y)
 {
   GdkWindow *sub;
   double child_x, child_y;
@@ -8475,8 +8538,8 @@ send_crossing_event (GdkDisplay                 *display,
 		     GdkWindow                  *subwindow,
                      GdkDevice                  *device,
                      GdkDevice                  *source_device,
-		     gint                        toplevel_x,
-		     gint                        toplevel_y,
+		     gdouble                     toplevel_x,
+		     gdouble                     toplevel_y,
 		     GdkModifierType             mask,
 		     guint32                     time_,
 		     GdkEvent                   *event_in_queue,
@@ -8591,8 +8654,8 @@ _gdk_synthesize_crossing_events (GdkDisplay                 *display,
                                  GdkDevice                  *device,
                                  GdkDevice                  *source_device,
 				 GdkCrossingMode             mode,
-				 gint                        toplevel_x,
-				 gint                        toplevel_y,
+				 double                      toplevel_x,
+				 double                      toplevel_y,
 				 GdkModifierType             mask,
 				 guint32                     time_,
 				 GdkEvent                   *event_in_queue,
@@ -10285,10 +10348,18 @@ gdk_window_create_similar_surface (GdkWindow *     window,
                                    int             height)
 {
   cairo_surface_t *window_surface, *surface;
+  double sx, sy;
 
   g_return_val_if_fail (GDK_IS_WINDOW (window), NULL);
-  
+
   window_surface = gdk_window_ref_impl_surface (window);
+  sx = sy = 1;
+#ifdef HAVE_CAIRO_SURFACE_SET_DEVICE_SCALE
+  cairo_surface_get_device_scale (window_surface, &sx, &sy);
+#endif
+
+  width = width * sx;
+  height = height * sy;
 
   switch (_gdk_rendering_mode)
   {
@@ -10311,10 +10382,86 @@ gdk_window_create_similar_surface (GdkWindow *     window,
       break;
   }
 
+#ifdef HAVE_CAIRO_SURFACE_SET_DEVICE_SCALE
+  cairo_surface_set_device_scale (surface, sx, sy);
+#endif
+
   cairo_surface_destroy (window_surface);
 
   return surface;
 }
+
+
+/**
+ * gdk_window_create_similar_image_surface:
+ * @window: window to make new surface similar to, or %NULL if none
+ * @format: (type int): the format for the new surface
+ * @width: width of the new surface
+ * @height: height of the new surface
+ * @scale: the scale of the new surface, or 0 to use same as @window
+ *
+ * Create a new image surface that is efficient to draw on the
+ * given @window.
+ *
+ * Initially the surface contents are all 0 (transparent if contents
+ * have transparency, black otherwise.)
+ *
+ * Returns: a pointer to the newly allocated surface. The caller
+ * owns the surface and should call cairo_surface_destroy() when done
+ * with it.
+ *
+ * This function always returns a valid pointer, but it will return a
+ * pointer to a "nil" surface if @other is already in an error state
+ * or any other error occurs.
+ *
+ * Since: 3.10
+ **/
+cairo_surface_t *
+gdk_window_create_similar_image_surface (GdkWindow *     window,
+					 cairo_format_t  format,
+					 int             width,
+					 int             height,
+					 int             scale)
+{
+  GdkWindowImplClass *impl_class;
+  cairo_surface_t *window_surface, *surface;
+  GdkDisplay *display;
+  GdkScreen *screen;
+
+  g_return_val_if_fail (window ==NULL || GDK_IS_WINDOW (window), NULL);
+
+  if (window == NULL)
+    {
+      display = gdk_display_get_default ();
+      screen = gdk_display_get_default_screen (display);
+      window = gdk_screen_get_root_window (screen);
+    }
+
+  if (scale == 0)
+    scale = gdk_window_get_scale_factor (window);
+
+  impl_class = GDK_WINDOW_IMPL_GET_CLASS (window->impl);
+
+  if (impl_class->create_similar_image_surface)
+    surface = impl_class->create_similar_image_surface (window, format, width, height);
+  else
+    {
+      window_surface = gdk_window_ref_impl_surface (window);
+      surface =
+        cairo_surface_create_similar_image (window_surface,
+                                            format,
+                                            width,
+                                            height);
+      cairo_surface_destroy (window_surface);
+    }
+
+#ifdef HAVE_CAIRO_SURFACE_SET_DEVICE_SCALE
+  cairo_surface_set_device_scale (surface, scale, scale);
+#endif
+
+  return surface;
+}
+
 
 /**
  * gdk_window_focus:
@@ -11707,4 +11854,42 @@ gdk_window_get_frame_clock (GdkWindow *window)
   toplevel = gdk_window_get_toplevel (window);
 
   return toplevel->frame_clock;
+}
+
+/**
+ * gdk_window_get_scale_factor:
+ * @window: window to get scale factor for
+ *
+ * Returns the internal scale factor that maps from window coordiantes
+ * to the actual device pixels. On traditional systems this is 1, but
+ * on very high density outputs this can be a higher value (often 2).
+ *
+ * A higher value means that drawing is automatically scaled up to
+ * a higher resolution, so any code doing drawing will automatically look
+ * nicer. However, if you are supplying pixel-based data the scale
+ * value can be used to determine whether to use a pixel resource
+ * with higher resolution data.
+ *
+ * The scale of a window may change during runtime, if this happens
+ * a configure event will be sent to the toplevel window.
+ *
+ * Since: 3.10
+ * Return value: the scale factor
+ */
+gint
+gdk_window_get_scale_factor (GdkWindow *window)
+{
+  GdkWindowImplClass *impl_class;
+
+  g_return_val_if_fail (GDK_IS_WINDOW (window), 1);
+
+  if (GDK_WINDOW_DESTROYED (window))
+    return 1;
+
+  impl_class = GDK_WINDOW_IMPL_GET_CLASS (window->impl);
+
+  if (impl_class->get_scale_factor)
+    return impl_class->get_scale_factor (window);
+
+  return 1;
 }

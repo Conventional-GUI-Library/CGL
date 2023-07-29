@@ -265,6 +265,39 @@ gboolean              gtk_icon_info_get_attach_points (GtkIconInfo    *icon_info
 						       GdkPoint      **points,
 						       gint           *n_points);
 const gchar *         gtk_icon_info_get_display_name  (GtkIconInfo    *icon_info);
+GtkIconInfo * gtk_icon_theme_lookup_icon_for_scale (GtkIconTheme                *icon_theme,
+                                                    const gchar                 *icon_name,
+                                                    gint                         size,
+                                                    gint                         scale,
+                                                    GtkIconLookupFlags           flags);
+GtkIconInfo * gtk_icon_theme_choose_icon_for_scale (GtkIconTheme                *icon_theme,
+						    const gchar                 *icon_names[],
+						    gint                         size,
+                                                    gint                         scale,
+						    GtkIconLookupFlags           flags);
+GdkPixbuf *   gtk_icon_theme_load_icon_for_scale   (GtkIconTheme                *icon_theme,
+                                                    const gchar                 *icon_name,
+                                                    gint                         size,
+                                                    gint                         scale,
+                                                    GtkIconLookupFlags           flags,
+                                                    GError                     **error);
+
+GtkIconInfo * gtk_icon_theme_lookup_by_gicon_for_scale (GtkIconTheme             *icon_theme,
+                                                        GIcon                    *icon,
+                                                        gint                      size,
+                                                        gint                      scale,
+                                                        GtkIconLookupFlags        flags);
+gint                  gtk_icon_info_get_base_scale     (GtkIconInfo   *icon_info);
+cairo_surface_t *     gtk_icon_info_load_surface       (GtkIconInfo   *icon_info,
+							GdkWindow     *for_window,
+							GError       **error);
+cairo_surface_t * gtk_icon_theme_load_surface      (GtkIconTheme        *icon_theme,
+						    const gchar         *icon_name,
+						    gint                 size,
+						    gint                 scale,
+						    GdkWindow           *for_window,
+						    GtkIconLookupFlags   flags,
+						    GError             **error);
 
 /* Non-public methods */
 void _gtk_icon_theme_ensure_builtin_cache             (void);

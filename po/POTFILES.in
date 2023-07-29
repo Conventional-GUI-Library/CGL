@@ -1,5 +1,6 @@
 # Files from the Gtk distribution which have already been
 # marked to allow runtime translation of messages
+gdk/broadway/gdkbroadway-server.c
 gdk/gdkapplaunchcontext.c
 gdk/gdk.c
 gdk/gdkcursor.c
@@ -146,6 +147,7 @@ gtk/gtk-launch.c
 gtk/gtklayout.c
 gtk/gtklevelbar.c
 gtk/gtklinkbutton.c
+gtk/gtklistbox.c
 gtk/gtkliststore.c
 gtk/gtklockbutton.c
 gtk/gtkmain.c
@@ -200,6 +202,7 @@ gtk/gtkscale.c
 gtk/gtkscrollable.c
 gtk/gtkscrollbar.c
 gtk/gtkscrolledwindow.c
+gtk/gtksearchbar.c
 gtk/gtkselection.c
 gtk/gtkseparator.c
 gtk/gtkseparatortoolitem.c

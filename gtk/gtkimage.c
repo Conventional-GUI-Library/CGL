@@ -28,6 +28,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <cairo-gobject.h>
 
 #include "gtkcontainer.h"
 #include "gtkiconhelperprivate.h"
@@ -149,6 +150,7 @@ struct _GtkImagePrivate
 static gint gtk_image_draw                 (GtkWidget    *widget,
                                             cairo_t      *cr);
 static void gtk_image_unmap                (GtkWidget    *widget);
+static void gtk_image_realize              (GtkWidget    *widget);
 static void gtk_image_unrealize            (GtkWidget    *widget);
 static void gtk_image_get_preferred_width  (GtkWidget    *widget,
                                             gint         *minimum,
@@ -178,6 +180,7 @@ enum
 {
   PROP_0,
   PROP_PIXBUF,
+  PROP_SURFACE,
   PROP_FILE,
   PROP_STOCK,
   PROP_ICON_SET,
@@ -210,6 +213,7 @@ gtk_image_class_init (GtkImageClass *class)
   widget_class->get_preferred_width = gtk_image_get_preferred_width;
   widget_class->get_preferred_height = gtk_image_get_preferred_height;
   widget_class->unmap = gtk_image_unmap;
+  widget_class->realize = gtk_image_realize;
   widget_class->unrealize = gtk_image_unrealize;
   widget_class->style_updated = gtk_image_style_updated;
   widget_class->screen_changed = gtk_image_screen_changed;
@@ -221,6 +225,14 @@ gtk_image_class_init (GtkImageClass *class)
                                                         P_("A GdkPixbuf to display"),
                                                         GDK_TYPE_PIXBUF,
                                                         GTK_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_SURFACE,
+                                   g_param_spec_boxed ("surface",
+						       P_("Surface"),
+						       P_("A cairo_surface_t to display"),
+						       CAIRO_GOBJECT_TYPE_SURFACE,
+						       GTK_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class,
                                    PROP_FILE,
@@ -373,6 +385,7 @@ gtk_image_init (GtkImage *image)
 
   gtk_widget_set_has_window (GTK_WIDGET (image), FALSE);
   priv->icon_helper = _gtk_icon_helper_new ();
+  _gtk_icon_helper_set_icon_size (priv->icon_helper, DEFAULT_ICON_SIZE);
 
   priv->filename = NULL;
 }
@@ -407,6 +420,10 @@ gtk_image_set_property (GObject      *object,
     case PROP_PIXBUF:
       gtk_image_set_from_pixbuf (image,
                                  g_value_get_object (value));
+      break;
+    case PROP_SURFACE:
+      gtk_image_set_from_surface (image,
+				  g_value_get_boxed (value));
       break;
     case PROP_FILE:
       gtk_image_set_from_file (image, g_value_get_string (value));
@@ -464,6 +481,9 @@ gtk_image_get_property (GObject     *object,
     {
     case PROP_PIXBUF:
       g_value_set_object (value, _gtk_icon_helper_peek_pixbuf (priv->icon_helper));
+      break;
+    case PROP_SURFACE:
+      g_value_set_boxed (value, _gtk_icon_helper_peek_surface (priv->icon_helper));
       break;
     case PROP_FILE:
       g_value_set_string (value, priv->filename);
@@ -600,6 +620,29 @@ gtk_image_new_from_pixbuf (GdkPixbuf *pixbuf)
   image = g_object_new (GTK_TYPE_IMAGE, NULL);
 
   gtk_image_set_from_pixbuf (image, pixbuf);
+
+  return GTK_WIDGET (image);  
+}
+
+/**
+ * gtk_image_new_from_surface:
+ * @surface: (allow-none): a #cairo_surface_t, or %NULL
+ *
+ * Creates a new #GtkImage displaying @surface.
+ * The #GtkImage does not assume a reference to the
+ * surface; you still need to unref it if you own references.
+ * #GtkImage will add its own reference rather than adopting yours.
+ * 
+ * Return value: a new #GtkImage
+ **/
+GtkWidget*
+gtk_image_new_from_surface (cairo_surface_t *surface)
+{
+  GtkImage *image;
+
+  image = g_object_new (GTK_TYPE_IMAGE, NULL);
+
+  gtk_image_set_from_surface (image, surface);
 
   return GTK_WIDGET (image);  
 }
@@ -1083,6 +1126,43 @@ gtk_image_set_from_gicon  (GtkImage       *image,
 }
 
 /**
+ * gtk_image_set_from_surface:
+ * @image: a #GtkImage
+ * @surface: a cairo_surface_t
+ *
+ * See gtk_image_new_from_surface() for details.
+ * 
+ * Since: 3.10
+ **/
+void
+gtk_image_set_from_surface (GtkImage       *image,
+			    cairo_surface_t *surface)
+{
+  GtkImagePrivate *priv;
+
+  g_return_if_fail (GTK_IS_IMAGE (image));
+
+  priv = image->priv;
+
+  g_object_freeze_notify (G_OBJECT (image));
+
+  if (surface)
+    cairo_surface_reference (surface);
+
+  gtk_image_clear (image);
+
+  if (surface)
+    {
+      _gtk_icon_helper_set_surface (priv->icon_helper, surface);
+      cairo_surface_destroy (surface);
+    }
+
+  g_object_notify (G_OBJECT (image), "surface");
+  
+  g_object_thaw_notify (G_OBJECT (image));
+}
+
+/**
  * gtk_image_get_storage_type:
  * @image: a #GtkImage
  * 
@@ -1316,8 +1396,24 @@ gtk_image_unmap (GtkWidget *widget)
 }
 
 static void
+gtk_image_realize (GtkWidget *widget)
+{
+  GtkImage *image = GTK_IMAGE (widget);
+  GtkImagePrivate *priv = image->priv;
+
+  GTK_WIDGET_CLASS (gtk_image_parent_class)->realize (widget);
+
+  _gtk_icon_helper_set_window (priv->icon_helper,
+			       gtk_widget_get_window (widget));
+}
+
+static void
 gtk_image_unrealize (GtkWidget *widget)
 {
+  GtkImage *image = GTK_IMAGE (widget);
+  GtkImagePrivate *priv = image->priv;
+
+  _gtk_icon_helper_set_window (priv->icon_helper, NULL);
   gtk_image_reset_anim_iter (GTK_IMAGE (widget));
 
   GTK_WIDGET_CLASS (gtk_image_parent_class)->unrealize (widget);

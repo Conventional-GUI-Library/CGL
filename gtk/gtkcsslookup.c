@@ -142,6 +142,7 @@ _gtk_css_lookup_set_computed (GtkCssLookup  *lookup,
 void
 _gtk_css_lookup_resolve (GtkCssLookup            *lookup,
                          GtkStyleProviderPrivate *provider,
+			 int                      scale,
                          GtkCssComputedValues    *values,
                          GtkCssComputedValues    *parent_values)
 {
@@ -166,6 +167,7 @@ _gtk_css_lookup_resolve (GtkCssLookup            *lookup,
                _gtk_bitmask_get (lookup->missing, i))
         _gtk_css_computed_values_compute_value (values,
                                                 provider,
+						scale,
                                                 parent_values,
                                                 i,
                                                 lookup->values[i].value,

@@ -727,6 +727,8 @@ void	      gdk_window_get_root_origin (GdkWindow	  *window,
 void          gdk_window_get_frame_extents (GdkWindow     *window,
                                             GdkRectangle  *rect);
 
+gint          gdk_window_get_scale_factor  (GdkWindow     *window);
+
 #ifndef GDK_MULTIDEVICE_SAFE
 GDK_DEPRECATED_IN_3_0_FOR(gdk_window_get_device_position)
 GdkWindow *   gdk_window_get_pointer     (GdkWindow       *window,
@@ -739,6 +741,11 @@ GdkWindow *   gdk_window_get_device_position (GdkWindow       *window,
                                               gint            *x,
                                               gint            *y,
                                               GdkModifierType *mask);
+GdkWindow *   gdk_window_get_device_position_double (GdkWindow       *window,
+                                                     GdkDevice       *device,
+                                                     gdouble         *x,
+                                                     gdouble         *y,
+                                                     GdkModifierType *mask);                                              
 GdkWindow *   gdk_window_get_parent      (GdkWindow       *window);
 GdkWindow *   gdk_window_get_toplevel    (GdkWindow       *window);
 
@@ -781,6 +788,13 @@ cairo_surface_t *
                                           cairo_content_t  content,
                                           int              width,
                                           int              height);
+GDK_AVAILABLE_IN_3_10
+cairo_surface_t *
+              gdk_window_create_similar_image_surface (GdkWindow *window,
+						       cairo_format_t format,
+						       int            width,
+						       int            height,
+						       int            scale);
 
 void          gdk_window_beep            (GdkWindow       *window);
 void          gdk_window_iconify         (GdkWindow       *window);

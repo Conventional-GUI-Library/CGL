@@ -37,11 +37,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 
 static void   gdk_broadway_display_dispose            (GObject            *object);
 static void   gdk_broadway_display_finalize           (GObject            *object);
@@ -124,7 +123,6 @@ _gdk_broadway_display_open (const gchar *display_name)
 {
   GdkDisplay *display;
   GdkBroadwayDisplay *broadway_display;
-  int port;
 
   display = g_object_new (GDK_TYPE_BROADWAY_DISPLAY, NULL);
   broadway_display = GDK_BROADWAY_DISPLAY (display);
@@ -153,17 +151,7 @@ _gdk_broadway_display_open (const gchar *display_name)
   if (display_name == NULL)
     display_name = g_getenv ("BROADWAY_DISPLAY");
 
-  port = 0;
-  if (display_name != NULL)
-    {
-      if (*display_name == ':')
-	display_name++;
-      port = strtol(display_name, NULL, 10);
-    }
-  if (port == 0)
-    port = 1;
-
-  broadway_display->server = _gdk_broadway_server_new (port, NULL);
+  broadway_display->server = _gdk_broadway_server_new (display_name, NULL);
   if (broadway_display->server == NULL)
     {
       g_printerr ("Unable to init server\n");

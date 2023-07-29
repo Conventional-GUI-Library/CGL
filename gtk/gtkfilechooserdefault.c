@@ -296,6 +296,7 @@ static gboolean       gtk_file_chooser_default_update_current_folder 	   (GtkFil
 static GFile *        gtk_file_chooser_default_get_current_folder 	   (GtkFileChooser    *chooser);
 static void           gtk_file_chooser_default_set_current_name   	   (GtkFileChooser    *chooser,
 									    const gchar       *name);
+static gchar *        gtk_file_chooser_default_get_current_name   	   (GtkFileChooser    *chooser);
 static gboolean       gtk_file_chooser_default_select_file        	   (GtkFileChooser    *chooser,
 									    GFile             *file,
 									    GError           **error);
@@ -701,6 +702,7 @@ gtk_file_chooser_default_iface_init (GtkFileChooserIface *iface)
   iface->set_current_folder = gtk_file_chooser_default_set_current_folder;
   iface->get_current_folder = gtk_file_chooser_default_get_current_folder;
   iface->set_current_name = gtk_file_chooser_default_set_current_name;
+  iface->get_current_name = gtk_file_chooser_default_get_current_name;
   iface->add_filter = gtk_file_chooser_default_add_filter;
   iface->remove_filter = gtk_file_chooser_default_remove_filter;
   iface->list_filters = gtk_file_chooser_default_list_filters;
@@ -7439,6 +7441,18 @@ gtk_file_chooser_default_set_current_name (GtkFileChooser *chooser,
 
   pending_select_files_free (impl);
   gtk_entry_set_text (GTK_ENTRY (impl->location_entry), name);
+}
+
+static gchar *
+gtk_file_chooser_default_get_current_name (GtkFileChooser *chooser)
+{
+  GtkFileChooserDefault *impl = GTK_FILE_CHOOSER_DEFAULT (chooser);
+
+  g_return_val_if_fail (impl->action == GTK_FILE_CHOOSER_ACTION_SAVE ||
+	                impl->action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER,
+	                NULL);
+
+  return g_strdup (gtk_entry_get_text (GTK_ENTRY (impl->location_entry)));
 }
 
 static gboolean

@@ -142,6 +142,7 @@ gboolean             gtk_file_chooser_get_create_folders (GtkFileChooser *choose
  */
 void     gtk_file_chooser_set_current_name   (GtkFileChooser *chooser,
 					      const gchar    *name);
+gchar *gtk_file_chooser_get_current_name (GtkFileChooser *chooser);
 
 /* Filename manipulation
  */

@@ -520,15 +520,19 @@ gdk_window_cache_new (GdkScreen *screen)
     {
       GList *toplevel_windows, *list;
       GdkWindow *window;
+      GdkWindowImplX11 *impl;
       gint x, y, width, height;
 
       toplevel_windows = gdk_screen_get_toplevel_windows (screen);
       for (list = toplevel_windows; list; list = list->next)
         {
           window = GDK_WINDOW (list->data);
+	  impl = GDK_WINDOW_IMPL_X11 (window->impl);
           gdk_window_get_geometry (window, &x, &y, &width, &height);
           gdk_window_cache_add (result, GDK_WINDOW_XID (window),
-                                x, y, width, height,
+                                x * impl->window_scale, y * impl->window_scale, 
+				width * impl->window_scale, 
+				height * impl->window_scale,
                                 gdk_window_is_visible (window));
         }
       g_list_free (toplevel_windows);
@@ -566,7 +570,10 @@ gdk_window_cache_new (GdkScreen *screen)
   if (gdk_screen_is_composited (screen))
     {
       cow = XCompositeGetOverlayWindow (xdisplay, GDK_WINDOW_XID (root_window));
-      gdk_window_cache_add (result, cow, 0, 0, gdk_screen_get_width (screen), gdk_screen_get_height (screen), TRUE);
+      gdk_window_cache_add (result, cow, 0, 0, 
+			    gdk_screen_get_width (screen) * GDK_X11_SCREEN(screen)->window_scale, 
+			    gdk_screen_get_height (screen) * GDK_X11_SCREEN(screen)->window_scale, 
+			    TRUE);
       XCompositeReleaseOverlayWindow (xdisplay, GDK_WINDOW_XID (root_window));
     }
 #endif
@@ -661,12 +668,12 @@ is_pointer_within_shape (GdkDisplay    *display,
       child->shape = NULL;
       if (gdk_display_supports_shapes (display))
         child->shape = _gdk_x11_xwindow_get_shape (display_x11->xdisplay,
-                                                   child->xid, ShapeBounding);
+                                                   child->xid, 1,  ShapeBounding);
 #ifdef ShapeInput
       input_shape = NULL;
       if (gdk_display_supports_input_shapes (display))
         input_shape = _gdk_x11_xwindow_get_shape (display_x11->xdisplay,
-                                                  child->xid, ShapeInput);
+                                                  child->xid, 1, ShapeInput);
 
       if (child->shape && input_shape)
         {
@@ -3018,6 +3025,7 @@ xdnd_position_filter (GdkXEvent *xev,
                       GdkEvent  *event,
                       gpointer   data)
 {
+  GdkWindowImplX11 *impl;
   XEvent *xevent = (XEvent *)xev;
   guint32 source_window = xevent->xclient.data.l[0];
   gint16 x_root = xevent->xclient.data.l[2] >> 16;
@@ -3048,6 +3056,8 @@ xdnd_position_filter (GdkXEvent *xev,
       (context->protocol == GDK_DRAG_PROTO_XDND) &&
       (GDK_WINDOW_XID (context->source_window) == source_window))
     {
+      impl = GDK_WINDOW_IMPL_X11 (event->any.window->impl);
+
       context_x11 = GDK_X11_DRAG_CONTEXT (context);
 
       event->dnd.type = GDK_DRAG_MOTION;
@@ -3062,11 +3072,11 @@ xdnd_position_filter (GdkXEvent *xev,
       if (!context_x11->xdnd_have_actions)
         context->actions = context->suggested_action;
 
-      event->dnd.x_root = x_root;
-      event->dnd.y_root = y_root;
+      event->dnd.x_root = x_root / impl->window_scale;
+      event->dnd.y_root = y_root / impl->window_scale;
 
-      context_x11->last_x = x_root;
-      context_x11->last_y = y_root;
+      context_x11->last_x = x_root / impl->window_scale;
+      context_x11->last_y = y_root / impl->window_scale;
 
       return GDK_FILTER_TRANSLATE;
     }
@@ -3298,6 +3308,7 @@ gdk_x11_drag_context_find_window (GdkDragContext  *context,
                                   gint             y_root,
                                   GdkDragProtocol *protocol)
 {
+  GdkX11Screen *screen_x11 = GDK_X11_SCREEN(screen);
   GdkX11DragContext *context_x11 = GDK_X11_DRAG_CONTEXT (context);
   GdkWindowCache *window_cache;
   GdkDisplay *display;
@@ -3311,7 +3322,8 @@ gdk_x11_drag_context_find_window (GdkDragContext  *context,
   dest = get_client_window_at_coords (window_cache,
                                       drag_window && GDK_WINDOW_IS_X11 (drag_window) ?
                                       GDK_WINDOW_XID (drag_window) : None,
-                                      x_root, y_root);
+                                      x_root * screen_x11->window_scale,
+				      y_root * screen_x11->window_scale);
 
   if (context_x11->dest_xid != dest)
     {
@@ -3358,6 +3370,7 @@ gdk_x11_drag_context_drag_motion (GdkDragContext *context,
                                   guint32         time)
 {
   GdkX11DragContext *context_x11 = GDK_X11_DRAG_CONTEXT (context);
+  GdkWindowImplX11 *impl;
 
   context_x11->old_actions = context->actions;
   context->actions = possible_actions;
@@ -3490,11 +3503,11 @@ gdk_x11_drag_context_drag_motion (GdkDragContext *context,
           switch (context->protocol)
             {
             case GDK_DRAG_PROTO_MOTIF:
-              motif_send_motion (context_x11, x_root, y_root, suggested_action, time);
+              motif_send_motion (context_x11, x_root* impl->window_scale, y_root* impl->window_scale, suggested_action, time);
               break;
 
             case GDK_DRAG_PROTO_XDND:
-              xdnd_send_motion (context_x11, x_root, y_root, suggested_action, time);
+              xdnd_send_motion (context_x11, x_root * impl->window_scale, y_root * impl->window_scale, suggested_action, time);
               break;
 
             case GDK_DRAG_PROTO_ROOTWIN:

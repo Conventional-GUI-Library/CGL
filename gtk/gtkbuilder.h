@@ -106,7 +106,11 @@ struct _GtkBuilderClass
 
 GType        gtk_builder_get_type                (void) G_GNUC_CONST;
 GtkBuilder*  gtk_builder_new                     (void);
+GtkBuilder * gtk_builder_new_from_file           (const gchar   *filename);
+GtkBuilder * gtk_builder_new_from_resource       (const gchar   *resource_path);
 
+GtkBuilder * gtk_builder_new_from_string         (const gchar   *string,
+                                                  gssize         length);
 guint        gtk_builder_add_from_file           (GtkBuilder    *builder,
                                                   const gchar   *filename,
                                                   GError       **error);

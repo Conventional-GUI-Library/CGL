@@ -987,8 +987,8 @@ icon_size_lookup_intern (GtkSettings *settings,
  * @settings: a #GtkSettings object, used to determine
  *   which set of user preferences to used.
  * @size: (type int): an icon size
- * @width: (out): location to store icon width
- * @height: (out): location to store icon height
+ * @width: (out) (allow-none): location to store icon width
+ * @height: (out) (allow-none): location to store icon height
  *
  * Obtains the pixel size of a semantic icon size, possibly
  * modified by user preferences for a particular
@@ -1019,8 +1019,8 @@ gtk_icon_size_lookup_for_settings (GtkSettings *settings,
 /**
  * gtk_icon_size_lookup:
  * @size: (type int): an icon size
- * @width: (out): location to store icon width
- * @height: (out): location to store icon height
+ * @width: (out) (allow-none): location to store icon width
+ * @height: (out) (allow-none): location to store icon height
  *
  * Obtains the pixel size of a semantic icon size, possibly
  * modified by user preferences for the default #GtkSettings.
@@ -1209,12 +1209,14 @@ static GdkPixbuf *find_in_cache     (GtkIconSet       *icon_set,
                                      GtkStyleContext  *style_context,
                                      GtkTextDirection  direction,
                                      GtkStateType      state,
-                                     GtkIconSize       size);
+                                     GtkIconSize       size,
+                                     gint              scale);
 static void       add_to_cache      (GtkIconSet       *icon_set,
                                      GtkStyleContext  *style_context,
                                      GtkTextDirection  direction,
                                      GtkStateType      state,
                                      GtkIconSize       size,
+                                     gint              scale,
                                      GdkPixbuf        *pixbuf);
 /* Clear icon set contents, drop references to all contained
  * GdkPixbuf objects and forget all GtkIconSources. Used to
@@ -1493,7 +1495,8 @@ ensure_filename_pixbuf (GtkIconSet    *icon_set,
 static GdkPixbuf *
 render_icon_name_pixbuf (GtkIconSource    *icon_source,
 			 GtkStyleContext  *context,
-			 GtkIconSize       size)
+			 GtkIconSize       size,
+                         gint              scale)
 {
   GdkPixbuf *pixbuf;
   GdkPixbuf *tmp_pixbuf;
@@ -1563,9 +1566,10 @@ render_icon_name_pixbuf (GtkIconSource    *icon_source,
       names[1] = icon_source->source.icon_name;
       names[2] = NULL;
 
-      info = gtk_icon_theme_choose_icon (icon_theme,
-                                         (const char **) names,
-                                         pixel_size, GTK_ICON_LOOKUP_USE_BUILTIN);
+      info = gtk_icon_theme_choose_icon_for_scale (icon_theme,
+                                                   (const char **) names,
+                                                   pixel_size, scale,
+                                                   GTK_ICON_LOOKUP_USE_BUILTIN);
       g_free (names[0]);
       if (info)
         {
@@ -1577,10 +1581,10 @@ render_icon_name_pixbuf (GtkIconSource    *icon_source,
     }
   else
     {
-      tmp_pixbuf = gtk_icon_theme_load_icon (icon_theme,
-                                             icon_source->source.icon_name,
-                                             pixel_size, 0,
-                                             &error);
+      tmp_pixbuf = gtk_icon_theme_load_icon_for_scale (icon_theme,
+                                                       icon_source->source.icon_name,
+                                                       pixel_size, scale, 0,
+                                                       &error);
     }
 
   if (!tmp_pixbuf)
@@ -1611,7 +1615,8 @@ find_and_render_icon_source (GtkIconSet       *icon_set,
 			     GtkStyleContext  *context,
 			     GtkTextDirection  direction,
 			     GtkStateType      state,
-			     GtkIconSize       size)
+			     GtkIconSize       size,
+			     gint              scale)
 {
   GSList *failed = NULL;
   GdkPixbuf *pixbuf = NULL;
@@ -1646,10 +1651,21 @@ find_and_render_icon_source (GtkIconSet       *icon_set,
 	      g_warning ("Failed to render icon");
 	      failed = g_slist_prepend (failed, source);
 	    }
+
+	  if (scale != 1)
+	    {
+	      GdkPixbuf *tmp = pixbuf;
+	      pixbuf = gdk_pixbuf_scale_simple (pixbuf,
+						gdk_pixbuf_get_width (pixbuf) * scale,
+						gdk_pixbuf_get_height (pixbuf) * scale,
+						GDK_INTERP_BILINEAR);
+	      g_object_unref (tmp);
+	    }
 	  break;
 	case GTK_ICON_SOURCE_ICON_NAME:
 	case GTK_ICON_SOURCE_STATIC_ICON_NAME:
-          pixbuf = render_icon_name_pixbuf (source, context, size);
+          pixbuf = render_icon_name_pixbuf (source, context,
+                                            size, scale);
 	  if (!pixbuf)
 	    failed = g_slist_prepend (failed, source);
 	  break;
@@ -1693,28 +1709,13 @@ render_fallback_image (GtkStyleContext   *context,
   return gtk_render_icon_pixbuf (context, &fallback_source, size);
 }
 
-/**
- * gtk_icon_set_render_icon_pixbuf:
- * @icon_set: a #GtkIconSet
- * @context: a #GtkStyleContext
- * @size: (type int): icon size. A size of (GtkIconSize)-1
- *        means render at the size of the source and don't scale.
- *
- * Renders an icon using gtk_render_icon_pixbuf(). In most cases,
- * gtk_widget_render_icon_pixbuf() is better, since it automatically provides
- * most of the arguments from the current widget settings.  This
- * function never returns %NULL; if the icon can't be rendered
- * (perhaps because an image file fails to load), a default "missing
- * image" icon will be returned instead.
- *
- * Return value: (transfer full): a #GdkPixbuf to be displayed
- *
- * Since: 3.0
- */
-GdkPixbuf *
-gtk_icon_set_render_icon_pixbuf (GtkIconSet        *icon_set,
-                                 GtkStyleContext   *context,
-                                 GtkIconSize        size)
+
+
+static GdkPixbuf*
+gtk_icon_set_render_icon_pixbuf_for_scale (GtkIconSet      *icon_set,
+					   GtkStyleContext *context,
+					   GtkIconSize      size,
+					   gint             scale)
 {
   GdkPixbuf *icon = NULL;
   GtkStateFlags flags = 0;
@@ -1738,23 +1739,90 @@ G_GNUC_END_IGNORE_DEPRECATIONS;
 
   if (icon_set->sources)
     {
-      icon = find_in_cache (icon_set, context, direction, state, size);
+      icon = find_in_cache (icon_set, context, direction, state, size, scale);
       if (icon)
-        {
-          g_object_ref (icon);
-          return icon;
-        }
+	return g_object_ref (icon);
     }
 
   if (icon_set->sources)
-    icon = find_and_render_icon_source (icon_set, context, direction, state, size);
+    icon = find_and_render_icon_source (icon_set, context, direction, state,
+                                        size, scale);
 
   if (icon == NULL)
     icon = render_fallback_image (context, direction, state, size);
 
-  add_to_cache (icon_set, context, direction, state, size, icon);
+  add_to_cache (icon_set, context, direction, state, size, scale, icon);
 
   return icon;
+}
+
+/**
+ * gtk_icon_set_render_icon_pixbuf:
+ * @icon_set: a #GtkIconSet
+ * @context: a #GtkStyleContext
+ * @size: (type int): icon size. A size of (GtkIconSize)-1
+ *        means render at the size of the source and don't scale.
+ *
+ * Renders an icon using gtk_render_icon_pixbuf(). In most cases,
+ * gtk_widget_render_icon_pixbuf() is better, since it automatically provides
+ * most of the arguments from the current widget settings.  This
+ * function never returns %NULL; if the icon can't be rendered
+ * (perhaps because an image file fails to load), a default "missing
+ * image" icon will be returned instead.
+ *
+ * Return value: (transfer full): a #GdkPixbuf to be displayed
+ *
+ * Since: 3.0
+ *
+ * Deprecated: 3.10: Use #GtkIconTheme instead.
+ */
+GdkPixbuf *
+gtk_icon_set_render_icon_pixbuf (GtkIconSet        *icon_set,
+                                 GtkStyleContext   *context,
+                                 GtkIconSize        size)
+{
+  g_return_val_if_fail (icon_set != NULL, NULL);
+  g_return_val_if_fail (GTK_IS_STYLE_CONTEXT (context), NULL);
+
+  return gtk_icon_set_render_icon_pixbuf_for_scale (icon_set, context, size, 1);
+}
+
+/**
+ * gtk_icon_set_render_icon_surface:
+ * @icon_set: a #GtkIconSet
+ * @context: a #GtkStyleContext
+ * @size: (type int): icon size. A size of (GtkIconSize)-1
+ *        means render at the size of the source and don't scale.
+ * @scale: the window scale to render for
+ * @for_window: (allow-none): #GdkWindow to optimize drawing for, or %NULL
+ *
+ * Renders an icon using gtk_render_icon_pixbuf() and converts it to a
+ * cairo surface. 
+ *
+ * This function never returns %NULL; if the icon can't be rendered
+ * (perhaps because an image file fails to load), a default "missing
+ * image" icon will be returned instead.
+ *
+ * Return value: (transfer full): a #cairo_surface_t to be displayed
+ *
+ * Since: 3.10
+ */
+cairo_surface_t *
+gtk_icon_set_render_icon_surface  (GtkIconSet      *icon_set,
+				   GtkStyleContext *context,
+				   GtkIconSize      size,
+				   gint             scale,
+				   GdkWindow       *for_window)
+{
+  GdkPixbuf *pixbuf;
+  cairo_surface_t *surface;
+
+  pixbuf = gtk_icon_set_render_icon_pixbuf_for_scale (icon_set, context, size, scale);
+
+  surface = gdk_cairo_surface_create_from_pixbuf (pixbuf, scale, for_window);
+  g_object_unref (pixbuf);
+
+  return surface;
 }
 
 /**
@@ -2555,6 +2623,7 @@ struct _CachedIcon
   GtkTextDirection direction;
   GtkStateType state;
   GtkIconSize size;
+  gint scale;
 
   GdkPixbuf *pixbuf;
 };
@@ -2583,7 +2652,8 @@ find_in_cache (GtkIconSet      *icon_set,
                GtkStyleContext *style_context,
                GtkTextDirection direction,
                GtkStateType     state,
-               GtkIconSize      size)
+               GtkIconSize      size,
+               gint             scale)
 {
   GSList *tmp_list;
   GSList *prev;
@@ -2625,6 +2695,7 @@ add_to_cache (GtkIconSet      *icon_set,
               GtkTextDirection direction,
               GtkStateType     state,
               GtkIconSize      size,
+              gint             scale,
               GdkPixbuf       *pixbuf)
 {
   CachedIcon *icon;
@@ -2641,6 +2712,7 @@ add_to_cache (GtkIconSet      *icon_set,
   icon->direction = direction;
   icon->state = state;
   icon->size = size;
+  icon->scale = scale;
   icon->pixbuf = pixbuf;
   attach_to_style (icon_set, icon->style);
 

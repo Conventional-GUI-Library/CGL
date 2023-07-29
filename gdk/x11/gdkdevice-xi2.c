@@ -29,6 +29,10 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/XInput2.h>
 
+#include <math.h>
+
+/* for the use of round() */
+#include "fallback-c89.c"
 
 typedef struct _ScrollValuator ScrollValuator;
 
@@ -76,16 +80,16 @@ static void gdk_x11_device_xi2_set_window_cursor (GdkDevice *device,
                                                   GdkCursor *cursor);
 static void gdk_x11_device_xi2_warp (GdkDevice *device,
                                      GdkScreen *screen,
-                                     gint       x,
-                                     gint       y);
+                                     gdouble    x,
+                                     gdouble    y);
 static void gdk_x11_device_xi2_query_state (GdkDevice        *device,
                                             GdkWindow        *window,
                                             GdkWindow       **root_window,
                                             GdkWindow       **child_window,
-                                            gint             *root_x,
-                                            gint             *root_y,
-                                            gint             *win_x,
-                                            gint             *win_y,
+                                            gdouble          *root_x,
+                                            gdouble          *root_y,
+                                            gdouble          *win_x,
+                                            gdouble          *win_y,
                                             GdkModifierType  *mask);
 
 static GdkGrabStatus gdk_x11_device_xi2_grab   (GdkDevice     *device,
@@ -99,8 +103,8 @@ static void          gdk_x11_device_xi2_ungrab (GdkDevice     *device,
                                                 guint32        time_);
 
 static GdkWindow * gdk_x11_device_xi2_window_at_position (GdkDevice       *device,
-                                                          gint            *win_x,
-                                                          gint            *win_y,
+                                                          gdouble         *win_x,
+                                                          gdouble         *win_y,
                                                           GdkModifierType *mask,
                                                           gboolean         get_toplevel);
 static void  gdk_x11_device_xi2_select_window_events (GdkDevice    *device,
@@ -292,8 +296,8 @@ gdk_x11_device_xi2_set_window_cursor (GdkDevice *device,
 static void
 gdk_x11_device_xi2_warp (GdkDevice *device,
                          GdkScreen *screen,
-                         gint       x,
-                         gint       y)
+                         gdouble    x,
+                         gdouble    y)
 {
   GdkX11DeviceXI2 *device_xi2 = GDK_X11_DEVICE_XI2 (device);
   Window dest;
@@ -303,7 +307,9 @@ gdk_x11_device_xi2_warp (GdkDevice *device,
   XIWarpPointer (GDK_SCREEN_XDISPLAY (screen),
                  device_xi2->device_id,
                  None, dest,
-                 0, 0, 0, 0, x, y);
+                 0, 0, 0, 0,
+                 round (x * GDK_X11_SCREEN(screen)->window_scale),
+                 round (y * GDK_X11_SCREEN(screen)->window_scale));
 }
 
 static void
@@ -311,12 +317,13 @@ gdk_x11_device_xi2_query_state (GdkDevice        *device,
                                 GdkWindow        *window,
                                 GdkWindow       **root_window,
                                 GdkWindow       **child_window,
-                                gint             *root_x,
-                                gint             *root_y,
-                                gint             *win_x,
-                                gint             *win_y,
+                                gdouble          *root_x,
+                                gdouble          *root_y,
+                                gdouble          *win_x,
+                                gdouble          *win_y,
                                 GdkModifierType  *mask)
 {
+  GdkWindowImplX11 *impl = GDK_WINDOW_IMPL_X11 (window->impl);
   GdkX11DeviceXI2 *device_xi2 = GDK_X11_DEVICE_XI2 (device);
   GdkDisplay *display;
   GdkScreen *default_screen;
@@ -381,16 +388,16 @@ gdk_x11_device_xi2_query_state (GdkDevice        *device,
     *child_window = gdk_x11_window_lookup_for_display (display, xchild_window);
 
   if (root_x)
-    *root_x = (gint) xroot_x;
+    *root_x = xroot_x / impl->window_scale;
 
   if (root_y)
-    *root_y = (gint) xroot_y;
+    *root_y = xroot_y / impl->window_scale;
 
   if (win_x)
-    *win_x = (gint) xwin_x;
+    *win_x = xwin_x / impl->window_scale;
 
   if (win_y)
-    *win_y = (gint) xwin_y;
+    *win_y = xwin_y / impl->window_scale;
 
   if (mask)
     *mask = _gdk_x11_device_xi2_translate_state (&mod_state, &button_state, &group_state);
@@ -474,11 +481,12 @@ gdk_x11_device_xi2_ungrab (GdkDevice *device,
 
 static GdkWindow *
 gdk_x11_device_xi2_window_at_position (GdkDevice       *device,
-                                       gint            *win_x,
-                                       gint            *win_y,
+                                       gdouble         *win_x,
+                                       gdouble         *win_y,
                                        GdkModifierType *mask,
                                        gboolean         get_toplevel)
 {
+  GdkWindowImplX11 *impl;
   GdkX11DeviceXI2 *device_xi2 = GDK_X11_DEVICE_XI2 (device);
   GdkDisplay *display;
   GdkScreen *screen;
@@ -628,12 +636,15 @@ gdk_x11_device_xi2_window_at_position (GdkDevice       *device,
   gdk_x11_display_ungrab (display);
 
   window = gdk_x11_window_lookup_for_display (display, last);
+  impl = NULL;
+  if (window)
+    impl = GDK_WINDOW_IMPL_X11 (window->impl);
 
   if (win_x)
-    *win_x = (window) ? (gint) xwin_x : -1;
+    *win_x = (window) ? (xwin_x / impl->window_scale) : -1;
 
   if (win_y)
-    *win_y = (window) ? (gint) xwin_y : -1;
+    *win_y = (window) ? (xwin_y / impl->window_scale) : -1;
 
   if (mask)
     *mask = _gdk_x11_device_xi2_translate_state (&mod_state, &button_state, &group_state);

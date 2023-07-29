@@ -47,6 +47,9 @@ struct _GdkX11Screen
   GdkX11Monitor *monitors;
   gint primary_monitor;
 
+  gint window_scale;
+  gboolean fixed_window_scale;
+
   /* Xft resources for the display, used for default values for
    * the Xft/ XSETTINGS
    */
@@ -119,6 +122,8 @@ void _gdk_x11_screen_get_edge_monitors      (GdkScreen *screen,
 					     gint      *bottom,
 					     gint      *left,
 					     gint      *right);
+void _gdk_x11_screen_set_window_scale       (GdkX11Screen *x11_screen,
+					     int        scale);
 
 G_END_DECLS
 

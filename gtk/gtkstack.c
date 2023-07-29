@@ -56,6 +56,8 @@
  * @GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT: Slide from right to left
  * @GTK_STACK_TRANSITION_TYPE_SLIDE_UP: Slide from bottom up
  * @GTK_STACK_TRANSITION_TYPE_SLIDE_DOWN: Slide from top down
+ * @GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT: Slide from left or right according to the children order
+ * @GTK_STACK_TRANSITION_TYPE_SLIDE_UP_DOWN: Slide from top down or bottom up according to the order
  *
  * These enumeration values describe the possible transitions
  * between pages in a #GtkStack widget.
@@ -92,7 +94,7 @@ struct _GtkStackChildInfo {
   gchar *icon_name;
 };
 
-struct _GtkStackPrivate {
+typedef struct {
   GList *children;
 
   GdkWindow* bin_window;
@@ -114,7 +116,7 @@ struct _GtkStackPrivate {
   gint64 end_time;
 
   GtkStackTransitionType active_transition_type;
-};
+} GtkStackPrivate;
 
 static void     gtk_stack_add                            (GtkContainer  *widget,
                                                           GtkWidget     *child);
@@ -170,13 +172,11 @@ static gint     get_bin_window_x                         (GtkStack      *stack,
 static gint     get_bin_window_y                         (GtkStack      *stack,
                                                           GtkAllocation *allocation);
 
-G_DEFINE_TYPE(GtkStack, gtk_stack, GTK_TYPE_CONTAINER);
+G_DEFINE_TYPE_WITH_PRIVATE(GtkStack, gtk_stack, GTK_TYPE_CONTAINER);
 
 static void
 gtk_stack_init (GtkStack *stack)
 {
-  stack->priv = G_TYPE_INSTANCE_GET_PRIVATE (stack, GTK_TYPE_STACK, GtkStackPrivate);
-
   gtk_widget_set_has_window ((GtkWidget*) stack, TRUE);
   gtk_widget_set_redraw_on_allocate ((GtkWidget*) stack, TRUE);
 }
@@ -185,7 +185,7 @@ static void
 gtk_stack_finalize (GObject *obj)
 {
   GtkStack *stack = GTK_STACK (obj);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
 
   gtk_stack_unschedule_ticks (stack);
 
@@ -202,7 +202,7 @@ gtk_stack_get_property (GObject   *object,
                        GParamSpec *pspec)
 {
   GtkStack *stack = GTK_STACK (object);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
 
   switch (property_id)
     {
@@ -262,7 +262,7 @@ static void
 gtk_stack_realize (GtkWidget *widget)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkAllocation allocation;
   GdkWindowAttr attributes = { 0 };
   GdkWindowAttributesType attributes_mask;
@@ -313,7 +313,7 @@ static void
 gtk_stack_unrealize (GtkWidget *widget)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
 
   gtk_widget_unregister_window (widget, priv->bin_window);
   gdk_window_destroy (priv->bin_window);
@@ -416,8 +416,6 @@ gtk_stack_class_init (GtkStackClass *klass)
                       P_("The index of the child in the parent"),
                       -1, G_MAXINT, 0,
                       GTK_PARAM_READWRITE));
-
-  g_type_class_add_private (klass, sizeof (GtkStackPrivate));
 }
 
 /**
@@ -439,7 +437,7 @@ static GtkStackChildInfo *
 find_child_info_for_widget (GtkStack  *stack,
                             GtkWidget *child)
 {
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *info;
   GList *l;
 
@@ -458,14 +456,12 @@ reorder_child (GtkStack  *stack,
                GtkWidget *child,
                gint       position)
 {
-  GtkStackPrivate *priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GList *l;
   GList *old_link = NULL;
   GList *new_link = NULL;
   GtkStackChildInfo *child_info = NULL;
   gint num = 0;
-
-  priv = stack->priv;
 
   l = priv->children;
 
@@ -515,6 +511,7 @@ gtk_stack_get_child_property (GtkContainer *container,
                               GParamSpec   *pspec)
 {
   GtkStack *stack = GTK_STACK (container);
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *info;
   GList *list;
   guint i;
@@ -542,7 +539,7 @@ gtk_stack_get_child_property (GtkContainer *container,
 
     case CHILD_PROP_POSITION:
       i = 0;
-      for (list = stack->priv->children; list != NULL; list = g_list_next (list))
+      for (list = priv->children; list != NULL; list = g_list_next (list))
         {
           if (info == list->data)
             break;
@@ -565,7 +562,7 @@ gtk_stack_set_child_property (GtkContainer *container,
                               GParamSpec   *pspec)
 {
   GtkStack *stack = GTK_STACK (container);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *info;
   GtkStackChildInfo *info2;
   gchar *name;
@@ -638,7 +635,7 @@ static gint
 get_bin_window_x (GtkStack      *stack,
                   GtkAllocation *allocation)
 {
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   int x = 0;
 
   if (priv->transition_pos < 1.0)
@@ -656,7 +653,7 @@ static gint
 get_bin_window_y (GtkStack      *stack,
                   GtkAllocation *allocation)
 {
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   int y = 0;
 
   if (priv->transition_pos < 1.0)
@@ -674,7 +671,7 @@ static gboolean
 gtk_stack_set_transition_position (GtkStack *stack,
                                    gdouble   pos)
 {
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   gboolean done;
 
   priv->transition_pos = pos;
@@ -722,7 +719,7 @@ gtk_stack_transition_cb (GtkStack      *stack,
                          GdkFrameClock *frame_clock,
                          gpointer       user_data)
 {
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   gint64 now;
   gdouble t;
 
@@ -750,7 +747,7 @@ gtk_stack_transition_cb (GtkStack      *stack,
 static void
 gtk_stack_schedule_ticks (GtkStack *stack)
 {
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
 
   if (priv->tick_id == 0)
     {
@@ -762,7 +759,7 @@ gtk_stack_schedule_ticks (GtkStack *stack)
 static void
 gtk_stack_unschedule_ticks (GtkStack *stack)
 {
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
 
   if (priv->tick_id != 0)
     {
@@ -791,7 +788,7 @@ gtk_stack_start_transition (GtkStack               *stack,
                             GtkStackTransitionType  transition_type,
                             guint                   transition_duration)
 {
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkWidget *widget = GTK_WIDGET (stack);
   gboolean animations_enabled;
 
@@ -827,7 +824,7 @@ set_visible_child (GtkStack               *stack,
                    GtkStackTransitionType  transition_type,
                    guint                   transition_duration)
 {
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *info;
   GtkWidget *widget = GTK_WIDGET (stack);
   GList *l;
@@ -870,6 +867,37 @@ set_visible_child (GtkStack               *stack,
   if (child_info)
     gtk_widget_set_child_visible (child_info->widget, TRUE);
 
+  if ((child_info == NULL || priv->last_visible_child == NULL) &&
+      (transition_type == GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT ||
+       transition_type == GTK_STACK_TRANSITION_TYPE_SLIDE_UP_DOWN))
+    {
+      transition_type = GTK_STACK_TRANSITION_TYPE_NONE;
+    }
+  else if (transition_type == GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT ||
+	   transition_type == GTK_STACK_TRANSITION_TYPE_SLIDE_UP_DOWN)
+    {
+      gboolean i_first = FALSE;
+      for (l = priv->children; l != NULL; l = g_list_next (l))
+        {
+	  if (child_info == l->data)
+	    {
+	      i_first = TRUE;
+	      break;
+	    }
+	  if (priv->last_visible_child == l->data)
+	    break;
+        }
+
+      if (transition_type == GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT)
+	{
+	  transition_type = i_first ? GTK_STACK_TRANSITION_TYPE_SLIDE_RIGHT : GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT;
+	}
+      if (transition_type == GTK_STACK_TRANSITION_TYPE_SLIDE_UP_DOWN)
+	{
+	  transition_type = i_first ? GTK_STACK_TRANSITION_TYPE_SLIDE_DOWN : GTK_STACK_TRANSITION_TYPE_SLIDE_UP;
+	}
+    }
+
   gtk_widget_queue_resize (GTK_WIDGET (stack));
   gtk_widget_queue_draw (GTK_WIDGET (stack));
 
@@ -885,7 +913,7 @@ stack_child_visibility_notify_cb (GObject    *obj,
                                   gpointer    user_data)
 {
   GtkStack *stack = GTK_STACK (user_data);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkWidget *child = GTK_WIDGET (obj);
   GtkStackChildInfo *child_info;
 
@@ -965,7 +993,7 @@ gtk_stack_add (GtkContainer *container,
               GtkWidget     *child)
 {
   GtkStack *stack = GTK_STACK (container);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *child_info;
 
   g_return_if_fail (child != NULL);
@@ -1001,7 +1029,7 @@ gtk_stack_remove (GtkContainer *container,
                   GtkWidget    *child)
 {
   GtkStack *stack = GTK_STACK (container);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *child_info;
   gboolean was_visible;
 
@@ -1052,11 +1080,9 @@ void
 gtk_stack_set_homogeneous (GtkStack *stack,
                            gboolean  homogeneous)
 {
-  GtkStackPrivate *priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
 
   g_return_if_fail (GTK_IS_STACK (stack));
-
-  priv = stack->priv;
 
   homogeneous = !!homogeneous;
 
@@ -1085,9 +1111,11 @@ gtk_stack_set_homogeneous (GtkStack *stack,
 gboolean
 gtk_stack_get_homogeneous (GtkStack *stack)
 {
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
+
   g_return_val_if_fail (GTK_IS_STACK (stack), FALSE);
 
-  return stack->priv->homogeneous;
+  return priv->homogeneous;
 }
 
 /**
@@ -1104,9 +1132,11 @@ gtk_stack_get_homogeneous (GtkStack *stack)
 guint
 gtk_stack_get_transition_duration (GtkStack *stack)
 {
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
+
   g_return_val_if_fail (GTK_IS_STACK (stack), 0);
 
-  return stack->priv->transition_duration;
+  return priv->transition_duration;
 }
 
 /**
@@ -1123,9 +1153,11 @@ void
 gtk_stack_set_transition_duration (GtkStack *stack,
                                    guint     duration)
 {
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
+
   g_return_if_fail (GTK_IS_STACK (stack));
 
-  stack->priv->transition_duration = duration;
+  priv->transition_duration = duration;
   g_object_notify (G_OBJECT (stack), "transition-duration");
 }
 
@@ -1143,9 +1175,11 @@ gtk_stack_set_transition_duration (GtkStack *stack,
 GtkStackTransitionType
 gtk_stack_get_transition_type (GtkStack *stack)
 {
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
+
   g_return_val_if_fail (GTK_IS_STACK (stack), GTK_STACK_TRANSITION_TYPE_NONE);
 
-  return stack->priv->transition_type;
+  return priv->transition_type;
 }
 
 /**
@@ -1167,9 +1201,11 @@ void
 gtk_stack_set_transition_type (GtkStack              *stack,
                               GtkStackTransitionType  transition)
 {
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
+
   g_return_if_fail (GTK_IS_STACK (stack));
 
-  stack->priv->transition_type = transition;
+  priv->transition_type = transition;
   g_object_notify (G_OBJECT (stack), "transition-type");
 }
 
@@ -1187,9 +1223,11 @@ gtk_stack_set_transition_type (GtkStack              *stack,
 GtkWidget *
 gtk_stack_get_visible_child (GtkStack *stack)
 {
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
+
   g_return_val_if_fail (GTK_IS_STACK (stack), NULL);
 
-  return stack->priv->visible_child ? stack->priv->visible_child->widget : NULL;
+  return priv->visible_child ? priv->visible_child->widget : NULL;
 }
 
 /**
@@ -1206,10 +1244,12 @@ gtk_stack_get_visible_child (GtkStack *stack)
 const gchar *
 gtk_stack_get_visible_child_name (GtkStack *stack)
 {
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
+
   g_return_val_if_fail (GTK_IS_STACK (stack), NULL);
 
-  if (stack->priv->visible_child)
-    return stack->priv->visible_child->name;
+  if (priv->visible_child)
+    return priv->visible_child->name;
 
   return NULL;
 }
@@ -1232,6 +1272,7 @@ void
 gtk_stack_set_visible_child (GtkStack  *stack,
                              GtkWidget *child)
 {
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *child_info;
 
   g_return_if_fail (GTK_IS_STACK (stack));
@@ -1243,8 +1284,8 @@ gtk_stack_set_visible_child (GtkStack  *stack,
 
   if (gtk_widget_get_visible (child_info->widget))
     set_visible_child (stack, child_info,
-                       stack->priv->transition_type,
-                       stack->priv->transition_duration);
+                       priv->transition_type,
+                       priv->transition_duration);
 }
 
 /**
@@ -1265,7 +1306,9 @@ void
 gtk_stack_set_visible_child_name (GtkStack   *stack,
                                  const gchar *name)
 {
-  gtk_stack_set_visible_child_full (stack, name, stack->priv->transition_type);
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
+
+  gtk_stack_set_visible_child_full (stack, name, priv->transition_type);
 }
 
 /**
@@ -1283,14 +1326,12 @@ gtk_stack_set_visible_child_full (GtkStack               *stack,
                                   const gchar            *name,
                                   GtkStackTransitionType  transition)
 {
-  GtkStackPrivate *priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *child_info, *info;
   GList *l;
 
   g_return_if_fail (GTK_IS_STACK (stack));
   g_return_if_fail (name != NULL);
-
-  priv = stack->priv;
 
   child_info = NULL;
   for (l = priv->children; l != NULL; l = l->next)
@@ -1315,7 +1356,7 @@ gtk_stack_forall (GtkContainer *container,
                   gpointer      callback_data)
 {
   GtkStack *stack = GTK_STACK (container);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *child_info;
   GList *l;
 
@@ -1335,7 +1376,7 @@ gtk_stack_compute_expand (GtkWidget *widget,
                           gboolean  *vexpand_p)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   gboolean hexpand, vexpand;
   GtkStackChildInfo *child_info;
   GtkWidget *child;
@@ -1369,7 +1410,7 @@ gtk_stack_draw_crossfade (GtkWidget *widget,
                           cairo_t   *cr)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
 
   if (priv->last_visible_surface)
     {
@@ -1395,7 +1436,7 @@ gtk_stack_draw_slide (GtkWidget *widget,
                       cairo_t   *cr)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkAllocation allocation;
   gint x = 0;
   gint y = 0;
@@ -1416,7 +1457,9 @@ gtk_stack_draw_slide (GtkWidget *widget,
   if (priv->active_transition_type == GTK_STACK_TRANSITION_TYPE_SLIDE_DOWN)
     y += allocation.height;
 
-  if (priv->last_visible_surface)
+  if (priv->last_visible_surface &&
+      gtk_cairo_should_draw_window (cr, priv->view_window))
+
     {
       cairo_save (cr);
       cairo_set_source_surface (cr, priv->last_visible_surface, x, y);
@@ -1424,9 +1467,10 @@ gtk_stack_draw_slide (GtkWidget *widget,
       cairo_restore (cr);
      }
 
-  gtk_container_propagate_draw (GTK_CONTAINER (stack),
-                                priv->visible_child->widget,
-                                cr);
+  if (gtk_cairo_should_draw_window (cr, priv->bin_window))
+    gtk_container_propagate_draw (GTK_CONTAINER (stack),
+				  priv->visible_child->widget,
+				  cr);
 }
 
 static gboolean
@@ -1434,7 +1478,7 @@ gtk_stack_draw (GtkWidget *widget,
                 cairo_t   *cr)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   cairo_t *pattern_cr;
 
   if (priv->visible_child)
@@ -1462,7 +1506,8 @@ gtk_stack_draw (GtkWidget *widget,
           switch (priv->active_transition_type)
             {
             case GTK_STACK_TRANSITION_TYPE_CROSSFADE:
-              gtk_stack_draw_crossfade (widget, cr);
+	      if (gtk_cairo_should_draw_window (cr, priv->bin_window))
+		gtk_stack_draw_crossfade (widget, cr);
               break;
             case GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT:
             case GTK_STACK_TRANSITION_TYPE_SLIDE_RIGHT:
@@ -1489,7 +1534,7 @@ gtk_stack_size_allocate (GtkWidget     *widget,
                          GtkAllocation *allocation)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkAllocation child_allocation;
 
   g_return_if_fail (allocation != NULL);
@@ -1523,7 +1568,7 @@ gtk_stack_get_preferred_height (GtkWidget *widget,
                                 gint      *natural_height)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *child_info;
   GtkWidget *child;
   gint child_min, child_nat;
@@ -1564,7 +1609,7 @@ gtk_stack_get_preferred_height_for_width (GtkWidget *widget,
                                           gint      *natural_height)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *child_info;
   GtkWidget *child;
   gint child_min, child_nat;
@@ -1604,7 +1649,7 @@ gtk_stack_get_preferred_width (GtkWidget *widget,
                                gint      *natural_width)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *child_info;
   GtkWidget *child;
   gint child_min, child_nat;
@@ -1645,7 +1690,7 @@ gtk_stack_get_preferred_width_for_height (GtkWidget *widget,
                                           gint      *natural_width)
 {
   GtkStack *stack = GTK_STACK (widget);
-  GtkStackPrivate *priv = stack->priv;
+  GtkStackPrivate *priv = gtk_stack_get_instance_private (stack);
   GtkStackChildInfo *child_info;
   GtkWidget *child;
   gint child_min, child_nat;

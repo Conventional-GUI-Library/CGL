@@ -2890,6 +2890,10 @@ realize_icon_info (GtkWidget            *widget,
   gtk_widget_register_window (widget, icon_info->window);
 
   gtk_widget_queue_resize (widget);
+
+  _gtk_icon_helper_set_window (icon_info->icon_helper,
+			       gtk_widget_get_window (widget));
+
 }
 
 static EntryIconInfo*
@@ -3072,6 +3076,8 @@ gtk_entry_unrealize (GtkWidget *widget)
     {
       if ((icon_info = priv->icons[i]) != NULL)
         {
+          _gtk_icon_helper_set_window (icon_info->icon_helper, NULL);
+
           if (icon_info->window != NULL)
             {
               gtk_widget_unregister_window (widget, icon_info->window);
@@ -5617,6 +5623,7 @@ gtk_entry_create_layout (GtkEntry *entry,
       attr->start_index = 0;
       attr->end_index = G_MAXINT;
       pango_attr_list_insert (tmp_attrs, attr);
+      pango_layout_set_ellipsize (layout, PANGO_ELLIPSIZE_END);
     }
 
   if (preedit_length)
@@ -5759,6 +5766,9 @@ draw_text_with_color (GtkEntry *entry,
   cairo_save (cr);
 
   get_layout_position (entry, &x, &y);
+
+  if (show_placeholder_text (entry))
+    pango_layout_set_width (layout, PANGO_SCALE * gdk_window_get_width (entry->priv->text_area));
 
   cairo_move_to (cr, x, y);
   gdk_cairo_set_source_rgba (cr, default_color);

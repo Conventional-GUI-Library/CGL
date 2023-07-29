@@ -187,8 +187,10 @@ void       gtk_window_set_geometry_hints       (GtkWindow           *window,
 						GtkWidget           *geometry_widget,
 						GdkGeometry         *geometry,
 						GdkWindowHints       geom_mask);
+#if defined(CGL_ENABLE_SEMIPRIVATES) || defined(GTK_COMPILATION)						
 void     gtk_window_set_titlebar           (GtkWindow    *window,
                                             GtkWidget    *titlebar);
+#endif
 void	   gtk_window_set_screen	       (GtkWindow	    *window,
 						GdkScreen	    *screen);
 GdkScreen* gtk_window_get_screen	       (GtkWindow	    *window);
@@ -310,6 +312,7 @@ void gtk_window_resize_to_geometry   (GtkWindow *window,
 
 GtkWindowGroup *gtk_window_get_group (GtkWindow   *window);
 gboolean gtk_window_has_group        (GtkWindow   *window);
+void     gtk_window_close         (GtkWindow *window);
 
 /* Ignore this unless you are writing a GUI builder */
 void     gtk_window_reshow_with_initial_size (GtkWindow *window);
