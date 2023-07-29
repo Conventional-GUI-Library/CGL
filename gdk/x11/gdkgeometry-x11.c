@@ -240,6 +240,7 @@ gdk_window_queue (GdkWindow          *window,
 static GC
 _get_scratch_gc (GdkWindow *window, cairo_region_t *clip_region)
 {
+  GdkWindowImplX11 *impl = GDK_WINDOW_IMPL_X11 (window->impl);	
   GdkX11Screen *screen;
   XRectangle *rectangles;
   gint n_rects;
@@ -261,9 +262,8 @@ _get_scratch_gc (GdkWindow *window, cairo_region_t *clip_region)
                                                 &values);
     }
   
-   // Actually support scaling here
   _gdk_x11_region_get_xrectangles (clip_region,
-                                   0, 0, 1,
+                                   0, 0, impl->window_scale,
                                    &rectangles,
                                    &n_rects);
   
