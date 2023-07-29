@@ -4072,6 +4072,8 @@ gdk_window_process_updates_internal (GdkWindow *window)
   /* Ensure the window lives while updating it */
   g_object_ref (window);
 
+  window->in_update = TRUE;
+
   /* If an update got queued during update processing, we can get a
    * window in the update queue that has an empty update_area.
    * just ignore it.
@@ -4224,6 +4226,8 @@ gdk_window_process_updates_internal (GdkWindow *window)
 	 no actual invalid area */
       gdk_window_flush_outstanding_moves (window);
     }
+       
+  window->in_update = FALSE;
 
   g_object_unref (window);
 }
