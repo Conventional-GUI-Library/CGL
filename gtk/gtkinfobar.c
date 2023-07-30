@@ -58,8 +58,8 @@
  * #GtkInfoBar is a widget that can be used to show messages to
  * the user without showing a dialog. It is often temporarily shown
  * at the top or bottom of a document. In contrast to #GtkDialog, which
- * has a horizontal action area at the bottom, #GtkInfoBar has a
- * vertical action area at the side.
+ * has a action area at the bottom, #GtkInfoBar has an action area
+ * at the side.
  *
  * The API of #GtkInfoBar is very similar to #GtkDialog, allowing you
  * to add buttons to the action area with gtk_info_bar_add_button() or
@@ -122,14 +122,17 @@
 enum
 {
   PROP_0,
-  PROP_MESSAGE_TYPE
+  PROP_MESSAGE_TYPE,
+  PROP_SHOW_CLOSE_BUTTON
 };
 
 struct _GtkInfoBarPrivate
 {
   GtkWidget *content_area;
   GtkWidget *action_area;
+  GtkWidget *close_button;
 
+  gboolean show_close_button;
   GtkMessageType message_type;
 };
 
@@ -199,6 +202,9 @@ gtk_info_bar_set_property (GObject      *object,
     case PROP_MESSAGE_TYPE:
       gtk_info_bar_set_message_type (info_bar, g_value_get_enum (value));
       break;
+    case PROP_SHOW_CLOSE_BUTTON:
+      gtk_info_bar_set_show_close_button (info_bar, g_value_get_boolean (value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -217,6 +223,9 @@ gtk_info_bar_get_property (GObject    *object,
     {
     case PROP_MESSAGE_TYPE:
       g_value_set_enum (value, gtk_info_bar_get_message_type (info_bar));
+      break;
+    case PROP_SHOW_CLOSE_BUTTON:
+      g_value_set_boolean (value, gtk_info_bar_get_show_close_button (info_bar));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -284,7 +293,8 @@ find_button (GtkInfoBar *info_bar,
 static void
 gtk_info_bar_close (GtkInfoBar *info_bar)
 {
-  if (!find_button (info_bar, GTK_RESPONSE_CANCEL))
+  if (!gtk_widget_get_visible (info_bar->priv->close_button)
+      && !find_button (info_bar, GTK_RESPONSE_CANCEL))
     return;
 
   gtk_info_bar_response (GTK_INFO_BAR (info_bar),
@@ -363,6 +373,21 @@ gtk_info_bar_class_init (GtkInfoBarClass *klass)
                                                       GTK_TYPE_MESSAGE_TYPE,
                                                       GTK_MESSAGE_INFO,
                                                       GTK_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+
+  /**
+   * GtkInfoBar:show-close-button:
+   *
+   * Whether to include a standard close button.
+   *
+   * Since: 3.10
+   */
+  g_object_class_install_property (object_class,
+                                   PROP_SHOW_CLOSE_BUTTON,
+                                   g_param_spec_boolean ("show-close-button",
+                                                         P_("Show Close Button"),
+                                                         P_("Whether to include a standard close button"),
+                                                         FALSE,
+                                                         GTK_PARAM_READWRITE | G_PARAM_CONSTRUCT));
   /**
    * GtkInfoBar::response:
    * @info_bar: the object on which the signal is emitted
@@ -503,12 +528,20 @@ gtk_info_bar_style_updated (GtkWidget *widget)
 }
 
 static void
+close_button_clicked_cb (GtkWidget  *button,
+                         GtkInfoBar *info_bar)
+{
+  gtk_info_bar_response (GTK_INFO_BAR (info_bar),
+                         GTK_RESPONSE_CLOSE);
+}
+static void
 gtk_info_bar_init (GtkInfoBar *info_bar)
 {
   GtkWidget *widget = GTK_WIDGET (info_bar);
   GtkWidget *content_area;
   GtkWidget *action_area;
-
+  GtkWidget *close_button;
+  
   gtk_widget_push_composite_child ();
 
   info_bar->priv = G_TYPE_INSTANCE_GET_PRIVATE (info_bar,
@@ -519,16 +552,24 @@ gtk_info_bar_init (GtkInfoBar *info_bar)
   gtk_widget_show (content_area);
   gtk_box_pack_start (GTK_BOX (info_bar), content_area, TRUE, TRUE, 0);
 
-  action_area = gtk_button_box_new (GTK_ORIENTATION_VERTICAL);
+  action_area = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
   gtk_widget_show (action_area);
   gtk_button_box_set_layout (GTK_BUTTON_BOX (action_area), GTK_BUTTONBOX_END);
   gtk_box_pack_start (GTK_BOX (info_bar), action_area, FALSE, TRUE, 0);
+  
+  close_button = gtk_button_new_from_stock(GTK_STOCK_CLOSE);
+  gtk_widget_hide(close_button);
+  gtk_box_pack_start (GTK_BOX (info_bar), close_button, FALSE, TRUE, 0); 
+  gtk_widget_set_no_show_all(close_button, TRUE);
+  g_signal_connect (close_button, "clicked",
+                    G_CALLBACK (close_button_clicked_cb), info_bar);
 
   gtk_widget_set_app_paintable (widget, TRUE);
   gtk_widget_set_redraw_on_allocate (widget, TRUE);
 
   info_bar->priv->content_area = content_area;
   info_bar->priv->action_area = action_area;
+  info_bar->priv->close_button = close_button;
 
   /* set default spacings */
   gtk_box_set_spacing (GTK_BOX (info_bar->priv->action_area), ACTION_AREA_DEFAULT_SPACING);
@@ -1178,4 +1219,47 @@ gtk_info_bar_get_message_type (GtkInfoBar *info_bar)
   g_return_val_if_fail (GTK_IS_INFO_BAR (info_bar), GTK_MESSAGE_OTHER);
 
   return info_bar->priv->message_type;
+}
+
+
+/**
+ * gtk_info_bar_set_show_close_button:
+ * @info_bar: a #GtkInfoBar
+ * @setting: %TRUE to include a close button
+ *
+ * If true, a standard close button is shown. When clicked it emits
+ * the response %GTK_RESPONSE_CLOSE.
+ *
+ * Since: 3.10
+ */
+void
+gtk_info_bar_set_show_close_button (GtkInfoBar *info_bar,
+                                    gboolean    setting)
+{
+  g_return_if_fail (GTK_IS_INFO_BAR (info_bar));
+
+  if (setting != info_bar->priv->show_close_button)
+    {
+      info_bar->priv->show_close_button = setting;
+      gtk_widget_set_visible (info_bar->priv->close_button, setting);
+      g_object_notify (G_OBJECT (info_bar), "show-close-button");
+    }
+}
+
+/**
+ * gtk_info_bar_get_show_close_button:
+ * @info_bar: a #GtkInfoBar
+ *
+ * Returns whether the widget will display a standard close button.
+ *
+ * Returns: %TRUE if the widget displays standard close button
+ *
+ * Since: 3.10
+ */
+gboolean
+gtk_info_bar_get_show_close_button (GtkInfoBar *info_bar)
+{
+  g_return_val_if_fail (GTK_IS_INFO_BAR (info_bar), FALSE);
+
+  return info_bar->priv->show_close_button;
 }

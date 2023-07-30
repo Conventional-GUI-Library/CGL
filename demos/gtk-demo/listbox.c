@@ -1,4 +1,4 @@
-/* ListBox
+/* List Box
  *
  * GtkListBox allows lists with complicated layouts, using
  * regular widgets supporting sorting and filtering.
@@ -145,7 +145,7 @@ gtk_message_new (const char *str)
   return msg;
 }
 
-G_DEFINE_TYPE (GtkMessageRow, gtk_message_row, GTK_TYPE_LIST_BOX_ROW);
+G_DEFINE_TYPE_WITH_PRIVATE (GtkMessageRow, gtk_message_row, GTK_TYPE_LIST_BOX_ROW);
 
 
 static void
@@ -252,25 +252,23 @@ gtk_message_row_class_init (GtkMessageRowClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
-  g_type_class_add_private (klass, sizeof (GtkMessageRowPrivate));
-
   gtk_widget_class_set_template_from_resource (widget_class, "/listbox/listbox.ui");
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, content_label);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, source_name);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, source_nick);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, short_time_label);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, detailed_time_label);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, extra_buttons_box);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, details_revealer);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, avatar_image);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, resent_box);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, resent_by_button);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, n_reshares_label);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, n_favorites_label);
-  gtk_widget_class_bind_child(widget_class, GtkMessageRowPrivate, expand_button);
-  gtk_widget_class_bind_callback (widget_class, expand_clicked);
-  gtk_widget_class_bind_callback (widget_class, reshare_clicked);
-  gtk_widget_class_bind_callback (widget_class, favorite_clicked);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, content_label);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, source_name);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, source_nick);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, short_time_label);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, detailed_time_label);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, extra_buttons_box);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, details_revealer);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, avatar_image);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, resent_box);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, resent_by_button);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, n_reshares_label);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, n_favorites_label);
+  gtk_widget_class_bind_template_child_private (widget_class, GtkMessageRow, expand_button);
+  gtk_widget_class_bind_template_callback (widget_class, expand_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, reshare_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, favorite_clicked);
 
   widget_class->state_flags_changed = gtk_message_row_state_flags_changed;
 }
@@ -278,10 +276,7 @@ gtk_message_row_class_init (GtkMessageRowClass *klass)
 static void
 gtk_message_row_init (GtkMessageRow *row)
 {
-  GtkMessageRowPrivate *priv;
-
-  row->priv = priv =
-    G_TYPE_INSTANCE_GET_PRIVATE (row, GTK_TYPE_MESSAGE_ROW, GtkMessageRowPrivate);
+  row->priv = gtk_message_row_get_instance_private (row);
 
   gtk_widget_init_template (GTK_WIDGET (row));
 }

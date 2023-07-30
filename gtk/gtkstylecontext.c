@@ -3804,6 +3804,7 @@ gtk_render_check (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
 
   _gtk_theming_engine_set_context (engine, context);
@@ -3854,6 +3855,7 @@ gtk_render_option (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_option (engine, cr,
@@ -3901,6 +3903,7 @@ gtk_render_arrow (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   gtk_style_context_save (context);
   gtk_style_context_add_class (context, GTK_STYLE_CLASS_ARROW);
@@ -3955,6 +3958,7 @@ gtk_render_background (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_background (engine, cr, x, y, width, height);
@@ -4006,6 +4010,7 @@ gtk_render_frame (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_frame (engine, cr, x, y, width, height);
@@ -4054,6 +4059,7 @@ gtk_render_expander (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_expander (engine, cr, x, y, width, height);
@@ -4099,6 +4105,7 @@ gtk_render_focus (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_focus (engine, cr, x, y, width, height);
@@ -4137,6 +4144,7 @@ gtk_render_layout (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   pango_layout_get_extents (layout, &extents, NULL);
 
@@ -4177,6 +4185,7 @@ gtk_render_line (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_line (engine, cr, x0, y0, x1, y1);
@@ -4227,6 +4236,7 @@ gtk_render_slider (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_slider (engine, cr, x, y, width, height, orientation);
@@ -4290,6 +4300,7 @@ gtk_render_frame_gap (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_frame_gap (engine, cr,
@@ -4342,6 +4353,7 @@ gtk_render_extension (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_extension (engine, cr, x, y, width, height, gap_side);
@@ -4390,6 +4402,7 @@ gtk_render_handle (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_handle (engine, cr, x, y, width, height);
@@ -4433,6 +4446,7 @@ gtk_render_activity (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_activity (engine, cr, x, y, width, height);
@@ -4502,6 +4516,7 @@ gtk_render_icon (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_icon (engine, cr, pixbuf, x, y);
@@ -4538,6 +4553,7 @@ gtk_render_icon_surface (GtkStyleContext *context,
   engine_class = GTK_THEMING_ENGINE_GET_CLASS (engine);
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_theming_engine_set_context (engine, context);
   engine_class->render_icon_surface (engine, cr, surface, x, y);
@@ -4563,6 +4579,7 @@ draw_insertion_cursor (GtkStyleContext *context,
   gint offset;
 
   cairo_save (cr);
+  cairo_new_path (cr);
 
   _gtk_style_context_get_cursor_color (context, &primary_color, &secondary_color);
   gdk_cairo_set_source_rgba (cr, is_primary ? &primary_color : &secondary_color);

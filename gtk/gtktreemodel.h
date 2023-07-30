@@ -302,6 +302,12 @@ void gtk_tree_model_rows_reordered        (GtkTreeModel *tree_model,
 					   GtkTreeIter  *iter,
 					   gint         *new_order);
 
+void gtk_tree_model_rows_reordered_with_length (GtkTreeModel *tree_model,
+						GtkTreePath  *path,
+						GtkTreeIter  *iter,
+						gint         *new_order,
+						gint          length);
+
 G_END_DECLS
 
 #endif /* __GTK_TREE_MODEL_H__ */

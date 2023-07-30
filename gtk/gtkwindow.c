@@ -5716,6 +5716,7 @@ gtk_window_realize (GtkWidget *widget)
 
   gtk_widget_get_allocation (widget, &allocation);
 
+  /*
   if (!gtk_widget_get_app_paintable (widget))
   {
 	GtkStyleContext *context;
@@ -5725,7 +5726,8 @@ gtk_window_realize (GtkWidget *widget)
 	background_color = _gtk_css_rgba_value_get_rgba (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BACKGROUND_COLOR));
 	gdk_window_set_background_rgba (gdk_window, background_color);
   }
-      
+  */
+        
   if (gtk_widget_get_parent_window (widget))
     {
       gtk_container_set_resize_mode (GTK_CONTAINER (widget), GTK_RESIZE_PARENT);

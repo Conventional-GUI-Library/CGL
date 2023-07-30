@@ -233,6 +233,11 @@ gtk_statusbar_init (GtkStatusbar *statusbar)
   priv->seq_message_id = 1;
   priv->messages = NULL;
   priv->keys = NULL;
+  
+  gtk_widget_set_margin_left(GTK_WIDGET(statusbar), 2);
+  gtk_widget_set_margin_right(GTK_WIDGET(statusbar), 2);
+  gtk_widget_set_margin_bottom(GTK_WIDGET(statusbar), 2);
+  gtk_widget_set_margin_top(GTK_WIDGET(statusbar), 2);
 }
 
 static GtkBuildableIface *parent_buildable_iface;

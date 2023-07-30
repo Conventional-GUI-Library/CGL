@@ -1,7 +1,8 @@
 /* This list defines the GTK+ ABI. It is used to generate the gtk.def
  * file.
  */
- 
+gtk_info_bar_get_show_close_button
+gtk_info_bar_set_show_close_button
 gtk_widget_get_scale_factor
 gtk_icon_theme_load_surface
 gtk_icon_info_load_surface
