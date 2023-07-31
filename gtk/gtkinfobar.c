@@ -559,6 +559,9 @@ gtk_info_bar_init (GtkInfoBar *info_bar)
   
   close_button = gtk_button_new_from_stock(GTK_STOCK_CLOSE);
   gtk_widget_hide(close_button);
+  g_object_set (G_OBJECT (close_button), "margin", 5, NULL);
+  gtk_widget_set_valign(close_button, GTK_ALIGN_CENTER);
+  gtk_widget_set_hexpand(close_button, FALSE);
   gtk_box_pack_start (GTK_BOX (info_bar), close_button, FALSE, TRUE, 0); 
   gtk_widget_set_no_show_all(close_button, TRUE);
   g_signal_connect (close_button, "clicked",
