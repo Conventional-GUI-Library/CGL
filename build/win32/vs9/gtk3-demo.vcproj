@@ -35,7 +35,7 @@
 				PreprocessorDefinitions="_DEBUG;$(GtkPrefixDefine)"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="2"
+				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
@@ -44,7 +44,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies=""
-				LinkIncremental="2"
+				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
@@ -77,7 +77,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies=""
-				LinkIncremental="2"
+				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
@@ -90,7 +90,7 @@
 			ConfigurationType="1"
 			InheritedPropertySheets=".\gtk+.vsprops"
 			CharacterSet="2"
-			WholeProgramOptimization="1"
+			WholeProgramOptimization="0"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -123,7 +123,7 @@
 			ConfigurationType="1"
 			InheritedPropertySheets=".\gtk+.vsprops"
 			CharacterSet="2"
-			WholeProgramOptimization="1"
+			WholeProgramOptimization="0"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -160,6 +160,7 @@
 			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
+			<File RelativePath="..\..\..\demos\gtk-demo\application.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\appwindow.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\assistant.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\builder.c" />
@@ -168,6 +169,12 @@
 			<File RelativePath="..\..\..\demos\gtk-demo\clipboard.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\colorsel.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\combobox.c" />
+			<File RelativePath="..\..\..\demos\gtk-demo\css_accordion.c" />
+			<File RelativePath="..\..\..\demos\gtk-demo\css_basics.c" />
+			<File RelativePath="..\..\..\demos\gtk-demo\css_pixbufs.c" />
+			<File RelativePath="..\..\..\demos\gtk-demo\css_shadows.c" />
+			<File RelativePath="..\..\..\demos\gtk-demo\css_multiplebgs.c" />
+			<File RelativePath="..\..\..\demos\gtk-demo\demo_resources.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\dialog.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\drawingarea.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\editable_cells.c" />
@@ -197,7 +204,9 @@
 			<File RelativePath="..\..\..\demos\gtk-demo\stock_browser.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\textscroll.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\textview.c" />
+			<File RelativePath="..\..\..\demos\gtk-demo\theming_style_classes.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\toolpalette.c" />
+			<File RelativePath="..\..\..\demos\gtk-demo\transparent.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\tree_store.c" />
 			<File RelativePath="..\..\..\demos\gtk-demo\ui_manager.c" />
 		</Filter>

@@ -35,20 +35,20 @@
 				PreprocessorDefinitions="_DEBUG;G_ENABLE_DEBUG;$(GdkDefines)"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="2"
+				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="imm32.lib"
-				OutputFile="$(OutDir)\$(GtkDllPrefix)$(ProjectName)-win32$(GtkDllSuffix).dll"
-				LinkIncremental="2"
+				AdditionalDependencies="imm32.lib winmm.lib"
+				OutputFile="$(OutDir)\$(GtkDllPrefix)$(ProjectName)$(GtkDllSuffix).dll"
+				LinkIncremental="1"
 				ModuleDefinitionFile="$(IntDir)\gdk.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
-				ImportLibrary="$(TargetDir)$(ProjectName)-win32-$(GtkApiVersion).lib"
+				ImportLibrary="$(TargetDir)$(ProjectName)-$(ApiVersion).lib"
 				TargetMachine="1"
 			/>
 		</Configuration>
@@ -57,6 +57,7 @@
 			InheritedPropertySheets=".\gtk+.vsprops"
 			ConfigurationType="2"
 			CharacterSet="2"
+			WholeProgramOptimization="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -72,15 +73,15 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="imm32.lib"
-				OutputFile="$(OutDir)\$(GtkDllPrefix)$(ProjectName)-win32$(GtkDllSuffix).dll"
-				LinkIncremental="2"
+				AdditionalDependencies="imm32.lib winmm.lib"
+				OutputFile="$(OutDir)\$(GtkDllPrefix)$(ProjectName)$(GtkDllSuffix).dll"
+				LinkIncremental="1"
 				ModuleDefinitionFile="$(IntDir)\gdk.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				ImportLibrary="$(TargetDir)$(ProjectName)-win32-$(GtkApiVersion).lib"
+				ImportLibrary="$(TargetDir)$(ProjectName)-$(ApiVersion).lib"
 				TargetMachine="1"
 			/>
 		</Configuration>
@@ -107,13 +108,13 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="imm32.lib"
-				OutputFile="$(OutDir)\$(GtkDllPrefix)$(ProjectName)-win32$(GtkDllSuffix).dll"
-				LinkIncremental="2"
+				AdditionalDependencies="imm32.lib winmm.lib"
+				OutputFile="$(OutDir)\$(GtkDllPrefix)$(ProjectName)$(GtkDllSuffix).dll"
+				LinkIncremental="1"
 				ModuleDefinitionFile="$(IntDir)\gdk.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
-				ImportLibrary="$(TargetDir)$(ProjectName)-win32-$(GtkApiVersion).lib"
+				ImportLibrary="$(TargetDir)$(ProjectName)-$(ApiVersion).lib"
 				TargetMachine="17"
 			/>
 		</Configuration>
@@ -122,6 +123,7 @@
 			InheritedPropertySheets=".\gtk+.vsprops"
 			ConfigurationType="2"
 			CharacterSet="2"
+			WholeProgramOptimization="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -137,15 +139,15 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="imm32.lib"
-				OutputFile="$(OutDir)\$(GtkDllPrefix)$(ProjectName)-win32$(GtkDllSuffix).dll"
-				LinkIncremental="2"
+				AdditionalDependencies="imm32.lib winmm.lib"
+				OutputFile="$(OutDir)\$(GtkDllPrefix)$(ProjectName)$(GtkDllSuffix).dll"
+				LinkIncremental="1"
 				ModuleDefinitionFile="$(IntDir)\gdk.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				ImportLibrary="$(TargetDir)$(ProjectName)-win32-$(GtkApiVersion).lib"
+				ImportLibrary="$(TargetDir)$(ProjectName)-$(ApiVersion).lib"
 				TargetMachine="17"
 			/>
 		</Configuration>

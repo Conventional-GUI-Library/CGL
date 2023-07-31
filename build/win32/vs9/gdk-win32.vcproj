@@ -35,7 +35,7 @@
 				PreprocessorDefinitions="_DEBUG;G_ENABLE_DEBUG;$(GdkDefines);INSIDE_GDK_WIN32"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="2"
+				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
@@ -46,6 +46,7 @@
 			InheritedPropertySheets=".\gtk+.vsprops"
 			ConfigurationType="4"
 			CharacterSet="2"
+			WholeProgramOptimization="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -87,6 +88,7 @@
 			InheritedPropertySheets=".\gtk+.vsprops"
 			ConfigurationType="4"
 			CharacterSet="2"
+			WholeProgramOptimization="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -123,6 +125,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File RelativePath="..\..\..\gdk\win32\gdkcursor-win32.c" />
+			<File RelativePath="..\..\..\gdk\win32\gdkdevice-virtual.c" />
 			<File RelativePath="..\..\..\gdk\win32\gdkdevice-win32.c" />
 			<File RelativePath="..\..\..\gdk\win32\gdkdevice-wintab.c" />
 			<File RelativePath="..\..\..\gdk\win32\gdkdevicemanager-win32.c" />
