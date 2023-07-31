@@ -38,6 +38,19 @@
 #include "gtkprivate.h"
 #include "gtkintl.h"
 
+#ifdef GDK_WINDOWING_X11
+#include "x11/gdkx.h"
+#endif
+
+#ifdef GDK_WINDOWING_WAYLAND
+#include "wayland/gdkwayland.h"
+#endif
+
+#ifdef GDK_WINDOWING_WIN32
+#include "win32/gdkwin32.h"
+#endif
+
+
 #define SIMPLE_ID "gtk-im-context-simple"
 
 /**
@@ -632,6 +645,27 @@ match_locale (const gchar *locale,
   return 0;
 }
 
+static gboolean
+match_backend (GtkIMContextInfo *context)
+{
+#ifdef GDK_WINDOWING_WAYLAND
+  if (g_strcmp0 (context->context_id, "wayland") == 0)
+    return GDK_IS_WAYLAND_DISPLAY (gdk_display_get_default ());
+#endif
+
+#ifdef GDK_WINDOWING_X11
+  if (g_strcmp0 (context->context_id, "xim") == 0)
+    return GDK_IS_X11_DISPLAY (gdk_display_get_default ());
+#endif
+
+#ifdef GDK_WINDOWING_WIN32
+  if (g_strcmp0 (context->context_id, "ime") == 0)
+    return GDK_IS_WIN32_DISPLAY (gdk_display_get_default ());
+#endif
+
+  return TRUE;
+}
+
 static const gchar *
 lookup_immodule (gchar **immodules_list)
 {
@@ -674,16 +708,16 @@ _gtk_im_module_get_default_context_id (GdkWindow *client_window)
   const gchar *envvar;
   GdkScreen *screen;
   GtkSettings *settings;
-      
+
   if (!contexts_hash)
     gtk_im_module_initialize ();
 
-  envvar = g_getenv("GTK_IM_MODULE");
+  envvar = g_getenv ("GTK_IM_MODULE");
   if (envvar)
     {
-        immodules = g_strsplit(envvar, ":", 0);
-        context_id = lookup_immodule(immodules);
-        g_strfreev(immodules);
+        immodules = g_strsplit (envvar, ":", 0);
+        context_id = lookup_immodule (immodules);
+        g_strfreev (immodules);
 
         if (context_id)
           return context_id;
@@ -691,21 +725,18 @@ _gtk_im_module_get_default_context_id (GdkWindow *client_window)
 
   /* Check if the certain immodule is set in XSETTINGS.
    */
-  if (GDK_IS_WINDOW (client_window))
+  screen = gdk_screen_get_default ();
+  settings = gtk_settings_get_for_screen (screen);
+  g_object_get (G_OBJECT (settings), "gtk-im-module", &tmp, NULL);
+  if (tmp)
     {
-      screen = gdk_window_get_screen (client_window);
-      settings = gtk_settings_get_for_screen (screen);
-      g_object_get (G_OBJECT (settings), "gtk-im-module", &tmp, NULL);
-      if (tmp)
-        {
-          immodules = g_strsplit(tmp, ":", 0);
-          context_id = lookup_immodule(immodules);
-          g_strfreev(immodules);
-          g_free (tmp);
+      immodules = g_strsplit (tmp, ":", 0);
+      context_id = lookup_immodule (immodules);
+      g_strfreev (immodules);
+      g_free (tmp);
 
-       	  if (context_id)
-            return context_id;
-        }
+      if (context_id)
+        return context_id;
     }
 
   /* Strip the locale code down to the essentials
@@ -717,15 +748,20 @@ _gtk_im_module_get_default_context_id (GdkWindow *client_window)
   tmp = strchr (tmp_locale, '@');
   if (tmp)
     *tmp = '\0';
-  
+
   tmp_list = modules_list;
   while (tmp_list)
     {
       GtkIMModule *module = tmp_list->data;
-     
+
       for (i = 0; i < module->n_contexts; i++)
 	{
-	  const gchar *p = module->contexts[i]->default_locales;
+	  const gchar *p;
+
+          if (!match_backend (module->contexts[i]))
+            continue;
+
+          p = module->contexts[i]->default_locales;
 	  while (p)
 	    {
 	      const gchar *q = strchr (p, ':');
@@ -740,11 +776,11 @@ _gtk_im_module_get_default_context_id (GdkWindow *client_window)
 	      p = q ? q + 1 : NULL;
 	    }
 	}
-      
+
       tmp_list = tmp_list->next;
     }
 
   g_free (tmp_locale);
-  
+
   return context_id ? context_id : SIMPLE_ID;
 }

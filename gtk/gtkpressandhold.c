@@ -28,6 +28,8 @@ struct _GtkPressAndHoldPrivate
   gint drag_threshold;
 
   GdkEventSequence *sequence;
+  GdkDevice *device;
+  guint button;
   guint timeout;
   gint start_x;
   gint start_y;
@@ -165,6 +167,8 @@ press_and_hold_cancel (GtkPressAndHold *pah)
 
   priv->timeout = 0;
   priv->sequence = NULL;
+  priv->device = NULL;
+  priv->button = 0;
 }
 
 static gboolean
@@ -204,6 +208,8 @@ gtk_press_and_hold_process_event (GtkPressAndHold *pah,
     }
   else if (event->type == GDK_TOUCH_UPDATE)
     {
+      priv->x = event->touch.x;
+      priv->y = event->touch.y;
       if (ABS (priv->x - priv->start_x) > priv->drag_threshold ||
           ABS (priv->y - priv->start_y) > priv->drag_threshold)
         press_and_hold_cancel (pah);
@@ -216,6 +222,29 @@ gtk_press_and_hold_process_event (GtkPressAndHold *pah,
   else if (event->type == GDK_TOUCH_CANCEL)
     {
       press_and_hold_cancel (pah);
+    }
+  else if (event->type == GDK_BUTTON_PRESS)
+    {
+      priv->device = event->button.device;
+      priv->button = event->button.button;
+      priv->x = event->button.x;
+      priv->y = event->button.y;
+      priv->start_x = priv->x;
+      priv->start_y = priv->y;
+      priv->timeout =
+          gdk_threads_add_timeout (priv->hold_time, hold_action, pah);
+    }
+  else if (event->type == GDK_BUTTON_RELEASE)
+    {
+      press_and_hold_cancel (pah);
+    }
+  else if (event->type == GDK_MOTION_NOTIFY)
+    {
+      priv->x = event->motion.x;
+      priv->y = event->motion.y;
+      if (ABS (priv->x - priv->start_x) > priv->drag_threshold ||
+          ABS (priv->y - priv->start_y) > priv->drag_threshold)
+        press_and_hold_cancel (pah);
     }
 }
 

@@ -200,6 +200,13 @@ gboolean gtk_drag_check_threshold (GtkWidget *widget,
 				   gint       start_y,
 				   gint       current_x,
 				   gint       current_y);
+GdkDragContext *gtk_drag_begin_with_coordinates (GtkWidget         *widget,
+                                                 GtkTargetList     *targets,
+                                                 GdkDragAction      actions,
+                                                gint               button,
+                                                 GdkEvent          *event,
+                                                 gint               x,
+                                                 gint               y);
 
 /* Internal functions */
 void _gtk_drag_source_handle_event (GtkWidget *widget,

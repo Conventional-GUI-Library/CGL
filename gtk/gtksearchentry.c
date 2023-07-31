@@ -27,6 +27,7 @@
 
 #include "config.h"
 
+#include "gtkaccessible.h"
 #include "gtksearchentry.h"
 #include "gtkmarshalers.h"
 #include "gtkintl.h"
@@ -231,6 +232,12 @@ gtk_search_entry_init (GtkSearchEntry *entry)
                 "primary-icon-activatable", FALSE,
                 "primary-icon-sensitive", FALSE,
                 NULL);
+                
+  AtkObject *atk_obj;
+
+  atk_obj = gtk_widget_get_accessible (GTK_WIDGET (entry));
+  if (GTK_IS_ACCESSIBLE (atk_obj))
+    atk_object_set_name (atk_obj, _("Search"));
 }
 
 /**

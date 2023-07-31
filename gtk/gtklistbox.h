@@ -189,7 +189,10 @@ GtkWidget*     gtk_list_box_new                          (void);
 void           gtk_list_box_set_placeholder              (GtkListBox                    *list_box, GtkWidget                     *placeholder);
 gboolean       gtk_list_box_get_activate_on_single_click (GtkListBox                    *list_box);
 gint       gtk_list_box_row_get_index     (GtkListBoxRow *row);
-                                                         
+void           gtk_list_box_prepend                      (GtkListBox                    *list_box,      GtkWidget                     *child);                            
+void           gtk_list_box_insert                       (GtkListBox                    *list_box,
+                                                          GtkWidget                     *child,
+                                                          gint                           position);                                                                         
 
 G_END_DECLS
 

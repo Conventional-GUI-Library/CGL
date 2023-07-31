@@ -4887,9 +4887,11 @@ gtk_label_motion (GtkWidget      *widget,
 
           g_signal_connect (widget, "drag-begin",
                             G_CALLBACK (drag_begin_cb), NULL);
-	  gtk_drag_begin (widget, target_list,
-			  GDK_ACTION_COPY,
-			  1, (GdkEvent *)event);
+	  gtk_drag_begin_with_coordinates (widget, target_list,
+                                           GDK_ACTION_COPY,
+                                           1, (GdkEvent *)event,
+                                           info->drag_start_x,
+                                           info->drag_start_y);
 
 	  info->in_drag = FALSE;
 
@@ -6146,6 +6148,8 @@ gtk_label_do_popup (GtkLabel       *label,
     gtk_widget_destroy (priv->select_info->popup_menu);
 
   priv->select_info->popup_menu = menu = gtk_menu_new ();
+  gtk_style_context_add_class (gtk_widget_get_style_context (menu),
+                               GTK_STYLE_CLASS_CONTEXT_MENU);
 
   gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (label), popup_menu_detach);
 

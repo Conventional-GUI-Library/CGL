@@ -1,6 +1,12 @@
 /* This list defines the GTK+ ABI. It is used to generate the gtk.def
  * file.
  */
+gtk_list_box_prepend
+gtk_list_box_insert
+gtk_button_new_from_icon_name
+gtk_drag_begin_with_coordinates
+gtk_csd_title_bar_set_show_close_button
+gtk_csd_title_bar_get_show_close_button
 gtk_info_bar_get_show_close_button
 gtk_info_bar_set_show_close_button
 gtk_widget_get_scale_factor

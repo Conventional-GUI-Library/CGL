@@ -161,16 +161,17 @@ static gboolean
 gdk_wayland_device_update_window_cursor (GdkWaylandDeviceData *wd)
 {
   struct wl_buffer *buffer;
-  int x, y, w, h;
+  int x, y, w, h, scale;
   guint next_image_index, next_image_delay;
 
   buffer = _gdk_wayland_cursor_get_buffer (wd->cursor, wd->cursor_image_index,
-                                           &x, &y, &w, &h);
+                                           &x, &y, &w, &h, &scale);
   wl_pointer_set_cursor (wd->wl_pointer,
                          wd->enter_serial,
                          wd->pointer_surface,
                          x, y);
   wl_surface_attach (wd->pointer_surface, buffer, 0, 0);
+  wl_surface_set_buffer_scale (wd->pointer_surface, scale);
   wl_surface_damage (wd->pointer_surface,  0, 0, w, h);
   wl_surface_commit (wd->pointer_surface);
 
@@ -598,6 +599,8 @@ pointer_handle_enter (void              *data,
 
   if (!surface)
     return;
+  if (!GDK_IS_WINDOW (wl_surface_get_user_data (surface)))
+    return;
 
   _gdk_wayland_display_update_serial (wayland_display, serial);
 
@@ -640,6 +643,10 @@ pointer_handle_leave (void              *data,
     GDK_WAYLAND_DISPLAY (device->display);
 
   if (!surface)
+    return;
+  if (!GDK_IS_WINDOW (wl_surface_get_user_data (surface)))
+    return;
+  if (!device->pointer_focus)
     return;
 
   _gdk_wayland_display_update_serial (wayland_display, serial);
@@ -685,6 +692,9 @@ pointer_handle_motion (void              *data,
   GdkWaylandDisplay *display = GDK_WAYLAND_DISPLAY (device->display);
   GdkEvent *event;
 
+  if (!device->pointer_focus)
+    return;
+
   event = gdk_event_new (GDK_NOTHING);
 
   device->time = time;
@@ -724,6 +734,9 @@ pointer_handle_button (void              *data,
   int gdk_button;
   GdkWaylandDisplay *wayland_display =
     GDK_WAYLAND_DISPLAY (device->display);
+
+  if (!device->pointer_focus)
+    return;
 
   _gdk_wayland_display_update_serial (wayland_display, serial);
 
@@ -780,6 +793,9 @@ pointer_handle_axis (void              *data,
   GdkEvent *event;
   gdouble delta_x, delta_y;
 
+  if (!device->pointer_focus)
+    return;
+
   /* get the delta and convert it into the expected range */
   switch (axis) {
   case WL_POINTER_AXIS_VERTICAL_SCROLL:
@@ -789,6 +805,7 @@ pointer_handle_axis (void              *data,
   case WL_POINTER_AXIS_HORIZONTAL_SCROLL:
     delta_x = wl_fixed_to_double (value) / 10.0;
     delta_y = 0;
+    break;
   default:
     g_return_if_reached ();
   }
@@ -843,6 +860,8 @@ keyboard_handle_enter (void               *data,
 
   if (!surface)
     return;
+  if (!GDK_IS_WINDOW (wl_surface_get_user_data (surface)))
+    return;
 
   _gdk_wayland_display_update_serial (wayland_display, serial);
 
@@ -876,6 +895,10 @@ keyboard_handle_leave (void               *data,
     GDK_WAYLAND_DISPLAY (device->display);
 
   if (!surface)
+    return;
+  if (!GDK_IS_WINDOW (wl_surface_get_user_data (surface)))
+    return;
+  if (!device->keyboard_focus)
     return;
 
   _gdk_wayland_display_update_serial (wayland_display, serial);
@@ -1085,6 +1108,9 @@ keyboard_handle_key (void               *data,
   GdkWaylandDeviceData *device = data;
   GdkWaylandDisplay *wayland_display =
     GDK_WAYLAND_DISPLAY (device->display);
+
+  if (!device->keyboard_focus)
+    return;
 
   device->repeat_count = 0;
   _gdk_wayland_display_update_serial (wayland_display, serial);

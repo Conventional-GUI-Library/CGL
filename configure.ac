@@ -44,7 +44,7 @@ m4_define([gtk_binary_version], [0.1.0])
 m4_define([glib_required_version], [2.37.2])
 m4_define([pango_required_version], [1.32.4])
 m4_define([atk_required_version], [2.7.4])
-m4_define([cairo_required_version], [1.10.0])
+m4_define([cairo_required_version], [1.12.0])
 m4_define([gdk_pixbuf_required_version], [2.27.1])
 m4_define([introspection_required_version], [0.10.1])
 GLIB_REQUIRED_VERSION=glib_required_version
@@ -317,6 +317,7 @@ if test -z "$backend_set"; then
     enable_win32_backend=yes
   else
     enable_x11_backend=yes
+    enable_wayland_backend=yes
   fi
 fi
 

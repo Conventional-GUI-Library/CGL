@@ -250,24 +250,27 @@ _gdk_quartz_display_get_cursor_for_type (GdkDisplay    *display,
 
 
 GdkCursor *
-_gdk_quartz_display_get_cursor_for_pixbuf (GdkDisplay *display,
-                                           GdkPixbuf  *pixbuf,
-                                           gint        x,
-                                           gint        y)
+_gdk_quartz_display_get_cursor_for_surface (GdkDisplay      *display,
+					    cairo_surface_t *surface,
+					    gdouble          x,
+					    gdouble          y)
 {
   NSImage *image;
   NSCursor *nscursor;
   GdkCursor *cursor;
-  gboolean has_alpha;
+  GdkPixbuf *pixbuf;
 
   GDK_QUARTZ_ALLOC_POOL;
 
-  has_alpha = gdk_pixbuf_get_has_alpha (pixbuf);
-
+  pixbuf = gdk_pixbuf_get_from_surface (surface, 0, 0,
+					cairo_image_surface_get_width (surface),
+					cairo_image_surface_get_height (surface));
   image = gdk_quartz_pixbuf_to_ns_image_libgtk_only (pixbuf);
   nscursor = [[NSCursor alloc] initWithImage:image hotSpot:NSMakePoint(x, y)];
 
   cursor = gdk_quartz_cursor_new_from_nscursor (nscursor, GDK_CURSOR_IS_PIXMAP);
+
+  g_object_unref (pixbuf);
 
   GDK_QUARTZ_RELEASE_POOL;
 
@@ -284,7 +287,9 @@ _gdk_quartz_display_get_cursor_for_name (GdkDisplay  *display,
 
 G_DEFINE_TYPE (GdkQuartzCursor, gdk_quartz_cursor, GDK_TYPE_CURSOR)
 
-static GdkPixbuf *gdk_quartz_cursor_get_image (GdkCursor *cursor);
+static cairo_surface_t *gdk_quartz_cursor_get_surface (GdkCursor *cursor,
+						       gdouble *x_hot,
+						       gdouble *y_hot);
 
 static void
 gdk_quartz_cursor_finalize (GObject *object)
@@ -304,7 +309,7 @@ gdk_quartz_cursor_class_init (GdkQuartzCursorClass *quartz_cursor_class)
 
   object_class->finalize = gdk_quartz_cursor_finalize;
 
-  cursor_class->get_image = gdk_quartz_cursor_get_image;
+  cursor_class->get_surface = gdk_quartz_cursor_get_surface;
 }
 
 static void
@@ -360,8 +365,10 @@ _gdk_quartz_cursor_get_ns_cursor (GdkCursor *cursor)
   return cursor_private->nscursor;
 }
 
-static GdkPixbuf *
-gdk_quartz_cursor_get_image (GdkCursor *cursor)
+static cairo_surface_t *
+gdk_quartz_cursor_get_surface (GdkCursor *cursor,
+			       gdouble *x_hot,
+			       gdouble *y_hot)
 {
   /* FIXME: Implement */
   return NULL;

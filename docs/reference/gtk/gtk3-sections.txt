@@ -508,6 +508,8 @@ GtkListBoxSortFunc
 GtkListBoxUpdateHeaderFunc
 
 gtk_list_box_new
+gtk_list_box_prepend
+gtk_list_box_insert
 gtk_list_box_select_row
 gtk_list_box_get_selected_row
 
@@ -625,6 +627,7 @@ GtkButton
 gtk_button_new
 gtk_button_new_with_label
 gtk_button_new_with_mnemonic
+gtk_button_new_from_icon_name
 gtk_button_new_from_stock
 gtk_button_pressed
 gtk_button_released

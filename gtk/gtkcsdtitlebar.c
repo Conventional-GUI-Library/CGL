@@ -56,6 +56,8 @@ struct _GtkCSDTitleBarPrivate
   GtkWidget *label_box;
   GtkWidget *label_sizing_box;
   GtkWidget *custom_title;
+  GtkWidget *close_button;
+  GtkWidget *separator;
   gint spacing;
   gint hpadding;
   gint vpadding;
@@ -77,7 +79,8 @@ enum {
   PROP_CUSTOM_TITLE,
   PROP_SPACING,
   PROP_HPADDING,
-  PROP_VPADDING
+  PROP_VPADDING,
+  PROP_SHOW_CLOSE_BUTTON
 };
 
 enum {
@@ -172,12 +175,15 @@ _gtk_csd_title_bar_create_title_box (const char *title,
   GtkWidget *label_box;
   GtkWidget *title_label;
   GtkWidget *subtitle_label;
+  GtkStyleContext *context;
 
   label_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
   gtk_widget_set_valign (label_box, GTK_ALIGN_CENTER);
   gtk_widget_show (label_box);
 
   title_label = gtk_label_new (title);
+  context = gtk_widget_get_style_context (title_label);
+  gtk_style_context_add_class (context, "title");
   boldify_label (title_label);
   gtk_label_set_line_wrap (GTK_LABEL (title_label), FALSE);
   gtk_label_set_single_line_mode (GTK_LABEL (title_label), TRUE);
@@ -186,6 +192,8 @@ _gtk_csd_title_bar_create_title_box (const char *title,
   gtk_widget_show (title_label);
 
   subtitle_label = gtk_label_new (subtitle);
+  context = gtk_widget_get_style_context (subtitle_label);
+  gtk_style_context_add_class (context, "subtitle");
   smallify_label (subtitle_label);
   gtk_label_set_line_wrap (GTK_LABEL (subtitle_label), FALSE);
   gtk_label_set_single_line_mode (GTK_LABEL (subtitle_label), TRUE);
@@ -199,6 +207,63 @@ _gtk_csd_title_bar_create_title_box (const char *title,
     *ret_subtitle_label = subtitle_label;
 
   return label_box;
+}
+
+
+static void
+close_button_clicked (GtkButton *button, gpointer data)
+{
+  GtkWidget *toplevel;
+
+  toplevel = gtk_widget_get_toplevel (GTK_WIDGET (button));
+  gtk_window_close (GTK_WINDOW (toplevel));
+}
+
+static void
+add_close_button (GtkCSDTitleBar *bar)
+{
+  GtkCSDTitleBarPrivate *priv;
+  GtkWidget *button;
+  GIcon *icon;
+  GtkWidget *image;
+  GtkWidget *separator;
+  GtkStyleContext *context;
+  
+  priv = bar->priv;
+
+  gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
+  context = gtk_widget_get_style_context (button);
+  gtk_style_context_add_class (context, "image-button");
+
+  button = gtk_button_new ();
+  icon = g_themed_icon_new ("window-close-symbolic");
+  image = gtk_image_new_from_gicon (icon, GTK_ICON_SIZE_MENU);
+  g_object_unref (icon);
+  gtk_container_add (GTK_CONTAINER (button), image);
+  gtk_button_set_relief (GTK_BUTTON (button), GTK_RELIEF_NONE);
+  g_signal_connect (button, "clicked",
+                    G_CALLBACK (close_button_clicked), NULL);
+  gtk_widget_show_all (button);
+  gtk_widget_set_parent (button, GTK_WIDGET (bar));
+
+  separator = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
+  gtk_widget_show (separator);
+  gtk_widget_set_parent (separator, GTK_WIDGET (bar));
+
+  priv->separator = separator;
+  priv->close_button = button;
+}
+
+static void
+remove_close_button (GtkCSDTitleBar *bar)
+{
+  GtkCSDTitleBarPrivate *priv = bar->priv;
+
+  gtk_widget_unparent (priv->separator);
+  gtk_widget_unparent (priv->close_button);
+
+  priv->separator = NULL;
+  priv->close_button = NULL;
 }
 
 static void
@@ -234,6 +299,8 @@ gtk_csd_title_bar_init (GtkCSDTitleBar *bar)
   priv->spacing = DEFAULT_SPACING;
   priv->hpadding = DEFAULT_HPADDING;
   priv->vpadding = DEFAULT_VPADDING;
+  priv->close_button = NULL;
+  priv->separator = NULL;
 
   init_sizing_box (bar);
   construct_label_box (bar);
@@ -324,6 +391,15 @@ gtk_csd_title_bar_get_size (GtkWidget      *widget,
   if (priv->custom_title != NULL)
     {
       if (add_child_size (priv->custom_title, orientation, &minimum, &natural))
+        nvis_children += 1;
+    }
+
+  if (priv->close_button != NULL)
+    {
+      if (add_child_size (priv->close_button, orientation, &minimum, &natural))
+        nvis_children += 1;
+
+      if (add_child_size (priv->separator, orientation, &minimum, &natural))
         nvis_children += 1;
     }
 
@@ -524,6 +600,19 @@ gtk_csd_title_bar_compute_size_for_opposing_orientation (GtkWidget *widget,
       computed_minimum = MAX (computed_minimum, child_minimum);
       computed_natural = MAX (computed_natural, child_natural);
     }
+    
+ if (priv->close_button != NULL)
+    {
+      gtk_widget_get_preferred_height (priv->close_button,
+                                       &child_minimum, &child_natural);
+      computed_minimum = MAX (computed_minimum, child_minimum);
+      computed_natural = MAX (computed_natural, child_natural);
+
+      gtk_widget_get_preferred_height (priv->separator,
+                                       &child_minimum, &child_natural);
+      computed_minimum = MAX (computed_minimum, child_minimum);
+      computed_natural = MAX (computed_natural, child_natural);
+    }
 
   get_css_padding_and_border (widget, &css_borders);
 
@@ -582,6 +671,9 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
   gint nvis_children;
   gint title_minimum_size;
   gint title_natural_size;
+  gint close_button_width;
+  gint separator_width;
+  gint close_width;
   gint side[2];
   GList *l;
   gint i;
@@ -645,7 +737,7 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
       if (packing == GTK_PACK_START)
         x = allocation->x + priv->hpadding + css_borders.left;
       else
-        x = allocation->x + allocation->width - priv->hpadding - css_borders.right;
+        x = allocation->x + allocation->width - close_width - priv->hpadding - css_borders.right;
 
       if (packing == GTK_PACK_START)
 	{
@@ -699,6 +791,8 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
         }
     }
 
+  side[GTK_PACK_END] += close_width;
+
   child_allocation.y = allocation->y + priv->vpadding + css_borders.top;
   child_allocation.height = height;
 
@@ -726,6 +820,22 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
     gtk_widget_size_allocate (priv->custom_title, &child_allocation);
   else
     gtk_widget_size_allocate (priv->label_box, &child_allocation);
+  if (priv->close_button)
+    {
+      if (direction == GTK_TEXT_DIR_RTL)
+        child_allocation.x = allocation->x + priv->hpadding + css_borders.left;
+      else
+        child_allocation.x = allocation->x + allocation->width - priv->hpadding - css_borders.right - close_button_width;
+      child_allocation.width = close_button_width;
+      gtk_widget_size_allocate (priv->close_button, &child_allocation);
+
+      if (direction == GTK_TEXT_DIR_RTL)
+        child_allocation.x = allocation->x + priv->hpadding + css_borders.left + close_button_width + priv->spacing;
+      else
+        child_allocation.x = allocation->x + allocation->width - priv->hpadding - css_borders.right - close_button_width - priv->spacing - separator_width;
+      child_allocation.width = separator_width;
+      gtk_widget_size_allocate (priv->separator, &child_allocation);
+    }
 }
 
 /**
@@ -969,6 +1079,9 @@ gtk_csd_title_bar_get_property (GObject    *object,
     case PROP_VPADDING:
       g_value_set_int (value, priv->vpadding);
       break;
+   case PROP_SHOW_CLOSE_BUTTON:
+      g_value_set_boolean (value, gtk_csd_title_bar_get_show_close_button (bar));
+      break;
 
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1012,6 +1125,9 @@ gtk_csd_title_bar_set_property (GObject      *object,
     case PROP_VPADDING:
       priv->vpadding = g_value_get_int (value);
       gtk_widget_queue_resize (GTK_WIDGET (bar));
+      break;
+    case PROP_SHOW_CLOSE_BUTTON:
+      gtk_csd_title_bar_set_show_close_button (bar, g_value_get_boolean (value));
       break;
 
     default:
@@ -1111,6 +1227,13 @@ gtk_csd_title_bar_forall (GtkContainer *container,
   if (include_internals && priv->label_box != NULL)
     (* callback) (priv->label_box, callback_data);
 
+  if (include_internals && priv->close_button != NULL)
+    (* callback) (priv->close_button, callback_data);
+
+  if (include_internals && priv->separator != NULL)
+    (* callback) (priv->separator, callback_data);
+
+
   children = priv->children;
   while (children)
     {
@@ -1119,6 +1242,7 @@ gtk_csd_title_bar_forall (GtkContainer *container,
       if (child->pack_type == GTK_PACK_END)
         (* callback) (child->widget, callback_data);
     }
+    
 }
 
 static GType
@@ -1350,6 +1474,13 @@ gtk_csd_title_bar_class_init (GtkCSDTitleBarClass *class)
                                                      0, G_MAXINT,
                                                	      DEFAULT_VPADDING,
                                                      GTK_PARAM_READWRITE));
+  g_object_class_install_property (object_class,
+                                   PROP_SHOW_CLOSE_BUTTON,
+                                   g_param_spec_boolean ("show-close-button",
+                                                         P_("Show Close button"),
+                                                         P_("Whether to show a window close button"),
+                                                         FALSE,
+                                                         GTK_PARAM_READWRITE));
 
   g_type_class_add_private (object_class, sizeof (GtkCSDTitleBarPrivate));
 
@@ -1423,4 +1554,56 @@ GtkWidget *
 gtk_csd_title_bar_new (void)
 {
   return GTK_WIDGET (g_object_new (GTK_TYPE_CSD_TITLE_BAR, NULL));
+}
+
+/**
+ * gtk_header_bar_get_show_close_button:
+ * @bar: a #GtkCSDTitleBar
+ *
+ * Returns whether this header bar shows a window close
+ * button.
+ *
+ * Returns: %TRUE if a window close button is shown
+ *
+ * Since: 3.10
+ */
+gboolean
+gtk_csd_title_bar_get_show_close_button (GtkCSDTitleBar *bar)
+{
+	g_return_val_if_fail (GTK_IS_CSD_TITLE_BAR (bar), FALSE);
+	GtkCSDTitleBarPrivate *priv = bar->priv;
+	return priv->close_button != NULL;
+}
+
+/**
+ * gtk_header_bar_set_show_close_button:
+ * @bar: a #GtkCSDTitleBar
+ * @setting: %TRUE to show a window close button
+ *
+ * Sets whether this header bar shows a window close
+ * button.
+ *
+ * Since: 3.10
+ */
+void
+gtk_csd_title_bar_set_show_close_button (GtkCSDTitleBar *bar,
+                                      gboolean      setting)
+{
+  g_return_if_fail (GTK_IS_CSD_TITLE_BAR (bar));
+
+  GtkCSDTitleBarPrivate *priv = bar->priv;
+
+  setting = setting != FALSE;
+
+  if ((priv->close_button != NULL) == setting)
+    return;
+
+  if (setting)
+    add_close_button (bar);
+  else
+    remove_close_button (bar);
+
+  gtk_widget_queue_resize (GTK_WIDGET (bar));
+
+  g_object_notify (G_OBJECT (bar), "show-close-button");
 }

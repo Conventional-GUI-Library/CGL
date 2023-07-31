@@ -1,6 +1,10 @@
 /* This file lists all exported symbols. It is used to generate
  * the gdk.def file used to control exports on Windows.
  */
+gdk_event_get_event_type
+gdk_x11_window_set_frame_extents 
+gdk_cursor_new_from_surface
+gdk_cursor_get_surface
 gdk_device_get_position_double
 gdk_device_get_window_at_position_double
 gdk_window_get_device_position_double

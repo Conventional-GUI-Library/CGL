@@ -3524,6 +3524,9 @@ gtk_window_set_titlebar (GtkWindow *window,
   if (visual)
     gtk_widget_set_visual (widget, visual);
 
+  gtk_style_context_add_class (gtk_widget_get_style_context (titlebar),
+                               GTK_STYLE_CLASS_TITLEBAR);
+
   gtk_widget_queue_resize (widget);
 }
 
@@ -5020,8 +5023,15 @@ gtk_window_finalize (GObject *object)
     }
 
   if (priv->screen)
-    g_signal_handlers_disconnect_by_func (priv->screen,
-                                          gtk_window_on_composited_changed, window);
+    {
+      g_signal_handlers_disconnect_by_func (priv->screen,
+                                            gtk_window_on_composited_changed, window);
+#ifdef GDK_WINDOWING_X11
+      g_signal_handlers_disconnect_by_func (gtk_settings_get_for_screen (priv->screen),
+                                            gtk_window_on_theme_variant_changed,
+                                            window);
+#endif
+    }
 
   g_free (priv->startup_id);
 
@@ -5030,12 +5040,6 @@ gtk_window_finalize (GObject *object)
       g_source_remove (priv->mnemonics_display_timeout_id);
       priv->mnemonics_display_timeout_id = 0;
     }
-
-#ifdef GDK_WINDOWING_X11
-  g_signal_handlers_disconnect_by_func (gtk_settings_get_default (),
-                                        gtk_window_on_theme_variant_changed,
-                                        window);
-#endif
 
   G_OBJECT_CLASS (gtk_window_parent_class)->finalize (object);
 }
@@ -5274,7 +5278,7 @@ create_decoration (GtkWidget *widget)
                     "vpadding", 0,
                     NULL);
       context = gtk_widget_get_style_context (priv->title_box);
-      gtk_style_context_add_class (context, "titlebar");
+      gtk_style_context_add_class (context, GTK_STYLE_CLASS_TITLEBAR);
       gtk_widget_set_parent (priv->title_box, GTK_WIDGET (window));
 
       title = g_markup_printf_escaped ("<b>%s</b>",
@@ -6429,6 +6433,24 @@ update_border_windows (GtkWindow *window)
     }
 }
 
+static void
+update_frame_extents (GtkWindow *window,
+                      GtkBorder *border)
+{
+#ifdef GDK_WINDOWING_X11
+  GdkWindow *gdk_window;
+
+  gdk_window = gtk_widget_get_window (GTK_WIDGET (window));
+
+  if (GDK_IS_X11_WINDOW (gdk_window))
+    gdk_x11_window_set_frame_extents (gdk_window,
+                                      border->left,
+                                      border->right,
+                                      border->top,
+                                      border->bottom);
+#endif
+}
+
 /* _gtk_window_set_allocation:
  * @window: a #GtkWindow
  * @allocation: the original allocation for the window
@@ -6473,6 +6495,9 @@ _gtk_window_set_allocation (GtkWindow           *window,
   child_allocation.height = allocation->height;
 
   priv->title_height = 0;
+
+  if (priv->client_decorated)
+    update_frame_extents (window, &window_border);
 
   if (priv->title_box != NULL &&
       priv->decorated &&
@@ -7198,6 +7223,13 @@ gtk_window_button_press_event (GtkWidget      *widget,
                   return TRUE;
                 }
             }
+          else if (event->button == GDK_BUTTON_MIDDLE)
+            {
+              if (region == GTK_WINDOW_REGION_TITLE)
+                {
+                  gdk_window_lower (gtk_widget_get_window (GTK_WIDGET (window)));
+                }
+            }
         }
       else if (event->type == GDK_2BUTTON_PRESS)
         {
@@ -7530,7 +7562,11 @@ gtk_window_real_set_focus (GtkWindow *window,
       if (priv->has_focus)
 	do_focus_change (priv->focus_widget, TRUE);
 
-      g_object_notify (G_OBJECT (priv->focus_widget), "is-focus");
+      /* It's possible for do_focus_change() above to have callbacks
+       * that clear priv->focus_widget here.
+       */
+      if (priv->focus_widget)
+        g_object_notify (G_OBJECT (priv->focus_widget), "is-focus");
     }
 
   /* If the default widget changed, a redraw will have been queued
@@ -7860,6 +7896,9 @@ gtk_window_do_popup (GtkWindow      *window,
     gtk_widget_destroy (priv->popup_menu);
 
   priv->popup_menu = gtk_menu_new ();
+  gtk_style_context_add_class (gtk_widget_get_style_context (priv->popup_menu),
+                               GTK_STYLE_CLASS_CONTEXT_MENU);
+
   gtk_menu_attach_to_widget (GTK_MENU (priv->popup_menu),
                              GTK_WIDGET (window),
                              popup_menu_detach);

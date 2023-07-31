@@ -81,8 +81,12 @@ void         gtk_csd_title_bar_pack_end          (GtkCSDTitleBar *bar,
 void         gtk_csd_title_bar_set_subtitle      (GtkCSDTitleBar *bar,
                                                const gchar  *subtitle);
 const gchar *gtk_csd_title_bar_get_subtitle      (GtkCSDTitleBar *bar);
+void
+gtk_csd_title_bar_set_show_close_button (GtkCSDTitleBar *bar,
+                                      gboolean      setting);
 
-
+gboolean
+gtk_csd_title_bar_get_show_close_button (GtkCSDTitleBar *bar);
 
 G_END_DECLS
 

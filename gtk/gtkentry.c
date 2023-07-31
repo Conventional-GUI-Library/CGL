@@ -4088,11 +4088,13 @@ gtk_entry_motion_notify (GtkWidget      *widget,
             {
               icon_info->in_drag = TRUE;
               icon_info->pressed = FALSE;
-              gtk_drag_begin (widget,
-                              icon_info->target_list,
-                              icon_info->actions,
-                              1,
-                              (GdkEvent*)event);
+              gtk_drag_begin_with_coordinates (widget,
+                                               icon_info->target_list,
+                                               icon_info->actions,
+                                               1,
+                                               (GdkEvent*)event,
+                                               priv->start_x,
+                                               priv->start_y);
             }
 
           return TRUE;
@@ -4124,6 +4126,8 @@ gtk_entry_motion_notify (GtkWidget      *widget,
                                     priv->drag_start_x, priv->drag_start_y,
                                     event->x + priv->scroll_offset, event->y))
         {
+          gint *ranges;
+          gint n_ranges;
           GdkDragContext *context;
           GtkTargetList  *target_list = gtk_target_list_new (NULL, 0);
           guint actions = priv->editable ? GDK_ACTION_COPY | GDK_ACTION_MOVE : GDK_ACTION_COPY;
@@ -4135,9 +4139,17 @@ gtk_entry_motion_notify (GtkWidget      *widget,
           text = _gtk_entry_get_selected_text (entry);
           surface = _gtk_text_util_create_drag_icon (widget, text, -1);
 
-          context = gtk_drag_begin (widget, target_list, actions,
-                                    priv->button, (GdkEvent *)event);
-          
+          gtk_entry_get_pixel_ranges (entry, &ranges, &n_ranges);
+          cairo_surface_set_device_offset (surface,
+                                           -(priv->drag_start_x - ranges[0]),
+                                           -(priv->drag_start_y));
+
+          context = gtk_drag_begin_with_coordinates (widget, target_list, actions,
+                                                     priv->button, (GdkEvent *)event,
+                                                     priv->drag_start_x + ranges[0],
+                                                     priv->drag_start_y);
+          g_free (ranges);
+
           if (surface)
             gtk_drag_set_icon_surface (context, surface);
           else
@@ -8749,8 +8761,11 @@ popup_targets_received (GtkClipboard     *clipboard,
       if (info_entry_priv->popup_menu)
 	gtk_widget_destroy (info_entry_priv->popup_menu);
 
-      info_entry_priv->popup_menu = gtk_menu_new ();
 
+      info_entry_priv->popup_menu = gtk_menu_new ();
+      gtk_style_context_add_class (gtk_widget_get_style_context (info_entry_priv->popup_menu),
+                                   GTK_STYLE_CLASS_CONTEXT_MENU);
+ 
       gtk_menu_attach_to_widget (GTK_MENU (info_entry_priv->popup_menu),
 				 GTK_WIDGET (entry),
 				 popup_menu_detach);

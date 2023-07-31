@@ -233,8 +233,13 @@ GDK_DEPRECATED_IN_3_0_FOR(g_object_unref)
 void        gdk_cursor_unref             (GdkCursor       *cursor);
 GdkPixbuf*  gdk_cursor_get_image         (GdkCursor       *cursor);
 GdkCursorType gdk_cursor_get_cursor_type (GdkCursor       *cursor);
-
-
+cairo_surface_t *gdk_cursor_get_surface  (GdkCursor       *cursor,
+					  gdouble         *x_hot,
+					  gdouble         *y_hot);
+GdkCursor* gdk_cursor_new_from_surface	 (GdkDisplay      *display,
+					  cairo_surface_t *surface,
+					  gdouble          x,
+					  gdouble          y);
 G_END_DECLS
 
 #endif /* __GDK_CURSOR_H__ */

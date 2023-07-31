@@ -172,7 +172,8 @@
 -(void)doCommandBySelector: (SEL)aSelector
 {
   GDK_NOTE (EVENTS, g_print ("doCommandBySelector\n"));
-  [super doCommandBySelector: aSelector];
+  if ([self respondsToSelector: aSelector])
+    [self performSelector: aSelector];
 }
 
 -(void)insertText: (id)aString replacementRange: (NSRange)replacementRange
