@@ -285,6 +285,7 @@ _gdk_x11_window_translate (GdkWindow      *window,
                            gint            dx,
                            gint            dy)
 {
+  GdkWindowImplX11 *impl = GDK_WINDOW_IMPL_X11 (window->impl);	
   GdkWindowQueueItem *item;
   GC xgc;
   GdkRectangle extents;
@@ -293,22 +294,22 @@ _gdk_x11_window_translate (GdkWindow      *window,
 
   xgc = _get_scratch_gc (window, area);
 
-  cairo_region_translate (area, -dx, -dy); /* Move to source region */
+  cairo_region_translate (area, -(dx*impl->window_scale), -(dy*impl->window_scale)); /* Move to source region */
 
   item = g_new (GdkWindowQueueItem, 1);
   item->type = GDK_WINDOW_QUEUE_TRANSLATE;
   item->u.translate.area = cairo_region_copy (area);
-  item->u.translate.dx = dx;
-  item->u.translate.dy = dy;
+  item->u.translate.dx = dx*impl->window_scale;
+  item->u.translate.dy = dy*impl->window_scale;
   gdk_window_queue (window, item);
 
   XCopyArea (GDK_WINDOW_XDISPLAY (window),
              GDK_WINDOW_XID (window),
              GDK_WINDOW_XID (window),
              xgc,
-             extents.x - dx, extents.y - dy,
-             extents.width, extents.height,
-             extents.x, extents.y);
+             extents.x*impl->window_scale - dx*impl->window_scale, extents.y*impl->window_scale - dy*impl->window_scale,
+             extents.width*impl->window_scale, extents.height*impl->window_scale,
+             extents.x*impl->window_scale, extents.y*impl->window_scale);
 }
 
 gboolean
