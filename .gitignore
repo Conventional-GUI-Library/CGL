@@ -1,11 +1,126 @@
 compile_commands.json
 .direnv/
 
-# build artefacts
+# configure artefacts
+# config.h # this shouldn't be ignored because it breaks the build...
+.deps/
 autom4te.cache/
 aclocal.m4
-
-# symlinks
 gtk-doc.m4
 gtk-doc.make
 m4/gtk-doc.m4
+config.h.in~
+config.log
+config.lt
+config.status
+configure
+configure~
+gail-3.0.pc
+gdk-3.0.pc
+gtk+-3.0.pc
+gtk+-unix-print-3.0.pc
+gtk-zip.sh
+libtool
+Makefile
+stamp-h1
+
+# these are mostly Makefile.in and could probably be one line, but there's
+# the Makefile.in in root which is not meant to be ignored entirely so I'm
+# manually specifying each of these.
+tests/visuals/Makefile.in
+gtk/a11y/Makefile.in
+gtk/native/Makefile.in
+gdk/gdkconfig.h
+demos/Makefile.in
+demos/widget-factory/Makefile.in
+demos/pixbuf-demo/Makefile.in
+demos/gtk-demo/geninclude.pl
+demos/gtk-demo/Makefile.in
+build/win32/crypt/Makefile.in
+build/win32/vs10/Makefile.in
+
+# build artefacts
+.libs/
+*.o
+*.lo
+*.la
+
+gdk-wayland-3.0.pc
+gdk-x11-3.0.pc
+gtk+-wayland-3.0.pc
+gtk+-x11-3.0.pc
+
+# ignore everything in tests
+tests/*
+# except stuff with file extensions (non-executables)
+!tests/*.*
+# except libs, deps, and object files
+tests/*.o
+tests/.deps/
+tests/.libs/
+
+po-properties/tg.gmo
+po-properties/ky.gmo
+po-properties/km.gmo
+po-properties/gd.gmo
+po-properties/an.gmo
+po/tg.gmo
+po/ky.gmo
+po/km.gmo
+po/gd.gmo
+po/an.gmo
+
+modules/input/immodules.cache
+
+gtk/gtkdbusgenerated*
+gtk/gtkprivatetypebuiltins.c
+gtk/gtkprivatetypebuiltins.h
+gtk/gtkresources.*
+gtk/gtksearchbar.ui.h
+gtk/org.gtk.Settings.FileChooser.gschema.valid
+gtk/stamp-gtkmarshalers.h
+gtk/stamp-gtkprivatetypebuiltins.h
+gtk/stamp-gtktypebuiltins.h
+gtk/stamp-icons
+gtk/xgen-gtfsrc.c
+gtk/extract-strings
+gtk/Gtk-3.0.gir
+gtk/Gtk-3.0.typelib
+gtk/gtk-launch
+gtk/gtk-query-immodules-3.0
+gtk/gtk-update-icon-cache
+
+gtk/tests/*
+!gtk/tests/*.*
+gtk/tests/.deps/
+gtk/tests/.libs/
+gtk/tests/*.o
+
+gdk/Gdk-3.0.gir
+gdk/Gdk-3.0.typelib
+gdk/GdkX11-3.0.gir
+gdk/GdkX11-3.0.typelib
+gdk/stamp-gc-h
+gdk/stamp-gdkenumtypes.h
+
+gdk/tests/display
+gdk/tests/encoding
+gdk/tests/rgba
+
+examples/*
+!examples/*.*
+examples/.deps/
+examples/.libs/
+examples/*.o
+
+docs/reference/gtk/gtk-launch.1
+docs/tools/doc-shooter
+
+demos/gtk-demo/demo_resources.c
+demos/gtk-demo/demos.h
+demos/gtk-demo/gtk3-demo
+demos/gtk-demo/gtk3-demo-application
+demos/gtk-demo/org.gtk.Demo.gschema.valid
+demos/pixbuf-demo/pixbuf-demo
+demos/widget-factory/gtk3-widget-factory
+demos/widget-factory/widget_factory_resources.c
