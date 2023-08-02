@@ -2707,8 +2707,13 @@ gtk_theming_engine_render_icon_pixbuf (GtkThemingEngine    *engine,
   gint height = 1;
   cairo_t *cr;
   cairo_surface_t *surface;
+  gboolean wildcarded;
+  GtkCssImageEffect image_effect;
 
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS;
   base_pixbuf = gtk_icon_source_get_pixbuf (source);
+  G_GNUC_END_IGNORE_DEPRECATIONS;
+
   state = gtk_theming_engine_get_state (engine);
 
   g_return_val_if_fail (base_pixbuf != NULL, NULL);
@@ -2723,58 +2728,70 @@ gtk_theming_engine_render_icon_pixbuf (GtkThemingEngine    *engine,
   /* If the size was wildcarded, and we're allowed to scale, then scale; otherwise,
    * leave it alone.
    */
-  if (size != (GtkIconSize) -1 &&
-      gtk_icon_source_get_size_wildcarded (source))
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS;
+  wildcarded = gtk_icon_source_get_size_wildcarded (source);
+  G_GNUC_END_IGNORE_DEPRECATIONS;
+  if (size != (GtkIconSize) -1 && wildcarded)
     scaled = scale_or_ref (base_pixbuf, width, height);
   else
     scaled = g_object_ref (base_pixbuf);
 
   /* If the state was wildcarded, then generate a state. */
-  if (gtk_icon_source_get_state_wildcarded (source))
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS;
+  wildcarded = gtk_icon_source_get_state_wildcarded (source);
+  G_GNUC_END_IGNORE_DEPRECATIONS;
+
+  if (!wildcarded)
+    return scaled;
+
+  image_effect = _gtk_css_image_effect_value_get
+    (_gtk_theming_engine_peek_property (engine, GTK_CSS_PROPERTY_GTK_IMAGE_EFFECT));
+
+  if (image_effect == GTK_CSS_IMAGE_EFFECT_DIM ||
+      state & GTK_STATE_FLAG_INSENSITIVE)
     {
-      if (state & GTK_STATE_FLAG_INSENSITIVE)
-        {
-	  surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
-						gdk_pixbuf_get_width (scaled),
-						gdk_pixbuf_get_height (scaled));
-	  cr = cairo_create (surface);
-	  gdk_cairo_set_source_pixbuf (cr, scaled, 0, 0);
-	  cairo_paint_with_alpha (cr, 0.5);
+      surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
+					    gdk_pixbuf_get_width (scaled),
+					    gdk_pixbuf_get_height (scaled));
+      cr = cairo_create (surface);
+      gdk_cairo_set_source_pixbuf (cr, scaled, 0, 0);
+      cairo_paint_with_alpha (cr, 0.5);
 
-	  cairo_destroy (cr);
+      cairo_destroy (cr);
 
-	  g_object_unref (scaled);
-	  stated = gdk_pixbuf_get_from_surface (surface, 0, 0,
-						cairo_image_surface_get_width (surface),
-						cairo_image_surface_get_height (surface));
-	  cairo_surface_destroy (surface);
-        }
-      else if (state & GTK_STATE_FLAG_PRELIGHT)
-        {
-	  surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
-						gdk_pixbuf_get_width (scaled),
-						gdk_pixbuf_get_height (scaled));
+      g_object_unref (scaled);
+      stated = gdk_pixbuf_get_from_surface (surface, 0, 0,
+					    cairo_image_surface_get_width (surface),
+					    cairo_image_surface_get_height (surface));
+      cairo_surface_destroy (surface);
+    }
+  else if (image_effect == GTK_CSS_IMAGE_EFFECT_HIGHLIGHT ||
+	   state & GTK_STATE_FLAG_PRELIGHT)
+    {
+      surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
+					    gdk_pixbuf_get_width (scaled),
+					    gdk_pixbuf_get_height (scaled));
 
-	  cr = cairo_create (surface);
-	  gdk_cairo_set_source_pixbuf (cr, scaled, 0, 0);
-	  colorshift_source (cr, 0.10);
+      cr = cairo_create (surface);
+      gdk_cairo_set_source_pixbuf (cr, scaled, 0, 0);
+      colorshift_source (cr, 0.10);
 
-	  cairo_destroy (cr);
+      cairo_destroy (cr);
 
-	  g_object_unref (scaled);
-	  stated = gdk_pixbuf_get_from_surface (surface, 0, 0,
-						cairo_image_surface_get_width (surface),
-						cairo_image_surface_get_height (surface));
-	  cairo_surface_destroy (surface);
-        }
-      else
-        stated = scaled;
+      g_object_unref (scaled);
+      stated = gdk_pixbuf_get_from_surface (surface, 0, 0,
+					    cairo_image_surface_get_width (surface),
+					    cairo_image_surface_get_height (surface));
+      cairo_surface_destroy (surface);
     }
   else
     stated = scaled;
 
   return stated;
 }
+
+
+
 
 static void
 gtk_theming_engine_render_icon (GtkThemingEngine *engine,

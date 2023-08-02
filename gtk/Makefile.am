@@ -428,6 +428,8 @@ gtk_private_h_sources =		\
 	gtkbuttonprivate.h	\
 	gtkcairoblurprivate.h	\
 	gtkcellareaboxcontextprivate.h	\
+ 	gtkclipboardprivate.h		\
+	gtkclipboard-waylandprivate.h	\
 	gtkcolorchooserprivate.h	\
 	gtkcontainerprivate.h   \
 	gtkcssanimationprivate.h	\
@@ -1005,18 +1007,11 @@ gtk_clipboard_dnd_c_sources = 	\
 	gtkclipboard-quartz.c	\
 	gtkdnd-quartz.c
 else
-if USE_WAYLAND
-if !USE_X11
 # No wayland gtkdnd-wayland.c yet
 gtk_clipboard_dnd_c_sources = 	\
+	gtkclipboard.c \
 	gtkclipboard-wayland.c \
 	gtkdnd.c
-else
-gtk_clipboard_dnd_c_sources = gtkclipboard.c gtkdnd.c
-endif
-else
-gtk_clipboard_dnd_c_sources = gtkclipboard.c gtkdnd.c
-endif
 endif
 
 

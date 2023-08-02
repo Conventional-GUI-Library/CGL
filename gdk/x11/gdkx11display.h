@@ -85,6 +85,8 @@ void        gdk_x11_register_standard_event_type (GdkDisplay *display,
                                                   gint        n_events);
 
 void        gdk_x11_set_sm_client_id (const gchar *sm_client_id);
+void        gdk_x11_display_set_window_scale (GdkDisplay *display,
+                                              gint scale);
 
 
 G_END_DECLS

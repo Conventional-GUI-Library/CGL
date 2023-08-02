@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "gtkcssenumvalueprivate.h"
 #include "gtkiconfactory.h"
 #include "gtkiconcache.h"
 #include "gtkdebug.h"
@@ -41,7 +42,8 @@
 #include "gtkbuildable.h"
 #include "gtkbuilderprivate.h"
 #include "gtktypebuiltins.h"
-
+#include "gtkstyle.h"
+#include "gtkstylecontextprivate.h"
 
 /**
  * SECTION:gtkiconfactory
@@ -1210,13 +1212,15 @@ static GdkPixbuf *find_in_cache     (GtkIconSet       *icon_set,
                                      GtkTextDirection  direction,
                                      GtkStateType      state,
                                      GtkIconSize       size,
-                                     gint              scale);
+                                     gint              scale,
+				     GtkCssImageEffect effect);
 static void       add_to_cache      (GtkIconSet       *icon_set,
                                      GtkStyleContext  *style_context,
                                      GtkTextDirection  direction,
                                      GtkStateType      state,
                                      GtkIconSize       size,
                                      gint              scale,
+				     GtkCssImageEffect effect,
                                      GdkPixbuf        *pixbuf);
 /* Clear icon set contents, drop references to all contained
  * GdkPixbuf objects and forget all GtkIconSources. Used to
@@ -1721,6 +1725,7 @@ gtk_icon_set_render_icon_pixbuf_for_scale (GtkIconSet      *icon_set,
   GtkStateFlags flags = 0;
   GtkStateType state;
   GtkTextDirection direction;
+  GtkCssImageEffect effect;
 
   g_return_val_if_fail (icon_set != NULL, NULL);
   g_return_val_if_fail (GTK_IS_STYLE_CONTEXT (context), NULL);
@@ -1737,9 +1742,12 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS;
   direction = gtk_style_context_get_direction (context);
 G_GNUC_END_IGNORE_DEPRECATIONS;
 
+ effect = _gtk_css_image_effect_value_get
+   (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_GTK_IMAGE_EFFECT));
+
   if (icon_set->sources)
     {
-      icon = find_in_cache (icon_set, context, direction, state, size, scale);
+      icon = find_in_cache (icon_set, context, direction, state, size, scale, effect);
       if (icon)
 	return g_object_ref (icon);
     }
@@ -1751,7 +1759,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS;
   if (icon == NULL)
     icon = render_fallback_image (context, direction, state, size);
 
-  add_to_cache (icon_set, context, direction, state, size, scale, icon);
+  add_to_cache (icon_set, context, direction, state, size, scale, effect, icon);
 
   return icon;
 }
@@ -2624,6 +2632,7 @@ struct _CachedIcon
   GtkStateType state;
   GtkIconSize size;
   gint scale;
+  GtkCssImageEffect effect;
 
   GdkPixbuf *pixbuf;
 };
@@ -2648,12 +2657,13 @@ cached_icon_free (CachedIcon *icon)
 }
 
 static GdkPixbuf *
-find_in_cache (GtkIconSet      *icon_set,
-               GtkStyleContext *style_context,
-               GtkTextDirection direction,
-               GtkStateType     state,
-               GtkIconSize      size,
-               gint             scale)
+find_in_cache (GtkIconSet       *icon_set,
+               GtkStyleContext  *style_context,
+               GtkTextDirection  direction,
+               GtkStateType      state,
+               GtkIconSize       size,
+               gint              scale,
+	       GtkCssImageEffect effect)
 {
   GSList *tmp_list;
   GSList *prev;
@@ -2669,6 +2679,7 @@ find_in_cache (GtkIconSet      *icon_set,
       if (icon->style == style_context &&
           icon->direction == direction &&
           icon->state == state &&
+	  icon->effect == effect &&
           (size == (GtkIconSize)-1 || icon->size == size))
         {
           if (prev)
@@ -2690,13 +2701,14 @@ find_in_cache (GtkIconSet      *icon_set,
 }
 
 static void
-add_to_cache (GtkIconSet      *icon_set,
-              GtkStyleContext *style_context,
-              GtkTextDirection direction,
-              GtkStateType     state,
-              GtkIconSize      size,
-              gint             scale,
-              GdkPixbuf       *pixbuf)
+add_to_cache (GtkIconSet       *icon_set,
+              GtkStyleContext  *style_context,
+              GtkTextDirection  direction,
+              GtkStateType      state,
+              GtkIconSize       size,
+              gint              scale,
+	      GtkCssImageEffect effect,
+              GdkPixbuf        *pixbuf)
 {
   CachedIcon *icon;
 
@@ -2713,6 +2725,7 @@ add_to_cache (GtkIconSet      *icon_set,
   icon->state = state;
   icon->size = size;
   icon->scale = scale;
+  icon->effect = effect;
   icon->pixbuf = pixbuf;
   attach_to_style (icon_set, icon->style);
 
