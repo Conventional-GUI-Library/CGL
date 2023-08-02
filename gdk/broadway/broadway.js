@@ -636,7 +636,8 @@ function handleCommands(cmd)
 	    cmdUngrabPointer();
 	    break;
 	default:
-	    alert("Unknown op " + command);
+		// Lets comment this out and hope everything will be fine.
+	    // alert("Unknown op " + command);
 	}
     }
     return true;
