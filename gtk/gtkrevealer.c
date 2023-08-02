@@ -727,7 +727,7 @@ gtk_revealer_real_get_preferred_height (GtkWidget *widget,
       transition == GTK_REVEALER_TRANSITION_TYPE_SLIDE_DOWN)
     natural_height = round (natural_height * priv->current_pos);
 
-  minimum_height = natural_height;
+  minimum_height = MIN (minimum_height, natural_height);
 
   if (minimum_height_out)
     *minimum_height_out = minimum_height;
@@ -754,7 +754,7 @@ gtk_revealer_real_get_preferred_height_for_width (GtkWidget *widget,
       transition == GTK_REVEALER_TRANSITION_TYPE_SLIDE_DOWN)
     natural_height = round (natural_height * priv->current_pos);
 
-  minimum_height = natural_height;
+  minimum_height = MIN (minimum_height, natural_height);
 
   if (minimum_height_out)
     *minimum_height_out = minimum_height;
@@ -780,7 +780,7 @@ gtk_revealer_real_get_preferred_width (GtkWidget *widget,
       transition == GTK_REVEALER_TRANSITION_TYPE_SLIDE_RIGHT)
     natural_width = round (natural_width * priv->current_pos);
 
-  minimum_width = natural_width;
+  minimum_width = MIN (minimum_width, natural_width);
 
   if (minimum_width_out)
     *minimum_width_out = minimum_width;
@@ -807,7 +807,7 @@ gtk_revealer_real_get_preferred_width_for_height (GtkWidget *widget,
       transition == GTK_REVEALER_TRANSITION_TYPE_SLIDE_RIGHT)
     natural_width = round (natural_width * priv->current_pos);
 
-  minimum_width = natural_width;
+  minimum_width = MIN (minimum_width, natural_width);
 
   if (minimum_width_out)
     *minimum_width_out = minimum_width;

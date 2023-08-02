@@ -2,12 +2,12 @@
  * the gdk.def file used to control exports on Windows.
  */
 gdk_event_get_event_type
-gdk_x11_window_set_frame_extents 
 gdk_cursor_new_from_surface
 gdk_cursor_get_surface
 gdk_device_get_position_double
 gdk_device_get_window_at_position_double
 gdk_window_get_device_position_double
+gdk_window_set_opaque_region        
 gdk_window_get_scale_factor
 gdk_add_option_entries_libgtk_only
 gdk_app_launch_context_get_type
@@ -623,4 +623,10 @@ gdk_x11_window_set_utf8_property
 gdk_x11_xatom_to_atom
 gdk_x11_xatom_to_atom_for_display
 gdk_x11_display_set_window_scale
+gdk_x11_window_set_frame_extents 
+gdk_x11_screen_get_number_of_desktops
+gdk_x11_screen_get_current_desktop
+gdk_x11_window_move_to_desktop
+gdk_x11_window_get_desktop
+
 #endif

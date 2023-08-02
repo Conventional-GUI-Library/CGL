@@ -163,7 +163,9 @@ const gchar *gtk_label_get_current_uri (GtkLabel *label);
 void         gtk_label_set_track_visited_links  (GtkLabel *label,
                                                  gboolean  track_links);
 gboolean     gtk_label_get_track_visited_links  (GtkLabel *label);
-
+void     gtk_label_set_lines                      (GtkLabel         *label,
+                                                   gint              lines);
+gint     gtk_label_get_lines                      (GtkLabel         *label);
 
 /* private */
 

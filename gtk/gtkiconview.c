@@ -1393,16 +1393,42 @@ adjust_wrap_width (GtkIconView *icon_view)
 {
   if (icon_view->priv->text_cell)
     {
-      gint wrap_width = 50;
+      gint pixbuf_width, wrap_width;
 
-      /* Here we go with the same old guess, try the icon size and set double
-       * the size of the first icon found in the list, naive but works much
-       * of the time */
+      if (icon_view->priv->items && icon_view->priv->pixbuf_cell)
+        {
+          gtk_cell_renderer_get_preferred_width (icon_view->priv->pixbuf_cell,
+                                                 GTK_WIDGET (icon_view),
+                                                 &pixbuf_width, NULL);
+        }
+      else
+        {
+          pixbuf_width = 0;
+        }
+
+      if (icon_view->priv->item_width >= 0)
+        {
+          if (icon_view->priv->item_orientation == GTK_ORIENTATION_VERTICAL)
+            {
+              wrap_width = icon_view->priv->item_width;
+            }
+          else
+            { 
+              wrap_width = icon_view->priv->item_width - pixbuf_width;
+            }
+
+          wrap_width -= 2 * icon_view->priv->item_padding * 2;
+        }
+      else
+        {
+          wrap_width = MAX (pixbuf_width * 2, 50);
+        }
+
       if (icon_view->priv->items && icon_view->priv->pixbuf_cell)
 	{
-	  gtk_cell_renderer_get_preferred_width (icon_view->priv->pixbuf_cell,
-						 GTK_WIDGET (icon_view),
-						 &wrap_width, NULL);
+          /* Here we go with the same old guess, try the icon size and set double
+           * the size of the first icon found in the list, naive but works much
+           * of the time */
 	  
 	  wrap_width = MAX (wrap_width * 2, 50);
 	}
@@ -2481,7 +2507,7 @@ gtk_icon_view_key_release (GtkWidget      *widget,
   if (icon_view->priv->doing_rubberband)
     return TRUE;
 
-  return GTK_WIDGET_CLASS (gtk_icon_view_parent_class)->key_press_event (widget, event);
+  return GTK_WIDGET_CLASS (gtk_icon_view_parent_class)->key_release_event (widget, event);
 }
 
 static void

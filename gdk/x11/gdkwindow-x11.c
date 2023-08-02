@@ -2114,59 +2114,98 @@ gdk_x11_window_move_to_current_desktop (GdkWindow *window)
 static void
 move_to_current_desktop (GdkWindow *window)
 {
-  if (gdk_x11_screen_supports_net_wm_hint (GDK_WINDOW_SCREEN (window),
-					   gdk_atom_intern_static_string ("_NET_WM_DESKTOP")) &&
-      gdk_x11_screen_supports_net_wm_hint (GDK_WINDOW_SCREEN (window),
-					   gdk_atom_intern_static_string ("_NET_CURRENT_DESKTOP")))
+  guint32 desktop;
+
+  desktop = gdk_x11_screen_get_current_desktop (GDK_WINDOW_SCREEN (window));
+  gdk_x11_window_move_to_desktop (window, desktop);
+}
+
+static guint32
+get_netwm_cardinal_property (GdkWindow   *window,
+                             const gchar *name)
+{
+  GdkScreen *screen = GDK_WINDOW_SCREEN (window);
+  GdkX11Screen *x11_screen = GDK_X11_SCREEN (screen);
+  GdkAtom atom;
+  guint32 prop = 0;
+  Atom type;
+  gint format;
+  gulong nitems;
+  gulong bytes_after;
+  guchar *data;
+
+  atom = gdk_atom_intern_static_string (name);
+
+  if (!gdk_x11_screen_supports_net_wm_hint (screen, atom))
+    return 0;
+
+  XGetWindowProperty (x11_screen->xdisplay,
+                      GDK_WINDOW_XID (window),
+                      gdk_x11_get_xatom_by_name_for_display (GDK_WINDOW_DISPLAY (window), name),
+                      0, G_MAXLONG,
+                      False, XA_CARDINAL, &type, &format, &nitems,
+                      &bytes_after, &data);
+  if (type == XA_CARDINAL)
     {
-      Atom type;
-      gint format;
-      gulong nitems;
-      gulong bytes_after;
-      guchar *data;
-      gulong *current_desktop;
-      GdkDisplay *display;
-      
-      display = gdk_window_get_display (window);
-
-      /* Get current desktop, then set it; this is a race, but not
-       * one that matters much in practice.
-       */
-      XGetWindowProperty (GDK_DISPLAY_XDISPLAY (display), 
-                          GDK_WINDOW_XROOTWIN (window),
-			  gdk_x11_get_xatom_by_name_for_display (display, "_NET_CURRENT_DESKTOP"),
-                          0, G_MAXLONG,
-                          False, XA_CARDINAL, &type, &format, &nitems,
-                          &bytes_after, &data);
-
-      if (type == XA_CARDINAL)
-        {
-	  XClientMessageEvent xclient;
-	  current_desktop = (gulong *)data;
-	  
-	  memset (&xclient, 0, sizeof (xclient));
-          xclient.type = ClientMessage;
-          xclient.serial = 0;
-          xclient.send_event = True;
-          xclient.window = GDK_WINDOW_XID (window);
-	  xclient.message_type = gdk_x11_get_xatom_by_name_for_display (display, "_NET_WM_DESKTOP");
-          xclient.format = 32;
-
-          xclient.data.l[0] = *current_desktop;
-          xclient.data.l[1] = 1; /* source indication */
-          xclient.data.l[2] = 0;
-          xclient.data.l[3] = 0;
-          xclient.data.l[4] = 0;
-      
-          XSendEvent (GDK_DISPLAY_XDISPLAY (display), 
-                      GDK_WINDOW_XROOTWIN (window), 
-                      False,
-                      SubstructureRedirectMask | SubstructureNotifyMask,
-                      (XEvent *)&xclient);
-
-          XFree (current_desktop);
-        }
+      prop = *(gulong *)data;
+      XFree (data);
     }
+
+  return prop;
+}
+
+guint32
+gdk_x11_window_get_desktop (GdkWindow *window)
+{
+  g_return_val_if_fail (GDK_IS_WINDOW (window), 0);
+
+  return get_netwm_cardinal_property (window, "_NET_WM_DESKTOP");
+}
+
+/**
+ * gdk_x11_window_move_to_desktop:
+ * @window: a #GdkWindow
+ * @desktop: the number of the workspace to move the window to
+ *
+ * Moves the window to the given workspace when running unde a
+ * window manager that supports multiple workspaces, as described
+ * in the <ulink url="http://www.freedesktop.org/Standards/wm-spec">Extended 
+ * Window Manager Hints</ulink>.
+ *
+ * Since: 3.10
+ */
+void
+gdk_x11_window_move_to_desktop (GdkWindow *window,
+                                guint32    desktop)
+{
+  GdkAtom atom;
+  XClientMessageEvent xclient;
+
+  g_return_if_fail (GDK_IS_WINDOW (window));
+
+  atom = gdk_atom_intern_static_string ("_NET_WM_DESKTOP");
+  if (!gdk_x11_screen_supports_net_wm_hint (GDK_WINDOW_SCREEN (window), atom))
+    return;
+
+  memset (&xclient, 0, sizeof (xclient));
+  xclient.type = ClientMessage;
+  xclient.serial = 0;
+  xclient.send_event = True;
+  xclient.window = GDK_WINDOW_XID (window);
+  xclient.message_type = gdk_x11_atom_to_xatom_for_display (GDK_WINDOW_DISPLAY (window), atom);
+  xclient.format = 32;
+
+  xclient.data.l[0] = desktop;
+  xclient.data.l[1] = 1; /* source indication */
+  xclient.data.l[2] = 0;
+  xclient.data.l[3] = 0;
+  xclient.data.l[4] = 0;
+
+  XSendEvent (GDK_WINDOW_XDISPLAY (window),
+              GDK_WINDOW_XROOTWIN (window),
+              False,
+              SubstructureRedirectMask | SubstructureNotifyMask,
+              (XEvent *)&xclient);
 }
 
 static void
@@ -5515,6 +5554,51 @@ gdk_x11_window_set_frame_sync_enabled (GdkWindow *window,
 }
 
 static void
+gdk_x11_window_set_opaque_region (GdkWindow      *window,
+                                  cairo_region_t *region)
+{
+  GdkDisplay *display;
+
+  int nitems;
+  gulong *data;
+
+  if (region != NULL)
+    {
+      int i, nrects;
+
+      nrects = cairo_region_num_rectangles (region);
+      nitems = nrects * 4;
+      data = g_new (gulong, nitems);
+
+      for (i = 0; i < nrects; i++)
+        {
+          cairo_rectangle_int_t rect;
+          cairo_region_get_rectangle (region, i, &rect);
+          data[i*4+0] = rect.x;
+          data[i*4+1] = rect.y;
+          data[i*4+2] = rect.width;
+          data[i*4+3] = rect.height;
+        }
+    }
+  else
+    {
+      nitems = 0;
+      data = NULL;
+    }
+
+  display = gdk_window_get_display (window);
+
+  XChangeProperty (GDK_DISPLAY_XDISPLAY (display),
+                   GDK_WINDOW_XID (window),
+                   gdk_x11_get_xatom_by_name_for_display (display, "_NET_WM_OPAQUE_REGION"),
+                   XA_CARDINAL, 32, PropModeReplace,
+                   (guchar *) data, nitems);
+
+  if (data != NULL)
+    g_free (data);
+}
+
+static void
 gdk_window_impl_x11_class_init (GdkWindowImplX11Class *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -5603,4 +5687,5 @@ gdk_window_impl_x11_class_init (GdkWindowImplX11Class *klass)
   impl_class->change_property = _gdk_x11_window_change_property;
   impl_class->delete_property = _gdk_x11_window_delete_property;
   impl_class->get_scale_factor = gdk_x11_window_get_scale_factor;
+  impl_class->set_opaque_region = gdk_x11_window_set_opaque_region;
 }

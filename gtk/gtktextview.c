@@ -233,6 +233,8 @@ struct _GtkTextViewPrivate
    * driving the scrollable adjustment values */
   guint hscroll_policy : 1;
   guint vscroll_policy : 1;
+  
+  guint in_scroll : 1;
 };
 
 struct _GtkTextPendingScroll

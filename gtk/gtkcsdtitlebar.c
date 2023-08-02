@@ -44,8 +44,6 @@
  */
 
 #define DEFAULT_SPACING 6
-#define DEFAULT_HPADDING 6
-#define DEFAULT_VPADDING 6
 
 struct _GtkCSDTitleBarPrivate
 {
@@ -59,8 +57,6 @@ struct _GtkCSDTitleBarPrivate
   GtkWidget *close_button;
   GtkWidget *separator;
   gint spacing;
-  gint hpadding;
-  gint vpadding;
 
   GList *children;
 };
@@ -78,8 +74,6 @@ enum {
   PROP_SUBTITLE,
   PROP_CUSTOM_TITLE,
   PROP_SPACING,
-  PROP_HPADDING,
-  PROP_VPADDING,
   PROP_SHOW_CLOSE_BUTTON
 };
 
@@ -94,28 +88,6 @@ static void gtk_csd_title_bar_buildable_init (GtkBuildableIface *iface);
 G_DEFINE_TYPE_WITH_CODE (GtkCSDTitleBar, gtk_csd_title_bar, GTK_TYPE_CONTAINER,
                          G_IMPLEMENT_INTERFACE (GTK_TYPE_BUILDABLE,
                                                 gtk_csd_title_bar_buildable_init));
-
-static void
-boldify_label (GtkWidget *label)
-{
-  PangoAttrList *attrs;
-  attrs = pango_attr_list_new ();
-  pango_attr_list_insert (attrs, pango_attr_weight_new (PANGO_WEIGHT_BOLD));
-  gtk_label_set_attributes (GTK_LABEL (label), attrs);
-  pango_attr_list_unref (attrs);
-}
-
-static void
-smallify_label (GtkWidget *label)
-{
-  PangoAttrList *attrs;
-  attrs = pango_attr_list_new ();
-  pango_attr_list_insert (attrs, pango_attr_scale_new (PANGO_SCALE_SMALL));
-  gtk_label_set_attributes (GTK_LABEL (label), attrs);
-  pango_attr_list_unref (attrs);
-
-  gtk_style_context_add_class (gtk_widget_get_style_context (label), "dim-label");
-}
 
 static void
 get_css_padding_and_border (GtkWidget *widget,
@@ -141,6 +113,7 @@ init_sizing_box (GtkCSDTitleBar *bar)
 {
   GtkCSDTitleBarPrivate *priv = bar->priv;
   GtkWidget *w;
+  GtkStyleContext *context;
 
   /* We use this box to always request size for the two labels (title
    * and subtitle) as if they were always visible, but then allocate
@@ -150,14 +123,17 @@ init_sizing_box (GtkCSDTitleBar *bar)
   priv->label_sizing_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 
   w = gtk_label_new (NULL);
-  boldify_label (w);
+  context = gtk_widget_get_style_context (w);
+  gtk_style_context_add_class (context, "title");
   gtk_box_pack_start (GTK_BOX (priv->label_sizing_box), w, FALSE, FALSE, 0);
   gtk_label_set_line_wrap (GTK_LABEL (w), FALSE);
   gtk_label_set_single_line_mode (GTK_LABEL (w), TRUE);
   gtk_label_set_ellipsize (GTK_LABEL (w), PANGO_ELLIPSIZE_END);
 
   w = gtk_label_new (NULL);
-  smallify_label (w);
+  context = gtk_widget_get_style_context (w);
+  gtk_style_context_add_class (context, "subtitle");
+  gtk_style_context_add_class (context, "dim-label");
   gtk_box_pack_start (GTK_BOX (priv->label_sizing_box), w, FALSE, FALSE, 0);
   gtk_label_set_line_wrap (GTK_LABEL (w), FALSE);
   gtk_label_set_single_line_mode (GTK_LABEL (w), TRUE);
@@ -184,7 +160,6 @@ _gtk_csd_title_bar_create_title_box (const char *title,
   title_label = gtk_label_new (title);
   context = gtk_widget_get_style_context (title_label);
   gtk_style_context_add_class (context, "title");
-  boldify_label (title_label);
   gtk_label_set_line_wrap (GTK_LABEL (title_label), FALSE);
   gtk_label_set_single_line_mode (GTK_LABEL (title_label), TRUE);
   gtk_label_set_ellipsize (GTK_LABEL (title_label), PANGO_ELLIPSIZE_END);
@@ -194,7 +169,7 @@ _gtk_csd_title_bar_create_title_box (const char *title,
   subtitle_label = gtk_label_new (subtitle);
   context = gtk_widget_get_style_context (subtitle_label);
   gtk_style_context_add_class (context, "subtitle");
-  smallify_label (subtitle_label);
+  gtk_style_context_add_class (context, "dim-label");
   gtk_label_set_line_wrap (GTK_LABEL (subtitle_label), FALSE);
   gtk_label_set_single_line_mode (GTK_LABEL (subtitle_label), TRUE);
   gtk_label_set_ellipsize (GTK_LABEL (subtitle_label), PANGO_ELLIPSIZE_END);
@@ -298,8 +273,6 @@ gtk_csd_title_bar_init (GtkCSDTitleBar *bar)
   priv->custom_title = NULL;
   priv->children = NULL;
   priv->spacing = DEFAULT_SPACING;
-  priv->hpadding = DEFAULT_HPADDING;
-  priv->vpadding = DEFAULT_VPADDING;
   priv->close_button = NULL;
   priv->separator = NULL;
 
@@ -414,13 +387,13 @@ gtk_csd_title_bar_get_size (GtkWidget      *widget,
 
   if (GTK_ORIENTATION_HORIZONTAL == orientation)
     {
-      minimum += 2 * priv->hpadding + css_borders.left + css_borders.right;
-      natural += 2 * priv->hpadding + css_borders.left + css_borders.right;
+      minimum += css_borders.left + css_borders.right;
+      natural += css_borders.left + css_borders.right;
     }
   else
     {
-      minimum += 2 * priv->vpadding + css_borders.top + css_borders.bottom;
-      natural += 2 * priv->vpadding + css_borders.top + css_borders.bottom;
+      minimum += css_borders.top + css_borders.bottom;
+      natural += css_borders.top + css_borders.bottom;
     }
 
   if (minimum_size)
@@ -445,8 +418,6 @@ gtk_csd_title_bar_compute_size_for_orientation (GtkWidget *widget,
   gint child_natural;
   gint nvis_children;
   GtkBorder css_borders;
-
-  avail_size -= 2 * priv->vpadding;
 
   nvis_children = 0;
 
@@ -492,8 +463,8 @@ gtk_csd_title_bar_compute_size_for_orientation (GtkWidget *widget,
 
   get_css_padding_and_border (widget, &css_borders);
 
-  required_size += 2 * priv->hpadding + css_borders.left + css_borders.right;
-  required_natural += 2 * priv->hpadding + css_borders.left + css_borders.right;
+  required_size += css_borders.left + css_borders.right;
+  required_natural += css_borders.left + css_borders.right;
 
   if (minimum_size)
     *minimum_size = required_size;
@@ -517,7 +488,7 @@ gtk_csd_title_bar_compute_size_for_opposing_orientation (GtkWidget *widget,
   gint computed_natural = 0;
   GtkRequestedSize *sizes;
   GtkPackType packing;
-  gint size;
+  gint size = 0;
   gint i;
   gint child_size;
   gint child_minimum;
@@ -530,7 +501,6 @@ gtk_csd_title_bar_compute_size_for_opposing_orientation (GtkWidget *widget,
     return;
 
   sizes = g_newa (GtkRequestedSize, nvis_children);
-  size = avail_size - 2 * priv->hpadding;
 
   /* Retrieve desired size for visible children */
   for (i = 0, children = priv->children; children; children = children->next)
@@ -550,7 +520,7 @@ gtk_csd_title_bar_compute_size_for_opposing_orientation (GtkWidget *widget,
     }
 
   /* Bring children up to size first */
-  size = gtk_distribute_natural_allocation (MAX (0, size), nvis_children, sizes);
+  size = gtk_distribute_natural_allocation (MAX (0, avail_size), nvis_children, sizes);
 
   /* Allocate child positions. */
   for (packing = GTK_PACK_START; packing <= GTK_PACK_END; ++packing)
@@ -617,8 +587,8 @@ gtk_csd_title_bar_compute_size_for_opposing_orientation (GtkWidget *widget,
 
   get_css_padding_and_border (widget, &css_borders);
 
-  computed_minimum += 2 * priv->vpadding + css_borders.top + css_borders.bottom;
-  computed_natural += 2 * priv->vpadding + css_borders.top + css_borders.bottom;
+  computed_minimum += css_borders.top + css_borders.bottom;
+  computed_natural += css_borders.top + css_borders.bottom;
 
   if (minimum_size)
     *minimum_size = computed_minimum;
@@ -693,9 +663,8 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
   sizes = g_newa (GtkRequestedSize, nvis_children);
 
   get_css_padding_and_border (widget, &css_borders);
-  width = allocation->width - nvis_children * priv->spacing -
-    2 * priv->hpadding - css_borders.left - css_borders.right;
-  height = allocation->height - 2 * priv->vpadding - css_borders.top - css_borders.bottom;
+  width = allocation->width - nvis_children * priv->spacing - css_borders.left - css_borders.right;
+  height = allocation->height - css_borders.top - css_borders.bottom;
 
   i = 0;
   for (l = priv->children; l; l = l->next)
@@ -733,12 +702,12 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
   side[0] = side[1] = 0;
   for (packing = GTK_PACK_START; packing <= GTK_PACK_END; packing++)
     {
-      child_allocation.y = allocation->y + priv->vpadding + css_borders.top;
+      child_allocation.y = allocation->y + css_borders.top;
       child_allocation.height = height;
       if (packing == GTK_PACK_START)
-        x = allocation->x + priv->hpadding + css_borders.left;
+        x = allocation->x + css_borders.left;
       else
-        x = allocation->x + allocation->width - close_width - priv->hpadding - css_borders.right;
+        x = allocation->x + allocation->width - close_width - css_borders.right;
 
       if (packing == GTK_PACK_START)
 	{
@@ -794,7 +763,7 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
 
   side[GTK_PACK_END] += close_width;
 
-  child_allocation.y = allocation->y + priv->vpadding + css_borders.top;
+  child_allocation.y = allocation->y + css_borders.top;
   child_allocation.height = height;
 
   width = MAX (side[0], side[1]);
@@ -824,16 +793,16 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
   if (priv->close_button)
     {
       if (direction == GTK_TEXT_DIR_RTL)
-        child_allocation.x = allocation->x + priv->hpadding + css_borders.left;
+        child_allocation.x = allocation->x + css_borders.left;
       else
-        child_allocation.x = allocation->x + allocation->width - priv->hpadding - css_borders.right - close_button_width;
+        child_allocation.x = allocation->x + allocation->width - css_borders.right - close_button_width;
       child_allocation.width = close_button_width;
       gtk_widget_size_allocate (priv->close_button, &child_allocation);
 
       if (direction == GTK_TEXT_DIR_RTL)
-        child_allocation.x = allocation->x + priv->hpadding + css_borders.left + close_button_width + priv->spacing;
+        child_allocation.x = allocation->x + css_borders.left + close_button_width + priv->spacing;
       else
-        child_allocation.x = allocation->x + allocation->width - priv->hpadding - css_borders.right - close_button_width - priv->spacing - separator_width;
+        child_allocation.x = allocation->x + allocation->width - css_borders.right - close_button_width - priv->spacing - separator_width;
       child_allocation.width = separator_width;
       gtk_widget_size_allocate (priv->separator, &child_allocation);
     }
@@ -1072,14 +1041,6 @@ gtk_csd_title_bar_get_property (GObject    *object,
     case PROP_SPACING:
       g_value_set_int (value, priv->spacing);
       break;
-
-    case PROP_HPADDING:
-      g_value_set_int (value, priv->hpadding);
-      break;
-
-    case PROP_VPADDING:
-      g_value_set_int (value, priv->vpadding);
-      break;
    case PROP_SHOW_CLOSE_BUTTON:
       g_value_set_boolean (value, gtk_csd_title_bar_get_show_close_button (bar));
       break;
@@ -1115,16 +1076,6 @@ gtk_csd_title_bar_set_property (GObject      *object,
 
     case PROP_SPACING:
       priv->spacing = g_value_get_int (value);
-      gtk_widget_queue_resize (GTK_WIDGET (bar));
-      break;
-
-    case PROP_HPADDING:
-      priv->hpadding = g_value_get_int (value);
-      gtk_widget_queue_resize (GTK_WIDGET (bar));
-      break;
-
-    case PROP_VPADDING:
-      priv->vpadding = g_value_get_int (value);
       gtk_widget_queue_resize (GTK_WIDGET (bar));
       break;
     case PROP_SHOW_CLOSE_BUTTON:
@@ -1456,24 +1407,6 @@ gtk_csd_title_bar_class_init (GtkCSDTitleBarClass *class)
                                                      P_("The amount of space between children"),
                                                      0, G_MAXINT,
                                                      DEFAULT_SPACING,
-                                                     GTK_PARAM_READWRITE));
-
-  g_object_class_install_property (object_class,
-                                   PROP_HPADDING,
-                                   g_param_spec_int ("hpadding",
-                                                     P_("Horizontal padding"),
-                                                     P_("The amount of space to the left and right of children"),
-                                                     0, G_MAXINT,
-                                                     DEFAULT_HPADDING,
-                                                     GTK_PARAM_READWRITE));
-
-  g_object_class_install_property (object_class,
-                                   PROP_VPADDING,
-                                   g_param_spec_int ("vpadding",
-                                                     P_("Vertical padding"),
-                                                     P_("The amount of space to the above and below children"),
-                                                     0, G_MAXINT,
-                                               	      DEFAULT_VPADDING,
                                                      GTK_PARAM_READWRITE));
   g_object_class_install_property (object_class,
                                    PROP_SHOW_CLOSE_BUTTON,

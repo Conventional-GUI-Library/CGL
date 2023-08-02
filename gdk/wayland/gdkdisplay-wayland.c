@@ -662,8 +662,7 @@ void
 _gdk_wayland_display_update_serial (GdkWaylandDisplay *wayland_display,
                                     guint32            serial)
 {
-  if (serial > wayland_display->serial)
-    wayland_display->serial = serial;
+  wayland_display->serial = serial;
 }
 
 /**

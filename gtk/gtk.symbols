@@ -3,6 +3,8 @@
  */
 gtk_list_box_prepend
 gtk_list_box_insert
+gtk_label_get_lines
+gtk_label_set_lines
 gtk_button_new_from_icon_name
 gtk_drag_begin_with_coordinates
 gtk_csd_title_bar_set_show_close_button

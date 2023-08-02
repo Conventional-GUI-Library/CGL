@@ -108,6 +108,7 @@ struct _GtkAssistantPrivate
   GtkWidget *last;
 
   GtkWidget *sidebar;
+  GtkWidget *sidebar_frame;
   GtkWidget *content;
   GtkWidget *action_area;
 
@@ -702,7 +703,7 @@ update_title_state (GtkAssistant *assistant)
         show_titles = TRUE;
     }
 
-  gtk_widget_set_visible (priv->sidebar, show_titles);
+  gtk_widget_set_visible (priv->sidebar_frame, show_titles);
 }
 
 static void

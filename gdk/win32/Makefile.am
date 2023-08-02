@@ -5,14 +5,15 @@ libgdkincludedir = $(includedir)/gtk-3.0/gdk
 libgdkwin32includedir = $(includedir)/gtk-3.0/gdk/win32
 
 AM_CPPFLAGS = \
-	-DG_LOG_DOMAIN=\"Gdk\"	\
-	-DINSIDE_GDK_WIN32	\
-	-I$(top_srcdir)		\
-	-I$(top_srcdir)/gdk	\
-	-I$(top_builddir)/gdk	\
-	$(GTK_DEBUG_FLAGS) 	\
-	$(GDK_DEP_CFLAGS)	\
-	$(GDK_WIN32_EXTRA_CFLAGS)\
+	-DG_LOG_DOMAIN=\"Gdk\"		\
+	-DINSIDE_GDK_WIN32		\
+	-I$(top_srcdir)			\
+	-I$(top_srcdir)/gdk		\
+	-I$(top_builddir)/gdk		\
+	$(GDK_HIDDEN_VISIBILITY_CFLAGS) \
+	$(GTK_DEBUG_FLAGS) 		\
+	$(GDK_DEP_CFLAGS)		\
+	$(GDK_WIN32_EXTRA_CFLAGS)	\
 	-DGDK_COMPILATION
 
 LDADDS = $(GDK_DEP_LIBS)
@@ -74,6 +75,7 @@ libgdkwin32include_HEADERS =	\
 	gdkwin32displaymanager.h\
 	gdkwin32dnd.h		\
 	gdkwin32keys.h		\
+	gdkwin32misc.h		\
 	gdkwin32screen.h	\
 	gdkwin32window.h
 

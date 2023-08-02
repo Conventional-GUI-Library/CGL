@@ -37,6 +37,8 @@
 #include "gtkwindowprivate.h"
 #include "gtkaccelgroupprivate.h"
 #include "gtkbindings.h"
+#include "gtkcsscornervalueprivate.h"
+#include "gtkcssrgbavalueprivate.h"
 #include "gtkcssshadowsvalueprivate.h"
 #include "gtkkeyhash.h"
 #include "gtkmain.h"
@@ -154,10 +156,11 @@ struct _GtkWindowPrivate
 
   gint title_height;
   GtkWidget *title_box;
-  GtkWidget *title_icon;
-  GtkWidget *title_min_button;
-  GtkWidget *title_max_button;
-  GtkWidget *title_close_button;
+  GtkWidget *titlebar;
+  GtkWidget *titlebar_icon;
+  GtkWidget *titlebar_min_button;
+  GtkWidget *titlebar_max_button;
+  GtkWidget *titlebar_close_button;
   GtkWidget *popup_menu;
 
   GdkWindow *border_window[8];
@@ -548,6 +551,10 @@ static void gtk_window_buildable_custom_finished (GtkBuildable  *buildable,
 
 static void ensure_state_flag_backdrop (GtkWidget *widget);
 static void unset_titlebar (GtkWindow *window);
+static gboolean
+gdk_window_supports_csd (GtkWindow *window);
+static void
+gdk_window_enable_csd (GtkWindow *window);
 
 G_DEFINE_TYPE_WITH_CODE (GtkWindow, gtk_window, GTK_TYPE_BIN,
                          G_IMPLEMENT_INTERFACE (GTK_TYPE_BUILDABLE,
@@ -1220,7 +1227,7 @@ gtk_window_get_maximized (GtkWindow *window)
 }
 
 static void
-gtk_window_title_min_clicked (GtkWidget *widget, gpointer data)
+gtk_window_titlebar_min_clicked (GtkWidget *widget, gpointer data)
 {
   GtkWindow *window = (GtkWindow *)data;
 
@@ -1228,7 +1235,7 @@ gtk_window_title_min_clicked (GtkWidget *widget, gpointer data)
 }
 
 static void
-gtk_window_title_max_clicked (GtkWidget *widget, gpointer data)
+gtk_window_titlebar_max_clicked (GtkWidget *widget, gpointer data)
 {
   GtkWindow *window = (GtkWindow *)data;
 
@@ -1818,8 +1825,8 @@ gtk_window_set_title (GtkWindow   *window,
   if (gtk_widget_get_realized (widget))
     gdk_window_set_title (gtk_widget_get_window (widget), priv->title);
 
-  if (GTK_IS_CSD_TITLE_BAR (priv->title_box) && !priv->custom_title)
-    gtk_csd_title_bar_set_title (GTK_CSD_TITLE_BAR (priv->title_box), priv->title);
+  if (priv->titlebar != NULL)
+    gtk_csd_title_bar_set_title (GTK_CSD_TITLE_BAR (priv->titlebar), priv->title);
 
   g_object_notify (G_OBJECT (window), "title");
 }
@@ -3476,10 +3483,11 @@ unset_titlebar (GtkWindow *window)
     {
       gtk_widget_unparent (priv->title_box);
       priv->title_box = NULL;
-      priv->title_icon = NULL;
-      priv->title_min_button = NULL;
-      priv->title_max_button = NULL;
-      priv->title_close_button = NULL;
+      priv->titlebar = NULL;
+      priv->titlebar_icon = NULL;
+      priv->titlebar_min_button = NULL;
+      priv->titlebar_max_button = NULL;
+      priv->titlebar_close_button = NULL;
     }
 }
 
@@ -3516,7 +3524,11 @@ gtk_window_set_titlebar (GtkWindow *window,
 
   unset_titlebar (window);
 
-  priv->custom_title = TRUE;
+  if (gdk_window_supports_csd (window))
+    gdk_window_enable_csd (window);
+  else
+    priv->custom_title = TRUE;
+
   priv->title_box = titlebar;
   gtk_widget_set_parent (priv->title_box, widget);
 
@@ -3748,11 +3760,11 @@ icon_list_from_theme (GtkWidget    *widget,
 }
 
 static void
-set_title_icon (GtkWindow *window, GList *list)
+set_titlebar_icon (GtkWindow *window, GList *list)
 {
   GtkWindowPrivate *priv = window->priv;
 
-  if (priv->title_icon && list != NULL)
+  if (priv->titlebar_icon && list != NULL)
     {
       GdkPixbuf *pixbuf, *best;
       GList *l;
@@ -3771,10 +3783,10 @@ set_title_icon (GtkWindow *window, GList *list)
       if (best == NULL)
         best = gdk_pixbuf_scale_simple (GDK_PIXBUF (list->data), 20, 20, GDK_INTERP_BILINEAR);
 
-      gtk_image_set_from_pixbuf (GTK_IMAGE (priv->title_icon), best);
+      gtk_image_set_from_pixbuf (GTK_IMAGE (priv->titlebar_icon), best);
       g_object_unref (best);
 
-      gtk_widget_show (priv->title_icon);
+      gtk_widget_show (priv->titlebar_icon);
     }
 }
 
@@ -3844,7 +3856,7 @@ gtk_window_realize_icon (GtkWindow *window)
   info->realized = TRUE;
 
   gdk_window_set_icon_list (gtk_widget_get_window (widget), icon_list);
-  set_title_icon (window, icon_list);
+  set_titlebar_icon (window, icon_list);
 
   if (info->using_themed_icon) 
     {
@@ -5065,6 +5077,10 @@ update_window_buttons (GtkWindow *window)
   GtkWindowPrivate *priv = window->priv;
   gboolean maximized;
   GtkTextDirection direction;
+  gchar *layout_desc;
+  gchar **tokens, **t;
+  gint i, j;
+  GdkPixbuf *icon = NULL;
 
   if (priv->title_box == NULL)
     return;
@@ -5083,149 +5099,231 @@ update_window_buttons (GtkWindow *window)
       gtk_widget_show (priv->title_box);
     }
 
-  if (priv->custom_title)
+  if (priv->titlebar == NULL)
     return;
 
-  if (priv->decorated &&
-      priv->client_decorated)
+  if (priv->titlebar_icon)
     {
-      gchar *layout_desc;
-      gchar **tokens, **t;
-      gint i, j;
-      GdkPixbuf *icon = NULL;
-
-      if (priv->title_icon)
-        {
-          icon = gtk_image_get_pixbuf (GTK_IMAGE (priv->title_icon));
-          if (icon)
-            g_object_ref (icon);
-          gtk_widget_destroy (priv->title_icon);
-          priv->title_icon = NULL;
-        }
-      if (priv->title_min_button)
-        {
-          gtk_widget_destroy (priv->title_min_button);
-          priv->title_min_button = NULL;
-        }
-      if (priv->title_max_button)
-        {
-          gtk_widget_destroy (priv->title_max_button);
-          priv->title_max_button = NULL;
-        }
-      if (priv->title_close_button)
-        {
-          gtk_widget_destroy (priv->title_close_button);
-          priv->title_close_button = NULL;
-        }
-
-      gtk_widget_style_get (GTK_WIDGET (window),
-                            "decoration-button-layout", &layout_desc,
-                            NULL);
-
-      tokens = g_strsplit (layout_desc, ":", 2);
-      if (tokens)
-        {
-          for (i = 0; i < 2; i++)
-            {
-              GtkWidget *box;
-
-              if (tokens[i] == NULL)
-                continue;
-
-              box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-              gtk_widget_show (box);
-              gtk_widget_set_margin_bottom (box, 6);
-              if ((direction == GTK_TEXT_DIR_LTR && i == 0) ||
-                   (direction == GTK_TEXT_DIR_RTL && i == 1))
-                gtk_style_context_add_class (gtk_widget_get_style_context (box), "left");
-              else
-                gtk_style_context_add_class (gtk_widget_get_style_context (box), "right");
-              if (i == 0)
-                gtk_csd_title_bar_pack_start (GTK_CSD_TITLE_BAR (priv->title_box), box);
-              else
-                gtk_csd_title_bar_pack_end (GTK_CSD_TITLE_BAR (priv->title_box), box);
-
-              t = g_strsplit (tokens[i], ",", -1);
-              for (j = 0; t[j]; j++)
-                {
-                  GtkWidget *button = NULL;
-                  GtkWidget *image = NULL;
-
-                  if (strcmp (t[j], "icon") == 0)
-                    {
-                      button = gtk_image_new ();
-                      gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
-                      gtk_widget_set_size_request (button, 20, 20);
-                      gtk_widget_show (button);
-                      if (icon != NULL)
-                        {
-                          gtk_image_set_from_pixbuf (GTK_IMAGE (button), icon);
-                          g_object_unref (icon);
-                        }
-                      else
-                        gtk_widget_hide (button);
-
-                      priv->title_icon = button;
-                    }
-                  else if (strcmp (t[j], "minimize") == 0 &&
-                      priv->gdk_type_hint == GDK_WINDOW_TYPE_HINT_NORMAL)
-                    {
-                      button = gtk_button_new ();
-                      gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
-                      image = gtk_image_new_from_icon_name ("window-minimize-symbolic", GTK_ICON_SIZE_MENU);
-                      g_object_set (image, "use-fallback", TRUE, NULL);
-                      gtk_container_add (GTK_CONTAINER (button), image);
-                      gtk_widget_set_can_focus (button, FALSE);
-                      gtk_widget_show_all (button);
-                      g_signal_connect (button, "clicked",
-                                        G_CALLBACK (gtk_window_title_min_clicked), window);
-                      priv->title_min_button = button;
-                    }
-                  else if (strcmp (t[j], "maximize") == 0 &&
-                           priv->resizable &&
-                           priv->gdk_type_hint == GDK_WINDOW_TYPE_HINT_NORMAL)
-                    {
-                      const gchar *icon_name;
-
-                      icon_name = maximized ? "window-restore-symbolic" : "window-maximize-symbolic";
-                      button = gtk_button_new ();
-                      gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
-                      image = gtk_image_new_from_icon_name (icon_name, GTK_ICON_SIZE_MENU);
-                      g_object_set (image, "use-fallback", TRUE, NULL);
-                      gtk_container_add (GTK_CONTAINER (button), image);
-                      gtk_widget_set_can_focus (button, FALSE);
-                      gtk_widget_show_all (button);
-                      g_signal_connect (button, "clicked",
-                                        G_CALLBACK (gtk_window_title_max_clicked), window);
-                      priv->title_max_button = button;
-                    }
-                  else if (strcmp (t[j], "close") == 0 &&
-                           priv->deletable &&
-                           priv->gdk_type_hint == GDK_WINDOW_TYPE_HINT_NORMAL)
-                    {
-                      button = gtk_button_new ();
-                      image = gtk_image_new_from_icon_name ("window-close-symbolic", GTK_ICON_SIZE_MENU);
-                      gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
-                      g_object_set (image, "use-fallback", TRUE, NULL);
-                      gtk_container_add (GTK_CONTAINER (button), image);
-                      gtk_widget_set_can_focus (button, FALSE);
-                      gtk_widget_show_all (button);
-                      g_signal_connect_swapped (button, "clicked",
-                                                G_CALLBACK (gtk_window_close), window);
-                      priv->title_close_button = button;
-                    }
-
-                  if (button)
-                    {
-                      gtk_box_pack_start (GTK_BOX (box), button, FALSE, FALSE, 0);
-                    }
-                }
-              g_strfreev (t);
-            }
-          g_strfreev (tokens);
-        }
-      g_free (layout_desc);
+      icon = gtk_image_get_pixbuf (GTK_IMAGE (priv->titlebar_icon));
+      if (icon)
+        g_object_ref (icon);
+      gtk_widget_destroy (priv->titlebar_icon);
+      priv->titlebar_icon = NULL;
     }
+  if (priv->titlebar_min_button)
+    {
+      gtk_widget_destroy (priv->titlebar_min_button);
+      priv->titlebar_min_button = NULL;
+    }
+  if (priv->titlebar_max_button)
+    {
+      gtk_widget_destroy (priv->titlebar_max_button);
+      priv->titlebar_max_button = NULL;
+    }
+  if (priv->titlebar_close_button)
+    {
+      gtk_widget_destroy (priv->titlebar_close_button);
+      priv->titlebar_close_button = NULL;
+    }
+
+  gtk_widget_style_get (GTK_WIDGET (window),
+                        "decoration-button-layout", &layout_desc,
+                        NULL);
+
+  tokens = g_strsplit (layout_desc, ":", 2);
+  if (tokens)
+    {
+      for (i = 0; i < 2; i++)
+        {
+          GtkWidget *box;
+
+          if (tokens[i] == NULL)
+            continue;
+
+          box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+          gtk_widget_show (box);
+          if ((direction == GTK_TEXT_DIR_LTR && i == 0) ||
+              (direction == GTK_TEXT_DIR_RTL && i == 1))
+            gtk_style_context_add_class (gtk_widget_get_style_context (box), "left");
+          else
+            gtk_style_context_add_class (gtk_widget_get_style_context (box), "right");
+          if (i == 0)
+            gtk_csd_title_bar_pack_start (GTK_CSD_TITLE_BAR (priv->title_box), box);
+          else
+            gtk_csd_title_bar_pack_end (GTK_CSD_TITLE_BAR (priv->title_box), box);
+
+          t = g_strsplit (tokens[i], ",", -1);
+          for (j = 0; t[j]; j++)
+            {
+              GtkWidget *button = NULL;
+              GtkWidget *image = NULL;
+
+              if (strcmp (t[j], "icon") == 0)
+                {
+                  button = gtk_image_new ();
+                  gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
+                  gtk_widget_set_size_request (button, 20, 20);
+                  gtk_widget_show (button);
+                  if (icon != NULL)
+                    {
+                      gtk_image_set_from_pixbuf (GTK_IMAGE (button), icon);
+                      g_object_unref (icon);
+                    }
+                  else
+                    gtk_widget_hide (button);
+
+                  priv->titlebar_icon = button;
+                }
+              else if (strcmp (t[j], "minimize") == 0 &&
+                       priv->gdk_type_hint == GDK_WINDOW_TYPE_HINT_NORMAL)
+                {
+                  button = gtk_button_new ();
+                  gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
+                  image = gtk_image_new_from_icon_name ("window-minimize-symbolic", GTK_ICON_SIZE_MENU);
+                  g_object_set (image, "use-fallback", TRUE, NULL);
+                  gtk_container_add (GTK_CONTAINER (button), image);
+                  gtk_widget_set_can_focus (button, FALSE);
+                  gtk_widget_show_all (button);
+                  g_signal_connect (button, "clicked",
+                                    G_CALLBACK (gtk_window_titlebar_min_clicked), window);
+                  priv->titlebar_min_button = button;
+                }
+              else if (strcmp (t[j], "maximize") == 0 &&
+                       priv->resizable &&
+                       priv->gdk_type_hint == GDK_WINDOW_TYPE_HINT_NORMAL)
+                {
+                  const gchar *icon_name;
+
+                  icon_name = maximized ? "window-restore-symbolic" : "window-maximize-symbolic";
+                  button = gtk_button_new ();
+                  gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
+                  image = gtk_image_new_from_icon_name (icon_name, GTK_ICON_SIZE_MENU);
+                  g_object_set (image, "use-fallback", TRUE, NULL);
+                  gtk_container_add (GTK_CONTAINER (button), image);
+                  gtk_widget_set_can_focus (button, FALSE);
+                  gtk_widget_show_all (button);
+                  g_signal_connect (button, "clicked",
+                                    G_CALLBACK (gtk_window_titlebar_max_clicked), window);
+                  priv->titlebar_max_button = button;
+                }
+              else if (strcmp (t[j], "close") == 0 &&
+                       priv->deletable &&
+                       priv->gdk_type_hint == GDK_WINDOW_TYPE_HINT_NORMAL)
+                {
+                  button = gtk_button_new ();
+                  image = gtk_image_new_from_icon_name ("window-close-symbolic", GTK_ICON_SIZE_MENU);
+                  gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
+                  g_object_set (image, "use-fallback", TRUE, NULL);
+                  gtk_container_add (GTK_CONTAINER (button), image);
+                  gtk_widget_set_can_focus (button, FALSE);
+                  gtk_widget_show_all (button);
+                  g_signal_connect_swapped (button, "clicked",
+                                            G_CALLBACK (gtk_window_close), window);
+                  priv->titlebar_close_button = button;
+                }
+
+              if (button)
+                gtk_box_pack_start (GTK_BOX (box), button, FALSE, FALSE, 0);
+            }
+          g_strfreev (t);
+        }
+      g_strfreev (tokens);
+    }
+  g_free (layout_desc);
+}
+
+static GtkWidget *
+create_titlebar (GtkWindow *window)
+{
+  GtkWindowPrivate *priv = window->priv;
+  GtkWidget *label;
+  GtkWidget *titlebar;
+  GtkStyleContext *context;
+  gchar *title;
+
+  titlebar = gtk_csd_title_bar_new ();
+  g_object_set (titlebar, "spacing", 0, NULL);
+  context = gtk_widget_get_style_context (titlebar);
+  gtk_style_context_add_class (context, GTK_STYLE_CLASS_TITLEBAR);
+  gtk_style_context_add_class (context, "default-decoration");
+
+  title = g_markup_printf_escaped ("<b>%s</b>",
+                                  priv->title ? priv->title : get_default_title ());
+   label = gtk_label_new (title);
+  g_free (title);
+  g_object_set (label,
+                "use-markup", TRUE,
+                "ellipsize", PANGO_ELLIPSIZE_END,
+                "margin", 6,
+                NULL);
+
+  gtk_csd_title_bar_set_custom_title (GTK_CSD_TITLE_BAR (titlebar), label);
+
+  return titlebar;
+}
+
+static gboolean
+gdk_window_supports_csd (GtkWindow *window)
+{
+  GtkWidget *widget = GTK_WIDGET (window);
+
+#ifdef GDK_WINDOWING_X11
+  if (GDK_IS_X11_DISPLAY (gtk_widget_get_display (widget)))
+    {
+      GdkScreen *screen;
+      GdkVisual *visual;
+
+      screen = gtk_widget_get_screen (widget);
+
+      if (!gdk_screen_is_composited (screen))
+        return FALSE;
+
+      if (!gdk_x11_screen_supports_net_wm_hint (screen, gdk_atom_intern_static_string ("_GTK_FRAME_EXTENTS")))
+        return FALSE;
+
+      /* We need a visual with alpha */
+      visual = gdk_screen_get_rgba_visual (screen);
+      if (!visual)
+        return FALSE;
+    }
+#endif
+
+  return TRUE;
+}
+
+static void
+gdk_window_enable_csd (GtkWindow *window)
+{
+  GtkWindowPrivate *priv = window->priv;
+  GtkWidget *widget = GTK_WIDGET (window);
+  GdkVisual *visual;
+
+  /* We need a visual with alpha */
+  visual = gdk_screen_get_rgba_visual (gtk_widget_get_screen (widget));
+  g_assert (visual != NULL);
+  gtk_widget_set_visual (widget, visual);
+
+  priv->client_decorated = TRUE;
+}
+
+
+static gboolean
+gdk_window_should_use_csd (GtkWindow *window)
+{
+  GtkWindowPrivate *priv = window->priv;
+
+  if (!priv->decorated)
+    return FALSE;
+
+  if (priv->type == GTK_WINDOW_POPUP)
+    return FALSE;
+
+#ifdef GDK_WINDOWING_WAYLAND
+  if (GDK_IS_WAYLAND_DISPLAY (gtk_widget_get_display (GTK_WIDGET (window))))
+    return TRUE;
+#endif
+
+  return (g_strcmp0 (g_getenv ("GTK_CSD"), "1") == 0);
 }
 
 static void
@@ -5233,71 +5331,23 @@ create_decoration (GtkWidget *widget)
 {
   GtkWindow *window = GTK_WINDOW (widget);
   GtkWindowPrivate *priv = window->priv;
-  GtkStyleContext *context;
-  gchar *title;
-  GtkWidget *label;
 
-  /* Client decorations already created */
-  if (priv->client_decorated)
+  if (!gdk_window_supports_csd (window))
     return;
 
-  if (!priv->decorated)
-    return;
-
-  if (priv->type == GTK_WINDOW_POPUP)
-    return;
-
-#ifdef GDK_WINDOWING_WAYLAND
-  if (GDK_IS_WAYLAND_DISPLAY (gtk_widget_get_display (widget)))
-    priv->client_decorated = TRUE;
-#endif
-
-  if (!priv->client_decorated && g_strcmp0 (g_getenv ("GTK_CSD"), "1") == 0)
-    {
-      GdkVisual *visual;
-
-      /* We need a visual with alpha */
-      visual = gdk_screen_get_rgba_visual (gtk_widget_get_screen (widget));
-      if (visual)
-        {
-          gtk_widget_set_visual (widget, visual);
-          priv->client_decorated = TRUE;
-        }
-    }
-
-  if (!priv->client_decorated)
-    return;
-
+  gdk_window_enable_csd (window);
 
   if (priv->title_box == NULL)
     {
-      priv->title_box = gtk_csd_title_bar_new ();
-      g_object_set (priv->title_box,
-                    "spacing", 0,
-                    "hpadding", 0,
-                    "vpadding", 0,
-                    NULL);
-      context = gtk_widget_get_style_context (priv->title_box);
-      gtk_style_context_add_class (context, GTK_STYLE_CLASS_TITLEBAR);
-      gtk_widget_set_parent (priv->title_box, GTK_WIDGET (window));
-
-      title = g_markup_printf_escaped ("<b>%s</b>",
-                                       priv->title ? priv->title : get_default_title ());
-      label = gtk_label_new (title);
-      g_free (title);
-      g_object_set (label,
-                    "use-markup", TRUE,
-                    "ellipsize", PANGO_ELLIPSIZE_END,
-                    "margin", 6,
-                    NULL);
-
-      gtk_csd_title_bar_set_custom_title (GTK_CSD_TITLE_BAR (priv->title_box), label);
-
-      gtk_widget_show_all (priv->title_box);
+      priv->titlebar = create_titlebar (window);
+      gtk_widget_set_parent (priv->titlebar, widget);
+      gtk_widget_show_all (priv->titlebar);
+      priv->title_box = priv->titlebar;
     }
 
   update_window_buttons (window);
 }
+
 
 static void
 gtk_window_show (GtkWidget *widget)
@@ -5439,7 +5489,7 @@ gtk_window_map (GtkWidget *widget)
   if (child != NULL && gtk_widget_get_visible (child))
     gtk_widget_map (child);
 
-  if (priv->title_box != NULL)
+  if (priv->title_box != NULL && gtk_widget_get_visible (priv->title_box))
     gtk_widget_map (priv->title_box);
 
   gdk_window = gtk_widget_get_window (widget);
@@ -5716,7 +5766,8 @@ gtk_window_realize (GtkWidget *widget)
   window = GTK_WINDOW (widget);
   priv = window->priv;
 
-  create_decoration (widget);
+  if (!priv->client_decorated && gdk_window_should_use_csd (window))
+    create_decoration (widget);
 
   gtk_widget_get_allocation (widget, &allocation);
 
@@ -6182,6 +6233,13 @@ sum_borders (GtkBorder *one,
 }
 
 static void
+add_window_frame_style_class (GtkStyleContext *context)
+{
+  gtk_style_context_remove_class (context, GTK_STYLE_CLASS_BACKGROUND);
+  gtk_style_context_add_class (context, "window-frame");
+}
+
+static void
 get_decoration_size (GtkWidget *widget,
                      GtkBorder *decorations)
 {
@@ -6206,8 +6264,7 @@ get_decoration_size (GtkWidget *widget,
   context = gtk_widget_get_style_context (widget);
 
   gtk_style_context_save (context);
-  gtk_style_context_remove_class (context, GTK_STYLE_CLASS_BACKGROUND);
-  gtk_style_context_add_class (context, "window-frame");
+  add_window_frame_style_class (context);
 
   /* Always sum border + padding */
   gtk_style_context_get_border (context, state, decorations);
@@ -6249,7 +6306,7 @@ update_border_windows (GtkWindow *window)
 
   context = gtk_widget_get_style_context (widget);
   gtk_style_context_save (context);
-  gtk_style_context_add_class (context, "window-frame");
+  add_window_frame_style_class (context);
   gtk_style_context_get_margin (context,
                                 gtk_widget_get_state_flags (widget),
                                 &border);
@@ -6451,6 +6508,92 @@ update_frame_extents (GtkWindow *window,
 #endif
 }
 
+static void
+corner_rect (cairo_rectangle_int_t *rect,
+             const GtkCssValue     *value)
+{
+  rect->width = _gtk_css_corner_value_get_x (value, 100);
+  rect->height = _gtk_css_corner_value_get_y (value, 100);
+}
+
+static void
+subtract_corners_from_region (cairo_region_t        *region,
+                              cairo_rectangle_int_t *extents,
+                              GtkStyleContext       *context)
+{
+  cairo_rectangle_int_t rect;
+
+  gtk_style_context_save (context);
+  add_window_frame_style_class (context);
+
+  corner_rect (&rect, _gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BORDER_TOP_LEFT_RADIUS));
+  rect.x = extents->x;
+  rect.y = extents->y;
+  cairo_region_subtract_rectangle (region, &rect);
+
+  corner_rect (&rect, _gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BORDER_TOP_RIGHT_RADIUS));
+  rect.x = extents->x + extents->width - rect.width;
+  rect.y = extents->y;
+  cairo_region_subtract_rectangle (region, &rect);
+
+  corner_rect (&rect, _gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BORDER_BOTTOM_LEFT_RADIUS));
+  rect.x = extents->x;
+  rect.y = extents->y + extents->height - rect.height;
+  cairo_region_subtract_rectangle (region, &rect);
+
+  corner_rect (&rect, _gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BORDER_BOTTOM_RIGHT_RADIUS));
+  rect.x = extents->x + extents->width - rect.width;
+  rect.y = extents->y + extents->height - rect.height;
+  cairo_region_subtract_rectangle (region, &rect);
+
+  gtk_style_context_restore (context);
+}
+
+static void
+update_opaque_region (GtkWindow           *window,
+                      GtkBorder           *border,
+                      const GtkAllocation *allocation)
+{
+  GtkWidget *widget = GTK_WIDGET (window);
+  cairo_region_t *opaque_region;
+  GtkStyleContext *context;
+  gboolean is_opaque = FALSE;
+
+  if (!gtk_widget_get_realized (widget))
+      return;
+
+  context = gtk_widget_get_style_context (widget);
+
+  if (!gtk_widget_get_app_paintable (widget))
+    {
+      const GdkRGBA *color;
+      color = _gtk_css_rgba_value_get_rgba (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BACKGROUND_COLOR));
+      is_opaque = (color->alpha >= 1.0);
+    }
+
+  if (is_opaque)
+    {
+      cairo_rectangle_int_t rect;
+
+      rect.x = border->left;
+      rect.y = border->top;
+      rect.width = allocation->width - border->left - border->right;
+      rect.height = allocation->height - border->top - border->bottom;
+
+      opaque_region = cairo_region_create_rectangle (&rect);
+
+      subtract_corners_from_region (opaque_region, &rect, context);
+    }
+  else
+    {
+      opaque_region = NULL;
+    }
+
+  gdk_window_set_opaque_region (gtk_widget_get_window (widget), opaque_region);
+
+  cairo_region_destroy (opaque_region);
+}
+
 /* _gtk_window_set_allocation:
  * @window: a #GtkWindow
  * @allocation: the original allocation for the window
@@ -6498,6 +6641,8 @@ _gtk_window_set_allocation (GtkWindow           *window,
 
   if (priv->client_decorated)
     update_frame_extents (window, &window_border);
+
+  update_opaque_region (window, &window_border, &child_allocation);
 
   if (priv->title_box != NULL &&
       priv->decorated &&
@@ -7235,7 +7380,7 @@ gtk_window_button_press_event (GtkWidget      *widget,
         {
           if (region == GTK_WINDOW_REGION_TITLE)
             {
-              gtk_window_title_max_clicked (widget, widget);
+              gtk_window_titlebar_max_clicked (widget, widget);
               return TRUE;
             }
         }
@@ -7412,7 +7557,7 @@ gtk_window_forall (GtkContainer *container,
     (* callback) (child, callback_data);
 
   if (priv->title_box != NULL &&
-      (priv->custom_title || include_internals))
+      (priv->titlebar == NULL || include_internals))
     (* callback) (priv->title_box, callback_data);
 }
 
@@ -7864,7 +8009,7 @@ minimize_window_clicked (GtkMenuItem *menuitem,
 {
   GtkWindow *window = (GtkWindow *)user_data;
 
-  gtk_window_title_min_clicked (GTK_WIDGET (window), window);
+  gtk_window_titlebar_min_clicked (GTK_WIDGET (window), window);
 }
 
 static void
@@ -7873,8 +8018,50 @@ maximize_window_clicked (GtkMenuItem *menuitem,
 {
   GtkWindow *window = (GtkWindow *)user_data;
 
-  gtk_window_title_max_clicked (GTK_WIDGET (window), window);
+  gtk_window_titlebar_max_clicked (GTK_WIDGET (window), window);
 }
+
+static void
+ontop_window_clicked (GtkMenuItem *menuitem,
+                      gpointer     user_data)
+{
+  GtkWindow *window = (GtkWindow *)user_data;
+
+  gtk_window_set_keep_above (window, !window->priv->above_initially);
+}
+
+#ifdef GDK_WINDOWING_X11
+static void
+stick_window_clicked (GtkMenuItem *menuitem,
+                      gpointer     user_data)
+{
+  GtkWindow *window = (GtkWindow *)user_data;
+
+  gtk_window_stick (window);
+}
+
+static void
+unstick_window_clicked (GtkMenuItem *menuitem,
+                        gpointer     user_data)
+{
+  GtkWindow *window = (GtkWindow *)user_data;
+
+  gtk_window_unstick (window);
+}
+
+static void
+workspace_change_clicked (GtkMenuItem *menuitem,
+                          gpointer     user_data)
+{
+  GtkWindow *window = (GtkWindow *)user_data;
+  GdkWindow *gdk_window;
+  guint32 desktop;
+
+  gdk_window = gtk_widget_get_window (GTK_WIDGET (window));
+  desktop = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (menuitem), "workspace"));
+  gdk_x11_window_move_to_desktop (gdk_window, desktop);
+}
+#endif
 
 static void
 close_window_clicked (GtkMenuItem *menuitem,
@@ -7907,8 +8094,7 @@ gtk_window_do_popup (GtkWindow      *window,
   gtk_widget_show (menuitem);
   if (priv->gdk_type_hint != GDK_WINDOW_TYPE_HINT_NORMAL)
     gtk_widget_set_sensitive (menuitem, FALSE);
-  g_signal_connect (G_OBJECT (menuitem),
-                    "activate",
+  g_signal_connect (G_OBJECT (menuitem), "activate",
                     G_CALLBACK (minimize_window_clicked), window);
   gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
 
@@ -7917,10 +8103,93 @@ gtk_window_do_popup (GtkWindow      *window,
   if (!priv->resizable ||
       priv->gdk_type_hint != GDK_WINDOW_TYPE_HINT_NORMAL)
     gtk_widget_set_sensitive (menuitem, FALSE);
-  g_signal_connect (G_OBJECT (menuitem),
-                    "activate",
+  g_signal_connect (G_OBJECT (menuitem), "activate",
                     G_CALLBACK (maximize_window_clicked), window);
   gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+
+  menuitem = gtk_check_menu_item_new_with_label (_("Always on Top"));
+  gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (menuitem), priv->above_initially);
+  if (gtk_window_get_maximized (window))
+    gtk_widget_set_sensitive (menuitem, FALSE);
+  gtk_widget_show (menuitem);
+  g_signal_connect (G_OBJECT (menuitem), "activate",
+                    G_CALLBACK (ontop_window_clicked), window);
+  gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+
+#ifdef GDK_WINDOWING_X11
+  if (GDK_IS_X11_DISPLAY (gtk_widget_get_display (GTK_WIDGET (window))))
+    {
+      menuitem = gtk_check_menu_item_new_with_label (_("Always on Visible Workspace"));
+      gtk_check_menu_item_set_draw_as_radio (GTK_CHECK_MENU_ITEM (menuitem), TRUE);
+      gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (menuitem), priv->stick_initially);
+      gtk_widget_show (menuitem);
+      g_signal_connect (G_OBJECT (menuitem), "activate",
+                        G_CALLBACK (stick_window_clicked), window);
+      gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+
+      menuitem = gtk_check_menu_item_new_with_label (_("Only on This Workspace"));
+      gtk_check_menu_item_set_draw_as_radio (GTK_CHECK_MENU_ITEM (menuitem), TRUE);
+      gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (menuitem), !priv->stick_initially);
+      gtk_widget_show (menuitem);
+      g_signal_connect (G_OBJECT (menuitem), "activate",
+                        G_CALLBACK (unstick_window_clicked), window);
+      gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+
+      if (!priv->stick_initially)
+        {
+          guint32 n_desktops, desktop;
+
+          n_desktops = gdk_x11_screen_get_number_of_desktops (gtk_widget_get_screen (GTK_WIDGET (window)));
+          desktop = gdk_x11_window_get_desktop (gtk_widget_get_window (GTK_WIDGET (window)));
+
+          if (desktop > 0)
+            {
+              menuitem = gtk_menu_item_new_with_label (_("Move to Workspace Up"));
+              g_object_set_data (G_OBJECT (menuitem), "workspace", GUINT_TO_POINTER (desktop - 1));
+              gtk_widget_show (menuitem);
+              g_signal_connect (G_OBJECT (menuitem), "activate",
+                                G_CALLBACK (workspace_change_clicked), window);
+              gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+            }
+          if (desktop + 1 < n_desktops)
+            {
+              menuitem = gtk_menu_item_new_with_label (_("Move to Workspace Down"));
+              g_object_set_data (G_OBJECT (menuitem), "workspace", GUINT_TO_POINTER (desktop + 1));
+              gtk_widget_show (menuitem);
+              g_signal_connect (G_OBJECT (menuitem), "activate",
+                                G_CALLBACK (workspace_change_clicked), window);
+              gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+            }
+          if (n_desktops > 2)
+            {
+              GtkWidget *submenu;
+              gint d;
+              guint32 current;
+
+              current = gdk_x11_screen_get_current_desktop (gtk_widget_get_screen (GTK_WIDGET (window)));
+              menuitem = gtk_menu_item_new_with_label (_("Move to Another Workspace"));
+              gtk_widget_show (menuitem);
+              gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+              submenu = gtk_menu_new ();
+              gtk_menu_item_set_submenu (GTK_MENU_ITEM (menuitem), submenu);
+              for (d = 0; d < n_desktops; d++)
+                {
+                  gchar *label;
+                  label = g_strdup_printf (_("Workspace %d"), d + 1);
+                  menuitem = gtk_menu_item_new_with_label (label);
+                  g_free (label);
+                  g_object_set_data (G_OBJECT (menuitem), "workspace", GUINT_TO_POINTER (d));
+                  if (d == current)
+                    gtk_widget_set_sensitive (menuitem, FALSE);
+                  gtk_widget_show (menuitem);
+                  g_signal_connect (G_OBJECT (menuitem), "activate",
+                                    G_CALLBACK (workspace_change_clicked), window);
+                  gtk_menu_shell_append (GTK_MENU_SHELL (submenu), menuitem);
+                }
+            }
+        }
+    }
+#endif
 
   menuitem = gtk_separator_menu_item_new ();
   gtk_widget_show (menuitem);
@@ -7930,8 +8199,7 @@ gtk_window_do_popup (GtkWindow      *window,
   gtk_widget_show (menuitem);
   if (!priv->deletable)
     gtk_widget_set_sensitive (menuitem, FALSE);
-  g_signal_connect (G_OBJECT (menuitem),
-                    "activate",
+  g_signal_connect (G_OBJECT (menuitem), "activate",
                     G_CALLBACK (close_window_clicked), window);
   gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
 
@@ -9032,8 +9300,7 @@ gtk_window_draw (GtkWidget *widget,
         {
           gtk_style_context_save (context);
 
-          gtk_style_context_remove_class (context, GTK_STYLE_CLASS_BACKGROUND);
-          gtk_style_context_add_class (context, "window-frame");
+          add_window_frame_style_class (context);
 
           gtk_render_background (context, cr,
                                  window_border.left, window_border.top,

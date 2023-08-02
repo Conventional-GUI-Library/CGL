@@ -268,6 +268,7 @@ struct _GtkLabelPrivate
 
   gint     width_chars;
   gint     max_width_chars;
+  gint     lines;
 };
 
 /* Notes about the handling of links:
@@ -358,7 +359,8 @@ enum {
   PROP_SINGLE_LINE_MODE,
   PROP_ANGLE,
   PROP_MAX_WIDTH_CHARS,
-  PROP_TRACK_VISITED_LINKS
+  PROP_TRACK_VISITED_LINKS,
+  PROP_LINES
 };
 
 /* When rotating ellipsizable text we want the natural size to request 
@@ -956,6 +958,26 @@ gtk_label_class_init (GtkLabelClass *class)
                                                          P_("Whether visited links should be tracked"),
                                                          TRUE,
                                                          GTK_PARAM_READWRITE));
+
+  /**
+   * GtkLabel:lines:
+   *
+   * The number of lines to which an ellipsized, wrapping label
+   * should be limited. This property has no effect if the
+   * label is not wrapping or ellipsized. Set this property to
+   * -1 if you don't want to limit the number of lines.
+   *
+   * Since: 3.10
+   */
+  g_object_class_install_property (gobject_class,
+                                   PROP_LINES,
+                                   g_param_spec_int ("lines",
+                                                     P_("Number of lines"),
+                                                     P_("The desired number of lines, when ellipsizing a wrapping label"),
+                                                     -1,
+                                                     G_MAXINT,
+                                                     -1,
+                                                     GTK_PARAM_READWRITE));
   /*
    * Key bindings
    */
@@ -1135,6 +1157,9 @@ gtk_label_set_property (GObject      *object,
     case PROP_TRACK_VISITED_LINKS:
       gtk_label_set_track_visited_links (label, g_value_get_boolean (value));
       break;
+    case PROP_LINES:
+      gtk_label_set_lines (label, g_value_get_int (value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -1206,6 +1231,9 @@ gtk_label_get_property (GObject     *object,
     case PROP_TRACK_VISITED_LINKS:
       g_value_set_boolean (value, gtk_label_get_track_visited_links (label));
       break;
+    case PROP_LINES:
+      g_value_set_int (value, gtk_label_get_lines (label));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -1227,6 +1255,7 @@ gtk_label_init (GtkLabel *label)
   priv->width_chars = -1;
   priv->max_width_chars = -1;
   priv->label = NULL;
+  priv->lines = -1;
 
   priv->jtype = GTK_JUSTIFY_LEFT;
   priv->wrap = FALSE;
@@ -1587,7 +1616,7 @@ gtk_label_buildable_custom_finished (GtkBuildable *buildable,
 
 /**
  * gtk_label_new:
- * @str: The text of the label
+ * @str: (allow-none): The text of the label
  *
  * Creates a new label with the given text inside it. You can
  * pass %NULL to get an empty label widget.
@@ -1609,7 +1638,7 @@ gtk_label_new (const gchar *str)
 
 /**
  * gtk_label_new_with_mnemonic:
- * @str: The text of the label, with an underscore in front of the
+ * @str: (allow-none): The text of the label, with an underscore in front of the
  *       mnemonic character
  *
  * Creates a new #GtkLabel, containing the text in @str.
@@ -3444,6 +3473,8 @@ gtk_label_ensure_layout (GtkLabel *label)
       pango_layout_set_ellipsize (priv->layout, priv->ellipsize);
       pango_layout_set_wrap (priv->layout, priv->wrap_mode);
       pango_layout_set_single_paragraph_mode (priv->layout, priv->single_line_mode);
+      if (priv->lines > 0)
+        pango_layout_set_height (priv->layout, - priv->lines);
 
       gtk_label_update_layout_width (label);
     }
@@ -6484,4 +6515,53 @@ _gtk_label_get_selection_bound (GtkLabel *label)
                                      priv->text + priv->select_info->selection_anchor);
 
   return 0;
+}
+
+/**
+ * gtk_label_set_lines:
+ * @label: a #GtkLabel
+ * @lines: the desired number of lines, or -1
+ *
+ * Sets the number of lines to which an ellipsized, wrapping label
+ * should be limited. This has no effect if the label is not wrapping
+ * or ellipsized. Set this to -1 if you don't want to limit the
+ * number of lines.
+ *
+ * Since: 3.10
+ */
+void
+gtk_label_set_lines (GtkLabel *label,
+                     gint      lines)
+{
+  GtkLabelPrivate *priv;
+
+  g_return_if_fail (GTK_IS_LABEL (label));
+
+  priv = label->priv;
+
+  if (priv->lines != lines)
+    {
+      priv->lines = lines;
+      g_object_notify (G_OBJECT (label), "lines");
+      gtk_widget_queue_resize (GTK_WIDGET (label));
+    }
+}
+
+/**
+ * gtk_label_get_lines:
+ * @label: a #GtkLabel
+ *
+ * Gets the number of lines to which an ellipsized, wrapping
+ * label should be limited. See gtk_label_set_lines().
+ *
+ * Returns: The number of lines
+ *
+ * Since: 3.10
+ */
+gint
+gtk_label_get_lines (GtkLabel *label)
+{
+  g_return_val_if_fail (GTK_IS_LABEL (label), -1);
+
+  return label->priv->lines;
 }
