@@ -239,7 +239,7 @@ function flushSurface(surface)
 	    break;
 
 	default:
-	    alert("Unknown drawing op " + cmd.op);
+	    console.log("Unknown drawing op " + cmd.op);
 	}
     }
 }
@@ -636,8 +636,7 @@ function handleCommands(cmd)
 	    cmdUngrabPointer();
 	    break;
 	default:
-		// Lets comment this out and hope everything will be fine.
-	    // alert("Unknown op " + command);
+		console.log("Unknown op " + command);
 	}
     }
     return true;
