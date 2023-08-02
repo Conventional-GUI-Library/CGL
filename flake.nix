@@ -1,5 +1,5 @@
 {
-  description = "A Convential Gui Library";
+  description = "A Conventional GUI Library";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs?ref=nixos-23.05";
