@@ -1268,6 +1268,7 @@ GdkEventSequence *gdk_event_get_event_sequence (const GdkEvent *event);
 void	  gdk_set_show_events		(gboolean	 show_events);
 gboolean  gdk_get_show_events		(void);
 GdkEventType gdk_event_get_event_type   (const GdkEvent *event);
+GdkWindow *gdk_event_get_window         (const GdkEvent *event);
 
 #ifndef GDK_MULTIHEAD_SAFE
 

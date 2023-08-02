@@ -102,6 +102,7 @@ struct _GdkWindowImplWayland
 
   struct wl_surface *surface;
   struct wl_shell_surface *shell_surface;
+  struct gtk_surface *gtk_surface;
   unsigned int mapped : 1;
   GdkWindow *transient_for;
   GdkWindowTypeHint hint;
@@ -995,6 +996,10 @@ gdk_wayland_window_create_surface (GdkWindow *window)
   wl_surface_set_user_data(impl->surface, window);
   wl_surface_add_listener(impl->surface,
                           &surface_listener, window);
+
+  if (display_wayland->gtk_shell)
+    impl->gtk_surface = gtk_shell_get_gtk_surface (display_wayland->gtk_shell,
+						   impl->surface);
 }
 
 static void
@@ -1026,6 +1031,14 @@ gdk_wayland_window_show (GdkWindow *window, gboolean already_mapped)
                                     &shell_surface_listener, window);
     }
 
+  if (impl->shell_surface)
+    {
+      if (impl->title)
+	wl_shell_surface_set_title (impl->shell_surface, impl->title);
+
+      wl_shell_surface_set_class (impl->shell_surface, gdk_get_program_class ());
+    }
+
   gdk_window_set_type_hint (window, impl->hint);
 
   _gdk_make_event (window, GDK_MAP, NULL, FALSE);
@@ -1034,9 +1047,6 @@ gdk_wayland_window_show (GdkWindow *window, gboolean already_mapped)
 
   if (impl->cairo_surface)
     gdk_wayland_window_attach_image (window);
-
-  if (impl->shell_surface && impl->title)
-    wl_shell_surface_set_title (impl->shell_surface, impl->title);
 }
 
 static void
@@ -1056,6 +1066,10 @@ gdk_wayland_window_hide_surface (GdkWindow *window,
         }
       else if (impl->surface)
         {
+	  if (impl->gtk_surface)
+	    gtk_surface_destroy(impl->gtk_surface);
+	  impl->gtk_surface = NULL;
+
           wl_surface_destroy(impl->surface);
           impl->surface = NULL;
 
@@ -2032,6 +2046,9 @@ gdk_wayland_window_set_opaque_region (GdkWindow      *window,
   if (GDK_WINDOW_DESTROYED (window))
     return;
 
+  if (!impl->surface)
+    gdk_wayland_window_create_surface (window);
+
   wl_region = wl_region_from_cairo_region (GDK_WAYLAND_DISPLAY (gdk_window_get_display (window)), region);
   if (wl_region == NULL)
     return;
@@ -2253,4 +2270,34 @@ gdk_wayland_window_set_use_custom_surface (GdkWindow *window)
     gdk_wayland_window_create_surface (window);
 
   impl->use_custom_surface = TRUE;
+}
+
+void
+gdk_wayland_window_set_dbus_properties_libgtk_only (GdkWindow  *window,
+						    const char *application_id,
+						    const char *app_menu_path,
+						    const char *menubar_path,
+						    const char *window_object_path,
+						    const char *application_object_path,
+						    const char *unique_bus_name)
+{
+  GdkWindowImplWayland *impl;
+
+  g_return_if_fail (GDK_IS_WAYLAND_WINDOW (window));
+
+  impl = GDK_WINDOW_IMPL_WAYLAND (window->impl);
+
+  if (!impl->surface)
+    gdk_wayland_window_create_surface (window);
+
+  if (impl->gtk_surface == NULL)
+    return;
+
+  gtk_surface_set_dbus_properties (impl->gtk_surface,
+				   application_id,
+				   app_menu_path,
+				   menubar_path,
+				   window_object_path,
+				   application_object_path,
+				   unique_bus_name);
 }

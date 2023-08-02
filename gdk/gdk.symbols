@@ -1,6 +1,7 @@
 /* This file lists all exported symbols. It is used to generate
  * the gdk.def file used to control exports on Windows.
  */
+gdk_event_get_window
 gdk_event_get_event_type
 gdk_cursor_new_from_surface
 gdk_cursor_get_surface

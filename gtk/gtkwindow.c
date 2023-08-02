@@ -555,7 +555,11 @@ static gboolean
 gdk_window_supports_csd (GtkWindow *window);
 static void
 gdk_window_enable_csd (GtkWindow *window);
-
+static void
+on_titlebar_title_notify (GtkCSDTitleBar *titlebar,
+                          GParamSpec *pspec,
+                          GtkWindow *self);
+                          
 G_DEFINE_TYPE_WITH_CODE (GtkWindow, gtk_window, GTK_TYPE_BIN,
                          G_IMPLEMENT_INTERFACE (GTK_TYPE_BUILDABLE,
 						gtk_window_buildable_interface_init))
@@ -1790,6 +1794,36 @@ gtk_window_new (GtkWindowType type)
   return GTK_WIDGET (window);
 }
 
+static void
+gtk_window_set_title_internal (GtkWindow   *window,
+                               const gchar *title,
+                               gboolean     update_titlebar)
+{
+  GtkWindowPrivate *priv;
+  GtkWidget *widget;
+  char *new_title;
+
+  g_return_if_fail (GTK_IS_WINDOW (window));
+
+  priv = window->priv;
+  widget = GTK_WIDGET (window);
+
+  new_title = g_strdup (title);
+  g_free (priv->title);
+  priv->title = new_title;
+
+  if (new_title == NULL)
+    new_title = "";
+
+  if (gtk_widget_get_realized (widget))
+    gdk_window_set_title (gtk_widget_get_window (widget), new_title);
+
+  if (priv->titlebar != NULL && update_titlebar)
+    gtk_csd_title_bar_set_title (GTK_CSD_TITLE_BAR (priv->titlebar), new_title);
+
+  g_object_notify (G_OBJECT (window), "title");
+}
+
 /**
  * gtk_window_set_title:
  * @window: a #GtkWindow
@@ -1809,26 +1843,9 @@ void
 gtk_window_set_title (GtkWindow   *window,
 		      const gchar *title)
 {
-  GtkWindowPrivate *priv;
-  GtkWidget *widget;
-  char *new_title;
-  
-  g_return_if_fail (GTK_IS_WINDOW (window));
+	g_return_if_fail (GTK_IS_WINDOW (window));
 
-  priv = window->priv;
-  widget = GTK_WIDGET (window);
-
-  new_title = g_strdup (title);
-  g_free (priv->title);
-  priv->title = new_title;
-
-  if (gtk_widget_get_realized (widget))
-    gdk_window_set_title (gtk_widget_get_window (widget), priv->title);
-
-  if (priv->titlebar != NULL)
-    gtk_csd_title_bar_set_title (GTK_CSD_TITLE_BAR (priv->titlebar), priv->title);
-
-  g_object_notify (G_OBJECT (window), "title");
+	gtk_window_set_title_internal (window, title, TRUE);
 }
 
 /**
@@ -3491,6 +3508,15 @@ unset_titlebar (GtkWindow *window)
     }
 }
 
+static void
+on_titlebar_title_notify (GtkCSDTitleBar *titlebar,
+                          GParamSpec *pspec,
+                          GtkWindow *self)
+{
+  gtk_window_set_title_internal (self, gtk_csd_title_bar_get_title (titlebar),
+                                 FALSE);
+}
+
 /**
  * gtk_window_set_titlebar:
  * @window: a #GtkWindow
@@ -3531,6 +3557,8 @@ gtk_window_set_titlebar (GtkWindow *window,
 
   priv->title_box = titlebar;
   gtk_widget_set_parent (priv->title_box, widget);
+  g_signal_connect (titlebar, "notify::title",
+                    G_CALLBACK (on_titlebar_title_notify), window);
 
   visual = gdk_screen_get_rgba_visual (gtk_widget_get_screen (widget));
   if (visual)
@@ -7582,7 +7610,7 @@ gtk_window_focus (GtkWidget        *widget,
   bin = GTK_BIN (widget);
 
   old_focus_child = gtk_container_get_focus_child (container);
-  
+
   /* We need a special implementation here to deal properly with wrapping
    * around in the tab chain without the danger of going into an
    * infinite loop.
@@ -7614,8 +7642,17 @@ gtk_window_focus (GtkWidget        *widget,
       gtk_window_set_focus (GTK_WINDOW (container), NULL);
     }
 
-  /* Now try to focus the first widget in the window */
-  child = gtk_bin_get_child (bin);
+  /* Now try to focus the first widget in the window,
+   * taking care to hook titlebar widgets into the
+   * focus chain.
+  */
+  if (priv->title_box != NULL &&
+      old_focus_child != NULL &&
+      priv->title_box != old_focus_child)
+    child = priv->title_box;
+  else
+    child = gtk_bin_get_child (bin);
+
   if (child)
     {
       if (gtk_widget_child_focus (child, direction))

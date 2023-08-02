@@ -12516,7 +12516,7 @@ gtk_widget_class_find_style_property (GtkWidgetClass *klass,
 /**
  * gtk_widget_class_list_style_properties:
  * @klass: a #GtkWidgetClass
- * @n_properties: location to return the number of style properties found
+ * @n_properties: (out): location to return the number of style properties found
  *
  * Returns all style properties of a widget class.
  *
@@ -14168,13 +14168,24 @@ gtk_widget_real_get_width_for_height (GtkWidget *widget,
  *
  * Gets the value of the #GtkWidget:halign property.
  *
+ * For backwards compatibility reasons this method will never return
+ * %GTK_ALIGN_BASELINE, but instead it will convert it to
+ * %GTK_ALIGN_FILL. Baselines are not supported for horizontal
+ * alignment.
+ *
  * Returns: the horizontal alignment of @widget
  */
 GtkAlign
 gtk_widget_get_halign (GtkWidget *widget)
 {
+  GtkAlign align;
+
   g_return_val_if_fail (GTK_IS_WIDGET (widget), GTK_ALIGN_FILL);
-  return _gtk_widget_get_aux_info_or_defaults (widget)->halign;
+
+  align = _gtk_widget_get_aux_info_or_defaults (widget)->halign;
+  if (align == GTK_ALIGN_BASELINE)
+    return GTK_ALIGN_FILL;
+  return align;
 }
 
 /**

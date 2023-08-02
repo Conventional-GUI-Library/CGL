@@ -250,7 +250,7 @@ rgba_value_compute (GtkStyleProviderPrivate *provider,
     return _gtk_css_value_ref (specified);
 }
 
-static gboolean 
+static gboolean
 color_value_parse (GtkCssParser *parser,
                    GValue       *value)
 {
@@ -270,6 +270,7 @@ color_value_parse (GtkCssParser *parser,
       color.blue = rgba.blue * 65535. + 0.5;
 
       g_value_set_boxed (value, &color);
+      gtk_symbolic_color_unref (symbolic);
     }
   else
     {

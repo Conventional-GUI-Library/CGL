@@ -631,6 +631,27 @@ gtk_csd_title_bar_get_preferred_height_for_width (GtkWidget *widget,
   gtk_csd_title_bar_compute_size_for_opposing_orientation (widget, width, minimum_height, natural_height);
 }
 
+static gboolean
+close_button_at_end (GtkWidget *widget)
+{
+  gchar *layout_desc;
+  gboolean at_end;
+  gchar *p;
+
+  gtk_widget_style_get (gtk_widget_get_toplevel (widget),
+                        "decoration-button-layout", &layout_desc, NULL);
+
+  p = strchr (layout_desc, ':');
+  if (p && strstr (p, "close"))
+    at_end = TRUE;
+  else
+    at_end = FALSE;
+
+  g_free (layout_desc);
+
+  return at_end;
+}
+
 static void
 gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
                               GtkAllocation *allocation)
@@ -655,6 +676,9 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
   gint child_size;
   GtkTextDirection direction;
   GtkBorder css_borders;
+  gboolean at_end;
+
+  at_end = close_button_at_end (widget);
 
   gtk_widget_set_allocation (widget, allocation);
 
@@ -705,9 +729,9 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
       child_allocation.y = allocation->y + css_borders.top;
       child_allocation.height = height;
       if (packing == GTK_PACK_START)
-        x = allocation->x + css_borders.left;
+        x = allocation->x + css_borders.left + (at_end ? 0 : close_width);
       else
-        x = allocation->x + allocation->width - close_width - css_borders.right;
+        x = allocation->x + allocation->width - (at_end ? close_width : 0) - css_borders.right;
 
       if (packing == GTK_PACK_START)
 	{
@@ -761,7 +785,10 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
         }
     }
 
-  side[GTK_PACK_END] += close_width;
+  if (at_end)
+    side[GTK_PACK_END] += close_width;
+  else
+    side[GTK_PACK_START] += close_width;
 
   child_allocation.y = allocation->y + css_borders.top;
   child_allocation.height = height;
@@ -792,14 +819,21 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
     gtk_widget_size_allocate (priv->label_box, &child_allocation);
   if (priv->close_button)
     {
+      gboolean left;
+
       if (direction == GTK_TEXT_DIR_RTL)
+        left = at_end;
+      else
+        left = !at_end;
+
+      if (left)
         child_allocation.x = allocation->x + css_borders.left;
       else
         child_allocation.x = allocation->x + allocation->width - css_borders.right - close_button_width;
       child_allocation.width = close_button_width;
       gtk_widget_size_allocate (priv->close_button, &child_allocation);
 
-      if (direction == GTK_TEXT_DIR_RTL)
+      if (left)
         child_allocation.x = allocation->x + css_borders.left + close_button_width + priv->spacing;
       else
         child_allocation.x = allocation->x + allocation->width - css_borders.right - close_button_width - priv->spacing - separator_width;
@@ -1418,7 +1452,7 @@ gtk_csd_title_bar_class_init (GtkCSDTitleBarClass *class)
 
   g_type_class_add_private (object_class, sizeof (GtkCSDTitleBarPrivate));
 
-  gtk_widget_class_set_accessible_role (widget_class, ATK_ROLE_FILLER);
+  gtk_widget_class_set_accessible_role (widget_class, ATK_ROLE_PANEL);
 }
 
 static void
