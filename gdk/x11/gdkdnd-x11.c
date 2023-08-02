@@ -3370,7 +3370,7 @@ gdk_x11_drag_context_drag_motion (GdkDragContext *context,
                                   guint32         time)
 {
   GdkX11DragContext *context_x11 = GDK_X11_DRAG_CONTEXT (context);
-  GdkWindowImplX11 *impl = GDK_WINDOW_IMPL_X11 (window->impl);	
+  GdkWindowImplX11 *impl;
 
   context_x11->old_actions = context->actions;
   context->actions = possible_actions;
@@ -3498,6 +3498,7 @@ gdk_x11_drag_context_drag_motion (GdkDragContext *context,
 
   if (context->dest_window)
     {
+	  impl = GDK_WINDOW_IMPL_X11 (context->dest_window->impl);
       if (context_x11->drag_status == GDK_DRAG_STATUS_DRAG)
         {
           switch (context->protocol)

@@ -41,19 +41,35 @@ G_BEGIN_DECLS
 typedef struct {
   gint minimum_size;
   gint natural_size;
-} CachedSize;
+} CachedSizeX;
+
+typedef struct {
+  gint minimum_size;
+  gint natural_size;
+  gint minimum_baseline;
+  gint natural_baseline;
+} CachedSizeY;
 
 typedef struct
 {
   gint       lower_for_size; /* The minimum for_size with the same result */
   gint       upper_for_size; /* The maximum for_size with the same result */
-  CachedSize cached_size;
-} SizeRequest;
+  CachedSizeX cached_size;
+} SizeRequestX;
+
+typedef struct
+{
+  gint       lower_for_size; /* The minimum for_size with the same result */
+  gint       upper_for_size; /* The maximum for_size with the same result */
+  CachedSizeY cached_size;
+} SizeRequestY;
 
 typedef struct {
-  SizeRequest **requests[2];
+  SizeRequestX **requests_x;
+  SizeRequestY **requests_y;
 
-  CachedSize  cached_size[2];
+  CachedSizeX  cached_size_x;
+  CachedSizeY  cached_size_y;
 
   GtkSizeRequestMode request_mode   : 3;
   guint       request_mode_valid    : 1;
@@ -72,12 +88,16 @@ void            _gtk_size_request_cache_commit                  (SizeRequestCach
                                                                  GtkOrientation          orientation,
                                                                  gint                    for_size,
                                                                  gint                    minimum_size,
-                                                                 gint                    natural_size);
+                                                                 gint                    natural_size,
+                                                                 gint                    minimum_baseline,
+                                                                 gint                    natural_baseline);
 gboolean        _gtk_size_request_cache_lookup                  (SizeRequestCache       *cache,
                                                                  GtkOrientation          orientation,
                                                                  gint                    for_size,
                                                                  gint                   *minimum,
-                                                                 gint                   *natural);
+                                                                 gint                   *natural,
+                                                                 gint                   *minimum_baseline,
+                                                                 gint                   *natural_baseline);
 
 G_END_DECLS
 
