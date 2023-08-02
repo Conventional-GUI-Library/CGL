@@ -4,6 +4,8 @@
 test -n "$srcdir" || srcdir=`dirname "$0"`
 test -n "$srcdir" || srcdir=.
 
+./ignore.sh
+
 olddir=`pwd`
 cd "$srcdir"
 
