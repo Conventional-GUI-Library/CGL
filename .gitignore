@@ -1,0 +1,11 @@
+compile_commands.json
+.direnv/
+
+# build artefacts
+autom4te.cache/
+aclocal.m4
+
+# symlinks
+gtk-doc.m4
+gtk-doc.make
+m4/gtk-doc.m4
