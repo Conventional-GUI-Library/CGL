@@ -33,6 +33,7 @@
 #endif
 
 #include <gtk/gtkwidget.h>
+#include <gtk/gtkbox.h>
 
 G_BEGIN_DECLS
 
@@ -56,7 +57,7 @@ typedef struct _GtkSwitchClass          GtkSwitchClass;
 struct _GtkSwitch
 {
   /*< private >*/
-  GtkWidget parent_instance;
+  GtkBox parent_instance;
 
   GtkSwitchPrivate *priv;
 };
@@ -70,7 +71,7 @@ struct _GtkSwitch
 struct _GtkSwitchClass
 {
   /*< private >*/
-  GtkWidgetClass parent_class;
+  GtkBoxClass parent_class;
 
   void (* activate) (GtkSwitch *sw);
 

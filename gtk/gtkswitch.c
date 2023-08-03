@@ -48,29 +48,18 @@
 #include "gtkmarshalers.h"
 #include "gtkapplicationprivate.h"
 #include "gtkactionable.h"
-#include "a11y/gtkswitchaccessible.h"
 #include "gtkactionhelper.h"
+#include "gtktogglebutton.h"
+#include "gtkbox.h"
+#include "gtkstock.h"
 
 #include <math.h>
 
-#define DEFAULT_SLIDER_WIDTH    (36)
-
 struct _GtkSwitchPrivate
 {
-  GdkWindow *event_window;
-  GtkAction *action;
-  GtkActionHelper *action_helper;
-
-  gint handle_x;
-  gint offset;
-  gint drag_start;
-  gint drag_threshold;
-
-  guint is_active             : 1;
-  guint is_dragging           : 1;
-  guint in_press              : 1;
-  guint in_switch             : 1;
-  guint use_action_appearance : 1;
+  GtkWidget *togglebutton;
+  GtkWidget *onimg;
+  GtkWidget *offimg;
 };
 
 enum
@@ -90,6 +79,8 @@ enum
   LAST_SIGNAL
 };
 
+gboolean toggling = FALSE;
+
 static guint signals[LAST_SIGNAL] = { 0 };
 
 static GParamSpec *switch_props[LAST_PROP] = { NULL, };
@@ -97,568 +88,33 @@ static GParamSpec *switch_props[LAST_PROP] = { NULL, };
 static void gtk_switch_actionable_iface_init (GtkActionableInterface *iface);
 static void gtk_switch_activatable_interface_init (GtkActivatableIface *iface);
 
-G_DEFINE_TYPE_WITH_CODE (GtkSwitch, gtk_switch, GTK_TYPE_WIDGET,
+G_DEFINE_TYPE_WITH_CODE (GtkSwitch, gtk_switch, GTK_TYPE_BOX,
                          G_IMPLEMENT_INTERFACE (GTK_TYPE_ACTIONABLE,
                                                 gtk_switch_actionable_iface_init)
                          G_IMPLEMENT_INTERFACE (GTK_TYPE_ACTIVATABLE,
                                                 gtk_switch_activatable_interface_init));
-
-static gboolean
-gtk_switch_button_press (GtkWidget      *widget,
-                         GdkEventButton *event)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-  GtkAllocation allocation;
-
-  /* Don't handle extra mouse buttons events, let them bubble up */
-  if (event->button > 5)
-    return GDK_EVENT_PROPAGATE;
-
-  gtk_widget_get_allocation (widget, &allocation);
-
-  if (priv->is_active)
-    {
-      /* if the event occurred in the "off" area, then this
-       * is a direct toggle
-       */
-      if (event->x <= allocation.width / 2)
-        {
-          priv->in_press = TRUE;
-          return GDK_EVENT_STOP;
-        }
-
-      priv->offset = event->x - allocation.width / 2;
-    }
-  else
-    {
-      /* if the event occurred in the "on" area, then this
-       * is a direct toggle
-       */
-      if (event->x >= allocation.width / 2)
-        {
-          priv->in_press = TRUE;
-          return GDK_EVENT_STOP;
-        }
-
-      priv->offset = event->x;
-    }
-
-  priv->drag_start = event->x;
-
-  g_object_get (gtk_widget_get_settings (widget),
-                "gtk-dnd-drag-threshold", &priv->drag_threshold,
-                NULL);
-
-  return GDK_EVENT_STOP;
-}
-
-static gboolean
-gtk_switch_motion (GtkWidget      *widget,
-                   GdkEventMotion *event)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-
-  /* if this is a direct toggle we don't handle motion */
-  if (priv->in_press)
-    return GDK_EVENT_PROPAGATE;
-
-  if (ABS (event->x - priv->drag_start) < priv->drag_threshold)
-    return GDK_EVENT_STOP;
-
-  if (event->state & GDK_BUTTON1_MASK)
-    {
-      gint position = event->x - priv->offset;
-      GtkAllocation allocation;
-      GtkStyleContext *context;
-      GtkStateFlags state;
-      GtkBorder padding;
-      gint width, focus_width, focus_pad;
-
-      gtk_widget_style_get (widget,
-                            "focus-line-width", &focus_width,
-                            "focus-padding", &focus_pad,
-                            NULL);
-
-      context = gtk_widget_get_style_context (widget);
-      state = gtk_widget_get_state_flags (widget);
-
-      gtk_style_context_save (context);
-      gtk_style_context_add_class (context, GTK_STYLE_CLASS_SLIDER);
-      gtk_style_context_get_padding (context, state, &padding);
-      gtk_style_context_restore (context);
-      
-      gtk_widget_get_allocation (widget, &allocation);
-
-      width = allocation.width - 2 * (focus_width + focus_pad);
-
-      /* constrain the handle within the trough width */
-      if (position > (width / 2) - padding.right)
-        priv->handle_x = width / 2 - padding.right;
-      else if (position < padding.left)
-        priv->handle_x = 0;
-      else
-        priv->handle_x = position;
-
-      priv->is_dragging = TRUE;
-
-      /* we need to redraw the handle */
-      gtk_widget_queue_draw (widget);
-
-      return GDK_EVENT_STOP;
-    }
-
-  return GDK_EVENT_PROPAGATE;
-}
-
-static gboolean
-gtk_switch_button_release (GtkWidget      *widget,
-                           GdkEventButton *event)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-  GtkAllocation allocation;
-
-  /* Don't handle extra mouse buttons events, let them bubble up */
-  if (event->button > 5)
-    return GDK_EVENT_PROPAGATE;
-
-  gtk_widget_get_allocation (widget, &allocation);
-
-  /* dragged toggles have a "soft" grab, so we don't care whether we
-   * are in the switch or not when the button is released; we do care
-   * for direct toggles, instead
-   */
-  if (!priv->is_dragging && !priv->in_switch)
-    return GDK_EVENT_PROPAGATE;
-
-  /* direct toggle */
-  if (priv->in_press)
-    {
-      priv->in_press = FALSE;
-      gtk_switch_set_active (GTK_SWITCH (widget), !priv->is_active);
-
-      return GDK_EVENT_STOP;
-    }
-
-  /* toggle the switch if the handle was clicked but a drag had not been
-   * initiated */
-  if (!priv->is_dragging && !priv->in_press)
-    {
-      gtk_switch_set_active (GTK_SWITCH (widget), !priv->is_active);
-
-      return GDK_EVENT_STOP;
-    }
-
-  /* dragged toggle */
-  if (priv->is_dragging)
-    {
-      priv->is_dragging = FALSE;
-
-      /* if half the handle passed the middle of the switch, then we
-       * consider it to be on
-       */
-      if ((priv->handle_x + (allocation.width / 4)) >= (allocation.width / 2))
-        {
-          gtk_switch_set_active (GTK_SWITCH (widget), TRUE);
-          priv->handle_x = allocation.width / 2;
-        }
-      else
-        {
-          gtk_switch_set_active (GTK_SWITCH (widget), FALSE);
-          priv->handle_x = 0;
-        }
-
-      gtk_widget_queue_draw (widget);
-
-      return GDK_EVENT_STOP;
-    }
-
-  return GDK_EVENT_PROPAGATE;
-}
-
-static gboolean
-gtk_switch_enter (GtkWidget        *widget,
-                  GdkEventCrossing *event)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-
-  if (event->window == priv->event_window)
-    priv->in_switch = TRUE;
-
-  return FALSE;
-}
-
-static gboolean
-gtk_switch_leave (GtkWidget        *widget,
-                  GdkEventCrossing *event)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-
-  if (event->window == priv->event_window)
-    priv->in_switch = FALSE;
-
-  return FALSE;
-}
-
 static void
 gtk_switch_activate (GtkSwitch *sw)
 {
   GtkSwitchPrivate *priv = sw->priv;
 
-  gtk_switch_set_active (sw, !priv->is_active);
+  gtk_switch_set_active (sw, !gtk_switch_get_active(sw));
 }
 
-static void
-gtk_switch_get_preferred_width (GtkWidget *widget,
-                                gint      *minimum,
-                                gint      *natural)
+static const gchar *
+gtk_switch_get_action_name (GtkActionable *actionable)
 {
-  GtkStyleContext *context;
-  GtkStateFlags state;
-  GtkBorder padding;
-  gint width, slider_width, focus_width, focus_pad;
-  PangoLayout *layout;
-  PangoRectangle logical_rect;
+  GtkSwitch *sw = GTK_SWITCH (actionable);
 
-  context = gtk_widget_get_style_context (widget);
-  state = gtk_style_context_get_state (context);
-
-  gtk_style_context_save (context);
-
-  gtk_style_context_add_class (context, GTK_STYLE_CLASS_SLIDER);
-  gtk_style_context_get_padding (context, state, &padding);
-
-  width = padding.left + padding.right;
-
-  gtk_style_context_restore (context);
-
-  gtk_widget_style_get (widget,
-                        "slider-width", &slider_width,
-                        "focus-line-width", &focus_width,
-                        "focus-padding", &focus_pad,
-                        NULL);
-
-  slider_width = MAX (slider_width, 3 * (focus_width + focus_pad));
-
-  /* Translators: if the "on" state label requires more than three
-   * glyphs then use MEDIUM VERTICAL BAR (U+2759) as the text for
-   * the state
-   */
-  layout = gtk_widget_create_pango_layout (widget, C_("switch", "ON"));
-  pango_layout_get_extents (layout, NULL, &logical_rect);
-  pango_extents_to_pixels (&logical_rect, NULL);
-  width += MAX (logical_rect.width, slider_width);
-
-  /* Translators: if the "off" state label requires more than three
-   * glyphs then use WHITE CIRCLE (U+25CB) as the text for the state
-   */
-  pango_layout_set_text (layout, C_("switch", "OFF"), -1);
-  pango_layout_get_extents (layout, NULL, &logical_rect);
-  pango_extents_to_pixels (&logical_rect, NULL);
-  width += MAX (logical_rect.width, slider_width);
-
-  g_object_unref (layout);
-
-  if (minimum)
-    *minimum = width;
-
-  if (natural)
-    *natural = width;
+  return gtk_actionable_get_action_name(GTK_TOGGLE_BUTTON(sw->priv->togglebutton));
 }
 
-static void
-gtk_switch_get_preferred_height (GtkWidget *widget,
-                                 gint      *minimum,
-                                 gint      *natural)
+static GVariant *
+gtk_switch_get_action_target_value (GtkActionable *actionable)
 {
-  GtkStyleContext *context;
-  GtkStateFlags state;
-  GtkBorder padding;
-  gint height, focus_width, focus_pad, slider_width, min_height;
-  PangoLayout *layout;
-  PangoRectangle logical_rect;
-  gchar *str;
+  GtkSwitch *sw = GTK_SWITCH (actionable);
 
-  context = gtk_widget_get_style_context (widget);
-  state = gtk_style_context_get_state (context);
-
-  gtk_style_context_save (context);
-
-  gtk_style_context_add_class (context, GTK_STYLE_CLASS_SLIDER);
-  gtk_style_context_get_padding (context, state, &padding);
-
-  height = padding.top + padding.bottom;
-
-  gtk_style_context_restore (context);
-
-  gtk_widget_style_get (widget,
-                        "slider-width", &slider_width,
-                        "focus-line-width", &focus_width,
-                        "focus-padding", &focus_pad,
-                        NULL);
-
-  min_height = MAX (slider_width * 0.6, 3 * (focus_width + focus_pad));
-
-  str = g_strdup_printf ("%s%s",
-                         C_("switch", "ON"),
-                         C_("switch", "OFF"));
-
-  layout = gtk_widget_create_pango_layout (widget, str);
-  pango_layout_get_extents (layout, NULL, &logical_rect);
-  pango_extents_to_pixels (&logical_rect, NULL);
-  height += MAX (min_height, logical_rect.height);
-
-  g_object_unref (layout);
-  g_free (str);
-
-  if (minimum)
-    *minimum = height;
-
-  if (natural)
-    *natural = height;
-}
-
-static void
-gtk_switch_size_allocate (GtkWidget     *widget,
-                          GtkAllocation *allocation)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-
-  gtk_widget_set_allocation (widget, allocation);
-
-  if (gtk_widget_get_realized (widget))
-    gdk_window_move_resize (priv->event_window,
-                            allocation->x,
-                            allocation->y,
-                            allocation->width,
-                            allocation->height);
-}
-
-static void
-gtk_switch_realize (GtkWidget *widget)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-  GdkWindow *parent_window;
-  GdkWindowAttr attributes;
-  gint attributes_mask;
-  GtkAllocation allocation;
-
-  gtk_widget_set_realized (widget, TRUE);
-  parent_window = gtk_widget_get_parent_window (widget);
-  gtk_widget_set_window (widget, parent_window);
-  g_object_ref (parent_window);
-
-  gtk_widget_get_allocation (widget, &allocation);
-
-  attributes.window_type = GDK_WINDOW_CHILD;
-  attributes.wclass = GDK_INPUT_ONLY;
-  attributes.x = allocation.x;
-  attributes.y = allocation.y;
-  attributes.width = allocation.width;
-  attributes.height = allocation.height;
-  attributes.event_mask = gtk_widget_get_events (widget);
-  attributes.event_mask |= (GDK_BUTTON_PRESS_MASK |
-                            GDK_BUTTON_RELEASE_MASK |
-                            GDK_BUTTON1_MOTION_MASK |
-                            GDK_POINTER_MOTION_HINT_MASK |
-                            GDK_POINTER_MOTION_MASK |
-                            GDK_ENTER_NOTIFY_MASK |
-                            GDK_LEAVE_NOTIFY_MASK);
-  attributes_mask = GDK_WA_X | GDK_WA_Y;
-
-  priv->event_window = gdk_window_new (parent_window,
-                                       &attributes,
-                                       attributes_mask);
-  gtk_widget_register_window (widget, priv->event_window);
-}
-
-static void
-gtk_switch_unrealize (GtkWidget *widget)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-
-  if (priv->event_window != NULL)
-    {
-      gtk_widget_unregister_window (widget, priv->event_window);
-      gdk_window_destroy (priv->event_window);
-      priv->event_window = NULL;
-    }
-
-  GTK_WIDGET_CLASS (gtk_switch_parent_class)->unrealize (widget);
-}
-
-static void
-gtk_switch_map (GtkWidget *widget)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-
-  GTK_WIDGET_CLASS (gtk_switch_parent_class)->map (widget);
-
-  if (priv->event_window)
-    gdk_window_show (priv->event_window);
-}
-
-static void
-gtk_switch_unmap (GtkWidget *widget)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-
-  if (priv->event_window)
-    gdk_window_hide (priv->event_window);
-
-  GTK_WIDGET_CLASS (gtk_switch_parent_class)->unmap (widget);
-}
-
-static inline void
-gtk_switch_paint_handle (GtkWidget    *widget,
-                         cairo_t      *cr,
-                         GdkRectangle *box)
-{
-  GtkStyleContext *context = gtk_widget_get_style_context (widget);
-
-  gtk_style_context_save (context);
-  gtk_style_context_add_class (context, GTK_STYLE_CLASS_SLIDER);
-
-  gtk_render_slider (context, cr,
-                     box->x, box->y,
-                     box->width, box->height,
-                     GTK_ORIENTATION_HORIZONTAL);
-
-  gtk_style_context_restore (context);
-}
-
-static gboolean
-gtk_switch_draw (GtkWidget *widget,
-                 cairo_t   *cr)
-{
-  GtkSwitchPrivate *priv = GTK_SWITCH (widget)->priv;
-  GtkStyleContext *context;
-  GdkRectangle handle;
-  PangoLayout *layout;
-  PangoRectangle rect;
-  gint label_x, label_y;
-  GtkBorder padding;
-  GtkStateFlags state;
-  gint x, y, width, height;
-
-  context = gtk_widget_get_style_context (widget);
-  state = gtk_widget_get_state_flags (widget);
-
-  gtk_style_context_save (context);
-
-  gtk_style_context_add_class (context, GTK_STYLE_CLASS_SLIDER);
-
-  gtk_style_context_get_padding (context, state, &padding);
-
-  gtk_style_context_restore (context);
-
-  x = 0;
-  y = 0;
-  width = gtk_widget_get_allocated_width (widget);
-  height = gtk_widget_get_allocated_height (widget);
-
-  gtk_style_context_save (context);
-  gtk_style_context_add_class (context, GTK_STYLE_CLASS_TROUGH);
-
-  gtk_render_background (context, cr, x, y, width, height);
-  gtk_render_frame (context, cr, x, y, width, height);
-
-  width -= padding.left + padding.right;
-  height -= padding.top + padding.bottom;
-
-  x += padding.left;
-  y += padding.top;
-
-  handle.y = y;
-  handle.width = width / 2;
-  handle.height = height;
-
-  /* Translators: if the "on" state label requires more than three
-   * glyphs then use MEDIUM VERTICAL BAR (U+2759) as the text for
-   * the state
-   */
-  layout = gtk_widget_create_pango_layout (widget, C_("switch", "ON"));
-
-  pango_layout_get_extents (layout, NULL, &rect);
-  pango_extents_to_pixels (&rect, NULL);
-
-  label_x = x +  ((width / 2) - rect.width) / 2;
-  label_y = y + (height - rect.height) / 2;
-
-  gtk_render_layout (context, cr, label_x, label_y, layout);
-
-  g_object_unref (layout);
-
-  /* Translators: if the "off" state label requires more than three
-   * glyphs then use WHITE CIRCLE (U+25CB) as the text for the state
-   */
-  layout = gtk_widget_create_pango_layout (widget, C_("switch", "OFF"));
-
-  pango_layout_get_extents (layout, NULL, &rect);
-  pango_extents_to_pixels (&rect, NULL);
-
-  label_x = x +  (width / 2) + ((width / 2) - rect.width) / 2;
-  label_y = y + (height - rect.height) / 2;
-
-  gtk_render_layout (context, cr, label_x, label_y, layout);
-
-  g_object_unref (layout);
-
-  if (priv->is_dragging)
-    handle.x = x + priv->handle_x;
-  else if (priv->is_active)
-    handle.x = x + width - handle.width;
-  else
-    handle.x = x;
-
-  gtk_style_context_restore (context);
-
-  gtk_switch_paint_handle (widget, cr, &handle);
-
-  if (gtk_widget_has_visible_focus (widget))
-    {
-      gint focus_width, focus_pad, pad;
-
-      gtk_widget_style_get (widget,
-                            "focus-line-width", &focus_width,
-                            "focus-padding", &focus_pad,
-                            NULL);
-
-      pad = focus_pad + focus_width;
-
-      gtk_render_focus (context, cr,
-                        handle.x + pad, handle.y + pad,
-                        handle.width - pad*2, handle.height - pad*2);
-    }
-
-  return FALSE;
-}
-
-static void
-gtk_switch_set_related_action (GtkSwitch *sw,
-                               GtkAction *action)
-{
-  GtkSwitchPrivate *priv = sw->priv;
-
-  if (priv->action == action)
-    return;
-
-  gtk_activatable_do_set_related_action (GTK_ACTIVATABLE (sw), action);
-
-  priv->action = action;
-}
-
-static void
-gtk_switch_set_use_action_appearance (GtkSwitch *sw,
-                                      gboolean   use_appearance)
-{
-  GtkSwitchPrivate *priv = sw->priv;
-
-  if (priv->use_action_appearance != use_appearance)
-    {
-      priv->use_action_appearance = use_appearance;
-
-      gtk_activatable_sync_action_properties (GTK_ACTIVATABLE (sw), priv->action);
-    }
+  return gtk_actionable_get_action_target_value(GTK_TOGGLE_BUTTON(sw->priv->togglebutton));
 }
 
 static void
@@ -667,10 +123,7 @@ gtk_switch_set_action_name (GtkActionable *actionable,
 {
   GtkSwitch *sw = GTK_SWITCH (actionable);
 
-  if (!sw->priv->action_helper)
-    sw->priv->action_helper = gtk_action_helper_new (actionable);
-
-  gtk_action_helper_set_action_name (sw->priv->action_helper, action_name);
+  return gtk_actionable_set_action_name(GTK_TOGGLE_BUTTON(sw->priv->togglebutton), action_name);
 }
 
 static void
@@ -679,26 +132,7 @@ gtk_switch_set_action_target_value (GtkActionable *actionable,
 {
   GtkSwitch *sw = GTK_SWITCH (actionable);
 
-  if (!sw->priv->action_helper)
-    sw->priv->action_helper = gtk_action_helper_new (actionable);
-
-  gtk_action_helper_set_action_target_value (sw->priv->action_helper, action_target);
-}
-
-static const gchar *
-gtk_switch_get_action_name (GtkActionable *actionable)
-{
-  GtkSwitch *sw = GTK_SWITCH (actionable);
-
-  return gtk_action_helper_get_action_name (sw->priv->action_helper);
-}
-
-static GVariant *
-gtk_switch_get_action_target_value (GtkActionable *actionable)
-{
-  GtkSwitch *sw = GTK_SWITCH (actionable);
-
-  return gtk_action_helper_get_action_target_value (sw->priv->action_helper);
+  return gtk_actionable_set_action_target_value(GTK_TOGGLE_BUTTON(sw->priv->togglebutton), action_target);
 }
 
 static void
@@ -725,19 +159,19 @@ gtk_switch_set_property (GObject      *gobject,
       break;
 
     case PROP_RELATED_ACTION:
-      gtk_switch_set_related_action (sw, g_value_get_object (value));
+      gtk_activatable_set_related_action(GTK_ACTIVATABLE(sw->priv->togglebutton), g_value_get_object (value));
       break;
 
     case PROP_USE_ACTION_APPEARANCE:
-      gtk_switch_set_use_action_appearance (sw, g_value_get_boolean (value));
+      gtk_activatable_set_use_action_appearance(GTK_ACTIVATABLE(sw->priv->togglebutton), g_value_get_boolean (value));
       break;
 
     case PROP_ACTION_NAME:
-      gtk_switch_set_action_name (GTK_ACTIONABLE (sw), g_value_get_string (value));
+      gtk_actionable_set_action_name(GTK_ACTIONABLE(sw->priv->togglebutton), g_value_get_string (value));
       break;
 
     case PROP_ACTION_TARGET:
-      gtk_switch_set_action_target_value (GTK_ACTIONABLE (sw), g_value_get_variant (value));
+      gtk_actionable_set_action_target_value(GTK_ACTIONABLE(sw->priv->togglebutton), g_value_get_variant (value));
       break;
 
     default:
@@ -756,23 +190,23 @@ gtk_switch_get_property (GObject    *gobject,
   switch (prop_id)
     {
     case PROP_ACTIVE:
-      g_value_set_boolean (value, priv->is_active);
+      g_value_set_boolean (value, gtk_switch_get_active(GTK_SWITCH(gobject)));
       break;
 
     case PROP_RELATED_ACTION:
-      g_value_set_object (value, priv->action);
+      g_value_set_object (value, gtk_activatable_get_related_action(GTK_ACTIVATABLE(priv->togglebutton)));
       break;
 
     case PROP_USE_ACTION_APPEARANCE:
-      g_value_set_boolean (value, priv->use_action_appearance);
+      g_value_set_boolean (value, gtk_activatable_get_use_action_appearance(GTK_ACTIVATABLE(priv->togglebutton)));
       break;
 
     case PROP_ACTION_NAME:
-      g_value_set_string (value, gtk_action_helper_get_action_name (priv->action_helper));
+      g_value_set_string (value, gtk_actionable_get_action_name(GTK_ACTIONABLE(priv->togglebutton)));
       break;
 
     case PROP_ACTION_TARGET:
-      g_value_set_variant (value, gtk_action_helper_get_action_target_value (priv->action_helper));
+      g_value_set_variant (value, gtk_actionable_get_action_target_value(GTK_ACTIONABLE(priv->togglebutton)));
       break;
 
     default:
@@ -784,15 +218,18 @@ static void
 gtk_switch_dispose (GObject *object)
 {
   GtkSwitchPrivate *priv = GTK_SWITCH (object)->priv;
-
-  g_clear_object (&priv->action_helper);
-
-  if (priv->action)
-    {
-      gtk_activatable_do_set_related_action (GTK_ACTIVATABLE (object), NULL);
-      priv->action = NULL;
-    }
-
+  
+  if (priv->togglebutton) {
+	  gtk_widget_destroy(priv->togglebutton);
+  }
+  
+  if (priv->onimg) {
+	  gtk_widget_destroy(priv->onimg);
+  }
+  
+  if (priv->offimg) {
+	  gtk_widget_destroy(priv->offimg);
+  }
   G_OBJECT_CLASS (gtk_switch_parent_class)->dispose (object);
 }
 
@@ -834,34 +271,7 @@ gtk_switch_class_init (GtkSwitchClass *klass)
 
   g_object_class_install_properties (gobject_class, LAST_PROP, switch_props);
 
-  widget_class->get_preferred_width = gtk_switch_get_preferred_width;
-  widget_class->get_preferred_height = gtk_switch_get_preferred_height;
-  widget_class->size_allocate = gtk_switch_size_allocate;
-  widget_class->realize = gtk_switch_realize;
-  widget_class->unrealize = gtk_switch_unrealize;
-  widget_class->map = gtk_switch_map;
-  widget_class->unmap = gtk_switch_unmap;
-  widget_class->draw = gtk_switch_draw;
-  widget_class->button_press_event = gtk_switch_button_press;
-  widget_class->button_release_event = gtk_switch_button_release;
-  widget_class->motion_notify_event = gtk_switch_motion;
-  widget_class->enter_notify_event = gtk_switch_enter;
-  widget_class->leave_notify_event = gtk_switch_leave;
-
   klass->activate = gtk_switch_activate;
-
-  /**
-   * GtkSwitch:slider-width:
-   *
-   * The minimum width of the #GtkSwitch handle, in pixels.
-   */
-  gtk_widget_class_install_style_property (widget_class,
-                                           g_param_spec_int ("slider-width",
-                                                             P_("Slider Width"),
-                                                             P_("The minimum width of the handle"),
-                                                             DEFAULT_SLIDER_WIDTH, G_MAXINT,
-                                                             DEFAULT_SLIDER_WIDTH,
-                                                             GTK_PARAM_READABLE));
 
   /**
    * GtkSwitch::activate:
@@ -880,22 +290,36 @@ gtk_switch_class_init (GtkSwitchClass *klass)
                   NULL, NULL,
                   _gtk_marshal_VOID__VOID,
                   G_TYPE_NONE, 0);
+                  
   widget_class->activate_signal = signals[ACTIVATE];
 
   g_object_class_override_property (gobject_class, PROP_ACTION_NAME, "action-name");
   g_object_class_override_property (gobject_class, PROP_ACTION_TARGET, "action-target");
-
-  gtk_widget_class_set_accessible_type (widget_class, GTK_TYPE_SWITCH_ACCESSIBLE);
-  gtk_widget_class_set_accessible_role (widget_class, ATK_ROLE_TOGGLE_BUTTON);
 }
+
+
+void gtk_switch_btn_toggled(GtkWidget *widget, gpointer sw) {
+  gtk_switch_set_active(GTK_SWITCH(sw), gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)));
+}
+
 
 static void
 gtk_switch_init (GtkSwitch *self)
 {
+  if (toggling) {
+	  return;
+  }
+  
   self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, GTK_TYPE_SWITCH, GtkSwitchPrivate);
-  self->priv->use_action_appearance = TRUE;
-  gtk_widget_set_has_window (GTK_WIDGET (self), FALSE);
-  gtk_widget_set_can_focus (GTK_WIDGET (self), TRUE);
+  self->priv->togglebutton = gtk_toggle_button_new_with_label(C_("switch", "OFF"));
+  gtk_box_pack_start(GTK_BOX(self), self->priv->togglebutton, TRUE, TRUE, 0);
+  g_signal_connect(G_OBJECT(self->priv->togglebutton), "toggled", G_CALLBACK(gtk_switch_btn_toggled), (gpointer)self);
+  
+  self->priv->onimg = gtk_image_new_from_stock(GTK_STOCK_YES, GTK_ICON_SIZE_BUTTON);
+  self->priv->offimg = gtk_image_new_from_stock(GTK_STOCK_NO, GTK_ICON_SIZE_BUTTON);
+  gtk_button_set_image(GTK_BUTTON(self->priv->togglebutton), GTK_WIDGET(g_object_ref(self->priv->offimg))); 	  
+
+  gtk_widget_show_all(GTK_WIDGET(self));
 }
 
 /**
@@ -926,38 +350,23 @@ void
 gtk_switch_set_active (GtkSwitch *sw,
                        gboolean   is_active)
 {
+  toggling = TRUE;
   GtkSwitchPrivate *priv;
 
   g_return_if_fail (GTK_IS_SWITCH (sw));
 
-  is_active = !!is_active;
-
   priv = sw->priv;
 
-  if (priv->is_active != is_active)
-    {
-      AtkObject *accessible;
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(priv->togglebutton), is_active);
 
-      priv->is_active = is_active;
-
-      g_object_notify_by_pspec (G_OBJECT (sw), switch_props[PROP_ACTIVE]);
-
-      if (priv->action_helper)
-        gtk_action_helper_activate (priv->action_helper);
-
-      if (priv->action)
-        gtk_action_activate (priv->action);
-
-      accessible = gtk_widget_get_accessible (GTK_WIDGET (sw));
-      atk_object_notify_state_change (accessible, ATK_STATE_CHECKED, priv->is_active);
-
-      if (priv->is_active)
-        gtk_widget_set_state_flags (GTK_WIDGET (sw), GTK_STATE_FLAG_ACTIVE, FALSE);
-      else
-        gtk_widget_unset_state_flags (GTK_WIDGET (sw), GTK_STATE_FLAG_ACTIVE);
-
-      gtk_widget_queue_draw (GTK_WIDGET (sw));
-    }
+  if (is_active)  {
+	 gtk_button_set_label(GTK_BUTTON(priv->togglebutton), C_("switch", "ON")); 
+	 gtk_button_set_image(GTK_BUTTON(priv->togglebutton), GTK_WIDGET(g_object_ref(priv->onimg))); 	  
+  } else {
+	 gtk_button_set_label(GTK_BUTTON(priv->togglebutton), C_("switch", "OFF")); 
+	 gtk_button_set_image(GTK_BUTTON(priv->togglebutton), GTK_WIDGET(g_object_ref(priv->offimg))); 	   	  
+  }
+  toggling = FALSE;
 }
 
 /**
@@ -975,7 +384,7 @@ gtk_switch_get_active (GtkSwitch *sw)
 {
   g_return_val_if_fail (GTK_IS_SWITCH (sw), FALSE);
 
-  return sw->priv->is_active;
+  return gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sw->priv->togglebutton));
 }
 
 static void
