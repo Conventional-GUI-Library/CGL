@@ -60,6 +60,7 @@ struct _GtkSwitchPrivate
   GtkWidget *togglebutton;
   GtkWidget *onimg;
   GtkWidget *offimg;
+  gboolean toggling;
 };
 
 enum
@@ -79,7 +80,6 @@ enum
   LAST_SIGNAL
 };
 
-gboolean toggling = FALSE;
 
 static guint signals[LAST_SIGNAL] = { 0 };
 
@@ -299,6 +299,10 @@ gtk_switch_class_init (GtkSwitchClass *klass)
 
 
 void gtk_switch_btn_toggled(GtkWidget *widget, gpointer sw) {
+  if (GTK_SWITCH(sw)->priv->toggling) {
+	  return;
+  }
+ 
   gtk_switch_set_active(GTK_SWITCH(sw), gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)));
 }
 
@@ -306,10 +310,6 @@ void gtk_switch_btn_toggled(GtkWidget *widget, gpointer sw) {
 static void
 gtk_switch_init (GtkSwitch *self)
 {
-  if (toggling) {
-	  return;
-  }
-  
   self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, GTK_TYPE_SWITCH, GtkSwitchPrivate);
   self->priv->togglebutton = gtk_toggle_button_new_with_label(C_("switch", "OFF"));
   gtk_box_pack_start(GTK_BOX(self), self->priv->togglebutton, TRUE, TRUE, 0);
@@ -319,6 +319,8 @@ gtk_switch_init (GtkSwitch *self)
   self->priv->offimg = gtk_image_new_from_stock(GTK_STOCK_NO, GTK_ICON_SIZE_BUTTON);
   gtk_button_set_image(GTK_BUTTON(self->priv->togglebutton), GTK_WIDGET(g_object_ref(self->priv->offimg))); 	  
 
+  self->priv->toggling = FALSE;
+  
   gtk_widget_show_all(GTK_WIDGET(self));
 }
 
@@ -350,12 +352,14 @@ void
 gtk_switch_set_active (GtkSwitch *sw,
                        gboolean   is_active)
 {
-  toggling = TRUE;
   GtkSwitchPrivate *priv;
 
   g_return_if_fail (GTK_IS_SWITCH (sw));
 
   priv = sw->priv;
+
+  priv->toggling = TRUE;
+
 
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(priv->togglebutton), is_active);
 
@@ -366,7 +370,8 @@ gtk_switch_set_active (GtkSwitch *sw,
 	 gtk_button_set_label(GTK_BUTTON(priv->togglebutton), C_("switch", "OFF")); 
 	 gtk_button_set_image(GTK_BUTTON(priv->togglebutton), GTK_WIDGET(g_object_ref(priv->offimg))); 	   	  
   }
-  toggling = FALSE;
+  
+  priv->toggling = FALSE;
 }
 
 /**
