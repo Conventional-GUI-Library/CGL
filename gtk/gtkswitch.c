@@ -106,7 +106,7 @@ gtk_switch_get_action_name (GtkActionable *actionable)
 {
   GtkSwitch *sw = GTK_SWITCH (actionable);
 
-  return gtk_actionable_get_action_name(GTK_TOGGLE_BUTTON(sw->priv->togglebutton));
+  return gtk_actionable_get_action_name(GTK_ACTIONABLE(sw->priv->togglebutton));
 }
 
 static GVariant *
@@ -114,7 +114,7 @@ gtk_switch_get_action_target_value (GtkActionable *actionable)
 {
   GtkSwitch *sw = GTK_SWITCH (actionable);
 
-  return gtk_actionable_get_action_target_value(GTK_TOGGLE_BUTTON(sw->priv->togglebutton));
+  return gtk_actionable_get_action_target_value(GTK_ACTIONABLE(sw->priv->togglebutton));
 }
 
 static void
@@ -123,7 +123,7 @@ gtk_switch_set_action_name (GtkActionable *actionable,
 {
   GtkSwitch *sw = GTK_SWITCH (actionable);
 
-  return gtk_actionable_set_action_name(GTK_TOGGLE_BUTTON(sw->priv->togglebutton), action_name);
+  return gtk_actionable_set_action_name(GTK_ACTIONABLE(sw->priv->togglebutton), action_name);
 }
 
 static void
@@ -132,7 +132,7 @@ gtk_switch_set_action_target_value (GtkActionable *actionable,
 {
   GtkSwitch *sw = GTK_SWITCH (actionable);
 
-  return gtk_actionable_set_action_target_value(GTK_TOGGLE_BUTTON(sw->priv->togglebutton), action_target);
+  return gtk_actionable_set_action_target_value(GTK_ACTIONABLE(sw->priv->togglebutton), action_target);
 }
 
 static void
