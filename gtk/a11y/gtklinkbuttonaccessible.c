@@ -99,6 +99,7 @@ gtk_link_button_accessible_link_get_start_index (AtkHyperlink *atk_link)
   return 0;
 }
 
+
 static gint
 gtk_link_button_accessible_link_get_end_index (AtkHyperlink *atk_link)
 {
@@ -223,7 +224,6 @@ static void
 gtk_link_button_accessible_class_init (GtkLinkButtonAccessibleClass *klass)
 {
   G_OBJECT_CLASS (klass)->finalize = gtk_link_button_accessible_finalize;
-
   g_type_class_add_private (klass, sizeof (GtkLinkButtonAccessiblePrivate));
 }
 

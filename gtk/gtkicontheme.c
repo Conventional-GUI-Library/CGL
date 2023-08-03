@@ -254,6 +254,7 @@ struct _GtkIconInfo
   IconThemeDirType dir_type;
   gint dir_size;
   gint dir_scale;
+  gdouble unscaled_scale;
   gint threshold;
 
   /* Parameters influencing the scaled icon
@@ -365,7 +366,7 @@ static IconSuffix theme_dir_get_icon_suffix (IconThemeDir *dir,
 					     gboolean     *has_icon_file);
 
 
-static GtkIconInfo *icon_info_new             (void);
+static GtkIconInfo *icon_info_new             (IconThemeDirType type, int dir_size, int dir_scale);
 static GtkIconInfo *icon_info_new_builtin     (BuiltinIcon *icon);
 
 static IconSuffix suffix_from_name (const char *name);
@@ -1611,9 +1612,12 @@ choose_icon (GtkIconTheme       *icon_theme,
   GtkIconThemePrivate *priv;
   GList *l;
   GtkIconInfo *icon_info = NULL;
+  GtkIconInfo *unscaled_icon_info;
   UnthemedIcon *unthemed_icon = NULL;
+  const char *icon_name = NULL;
   gboolean allow_svg;
   gboolean use_builtin;
+  IconTheme *theme = NULL;
   gint i;
   IconInfoKey key;
 
@@ -1660,8 +1664,9 @@ choose_icon (GtkIconTheme       *icon_theme,
     {
       for (l = priv->themes; l; l = l->next)
         {
-          IconTheme *theme = l->data;
-          icon_info = theme_lookup_icon (theme, icon_names[0], size, scale, allow_svg, use_builtin);
+          theme = l->data;
+          icon_name = icon_names[0];
+          icon_info = theme_lookup_icon (theme, icon_name, size, scale, allow_svg, use_builtin);
           if (icon_info)
             goto out;
         }
@@ -1669,15 +1674,18 @@ choose_icon (GtkIconTheme       *icon_theme,
 
   for (l = priv->themes; l; l = l->next)
     {
-      IconTheme *theme = l->data;
-      
+      theme = l->data;
+
       for (i = 0; icon_names[i]; i++)
         {
-          icon_info = theme_lookup_icon (theme, icon_names[i], size, scale, allow_svg, use_builtin);
+          icon_name = icon_names[i];
+          icon_info = theme_lookup_icon (theme, icon_name, size, scale, allow_svg, use_builtin);
           if (icon_info)
             goto out;
         }
     }
+
+  theme = NULL;
 
   for (i = 0; icon_names[i]; i++)
     {
@@ -1702,12 +1710,9 @@ choose_icon (GtkIconTheme       *icon_theme,
       
       if (hIcon)
 	{
-	  icon_info = icon_info_new ();
+	  icon_info = icon_info_new (ICON_THEME_DIR_UNTHEMED, size, 1);
 	  icon_info->cache_pixbuf = gdk_win32_icon_to_pixbuf_libgtk_only (hIcon, NULL, NULL);
 	  DestroyIcon (hIcon);
-          icon_info->dir_type = ICON_THEME_DIR_UNTHEMED;
-          icon_info->dir_size = size;
-          icon_info->dir_scale = 1;
 	}
       g_strfreev (resources);
     }
@@ -1715,7 +1720,7 @@ choose_icon (GtkIconTheme       *icon_theme,
 
   if (unthemed_icon)
     {
-      icon_info = icon_info_new ();
+      icon_info = icon_info_new (ICON_THEME_DIR_UNTHEMED, size, 1);
 
       /* A SVG icon, when allowed, beats out a XPM icon, but not
        * a PNG icon
@@ -1729,10 +1734,6 @@ choose_icon (GtkIconTheme       *icon_theme,
 	icon_info->filename = g_strdup (unthemed_icon->no_svg_filename);
 
       icon_info->icon_file = g_file_new_for_path (icon_info->filename);
-
-      icon_info->dir_type = ICON_THEME_DIR_UNTHEMED;
-      icon_info->dir_size = size;
-      icon_info->dir_scale = 1;
     }
 
  out:
@@ -1741,6 +1742,21 @@ choose_icon (GtkIconTheme       *icon_theme,
       icon_info->desired_size = size;
       icon_info->desired_scale = scale;
       icon_info->forced_size = (flags & GTK_ICON_LOOKUP_FORCE_SIZE) != 0;
+
+      /* In case we're not scaling the icon we want to reuse the exact same size
+       * as a scale==1 lookup would be, rather than not scaling at all and
+       * causing a different layout */
+      icon_info->unscaled_scale = 1.0;
+      if (scale != 1 && !icon_info->forced_size && theme != NULL)
+        {
+          unscaled_icon_info = theme_lookup_icon (theme, icon_name, size, 1, allow_svg, use_builtin);
+          if (unscaled_icon_info)
+            {
+              icon_info->unscaled_scale =
+                (gdouble) unscaled_icon_info->dir_size * scale / (icon_info->dir_size * icon_info->dir_scale);
+              g_object_unref (unscaled_icon_info);
+            }
+        }
 
       icon_info->key.icon_names = g_strdupv ((char **)icon_names);
       icon_info->key.size = size;
@@ -2851,13 +2867,15 @@ theme_lookup_icon (IconTheme          *theme,
 
   if (min_dir)
     {
-      GtkIconInfo *icon_info = icon_info_new ();
+      GtkIconInfo *icon_info = icon_info_new (min_dir->type, min_dir->size, min_dir->scale);
       gboolean has_icon_file = FALSE;
-      
+
+      icon_info->threshold = min_dir->threshold;
+
       suffix = theme_dir_get_icon_suffix (min_dir, icon_name, &has_icon_file);
       suffix = best_suffix (suffix, allow_svg);
       g_assert (suffix != ICON_SUFFIX_NONE);
-      
+
       if (min_dir->dir)
         {
           file = g_strconcat (icon_name, string_from_suffix (suffix), NULL);
@@ -2913,11 +2931,6 @@ theme_lookup_icon (IconTheme          *theme,
 							      min_dir->subdir_index);
 	}
 
-      icon_info->dir_type = min_dir->type;
-      icon_info->dir_size = min_dir->size;
-      icon_info->dir_scale = min_dir->scale;
-      icon_info->threshold = min_dir->threshold;
-      
       return icon_info;
     }
 
@@ -3295,9 +3308,18 @@ gtk_icon_info_init (GtkIconInfo *icon_info)
 }
 
 static GtkIconInfo *
-icon_info_new (void)
+icon_info_new (IconThemeDirType type, int dir_size, int dir_scale)
 {
-  return g_object_new (GTK_TYPE_ICON_INFO, NULL);
+  GtkIconInfo *icon_info;
+
+  icon_info = g_object_new (GTK_TYPE_ICON_INFO, NULL);
+
+  icon_info->dir_type = type;
+  icon_info->dir_size = dir_size;
+  icon_info->dir_scale = dir_scale;
+  icon_info->unscaled_scale = 1.0;
+
+  return icon_info;
 }
 
 /* This only copies whatever is needed to load the pixbuf, so that we can do
@@ -3309,7 +3331,7 @@ icon_info_dup (GtkIconInfo *icon_info)
   GtkIconInfo *dup;
   GSList *l;
 
-  dup = icon_info_new ();
+  dup = icon_info_new (icon_info->dir_type, icon_info->dir_size, icon_info->dir_scale);
 
   dup->filename = g_strdup (icon_info->filename);
   if (icon_info->icon_file)
@@ -3330,9 +3352,7 @@ icon_info_dup (GtkIconInfo *icon_info)
     dup->cache_pixbuf = g_object_ref (icon_info->cache_pixbuf);
 
   dup->data = icon_data_dup (icon_info->data);
-  dup->dir_type = icon_info->dir_type;
-  dup->dir_size = icon_info->dir_size;
-  dup->dir_scale = icon_info->dir_scale;
+  dup->unscaled_scale = icon_info->unscaled_scale;
   dup->threshold = icon_info->threshold;
   dup->desired_size = icon_info->desired_size;
   dup->desired_scale = icon_info->desired_scale;
@@ -3346,12 +3366,9 @@ icon_info_dup (GtkIconInfo *icon_info)
 static GtkIconInfo *
 icon_info_new_builtin (BuiltinIcon *icon)
 {
-  GtkIconInfo *icon_info = icon_info_new ();
+  GtkIconInfo *icon_info = icon_info_new (ICON_THEME_DIR_THRESHOLD, icon->size, 1);
 
   icon_info->cache_pixbuf = g_object_ref (icon->pixbuf);
-  icon_info->dir_type = ICON_THEME_DIR_THRESHOLD;
-  icon_info->dir_size = icon->size;
-  icon_info->dir_scale = 1;
   icon_info->threshold = 2;
 
   return icon_info;
@@ -3419,6 +3436,9 @@ gtk_icon_info_finalize (GObject *object)
   if (icon_info->symbolic_pixbuf_size)
     gtk_requisition_free (icon_info->symbolic_pixbuf_size);
   icon_data_unref (icon_info->data);
+  
+  g_clear_object (&icon_info->proxy_pixbuf);
+  g_clear_error (&icon_info->load_error);
 
   symbolic_pixbuf_cache_free (icon_info->symbolic_pixbuf_cache);
 
@@ -3734,12 +3754,12 @@ icon_info_ensure_scale_and_pixbuf (GtkIconInfo  *icon_info,
   if (icon_info->forced_size)
     icon_info->scale = -1;
   else if (icon_info->dir_type == ICON_THEME_DIR_FIXED)
-    icon_info->scale = round((gdouble) scaled_desired_size / (icon_info->dir_size * icon_info->dir_scale));
+    icon_info->scale = icon_info->unscaled_scale;
   else if (icon_info->dir_type == ICON_THEME_DIR_THRESHOLD)
     {
       if (scaled_desired_size  >= (icon_info->dir_size - icon_info->threshold) * icon_info->dir_scale &&
 	  scaled_desired_size <= (icon_info->dir_size + icon_info->threshold) * icon_info->dir_scale)
-	icon_info->scale = round((gdouble) scaled_desired_size / (icon_info->dir_size * icon_info->dir_scale));
+        icon_info->scale = icon_info->unscaled_scale;
       else if (icon_info->dir_size > 0)
 	icon_info->scale =(gdouble) scaled_desired_size / (icon_info->dir_size * icon_info->dir_scale);
     }
@@ -4075,16 +4095,6 @@ gdk_color_to_css (GdkColor *color)
                           color->blue >> 8);
 }
 
-static gchar *
-gdk_rgba_to_css (const GdkRGBA *color)
-{
-  /* drop alpha for now, since librsvg does not understand rgba() */
-  return g_strdup_printf ("rgb(%d,%d,%d)",
-                          (gint)(color->red * 255),
-                          (gint)(color->green * 255),
-                          (gint)(color->blue * 255));
-}
-
 static void
 proxy_symbolic_pixbuf_destroy (guchar *pixels, gpointer data)
 {
@@ -4167,18 +4177,18 @@ _gtk_icon_info_load_symbolic_internal (GtkIconInfo  *icon_info,
    * that would mean we have a broken style */
   g_return_val_if_fail (fg != NULL, NULL);
 
-  css_fg = gdk_rgba_to_css (fg);
+  css_fg = gdk_rgba_to_string (fg);
 
   css_success = css_warning = css_error = NULL;
 
   if (warning_color)
-    css_warning = gdk_rgba_to_css (warning_color);
+    css_warning = gdk_rgba_to_string (warning_color);
 
   if (error_color)
-    css_error = gdk_rgba_to_css (error_color);
+    css_error = gdk_rgba_to_string (error_color);
 
   if (success_color)
-    css_success = gdk_rgba_to_css (success_color);
+    css_success = gdk_rgba_to_string (success_color);
 
   if (!css_success)
     {
@@ -4196,7 +4206,7 @@ _gtk_icon_info_load_symbolic_internal (GtkIconInfo  *icon_info,
       css_error = gdk_color_to_css (&error_default_color);
     }
 
-  if (!g_file_get_contents (icon_info->filename, &file_data, &file_len, NULL))
+  if (!g_file_load_contents (icon_info->icon_file, NULL, &file_data, &file_len, NULL, NULL))
     return NULL;
 
   if (!icon_info->symbolic_pixbuf_size)
@@ -5266,7 +5276,7 @@ gtk_icon_theme_lookup_by_gicon_for_scale (GtkIconTheme       *icon_theme,
     }
   else if (G_IS_LOADABLE_ICON (icon))
     {
-      info = icon_info_new ();
+      info = icon_info_new (ICON_THEME_DIR_UNTHEMED, size, 1);
       info->loadable = G_LOADABLE_ICON (g_object_ref (icon));
 
       if (G_IS_FILE_ICON (icon))
@@ -5279,8 +5289,6 @@ gtk_icon_theme_lookup_by_gicon_for_scale (GtkIconTheme       *icon_theme,
             }
         }
 
-      info->dir_type = ICON_THEME_DIR_UNTHEMED;
-      info->dir_size = size;
       info->desired_size = size;
       info->desired_scale = scale;
       info->threshold = 2;
@@ -5352,10 +5360,9 @@ gtk_icon_info_new_for_pixbuf (GtkIconTheme *icon_theme,
   g_return_val_if_fail (GTK_IS_ICON_THEME (icon_theme), NULL);
   g_return_val_if_fail (GDK_IS_PIXBUF (pixbuf), NULL);
 
-  info = icon_info_new ();
+  info = icon_info_new (ICON_THEME_DIR_UNTHEMED, 0, 1);
   info->pixbuf = g_object_ref (pixbuf);
   info->scale = 1.0;
-  info->dir_type = ICON_THEME_DIR_UNTHEMED;
 
   return info;
 }

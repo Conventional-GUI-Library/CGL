@@ -50,6 +50,7 @@ noinst_PROGRAMS =  $(TEST_PROGS)	\
 	testentryicons			\
 	testfilechooser			\
 	testfilechooserbutton		\
+	testflowbox			\
 	testfontselection		\
 	testfontselectiondialog		\
 	testfontchooser			\
@@ -167,6 +168,7 @@ testentryicons_DEPENDENCIES = $(TEST_DEPS)
 testerrors_DEPENDENCIES = $(TEST_DEPS)
 testfilechooser_DEPENDENCIES = $(TEST_DEPS)
 testfilechooserbutton_DEPENDENCIES = $(TEST_DEPS)
+testflowbox_DEPENDENCIES = $(TEST_DEPS)
 testfontselection_DEPENDENCIES = $(TEST_DEPS)
 testfontselectiondialog_DEPENDENCIES = $(TEST_DEPS)
 testfontchooser_DEPENDENCIES = $(TEST_DEPS)
@@ -258,6 +260,9 @@ testfilechooser_SOURCES = 	\
 testfilechooserbutton_SOURCES =	\
 	prop-editor.c		\
 	testfilechooserbutton.c
+
+testflowbox_SOURCES = \
+	testflowbox.c
 
 testfontselection_SOURCES = \
 	testfontselection.c

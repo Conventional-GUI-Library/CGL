@@ -152,6 +152,7 @@ _gtk_csd_title_bar_create_title_box (const char *title,
   GtkWidget *title_label;
   GtkWidget *subtitle_label;
   GtkStyleContext *context;
+  AtkObject *accessible;
 
   label_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
   gtk_widget_set_valign (label_box, GTK_ALIGN_CENTER);
@@ -203,7 +204,8 @@ add_close_button (GtkCSDTitleBar *bar)
   GtkWidget *image;
   GtkWidget *separator;
   GtkStyleContext *context;
-  
+  AtkObject *accessible;
+
   priv = bar->priv;
 
   gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
@@ -219,6 +221,9 @@ add_close_button (GtkCSDTitleBar *bar)
   gtk_button_set_relief (GTK_BUTTON (button), GTK_RELIEF_NONE);
   g_signal_connect (button, "clicked",
                     G_CALLBACK (close_button_clicked), NULL);
+  accessible = gtk_widget_get_accessible (button);
+  if (GTK_IS_ACCESSIBLE (accessible))
+    atk_object_set_name (accessible, _("Close"));
   gtk_widget_show_all (button);
   gtk_widget_set_parent (button, GTK_WIDGET (bar));
 
@@ -634,12 +639,15 @@ gtk_csd_title_bar_get_preferred_height_for_width (GtkWidget *widget,
 static gboolean
 close_button_at_end (GtkWidget *widget)
 {
+  GtkWidget *toplevel;
   gchar *layout_desc;
   gboolean at_end;
   gchar *p;
 
-  gtk_widget_style_get (gtk_widget_get_toplevel (widget),
-                        "decoration-button-layout", &layout_desc, NULL);
+  toplevel = gtk_widget_get_toplevel (widget);
+  if (!GTK_IS_WINDOW (toplevel))
+    return TRUE;
+  gtk_widget_style_get (toplevel, "decoration-button-layout", &layout_desc, NULL);
 
   p = strchr (layout_desc, ':');
   if (p && strstr (p, "close"))

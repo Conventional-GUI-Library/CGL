@@ -218,6 +218,7 @@ struct _GtkWindowPrivate
   guint    custom_title              : 1; /* app-provided titlebar */
   guint    fullscreen                : 1;
   guint    tiled                     : 1;
+  guint    maximized                 : 1;
 
 };
 
@@ -394,6 +395,8 @@ static gint gtk_window_focus_out_event    (GtkWidget         *widget,
 static void gtk_window_style_updated      (GtkWidget         *widget);
 static gboolean gtk_window_state_event    (GtkWidget          *widget,
                                            GdkEventWindowState *event);
+static void gtk_window_remove             (GtkContainer      *container,
+                                           GtkWidget         *widget);
 static void gtk_window_check_resize       (GtkContainer      *container);
 static void gtk_window_forall             (GtkContainer   *container,
 					   gboolean	include_internals,
@@ -678,6 +681,7 @@ gtk_window_class_init (GtkWindowClass *klass)
   widget_class->get_preferred_height = gtk_window_get_preferred_height;
   widget_class->get_preferred_height_for_width = gtk_window_get_preferred_height_for_width;
 
+  container_class->remove = gtk_window_remove;
   container_class->check_resize = gtk_window_check_resize;
   container_class->forall = gtk_window_forall;
 
@@ -1218,17 +1222,6 @@ gtk_window_class_init (GtkWindowClass *klass)
   gtk_widget_class_set_accessible_type (widget_class, GTK_TYPE_WINDOW_ACCESSIBLE);
 }
 
-static gboolean
-gtk_window_get_maximized (GtkWindow *window)
-{
-  GdkWindow *gdk_window = gtk_widget_get_window (GTK_WIDGET (window));
-  gboolean maximized = FALSE;
-
-  if (gdk_window)
-    maximized = (gdk_window_get_state (gdk_window) & GDK_WINDOW_STATE_MAXIMIZED);
-
-  return maximized;
-}
 
 static void
 gtk_window_titlebar_min_clicked (GtkWidget *widget, gpointer data)
@@ -1242,8 +1235,9 @@ static void
 gtk_window_titlebar_max_clicked (GtkWidget *widget, gpointer data)
 {
   GtkWindow *window = (GtkWindow *)data;
+  GtkWindowPrivate *priv = window->priv;
 
-  if (gtk_window_get_maximized (window))
+  if (priv->maximized)
     gtk_window_unmaximize (window);
   else
     gtk_window_maximize (window);
@@ -5103,7 +5097,6 @@ static void
 update_window_buttons (GtkWindow *window)
 {
   GtkWindowPrivate *priv = window->priv;
-  gboolean maximized;
   GtkTextDirection direction;
   gchar *layout_desc;
   gchar **tokens, **t;
@@ -5113,18 +5106,17 @@ update_window_buttons (GtkWindow *window)
   if (priv->title_box == NULL)
     return;
 
-  maximized = gtk_window_get_maximized (window);
   direction = gtk_widget_get_direction (GTK_WIDGET (window));
 
   if (priv->fullscreen ||
-      (maximized && priv->hide_titlebar_when_maximized))
+      (priv->maximized && priv->hide_titlebar_when_maximized))
     {
-      gtk_widget_hide (priv->title_box);
+      gtk_widget_set_child_visible (priv->title_box, FALSE);
       return;
     }
   else
     {
-      gtk_widget_show (priv->title_box);
+      gtk_widget_set_child_visible (priv->title_box, TRUE);
     }
 
   if (priv->titlebar == NULL)
@@ -5185,6 +5177,7 @@ update_window_buttons (GtkWindow *window)
             {
               GtkWidget *button = NULL;
               GtkWidget *image = NULL;
+              AtkObject *accessible;
 
               if (strcmp (t[j], "icon") == 0)
                 {
@@ -5214,6 +5207,9 @@ update_window_buttons (GtkWindow *window)
                   gtk_widget_show_all (button);
                   g_signal_connect (button, "clicked",
                                     G_CALLBACK (gtk_window_titlebar_min_clicked), window);
+                  accessible = gtk_widget_get_accessible (button);
+                  if (GTK_IS_ACCESSIBLE (accessible))
+                    atk_object_set_name (accessible, _("Minimize"));
                   priv->titlebar_min_button = button;
                 }
               else if (strcmp (t[j], "maximize") == 0 &&
@@ -5222,7 +5218,7 @@ update_window_buttons (GtkWindow *window)
                 {
                   const gchar *icon_name;
 
-                  icon_name = maximized ? "window-restore-symbolic" : "window-maximize-symbolic";
+                  icon_name = priv->maximized ? "window-restore-symbolic" : "window-maximize-symbolic";
                   button = gtk_button_new ();
                   gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
                   image = gtk_image_new_from_icon_name (icon_name, GTK_ICON_SIZE_MENU);
@@ -5232,6 +5228,9 @@ update_window_buttons (GtkWindow *window)
                   gtk_widget_show_all (button);
                   g_signal_connect (button, "clicked",
                                     G_CALLBACK (gtk_window_titlebar_max_clicked), window);
+                  accessible = gtk_widget_get_accessible (button);
+                  if (GTK_IS_ACCESSIBLE (accessible))
+                    atk_object_set_name (accessible, priv->maximized ? _("Restore") : _("Maximize"));
                   priv->titlebar_max_button = button;
                 }
               else if (strcmp (t[j], "close") == 0 &&
@@ -5247,6 +5246,9 @@ update_window_buttons (GtkWindow *window)
                   gtk_widget_show_all (button);
                   g_signal_connect_swapped (button, "clicked",
                                             G_CALLBACK (gtk_window_close), window);
+                  accessible = gtk_widget_get_accessible (button);
+                  if (GTK_IS_ACCESSIBLE (accessible))
+                    atk_object_set_name (accessible, _("Close"));
                   priv->titlebar_close_button = button;
                 }
 
@@ -5517,7 +5519,9 @@ gtk_window_map (GtkWidget *widget)
   if (child != NULL && gtk_widget_get_visible (child))
     gtk_widget_map (child);
 
-  if (priv->title_box != NULL && gtk_widget_get_visible (priv->title_box))
+  if (priv->title_box != NULL &&
+      gtk_widget_get_visible (priv->title_box) &&
+      gtk_widget_get_child_visible (priv->title_box))
     gtk_widget_map (priv->title_box);
 
   gdk_window = gtk_widget_get_window (widget);
@@ -6261,10 +6265,39 @@ sum_borders (GtkBorder *one,
 }
 
 static void
+max_borders (GtkBorder *one,
+             GtkBorder *two)
+{
+  one->top = MAX (one->top, two->top);
+  one->right = MAX (one->right, two->right);
+  one->bottom = MAX (one->bottom, two->bottom);
+  one->left = MAX (one->left, two->left);
+}
+
+static void
 add_window_frame_style_class (GtkStyleContext *context)
 {
   gtk_style_context_remove_class (context, GTK_STYLE_CLASS_BACKGROUND);
   gtk_style_context_add_class (context, "window-frame");
+}
+
+static void
+update_window_style_classes (GtkWindow *window)
+{
+  GtkWindowPrivate *priv = window->priv;
+  GtkStyleContext *context;
+
+  context = gtk_widget_get_style_context (GTK_WIDGET (window));
+
+  if (priv->tiled)
+    gtk_style_context_add_class (context, "tiled");
+  else
+    gtk_style_context_remove_class (context, "tiled");
+
+  if (priv->maximized)
+    gtk_style_context_add_class (context, "maximized");
+  else
+    gtk_style_context_remove_class (context, "maximized");
 }
 
 static void
@@ -6273,17 +6306,19 @@ get_decoration_size (GtkWidget *widget,
 {
   GtkWindowPrivate *priv = GTK_WINDOW (widget)->priv;
   GtkBorder border = { 0 };
+  GtkBorder d = { 0 };
   GtkBorder margin;
   GtkStyleContext *context;
-  GtkStateFlags state;
+  GtkStateFlags state, s;
   GtkCssValue *shadows;
+  gint i;
 
   *decorations = border;
 
   if (!priv->client_decorated)
     return;
 
-  if (gtk_window_get_maximized (GTK_WINDOW (widget)) ||
+  if (priv->maximized ||
       priv->fullscreen ||
       priv->tiled)
     return;
@@ -6294,28 +6329,70 @@ get_decoration_size (GtkWidget *widget,
   gtk_style_context_save (context);
   add_window_frame_style_class (context);
 
-  /* Always sum border + padding */
-  gtk_style_context_get_border (context, state, decorations);
-  gtk_style_context_get_padding (context, state, &border);
-  sum_borders (decorations, &border);
+  /* We don't want windows to jump as they go to backdrop,
+   * therefore we use the maximum of the decoration sizes
+   * for focused and unfocused.
+   */
+  for (i = 0; i < 2; i++)
+    {
+      if (i == 0)
+        s = state & ~GTK_STATE_FLAG_BACKDROP;
+      else
+        s = state | GTK_STATE_FLAG_BACKDROP;
 
-  /* Calculate the size of the drop shadows ... */
-  shadows = _gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BOX_SHADOW);
-  _gtk_css_shadows_value_get_extents (shadows, &border);
+      /* Always sum border + padding */
+      gtk_style_context_get_border (context, s, &border);
+      gtk_style_context_get_padding (context, s, &d);
+      sum_borders (&d, &border);
 
-  /* ... and compare it to the margin size, which we use for resize grips */
-  gtk_style_context_get_margin (context, state, &margin);
+      /* Calculate the size of the drop shadows ... */
+      gtk_style_context_set_state (context, s);
+      shadows = _gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BOX_SHADOW);
+      _gtk_css_shadows_value_get_extents (shadows, &border);
 
-  border.top = MAX (border.top, margin.top);
-  border.right = MAX (border.right, margin.right);
-  border.bottom = MAX (border.bottom, margin.bottom);
-  border.left = MAX (border.left, margin.left);
+      /* ... and compare it to the margin size, which we use for resize grips */
+      gtk_style_context_get_margin (context, s, &margin);
+      max_borders (&border, &margin);
 
-  sum_borders (decorations, &border);
+      sum_borders (&d, &border);
+      max_borders (decorations, &d);
+    }
 
   gtk_style_context_restore (context);
 }
 
+/* We're placing 8 input-only windows around
+ * the window content as resize handles, as
+ * follows:
+ *
+ * +-----------------------------------+
+ * | +------+-----------------+------+ |
+ * | |      |                 |      | |
+ * | |   +--+-----------------+--+   | |
+ * | |   |                       |   | |
+ * | +---+                       +---+ |
+ * | |   |                       |   | |
+ * | |   |                       |   | |
+ * | |   |                       |   | |
+ * | +---+                       +---+ |
+ * | |   |                       |   | |
+ * | |   +--+-----------------+--+   | |
+ * | |      |                 |      | |
+ * | +------+-----------------+------+ |
+ * +-----------------------------------+
+ *
+ * The corner windows are shaped to allow them
+ * to extend into the edges. If the window is
+ * not resizable in both dimensions, we hide
+ * the corner windows and the edge windows in
+ * the nonresizable dimension and make the
+ * remaining edge window extend all the way.
+ *
+ * The border are where we place the resize handles
+ * is also used to draw the window shadow, which may
+ * extend out farther than the handles (or the other
+ * way around).
+ */
 static void
 update_border_windows (GtkWindow *window)
 {
@@ -6327,23 +6404,30 @@ update_border_windows (GtkWindow *window)
   cairo_rectangle_int_t rect;
   gint width, height;
   GtkBorder border;
+  GtkBorder window_border;
   GtkStyleContext *context;
+  GtkStateFlags state;
 
   if (priv->border_window[0] == NULL)
     return;
 
+  state = gtk_widget_get_state_flags (widget);
   context = gtk_widget_get_style_context (widget);
+
   gtk_style_context_save (context);
   add_window_frame_style_class (context);
-  gtk_style_context_get_margin (context,
-                                gtk_widget_get_state_flags (widget),
-                                &border);
+  gtk_style_context_set_state (context, state);
+  gtk_style_context_get_margin (context, state, &border);
+  gtk_widget_style_get (widget,
+                        "decoration-resize-handle", &handle,
+                        NULL);
   gtk_style_context_restore (context);
+  get_decoration_size (widget, &window_border);
 
   if (!priv->resizable ||
       priv->tiled ||
       priv->fullscreen ||
-      gtk_window_get_maximized (window))
+      priv->maximized)
     {
       resize_h = resize_v = FALSE;
     }
@@ -6363,26 +6447,22 @@ update_border_windows (GtkWindow *window)
         }
     }
 
-  gtk_widget_style_get (widget,
-                        "decoration-resize-handle", &handle,
-                        NULL);
-
-  width = gtk_widget_get_allocated_width (widget) - (border.left + border.right);
-  height = gtk_widget_get_allocated_height (widget) - (border.top + border.bottom);
+  width = gtk_widget_get_allocated_width (widget) - (window_border.left + window_border.right);
+  height = gtk_widget_get_allocated_height (widget) - (window_border.top + window_border.bottom);
 
   if (resize_h && resize_v)
     {
       gdk_window_move_resize (priv->border_window[GDK_WINDOW_EDGE_NORTH_WEST],
-                              0, 0,
+                              window_border.left - border.left, window_border.top - border.top,
                               border.left + handle, border.top + handle);
       gdk_window_move_resize (priv->border_window[GDK_WINDOW_EDGE_NORTH_EAST],
-                              border.left + width - handle, 0,
+                              window_border.left + width - handle, 0,
                               border.right + handle, border.top + handle);
       gdk_window_move_resize (priv->border_window[GDK_WINDOW_EDGE_SOUTH_WEST],
-                              0, border.top + height - handle,
-                              border.left + handle, border.bottom + handle);
+                              window_border.left - border.left, window_border.top + height - handle,
+                              window_border.left + handle, border.bottom + handle);
       gdk_window_move_resize (priv->border_window[GDK_WINDOW_EDGE_SOUTH_EAST],
-                              border.left + width - handle, border.top + height - handle,
+                              window_border.left + width - handle, window_border.top + height - handle,
                               border.right + handle, border.bottom + handle);
 
       rect.x = 0;
@@ -6460,20 +6540,20 @@ update_border_windows (GtkWindow *window)
 
       if (resize_h)
         {
-          x = border.left + handle;
+          x = window_border.left + handle;
           w = width - 2 * handle;
         }
       else
         {
           x = 0;
-          w = width + border.left + border.right;
+          w = width + window_border.left + window_border.right;
         }
 
       gdk_window_move_resize (priv->border_window[GDK_WINDOW_EDGE_NORTH],
-                              x, 0,
+                              x, window_border.top - border.top,
                               w, border.top);
       gdk_window_move_resize (priv->border_window[GDK_WINDOW_EDGE_SOUTH],
-                              x, border.top + height,
+                              x, window_border.top + height,
                               w, border.bottom);
 
       gdk_window_show (priv->border_window[GDK_WINDOW_EDGE_NORTH]);
@@ -6491,21 +6571,21 @@ update_border_windows (GtkWindow *window)
 
       if (resize_v)
         {
-          y = border.top + handle;
+          y = window_border.top + handle;
           h = height - 2 * handle;
         }
       else
         {
           y = 0;
-          h = height + border.top + border.bottom;
+          h = height + window_border.top + window_border.bottom;
         }
 
       gdk_window_move_resize (priv->border_window[GDK_WINDOW_EDGE_WEST],
-                              0, y,
+                              window_border.left - border.left, y,
                               border.left, h);
 
       gdk_window_move_resize (priv->border_window[GDK_WINDOW_EDGE_EAST],
-                              border.left + width, y,
+                              window_border.left + width, y,
                               border.right, h);
 
       gdk_window_show (priv->border_window[GDK_WINDOW_EDGE_WEST]);
@@ -6846,8 +6926,15 @@ gtk_window_state_event (GtkWidget           *widget,
         (event->new_window_state & GDK_WINDOW_STATE_TILED) ? 1 : 0;
     }
 
+  if (event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED)
+    {
+      priv->maximized =
+        (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) ? 1 : 0;
+    }
+
   if (event->changed_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_TILED))
     {
+      update_window_style_classes (window);
       update_window_buttons (window);
       gtk_widget_queue_resize (widget);
     }
@@ -7298,7 +7385,9 @@ get_active_region_type (GtkWindow *window, GdkEventAny *event, gint x, gint y)
         return i;
     }
 
-  if (priv->title_box != NULL && gtk_widget_get_visible (priv->title_box))
+  if (priv->title_box != NULL &&
+      gtk_widget_get_visible (priv->title_box) &&
+      gtk_widget_get_child_visible (priv->title_box))
     {
       gtk_widget_get_allocation (priv->title_box, &allocation);
       if (allocation.x <= x && allocation.x + allocation.width > x &&
@@ -7338,9 +7427,6 @@ gtk_window_button_press_event (GtkWidget      *widget,
       gint x, y;
       GtkWidget *src;
       GtkWindowRegion region;
-      gboolean maximized;
-
-      maximized = gtk_window_get_maximized (window);
 
       gdk_window_get_user_data (event->window, (gpointer *)&src);
       if (src && src != widget)
@@ -7374,7 +7460,7 @@ gtk_window_button_press_event (GtkWidget      *widget,
                   return TRUE;
 
                 default:
-                  if (!maximized)
+                  if (!priv->maximized)
                     {
                       gdk_window_begin_resize_drag_for_device (gdk_window,
                                                                (GdkWindowEdge)region,
@@ -7557,6 +7643,17 @@ gtk_window_focus_out_event (GtkWidget     *widget,
     gtk_window_set_mnemonics_visible (window, FALSE);
 
   return FALSE;
+}
+
+static void
+gtk_window_remove (GtkContainer *container,
+                  GtkWidget     *widget)
+{
+  GtkWindow *window = GTK_WINDOW (container);
+  if (widget == window->priv->title_box)
+    unset_titlebar (window);
+  else
+    GTK_CONTAINER_CLASS (gtk_window_parent_class)->remove (container, widget);
 }
 
 static void
@@ -8135,7 +8232,7 @@ gtk_window_do_popup (GtkWindow      *window,
                     G_CALLBACK (minimize_window_clicked), window);
   gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
 
-  menuitem = gtk_menu_item_new_with_label (gtk_window_get_maximized (window) ? _("Unmaximize") : _("Maximize"));
+  menuitem = gtk_menu_item_new_with_label (priv->maximized ? _("Unmaximize") : _("Maximize"));
   gtk_widget_show (menuitem);
   if (!priv->resizable ||
       priv->gdk_type_hint != GDK_WINDOW_TYPE_HINT_NORMAL)
@@ -8146,7 +8243,7 @@ gtk_window_do_popup (GtkWindow      *window,
 
   menuitem = gtk_check_menu_item_new_with_label (_("Always on Top"));
   gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (menuitem), priv->above_initially);
-  if (gtk_window_get_maximized (window))
+  if (priv->maximized)
     gtk_widget_set_sensitive (menuitem, FALSE);
   gtk_widget_show (menuitem);
   g_signal_connect (G_OBJECT (menuitem), "activate",
@@ -9333,7 +9430,7 @@ gtk_window_draw (GtkWidget *widget,
           priv->decorated &&
           !priv->fullscreen &&
           !priv->tiled &&
-          !gtk_window_get_maximized (GTK_WINDOW (widget)))
+          !priv->maximized)
         {
           gtk_style_context_save (context);
 
@@ -9355,7 +9452,9 @@ gtk_window_draw (GtkWidget *widget,
           gtk_style_context_restore (context);
         }
 
-      if (priv->title_box && gtk_widget_get_visible (priv->title_box))
+      if (priv->title_box &&
+          gtk_widget_get_visible (priv->title_box) &&
+          gtk_widget_get_child_visible (priv->title_box))
         title_height = priv->title_height;
       else
         title_height = 0;

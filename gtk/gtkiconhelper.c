@@ -64,18 +64,8 @@ _gtk_icon_helper_clear (GtkIconHelper *self)
   g_clear_object (&self->priv->animation);
   g_clear_object (&self->priv->rendered_pixbuf);
   g_clear_object (&self->priv->window);
-
-  if (self->priv->orig_surface)
-    {
-      cairo_surface_destroy (self->priv->orig_surface);
-      self->priv->orig_surface = NULL;
-    }
-
-  if (self->priv->rendered_surface)
-    {
-      cairo_surface_destroy (self->priv->rendered_surface);
-      self->priv->rendered_surface = NULL;
-    }
+  g_clear_pointer (&self->priv->orig_surface, cairo_surface_destroy);
+  g_clear_pointer (&self->priv->rendered_surface, cairo_surface_destroy);
 
   if (self->priv->icon_set != NULL)
     {
@@ -83,11 +73,8 @@ _gtk_icon_helper_clear (GtkIconHelper *self)
       self->priv->icon_set = NULL;
     }
 
-  g_free (self->priv->icon_name);
-  self->priv->icon_name = NULL;
-
-  g_free (self->priv->stock_id);
-  self->priv->stock_id = NULL;
+  g_clear_pointer (&self->priv->icon_name, g_free);
+  g_clear_pointer (&self->priv->stock_id, g_free);
 
   self->priv->storage_type = GTK_IMAGE_EMPTY;
   self->priv->icon_size = GTK_ICON_SIZE_INVALID;
@@ -673,6 +660,7 @@ ensure_stated_surface_from_info (GtkIconHelper *self,
 	(gdk_pixbuf_get_width (destination) + scale - 1) / scale;
       self->priv->rendered_surface_height = 
 	(gdk_pixbuf_get_height (destination) + scale - 1) / scale;
+      g_object_unref (destination);
     }
 
   self->priv->rendered_surface = surface;

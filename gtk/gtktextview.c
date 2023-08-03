@@ -1392,6 +1392,13 @@ gtk_text_view_init (GtkTextView *text_view)
 
   gtk_widget_set_can_focus (widget, TRUE);
 
+  /* Widgets inheriting from GtkTextView (like GtkSourceView) rely on being able to
+     paint before chaining up to GtkTextView.draw() and having that be visible, that
+     doesn't work unless we have alpha in the textview pixelcache. This is slightly
+     suboptimal, as it means drawing the cache is slower (and OVER operation) rather
+     than a pure blit, but is required for backwards compat. */
+//  _gtk_pixel_cache_set_content (priv->pixel_cache, CAIRO_CONTENT_COLOR_ALPHA);
+
   /* Set up default style */
   priv->wrap_mode = GTK_WRAP_NONE;
   priv->pixels_above_lines = 0;

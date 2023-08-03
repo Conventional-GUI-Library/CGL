@@ -2670,6 +2670,8 @@ _gtk_entry_completion_disconnect (GtkEntryCompletion *completion)
 
   unset_accessible_relation (completion->priv->popup_window,
                              completion->priv->entry);
+  gtk_window_set_attached_to (GTK_WINDOW (completion->priv->popup_window),
+                              NULL);
 
   completion->priv->entry = NULL;
 }
@@ -2682,6 +2684,8 @@ _gtk_entry_completion_connect (GtkEntryCompletion *completion,
 
   set_accessible_relation (completion->priv->popup_window,
                            completion->priv->entry);
+  gtk_window_set_attached_to (GTK_WINDOW (completion->priv->popup_window),
+                              completion->priv->entry);
 
   connect_completion_signals (completion);
 }

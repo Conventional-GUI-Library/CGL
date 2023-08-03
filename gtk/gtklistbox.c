@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include "a11y/gtklistboxaccessibleprivate.h"
+#include "a11y/gtklistboxrowaccessible.h"
 
 /**
  * SECTION:gtklistbox
@@ -1343,7 +1344,7 @@ gtk_list_box_real_focus (GtkWidget        *widget,
 
       if (direction == GTK_DIR_UP || direction == GTK_DIR_TAB_BACKWARD)
         {
-          i = gtk_list_box_get_previous_visible (list_box, ROW_PRIV (priv->cursor_row)->iter);
+          i = gtk_list_box_get_previous_visible (list_box, ROW_PRIV (GTK_LIST_BOX_ROW (focus_child))->iter);
           while (i != NULL)
             {
               if (gtk_widget_get_sensitive (g_sequence_get (i)))
@@ -1357,7 +1358,7 @@ gtk_list_box_real_focus (GtkWidget        *widget,
         }
       else if (direction == GTK_DIR_DOWN || direction == GTK_DIR_TAB_FORWARD)
         {
-          i = gtk_list_box_get_next_visible (list_box, ROW_PRIV (priv->cursor_row)->iter);
+          i = gtk_list_box_get_next_visible (list_box, ROW_PRIV (GTK_LIST_BOX_ROW (focus_child))->iter);
           while (!g_sequence_iter_is_end (i))
             {
               if (gtk_widget_get_sensitive (g_sequence_get (i)))
@@ -2417,6 +2418,9 @@ gtk_list_box_row_set_focus (GtkListBoxRow *row)
   GdkModifierType state = 0;
   gboolean modify_selection_pressed;
 
+  if (!list_box)
+    return;
+
   modify_selection_pressed = FALSE;
   if (gtk_get_current_event_state (&state))
     {
@@ -2812,6 +2816,8 @@ gtk_list_box_row_class_init (GtkListBoxRowClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
+  gtk_widget_class_set_accessible_type (widget_class, GTK_TYPE_LIST_BOX_ROW_ACCESSIBLE);
+
   object_class->get_property = gtk_list_box_row_get_property;
   object_class->set_property = gtk_list_box_row_set_property;
   object_class->finalize = gtk_list_box_row_finalize;
@@ -2837,6 +2843,4 @@ gtk_list_box_row_class_init (GtkListBoxRowClass *klass)
                   _gtk_marshal_VOID__VOID,
                   G_TYPE_NONE, 0);
   widget_class->activate_signal = row_signals[ROW__ACTIVATE];
-
-  gtk_widget_class_set_accessible_role (widget_class, ATK_ROLE_LIST_ITEM);
 }

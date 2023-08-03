@@ -18,14 +18,17 @@ gtka11y_c_sources =			\
 	gtkcontainercellaccessible.c	\
 	gtkentryaccessible.c		\
 	gtkexpanderaccessible.c		\
+	gtkflowboxaccessible.c		\
+	gtkflowboxchildaccessible.c	\
 	gtkframeaccessible.c		\
 	gtkiconviewaccessible.c		\
 	gtkimageaccessible.c		\
 	gtkimagecellaccessible.c	\
 	gtklabelaccessible.c		\
-	gtklevelbaraccessible.c \
+	gtklevelbaraccessible.c 	\
 	gtklinkbuttonaccessible.c	\
 	gtklistboxaccessible.c		\
+	gtklistboxrowaccessible.c	\
 	gtklockbuttonaccessible.c	\
 	gtkmenuaccessible.c		\
 	gtkmenushellaccessible.c	\
@@ -66,14 +69,17 @@ gtka11yinclude_HEADERS =		\
 	gtkcontainercellaccessible.h	\
 	gtkentryaccessible.h		\
 	gtkexpanderaccessible.h		\
+	gtkflowboxaccessible.h		\
+	gtkflowboxchildaccessible.h	\
 	gtkframeaccessible.h		\
 	gtkiconviewaccessible.h		\
 	gtkimageaccessible.h		\
 	gtkimagecellaccessible.h	\
 	gtklabelaccessible.h		\
-	gtklevelbaraccessible.h \
+	gtklevelbaraccessible.h 	\
 	gtklinkbuttonaccessible.h	\
 	gtklistboxaccessible.h		\
+	gtklistboxrowaccessible.h	\
 	gtklockbuttonaccessible.h	\
 	gtkmenuaccessible.h		\
 	gtkmenuitemaccessible.h		\
@@ -109,6 +115,7 @@ gtka11y_private_h_sources =		\
 	gtkcolorswatchaccessibleprivate.h \
 	gtkiconviewaccessibleprivate.h	\
 	gtklabelaccessibleprivate.h 	\
+	gtkflowboxaccessibleprivate.h 	\
 	gtklistboxaccessibleprivate.h	\
 	gtklockbuttonaccessibleprivate.h \
 	gtktextviewaccessibleprivate.h  \

@@ -247,5 +247,10 @@
 # define GDK_AVAILABLE_IN_3_10
 #endif
 
+#if GDK_VERSION_MAX_ALLOWED < GDK_VERSION_3_12
+# define GDK_AVAILABLE_IN_3_12                GDK_UNAVAILABLE(3, 12)
+#else
+# define GDK_AVAILABLE_IN_3_12               
+#endif
 
 #endif  /* __GDK_VERSION_MACROS_H__ */

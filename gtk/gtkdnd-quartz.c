@@ -1196,7 +1196,9 @@ gtk_drag_begin_internal (GtkWidget         *widget,
 			 GtkTargetList     *target_list,
 			 GdkDragAction      actions,
 			 gint               button,
-			 GdkEvent          *event)
+			 GdkEvent          *event,
+			 gint               x,
+			 gint               y)
 {
   GtkDragSourceInfo *info;
   GdkDevice *pointer;
@@ -1233,7 +1235,7 @@ gtk_drag_begin_internal (GtkWidget         *widget,
   window = [(id<GdkNSView>)[nswindow contentView] gdkWindow];
   g_return_val_if_fail (nsevent != NULL, NULL);
 
-  context = gdk_drag_begin (window, NULL);
+  context = gdk_drag_begin (window, target_list->list);
   g_return_val_if_fail (context != NULL, NULL);
 
   info = gtk_drag_get_source_info (context, TRUE);
@@ -1294,6 +1296,22 @@ gtk_drag_begin_internal (GtkWidget         *widget,
   return context;
 }
 
+GdkDragContext *
+gtk_drag_begin_with_coordinates (GtkWidget         *widget,
+				 GtkTargetList     *targets,
+				 GdkDragAction      actions,
+				 gint               button,
+				 GdkEvent          *event,
+				 gint               x,
+				 gint               y)
+{
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), NULL);
+  g_return_val_if_fail (gtk_widget_get_realized (widget), NULL);
+  g_return_val_if_fail (targets != NULL, NULL);
+
+  return gtk_drag_begin_internal (widget, NULL, targets,
+				  actions, button, event, x, y);
+}
 /**
  * gtk_drag_begin: (method)
  * @widget: the source widget.
@@ -1315,7 +1333,7 @@ gtk_drag_begin (GtkWidget         *widget,
   g_return_val_if_fail (targets != NULL, NULL);
 
   return gtk_drag_begin_internal (widget, NULL, targets,
-				  actions, button, event);
+				  actions, button, event, -1, -1);
 }
 
 
@@ -1353,7 +1371,7 @@ gtk_drag_source_event_cb (GtkWidget      *widget,
 	  int i;
 	  for (i=1; i<6; i++)
 	    {
-	      if (site->state & event->motion.state & 
+	      if (site->state & event->motion.state &
 		  GDK_BUTTON1_MASK << (i - 1))
 		break;
 	    }
@@ -1363,8 +1381,7 @@ gtk_drag_source_event_cb (GtkWidget      *widget,
 	    {
 	      site->state = 0;
 	      gtk_drag_begin_internal (widget, site, site->target_list,
-				       site->actions, 
-				       i, event);
+				       site->actions, i, event, -1, -1);
 
 	      retval = TRUE;
 	    }

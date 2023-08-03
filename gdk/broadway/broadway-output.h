@@ -17,9 +17,7 @@ typedef enum {
 } BroadwayWSOpCode;
 
 BroadwayOutput *broadway_output_new             (GOutputStream  *out,
-						 guint32         serial,
-						 gboolean        proto_v7_plus,
-						 gboolean        binary);
+						 guint32         serial);
 void            broadway_output_free            (BroadwayOutput *output);
 int             broadway_output_flush           (BroadwayOutput *output);
 int             broadway_output_has_error       (BroadwayOutput *output);
@@ -33,8 +31,6 @@ void            broadway_output_new_surface     (BroadwayOutput *output,
 						 int             w,
 						 int             h,
 						 gboolean        is_temp);
-void            broadway_output_request_auth    (BroadwayOutput *output);
-void            broadway_output_auth_ok         (BroadwayOutput *output);
 void            broadway_output_disconnected    (BroadwayOutput *output);
 void            broadway_output_show_surface    (BroadwayOutput *output,
 						 int             id);

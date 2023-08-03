@@ -802,7 +802,7 @@ gdk_threads_dispatch_free (gpointer data)
 
 
 /**
- * gdk_threads_add_idle_full:
+ * gdk_threads_add_idle_full: (rename-to gdk_threads_add_idle)
  * @priority: the priority of the idle source. Typically this will be in the
  *            range between #G_PRIORITY_DEFAULT_IDLE and #G_PRIORITY_HIGH_IDLE
  * @function: function to call
@@ -854,7 +854,6 @@ gdk_threads_dispatch_free (gpointer data)
  * Return value: the ID (greater than 0) of the event source.
  *
  * Since: 2.12
- * Rename to: gdk_threads_add_idle
  */
 guint
 gdk_threads_add_idle_full (gint           priority,
@@ -901,7 +900,7 @@ gdk_threads_add_idle (GSourceFunc    function,
 
 
 /**
- * gdk_threads_add_timeout_full:
+ * gdk_threads_add_timeout_full: (rename-to gdk_threads_add_timeout)
  * @priority: the priority of the timeout source. Typically this will be in the
  *            range between #G_PRIORITY_DEFAULT_IDLE and #G_PRIORITY_HIGH_IDLE.
  * @interval: the time between calls to the function, in milliseconds
@@ -957,7 +956,6 @@ gdk_threads_add_idle (GSourceFunc    function,
  * Return value: the ID (greater than 0) of the event source.
  * 
  * Since: 2.12
- * Rename to: gdk_threads_add_timeout
  */
 guint
 gdk_threads_add_timeout_full (gint           priority,
@@ -1009,7 +1007,7 @@ gdk_threads_add_timeout (guint       interval,
 
 
 /**
- * gdk_threads_add_timeout_seconds_full:
+ * gdk_threads_add_timeout_seconds_full: (rename-to gdk_threads_add_timeout_seconds)
  * @priority: the priority of the timeout source. Typically this will be in the
  *            range between #G_PRIORITY_DEFAULT_IDLE and #G_PRIORITY_HIGH_IDLE.
  * @interval: the time between calls to the function, in seconds
@@ -1021,10 +1019,9 @@ gdk_threads_add_timeout (guint       interval,
  * See g_timeout_add_seconds_full() for a discussion of why it is
  * a good idea to use this function if you don't need finer granularity.
  *
- *  Return value: the ID (greater than 0) of the event source.
+ * Return value: the ID (greater than 0) of the event source.
  * 
  * Since: 2.14
- * Rename to: gdk_threads_add_timeout_seconds
  */
 guint
 gdk_threads_add_timeout_seconds_full (gint           priority,

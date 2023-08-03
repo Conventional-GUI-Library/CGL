@@ -2697,6 +2697,7 @@ draw_page_cb (GtkWidget          *widget,
   gdouble pos_x, pos_y;
   gint pages_per_sheet;
   gboolean ltr = TRUE;
+  GtkStateFlags state;
 
   orientation = gtk_page_setup_get_orientation (priv->page_setup);
   landscape =
@@ -2706,6 +2707,7 @@ draw_page_cb (GtkWidget          *widget,
   number_up_layout = dialog_get_number_up_layout (dialog);
   width = gtk_widget_get_allocated_width (widget);
   height = gtk_widget_get_allocated_height (widget);
+  state = gtk_widget_get_state_flags (widget);
 
   cairo_save (cr);
 
@@ -2796,19 +2798,19 @@ draw_page_cb (GtkWidget          *widget,
 
   shadow_offset = 3;
 
-  gtk_style_context_get_color (context, 0, &color);
+  gtk_style_context_get_color (context, state, &color);
   cairo_set_source_rgba (cr, color.red, color.green, color.blue, 0.5);
   cairo_rectangle (cr, shadow_offset + 1, shadow_offset + 1, w, h);
   cairo_fill (cr);
 
-  gtk_style_context_get_background_color (context, 0, &color);
+  gtk_style_context_get_background_color (context, state, &color);
   gdk_cairo_set_source_rgba (cr, &color);
   cairo_rectangle (cr, 1, 1, w, h);
   cairo_fill (cr);
   cairo_set_line_width (cr, 1.0);
   cairo_rectangle (cr, 0.5, 0.5, w + 1, h + 1);
 
-  gtk_style_context_get_color (context, 0, &color);
+  gtk_style_context_get_color (context, state, &color);
   gdk_cairo_set_source_rgba (cr, &color);
   cairo_stroke (cr);
 
@@ -2951,6 +2953,10 @@ draw_page_cb (GtkWidget          *widget,
 
   if (page_setup != NULL)
     {
+      PangoContext *pango_c = NULL;
+      PangoFontDescription *pango_f = NULL;
+      gint font_size = 12 * PANGO_SCALE;
+
       pos_x += 1;
       pos_y += 1;
 
@@ -2968,14 +2974,10 @@ draw_page_cb (GtkWidget          *widget,
       cairo_restore (cr);
       cairo_save (cr);
 
-      layout  = pango_cairo_create_layout (cr);
+      layout = pango_cairo_create_layout (cr);
 
       font = pango_font_description_new ();
       pango_font_description_set_family (font, "sans");
-
-      PangoContext *pango_c = NULL;
-      PangoFontDescription *pango_f = NULL;
-      gint font_size = 12 * PANGO_SCALE;
 
       pango_c = gtk_widget_get_pango_context (widget);
       if (pango_c != NULL)
@@ -3010,6 +3012,8 @@ draw_page_cb (GtkWidget          *widget,
         cairo_translate (cr, pos_x + w + shadow_offset + 2 * RULER_DISTANCE,
                              (height - layout_h / PANGO_SCALE) / 2);
 
+      gtk_style_context_get_color (context, state, &color);
+      gdk_cairo_set_source_rgba (cr, &color);
       pango_cairo_show_layout (cr, layout);
 
       cairo_restore (cr);
@@ -3027,6 +3031,8 @@ draw_page_cb (GtkWidget          *widget,
       cairo_translate (cr, (width - layout_w / PANGO_SCALE) / 2,
                            pos_y + h + shadow_offset + 2 * RULER_DISTANCE);
 
+      gtk_style_context_get_color (context, state, &color);
+      gdk_cairo_set_source_rgba (cr, &color);
       pango_cairo_show_layout (cr, layout);
 
       g_object_unref (layout);
@@ -3034,6 +3040,9 @@ draw_page_cb (GtkWidget          *widget,
       cairo_restore (cr);
 
       cairo_set_line_width (cr, 1);
+
+      gtk_style_context_get_color (context, state, &color);
+      gdk_cairo_set_source_rgba (cr, &color);
 
       if (ltr)
         {

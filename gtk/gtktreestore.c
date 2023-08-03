@@ -348,14 +348,13 @@ gtk_tree_store_new (gint n_columns,
   return retval;
 }
 /**
- * gtk_tree_store_newv:
+ * gtk_tree_store_newv: (rename-to gtk_tree_store_new)
  * @n_columns: number of columns in the tree store
  * @types: (array length=n_columns): an array of #GType types for the columns, from first to last
  *
  * Non vararg creation function.  Used primarily by language bindings.
  *
  * Return value: (transfer full): a new #GtkTreeStore
- * Rename to: gtk_tree_store_new
  **/
 GtkTreeStore *
 gtk_tree_store_newv (gint   n_columns,
@@ -1080,7 +1079,7 @@ gtk_tree_store_set_valist_internal (GtkTreeStore *tree_store,
 }
 
 /**
- * gtk_tree_store_set_valuesv:
+ * gtk_tree_store_set_valuesv: (rename-to gtk_tree_store_set)
  * @tree_store: A #GtkTreeStore
  * @iter: A valid #GtkTreeIter for the row being modified
  * @columns: (array length=n_values): an array of column numbers
@@ -1093,7 +1092,6 @@ gtk_tree_store_set_valist_internal (GtkTreeStore *tree_store,
  * the number of columns to change is not known until run-time.
  *
  * Since: 2.12
- * Rename to: gtk_tree_store_set
  **/
 void
 gtk_tree_store_set_valuesv (GtkTreeStore *tree_store,
@@ -1581,7 +1579,7 @@ gtk_tree_store_insert_with_values (GtkTreeStore *tree_store,
 }
 
 /**
- * gtk_tree_store_insert_with_valuesv:
+ * gtk_tree_store_insert_with_valuesv: (rename-to gtk_tree_store_insert_with_values)
  * @tree_store: A #GtkTreeStore
  * @iter: (out) (allow-none): An unset #GtkTreeIter to set the new row, or %NULL.
  * @parent: (allow-none): A valid #GtkTreeIter, or %NULL
@@ -1595,7 +1593,6 @@ gtk_tree_store_insert_with_values (GtkTreeStore *tree_store,
  * function is mainly intended for language bindings.
  *
  * Since: 2.10
- * Rename to: gtk_tree_store_insert_with_values
  */
 void
 gtk_tree_store_insert_with_valuesv (GtkTreeStore *tree_store,

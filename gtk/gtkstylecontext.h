@@ -697,6 +697,17 @@ struct _GtkStyleContextClass
  */
 #define GTK_STYLE_CLASS_RIGHT "right"
 
+/**
+ * GTK_STYLE_CLASS_NEEDS_ATTENTION:
+ *
+ * A CSS class used when an element needs the user attention,
+ * for instance a button in a stack switcher corresponding to
+ * a hidden page that changed state.
+*
+ * Since: 3.12
+ */
+#define GTK_STYLE_CLASS_NEEDS_ATTENTION "needs-attention"
+
 /* Predefined set of widget regions */
 
 /**

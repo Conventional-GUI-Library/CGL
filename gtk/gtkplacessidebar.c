@@ -54,7 +54,7 @@
 #include "gtkcelllayout.h"
 #include "gtkcellrenderertext.h"
 #include "gtkcellrendererpixbuf.h"
-#include "gtkfilechooserprivate.h"
+#include "gtkfilesystem.h"
 #include "gtkicontheme.h"
 #include "gtkintl.h"
 #include "gtkmain.h"
@@ -3305,7 +3305,7 @@ bookmarks_button_release_event_cb (GtkWidget *widget,
 		eject_or_unmount_bookmark (sidebar, path);
 		gtk_tree_path_free (path);
 
-		return FALSE;
+		return TRUE;
 	}
 
 	if (event->button == 1) {
@@ -3679,7 +3679,7 @@ gtk_places_sidebar_init (GtkPlacesSidebar *sidebar)
 	tree_view = GTK_TREE_VIEW (gtk_tree_view_new ());
 	gtk_tree_view_set_headers_visible (tree_view, FALSE);
 
-	col = GTK_TREE_VIEW_COLUMN (gtk_tree_view_column_new ());
+	col = gtk_tree_view_column_new ();
 
 	/* initial padding */
 	cell = gtk_cell_renderer_text_new ();
@@ -3850,6 +3850,9 @@ gtk_places_sidebar_init (GtkPlacesSidebar *sidebar)
 
 	sidebar->drop_state = DROP_STATE_NORMAL;
 	sidebar->new_bookmark_index = -1;
+
+	/* populate the sidebar */
+	update_places (sidebar);
 }
 
 static void
