@@ -67,6 +67,7 @@
 #include "gtkplug.h"
 #include "gtktypebuiltins.h"
 #include "a11y/gtkwidgetaccessible.h"
+#include "gtkapplicationprivate.h"
 
 /* for the use of round() */
 #include "fallback-c89.c"
@@ -514,6 +515,7 @@ struct _GtkWidgetPrivate
 
   /* Animations and other things to update on clock ticks */
   GList *tick_callbacks;
+  guint clock_tick_id;
 
   /* A hash by GType key, containing hash tables by widget name
    */
@@ -4745,12 +4747,11 @@ unref_tick_callback_info (GtkWidget           *widget,
       g_slice_free (GtkTickCallbackInfo, info);
     }
 
-  if (priv->tick_callbacks == NULL && priv->realized)
+  if (priv->tick_callbacks == NULL && priv->clock_tick_id)
     {
       GdkFrameClock *frame_clock = gtk_widget_get_frame_clock (widget);
-      g_signal_handlers_disconnect_by_func (frame_clock,
-                                            (gpointer) gtk_widget_on_frame_clock_update,
-                                            widget);
+      g_signal_handler_disconnect (frame_clock, priv->clock_tick_id);
+      priv->clock_tick_id = 0;
       gdk_frame_clock_end_updating (frame_clock);
     }
 }
@@ -4850,12 +4851,12 @@ gtk_widget_add_tick_callback (GtkWidget       *widget,
 
   priv = widget->priv;
 
-  if (priv->tick_callbacks == NULL && priv->realized)
+  if (priv->realized && !priv->clock_tick_id)
     {
       GdkFrameClock *frame_clock = gtk_widget_get_frame_clock (widget);
-      g_signal_connect (frame_clock, "update",
-                        G_CALLBACK (gtk_widget_on_frame_clock_update),
-                        widget);
+      priv->clock_tick_id = g_signal_connect (frame_clock, "update",
+                                              G_CALLBACK (gtk_widget_on_frame_clock_update),
+                                              widget);
       gdk_frame_clock_begin_updating (frame_clock);
     }
 
@@ -4914,11 +4915,11 @@ gtk_widget_connect_frame_clock (GtkWidget     *widget,
   if (GTK_IS_CONTAINER (widget))
     _gtk_container_maybe_start_idle_sizer (GTK_CONTAINER (widget));
 
-  if (priv->tick_callbacks != NULL)
+  if (priv->tick_callbacks != NULL && !priv->clock_tick_id)
     {
-      g_signal_connect (frame_clock, "update",
-                        G_CALLBACK (gtk_widget_on_frame_clock_update),
-                        widget);
+      priv->clock_tick_id = g_signal_connect (frame_clock, "update",
+                                              G_CALLBACK (gtk_widget_on_frame_clock_update),
+                                              widget);
       gdk_frame_clock_begin_updating (frame_clock);
     }
 
@@ -4935,11 +4936,10 @@ gtk_widget_disconnect_frame_clock (GtkWidget     *widget,
   if (GTK_IS_CONTAINER (widget))
     _gtk_container_stop_idle_sizer (GTK_CONTAINER (widget));
 
-  if (priv->tick_callbacks)
+  if (priv->clock_tick_id)
     {
-      g_signal_handlers_disconnect_by_func (frame_clock,
-                                            (gpointer) gtk_widget_on_frame_clock_update,
-                                            widget);
+      g_signal_handler_disconnect (frame_clock, priv->clock_tick_id);
+      priv->clock_tick_id = 0;
       gdk_frame_clock_end_updating (frame_clock);
     }
 
@@ -16001,18 +16001,26 @@ gtk_widget_get_modifier_mask (GtkWidget         *widget,
 void
 _gtk_widget_update_parent_muxer (GtkWidget *widget)
 {
-  GtkWidget *parent;
   GtkActionMuxer *parent_muxer;
 
   if (widget->priv->muxer == NULL)
     return;
 
-  if (GTK_IS_MENU (widget))
-    parent = gtk_menu_get_attach_widget (GTK_MENU (widget));
+  if (GTK_IS_WINDOW (widget))
+    {
+      parent_muxer = gtk_application_get_parent_muxer_for_window (GTK_WINDOW (widget));
+    }
   else
-    parent = gtk_widget_get_parent (widget);
+    {
+      GtkWidget *parent;
 
-  parent_muxer = parent ? _gtk_widget_get_action_muxer (parent) : NULL;
+      if (GTK_IS_MENU (widget))
+        parent = gtk_menu_get_attach_widget (GTK_MENU (widget));
+      else
+        parent = gtk_widget_get_parent (widget);
+
+      parent_muxer = parent ? _gtk_widget_get_action_muxer (parent) : NULL;
+    }
 
   gtk_action_muxer_set_parent (widget->priv->muxer, parent_muxer);
 }

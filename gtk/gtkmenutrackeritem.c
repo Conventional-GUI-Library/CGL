@@ -22,6 +22,63 @@
 #include "config.h"
 
 #include "gtkmenutrackeritem.h"
+#include "gtkactionmuxer.h"
+
+#include "gtkactionmuxer.h"
+
+#include <string.h>
+
+/**
+ * SECTION:gtkmenutrackeritem
+ * @Title: GtkMenuTrackerItem
+ * @Short_description: Small helper for model menu items
+ *
+ * A #GtkMenuTrackerItem is a small helper class used by #GtkMenuTracker to
+ * represent menu items. It has one of three classes: normal item, separator,
+ * or submenu.
+ *
+ * If an item is one of the non-normal classes (submenu, separator), only the
+ * label of the item needs to be respected. Otherwise, all the properties
+ * of the item contribute to the item's appearance and state.
+ *
+ * Implementing the appearance of the menu item is up to toolkits, and certain
+ * toolkits may choose to ignore certain properties, like icon or accel. The
+ * role of the item determines its accessibility role, along with its
+ * decoration if the GtkMenuTrackerItem::toggled property is true. As an
+ * example, if the item has the role %GTK_MENU_TRACKER_ITEM_ROLE_CHECK and
+ * GtkMenuTrackerItem::toggled is %FALSE, its accessible role should be that of
+ * a check menu item, and no decoration should be drawn. But if
+ * GtkMenuTrackerItem::toggled is %TRUE, a checkmark should be drawn.
+ *
+ * All properties except for the two class-determining properties,
+ * GtkMenuTrackerItem::is-separator and GtkMenuTrackerItem::has-submenu are
+ * allowed to change, so listen to the notify signals to update your item's
+ * appearance. When using a GObject library, this can conveniently be done
+ * with g_object_bind_property() and #GBinding, and this is how this is
+ * implemented in GTK+; the appearance side is implemented in #GtkModelMenuItem.
+ *
+ * When an item is clicked, simply call gtk_menu_tracker_item_activated() in
+ * response. The #GtkMenuTrackerItem will take care of everything related to
+ * activating the item and will itself update the state of all items in
+ * response.
+ *
+ * Submenus are a special case of menu item. When an item is a submenu, you
+ * should create a submenu for it with gtk_menu_tracker_new_item_for_submenu(),
+ * and apply the same menu tracking logic you would for a toplevel menu.
+ * Applications using submenus may want to lazily build their submenus in
+ * response to the user clicking on it, as building a submenu may be expensive.
+ *
+ * Thus, the submenu has two special controls -- the submenu's visibility
+ * should be controlled by the GtkMenuTrackerItem::submenu-shown property,
+ * and if a user clicks on the submenu, do not immediately show the menu,
+ * but call gtk_menu_tracker_item_request_submenu_shown() and wait for the
+ * GtkMenuTrackerItem::submenu-shown property to update. If the user navigates,
+ * the application may want to be notified so it can cancel the expensive
+ * operation that it was using to build the submenu. Thus,
+ * gtk_menu_tracker_item_request_submenu_shown() takes a boolean parameter.
+ * Use %TRUE when the user wants to open the submenu, and %FALSE when the
+ * user wants to close the submenu.
+ */
 
 typedef GObjectClass GtkMenuTrackerItemClass;
 
@@ -31,6 +88,7 @@ struct _GtkMenuTrackerItem
 
   GtkActionObservable *observable;
   gchar *action_namespace;
+  gchar *action_and_target;
   GMenuItem *item;
   GtkMenuTrackerItemRole role : 4;
   guint is_separator : 1;
@@ -323,12 +381,25 @@ gtk_menu_tracker_item_action_removed (GtkActionObserver   *observer,
 }
 
 static void
+gtk_menu_tracker_item_primary_accel_changed (GtkActionObserver   *observer,
+                                             GtkActionObservable *observable,
+                                             const gchar         *action_name,
+                                             const gchar         *action_and_target)
+{
+  GtkMenuTrackerItem *self = GTK_MENU_TRACKER_ITEM (observer);
+
+  if (g_str_equal (action_and_target, self->action_and_target))
+    g_object_notify_by_pspec (G_OBJECT (self), gtk_menu_tracker_item_pspecs[PROP_ACCEL]);
+}
+
+static void
 gtk_menu_tracker_item_init_observer_iface (GtkActionObserverInterface *iface)
 {
   iface->action_added = gtk_menu_tracker_item_action_added;
   iface->action_enabled_changed = gtk_menu_tracker_item_action_enabled_changed;
   iface->action_state_changed = gtk_menu_tracker_item_action_state_changed;
   iface->action_removed = gtk_menu_tracker_item_action_removed;
+  iface->primary_accel_changed = gtk_menu_tracker_item_primary_accel_changed;
 }
 
 GtkMenuTrackerItem *
@@ -354,26 +425,24 @@ _gtk_menu_tracker_item_new (GtkActionObservable *observable,
     {
       GActionGroup *group = G_ACTION_GROUP (observable);
       const GVariantType *parameter_type;
+      GVariant *target;
       gboolean enabled;
       GVariant *state;
       gboolean found;
 
+      target = g_menu_item_get_attribute_value (self->item, "target", NULL);
+
+      self->action_and_target = gtk_print_action_and_target (action_namespace, action_name, target);
+
+      if (target)
+        g_variant_unref (target);
+
+      action_name = strrchr (self->action_and_target, '|') + 1;
+
       state = NULL;
 
-      if (action_namespace)
-        {
-          gchar *full_action;
-
-          full_action = g_strjoin (".", action_namespace, action_name, NULL);
-          gtk_action_observable_register_observer (self->observable, full_action, GTK_ACTION_OBSERVER (self));
-          found = g_action_group_query_action (group, full_action, &enabled, &parameter_type, NULL, NULL, &state);
-          g_free (full_action);
-        }
-      else
-        {
-          gtk_action_observable_register_observer (self->observable, action_name, GTK_ACTION_OBSERVER (self));
-          found = g_action_group_query_action (group, action_name, &enabled, &parameter_type, NULL, NULL, &state);
-        }
+      gtk_action_observable_register_observer (self->observable, action_name, GTK_ACTION_OBSERVER (self));
+      found = g_action_group_query_action (group, action_name, &enabled, &parameter_type, NULL, NULL, &state);
 
       if (found)
         gtk_menu_tracker_item_action_added (GTK_ACTION_OBSERVER (self), observable, NULL, parameter_type, enabled, state);
@@ -492,11 +561,18 @@ gtk_menu_tracker_item_get_toggled (GtkMenuTrackerItem *self)
 const gchar *
 gtk_menu_tracker_item_get_accel (GtkMenuTrackerItem *self)
 {
-  const gchar *accel = NULL;
+  const gchar *accel;
 
-  g_menu_item_get_attribute (self->item, "accel", "&s", &accel);
+  if (!self->action_and_target)
+    return NULL;
 
-  return accel;
+  if (g_menu_item_get_attribute (self->item, "accel", "&s", &accel))
+    return accel;
+
+  if (!GTK_IS_ACTION_MUXER (self->observable))
+    return NULL;
+
+  return gtk_action_muxer_get_primary_accel (GTK_ACTION_MUXER (self->observable), self->action_and_target);
 }
 
 GMenuModel *
@@ -555,19 +631,10 @@ gtk_menu_tracker_item_activated (GtkMenuTrackerItem *self)
   if (!self->can_activate)
     return;
 
-  g_menu_item_get_attribute (self->item, G_MENU_ATTRIBUTE_ACTION, "&s", &action_name);
+  action_name = strrchr (self->action_and_target, '|') + 1;
   action_target = g_menu_item_get_attribute_value (self->item, G_MENU_ATTRIBUTE_TARGET, NULL);
 
-  if (self->action_namespace)
-    {
-      gchar *full_action;
-
-      full_action = g_strjoin (".", self->action_namespace, action_name, NULL);
-      g_action_group_activate_action (G_ACTION_GROUP (self->observable), full_action, action_target);
-      g_free (full_action);
-    }
-  else
-    g_action_group_activate_action (G_ACTION_GROUP (self->observable), action_name, action_target);
+  g_action_group_activate_action (G_ACTION_GROUP (self->observable), action_name, action_target);
 
   if (action_target)
     g_variant_unref (action_target);

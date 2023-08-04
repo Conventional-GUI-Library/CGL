@@ -8580,8 +8580,8 @@ send_crossing_event (GdkDisplay                 *display,
 
   if (type == GDK_ENTER_NOTIFY &&
       (pointer_info->need_touch_press_enter ||
-       source_device &&
-       gdk_device_get_source (source_device) == GDK_SOURCE_TOUCHSCREEN) &&
+       (source_device &&
+        gdk_device_get_source (source_device) == GDK_SOURCE_TOUCHSCREEN)) &&
       mode != GDK_CROSSING_TOUCH_BEGIN &&
       mode != GDK_CROSSING_TOUCH_END)
     {
@@ -8673,8 +8673,9 @@ _gdk_synthesize_crossing_events (GdkDisplay                 *display,
 
   /* TODO: Don't send events to toplevel, as we get those from the windowing system */
 
-  a = src;
-  b = dest;
+  a = (src && GDK_IS_WINDOW (src)) ? src : NULL;
+  b = (dest && GDK_IS_WINDOW (dest)) ? dest : NULL;
+
   if (src == dest)
     return; /* No crossings generated between src and dest */
 

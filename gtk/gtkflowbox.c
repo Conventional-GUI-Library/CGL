@@ -1198,7 +1198,7 @@ gtk_flow_box_get_next_focusable (GtkFlowBox    *box,
     {
       iter = g_sequence_iter_next (iter);
       if (g_sequence_iter_is_end (iter))
-        return iter;
+        return NULL;
       child = g_sequence_get (iter);
       if (child_is_visible (GTK_WIDGET (child)) &&
           gtk_widget_is_sensitive (GTK_WIDGET (child)))
@@ -1215,6 +1215,9 @@ gtk_flow_box_get_first_focusable (GtkFlowBox *box)
   GtkFlowBoxChild *child;
 
   iter = g_sequence_get_begin_iter (BOX_PRIV (box)->children);
+  if (g_sequence_iter_is_end (iter))
+    return NULL;
+
   child = g_sequence_get (iter);
   if (child_is_visible (GTK_WIDGET (child)) &&
       gtk_widget_is_sensitive (GTK_WIDGET (child)))
@@ -1273,7 +1276,7 @@ gtk_flow_box_get_below_focusable (GtkFlowBox    *box,
         {
           iter = g_sequence_iter_next (iter);
           if (g_sequence_iter_is_end (iter))
-            return iter;
+            return NULL;
           child = g_sequence_get (iter);
           if (child_is_visible (GTK_WIDGET (child)))
             i++;
@@ -3077,9 +3080,9 @@ gtk_flow_box_realize (GtkWidget *widget)
 
   window = gdk_window_new (gtk_widget_get_parent_window (GTK_WIDGET (box)),
                            &attributes, GDK_WA_X | GDK_WA_Y);
-  gtk_style_context_set_background (gtk_widget_get_style_context (GTK_WIDGET (box)), window);
   gtk_widget_register_window (GTK_WIDGET (box), window);
   gtk_widget_set_window (GTK_WIDGET (box), window);
+  gtk_style_context_set_background (gtk_widget_get_style_context (GTK_WIDGET (box)), window);
 }
 
 static void
@@ -3197,7 +3200,7 @@ gtk_flow_box_focus (GtkWidget        *widget,
       else if (direction == GTK_DIR_DOWN)
         iter = gtk_flow_box_get_below_focusable (box, iter);
 
-      if (iter != NULL && !g_sequence_iter_is_end (iter))
+      if (iter != NULL)
         next_focus_child = g_sequence_get (iter);
     }
   else
@@ -3211,7 +3214,7 @@ gtk_flow_box_focus (GtkWidget        *widget,
           else
             iter = gtk_flow_box_get_first_focusable (box);
 
-          if (iter != NULL && !g_sequence_iter_is_end (iter))
+          if (iter != NULL)
             next_focus_child = g_sequence_get (iter);
         }
     }
@@ -3363,7 +3366,7 @@ gtk_flow_box_move_cursor (GtkFlowBox      *box,
         iter = gtk_flow_box_get_first_focusable (box);
       else
         iter = gtk_flow_box_get_last_focusable (box);
-      if (iter != NULL && !g_sequence_iter_is_end (iter))
+      if (iter != NULL)
         child = g_sequence_get (iter);
       break;
 
@@ -3383,7 +3386,7 @@ gtk_flow_box_move_cursor (GtkFlowBox      *box,
               count = count - 1;
             }
 
-          if (iter != NULL && !g_sequence_iter_is_end (iter))
+          if (iter != NULL)
             child = g_sequence_get (iter);
         }
       break;

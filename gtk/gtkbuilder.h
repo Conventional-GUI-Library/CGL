@@ -23,6 +23,7 @@
 #ifndef __GTK_BUILDER_H__
 #define __GTK_BUILDER_H__
 
+#include <gtk/gtkapplication.h>
 #include <gtk/gtkwidget.h>
 
 G_BEGIN_DECLS
@@ -172,6 +173,14 @@ void         gtk_builder_add_callback_symbols    (GtkBuilder    *builder,
 						  ...) G_GNUC_NULL_TERMINATED;
 GCallback    gtk_builder_lookup_callback_symbol  (GtkBuilder    *builder,
 						  const gchar   *callback_name);
+
+
+GDK_AVAILABLE_IN_3_10
+void         gtk_builder_set_application         (GtkBuilder     *builder,
+                                                  GtkApplication *application);
+
+GDK_AVAILABLE_IN_3_10
+GtkApplication * gtk_builder_get_application     (GtkBuilder     *builder);
 
 
 /**
