@@ -52,6 +52,7 @@
 #include "gtkmodelmenuitem.h"
 #include "gtktearoffmenuitem.h"
 #include "gtkwindow.h"
+#include "gtkwindowprivate.h"
 #include "gtkprivate.h"
 #include "gtkmain.h"
 #include "gtkintl.h"
@@ -687,6 +688,9 @@ gtk_menu_shell_button_press (GtkWidget      *widget,
   GtkWidget *menu_item;
   GtkWidget *parent;
 
+  if (event->type == GDK_2BUTTON_PRESS)
+    return _gtk_window_handle_button_press_for_widget (widget, event);
+
   if (event->type != GDK_BUTTON_PRESS)
     return FALSE;
 
@@ -742,21 +746,8 @@ gtk_menu_shell_button_press (GtkWidget      *widget,
         {
           if (!initially_active)
             {
-              gboolean window_drag = FALSE;
-
-              gtk_widget_style_get (widget,
-                                    "window-dragging", &window_drag,
-                                    NULL);
-
-              if (window_drag)
-                {
-                  gtk_menu_shell_deactivate (menu_shell);
-                  gtk_window_begin_move_drag (GTK_WINDOW (gtk_widget_get_toplevel (widget)),
-                                              event->button,
-                                              event->x_root,
-                                              event->y_root,
-                                              event->time);
-                }
+              if (_gtk_window_handle_button_press_for_widget (widget, event))
+                gtk_menu_shell_deactivate (menu_shell);
             }
         }
     }

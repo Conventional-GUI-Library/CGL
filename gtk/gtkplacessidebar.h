@@ -104,6 +104,10 @@ GSList *           gtk_places_sidebar_list_shortcuts             (GtkPlacesSideb
 
 GFile *            gtk_places_sidebar_get_nth_bookmark           (GtkPlacesSidebar   *sidebar,
                                                                   gint                n);
+void                 gtk_places_sidebar_set_local_only           (GtkPlacesSidebar   *sidebar,
+                                                                  gboolean            local_only);
+gboolean             gtk_places_sidebar_get_local_only           (GtkPlacesSidebar   *sidebar);
+
 
 G_END_DECLS
 

@@ -1,7 +1,15 @@
 /* This list defines the GTK+ ABI. It is used to generate the gtk.def
  * file.
  */
+gtk_widget_get_margin_start
+gtk_widget_set_margin_start
+gtk_widget_get_margin_end
+gtk_widget_set_margin_end
 gtk_list_box_prepend
+gtk_places_sidebar_set_local_only
+gtk_places_sidebar_get_local_only
+gtk_csd_title_bar_set_show_fallback_app_menu
+gtk_csd_title_bar_get_show_fallback_app_menu
 gtk_flow_box_unselect_all
 gtk_flow_box_unselect_child
 gtk_flow_box_child_changed

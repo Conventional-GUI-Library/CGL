@@ -1655,6 +1655,16 @@ _gdk_quartz_screen_get_setting (GdkScreen   *screen,
 
       return TRUE;
     }
+  else if (strcmp (name, "gtk-shell-shows-desktop") == 0)
+    {
+      GDK_QUARTZ_ALLOC_POOL;
+
+      g_value_set_boolean (value, TRUE);
+
+      GDK_QUARTZ_RELEASE_POOL;
+
+      return TRUE;
+    }
   
   /* FIXME: Add more settings */
 

@@ -71,6 +71,10 @@
 #include "wayland/gdkwayland.h"
 #endif
 
+#ifdef GDK_WINDOWING_BROADWAY
+#include "broadway/gdkbroadway.h"
+#endif
+
 /**
  * SECTION:gtkwindow
  * @title: GtkWindow
@@ -159,6 +163,7 @@ struct _GtkWindowPrivate
   GtkWidget *title_box;
   GtkWidget *titlebar;
   GtkWidget *titlebar_icon;
+  GtkWidget *titlebar_menu_button;
   GtkWidget *titlebar_min_button;
   GtkWidget *titlebar_max_button;
   GtkWidget *titlebar_close_button;
@@ -1080,7 +1085,7 @@ gtk_window_class_init (GtkWindowClass *klass)
                                            g_param_spec_string ("decoration-button-layout",
                                                                 P_("Decorated button layout"),
                                                                 P_("Decorated button layout"),
-                                                                ":close",
+                                                                "menu:close",
                                                                 GTK_PARAM_READABLE));
 
   gtk_widget_class_install_style_property (widget_class,
@@ -3497,6 +3502,7 @@ unset_titlebar (GtkWindow *window)
       priv->title_box = NULL;
       priv->titlebar = NULL;
       priv->titlebar_icon = NULL;
+      priv->titlebar_menu_button = NULL;
       priv->titlebar_min_button = NULL;
       priv->titlebar_max_button = NULL;
       priv->titlebar_close_button = NULL;
@@ -3563,6 +3569,20 @@ gtk_window_set_titlebar (GtkWindow *window,
                                GTK_STYLE_CLASS_TITLEBAR);
 
   gtk_widget_queue_resize (widget);
+}
+
+gboolean
+_gtk_window_titlebar_shows_app_menu (GtkWindow *window)
+{
+  GtkWindowPrivate *priv = window->priv;
+
+  if (priv->titlebar_menu_button)
+    return TRUE;
+
+  if (GTK_IS_CSD_TITLE_BAR (priv->title_box))
+    return gtk_csd_title_bar_get_show_fallback_app_menu (GTK_CSD_TITLE_BAR (priv->title_box));
+
+  return FALSE;
 }
 
 /**
@@ -3791,12 +3811,18 @@ set_titlebar_icon (GtkWindow *window, GList *list)
     {
       GdkPixbuf *pixbuf, *best;
       GList *l;
+      gint size;
+
+      if (GTK_IS_BUTTON (gtk_widget_get_parent (priv->titlebar_icon)))
+        size = 16;
+      else
+        size = 20;
 
       best = NULL;
       for (l = list; l; l = l->next)
         {
           pixbuf = list->data;
-          if (gdk_pixbuf_get_width (pixbuf) <= 20)
+          if (gdk_pixbuf_get_width (pixbuf) <= size)
             {
               best = g_object_ref (pixbuf);
               break;
@@ -3804,7 +3830,7 @@ set_titlebar_icon (GtkWindow *window, GList *list)
         }
 
       if (best == NULL)
-        best = gdk_pixbuf_scale_simple (GDK_PIXBUF (list->data), 20, 20, GDK_INTERP_BILINEAR);
+        best = gdk_pixbuf_scale_simple (GDK_PIXBUF (list->data), size, size, GDK_INTERP_BILINEAR);
 
       gtk_image_set_from_pixbuf (GTK_IMAGE (priv->titlebar_icon), best);
       g_object_unref (best);
@@ -5103,6 +5129,8 @@ update_window_buttons (GtkWindow *window)
   gchar **tokens, **t;
   gint i, j;
   GdkPixbuf *icon = NULL;
+  GMenuModel *menu;
+  gboolean shown_by_shell;
 
   if (priv->title_box == NULL)
     return;
@@ -5131,6 +5159,11 @@ update_window_buttons (GtkWindow *window)
       gtk_widget_destroy (priv->titlebar_icon);
       priv->titlebar_icon = NULL;
     }
+  if (priv->titlebar_menu_button)
+    {
+      gtk_widget_destroy (priv->titlebar_menu_button);
+      priv->titlebar_menu_button = NULL;
+    }
   if (priv->titlebar_min_button)
     {
       gtk_widget_destroy (priv->titlebar_min_button);
@@ -5150,6 +5183,14 @@ update_window_buttons (GtkWindow *window)
   gtk_widget_style_get (GTK_WIDGET (window),
                         "decoration-button-layout", &layout_desc,
                         NULL);
+
+  g_object_get (gtk_widget_get_settings (GTK_WIDGET (window)),
+                "gtk-shell-shows-app-menu", &shown_by_shell, NULL);
+
+  if (!shown_by_shell && priv->application)
+    menu = gtk_application_get_app_menu (priv->application);
+  else
+    menu = NULL;
 
   tokens = g_strsplit (layout_desc, ":", 2);
   if (tokens)
@@ -5187,14 +5228,29 @@ update_window_buttons (GtkWindow *window)
                   gtk_widget_set_size_request (button, 20, 20);
                   gtk_widget_show (button);
                   if (icon != NULL)
-                    {
-                      gtk_image_set_from_pixbuf (GTK_IMAGE (button), icon);
-                      g_object_unref (icon);
-                    }
+                    gtk_image_set_from_pixbuf (GTK_IMAGE (button), icon);
                   else
                     gtk_widget_hide (button);
 
                   priv->titlebar_icon = button;
+                }
+              else if (strcmp (t[j], "menu") == 0 && menu != NULL)
+                {
+                  button = gtk_menu_button_new ();
+                  gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (button), menu);
+                  gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
+                  if (icon != NULL)
+                    image = gtk_image_new_from_pixbuf (icon);
+                  else
+                    image = gtk_image_new_from_icon_name ("process-stop-symbolic", GTK_ICON_SIZE_MENU);
+                  gtk_container_add (GTK_CONTAINER (button), image);
+                  gtk_widget_set_can_focus (button, FALSE);
+                  gtk_widget_show_all (button);
+                  accessible = gtk_widget_get_accessible (button);
+                  if (GTK_IS_ACCESSIBLE (accessible))
+                    atk_object_set_name (accessible, _("Application menu"));
+		  priv->titlebar_icon = image;
+                  priv->titlebar_menu_button = button;
                 }
               else if (strcmp (t[j], "minimize") == 0 &&
                        priv->gdk_type_hint == GDK_WINDOW_TYPE_HINT_NORMAL)
@@ -5261,6 +5317,8 @@ update_window_buttons (GtkWindow *window)
       g_strfreev (tokens);
     }
   g_free (layout_desc);
+  if (icon)
+    g_object_unref (icon);
 }
 
 static GtkWidget *
@@ -5273,7 +5331,9 @@ create_titlebar (GtkWindow *window)
   gchar *title;
 
   titlebar = gtk_csd_title_bar_new ();
-  g_object_set (titlebar, "spacing", 0, NULL);
+  g_object_set (titlebar,
+                "spacing", 0,
+                NULL);
   context = gtk_widget_get_style_context (titlebar);
   gtk_style_context_add_class (context, GTK_STYLE_CLASS_TITLEBAR);
   gtk_style_context_add_class (context, "default-decoration");
@@ -5351,6 +5411,11 @@ gdk_window_should_use_csd (GtkWindow *window)
 
 #ifdef GDK_WINDOWING_WAYLAND
   if (GDK_IS_WAYLAND_DISPLAY (gtk_widget_get_display (GTK_WIDGET (window))))
+    return TRUE;
+#endif
+
+#ifdef GDK_WINDOWING_BROADWAY
+  if (GDK_IS_BROADWAY_DISPLAY (gtk_widget_get_display (GTK_WIDGET (window))))
     return TRUE;
 #endif
 
@@ -11716,4 +11781,62 @@ ensure_state_flag_backdrop (GtkWidget *widget)
     gtk_widget_unset_state_flags (widget, GTK_STATE_FLAG_BACKDROP);
 
   gtk_widget_queue_draw (widget);
+}
+
+gboolean
+_gtk_window_handle_button_press_for_widget (GtkWidget      *widget,
+                                            GdkEventButton *event)
+{
+  gboolean processed = FALSE;
+  gboolean window_drag = FALSE;
+  GtkWindow *window;
+
+  gtk_widget_style_get (GTK_WIDGET (widget),
+                        "window-dragging", &window_drag,
+                        NULL);
+
+  if (!window_drag)
+    return FALSE;
+
+  if (event->button != GDK_BUTTON_PRIMARY)
+    return FALSE;
+
+  window = GTK_WINDOW (gtk_widget_get_toplevel (widget));
+
+  switch (event->type)
+    {
+    case GDK_BUTTON_PRESS:
+      gtk_window_begin_move_drag (window,
+                                  event->button,
+                                  event->x_root,
+                                  event->y_root,
+                                  event->time);
+      processed = TRUE;
+      break;
+
+    case GDK_2BUTTON_PRESS:
+      {
+        GdkWindow *gdk_window = gtk_widget_get_window (GTK_WIDGET (window));
+
+        if (gdk_window_get_state (gdk_window) & GDK_WINDOW_STATE_MAXIMIZED)
+          gdk_window_unmaximize (gdk_window);
+          else
+            gdk_window_maximize (gdk_window);
+
+        processed = TRUE;
+      }
+      break;
+
+    default:
+      break;
+    }
+
+  return processed;
+}
+
+void
+_gtk_window_get_decoration_size (GtkWindow *window,
+                                 GtkBorder *border)
+{
+  get_decoration_size (GTK_WIDGET (window), border);
 }

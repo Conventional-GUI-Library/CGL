@@ -812,7 +812,12 @@ void     gtk_widget_set_margin_top    (GtkWidget *widget,
 gint     gtk_widget_get_margin_bottom (GtkWidget *widget);
 void     gtk_widget_set_margin_bottom (GtkWidget *widget,
                                        gint       margin);
-
+gint     gtk_widget_get_margin_start  (GtkWidget *widget);
+void     gtk_widget_set_margin_start  (GtkWidget *widget,
+                                       gint       margin);
+gint     gtk_widget_get_margin_end    (GtkWidget *widget);
+void     gtk_widget_set_margin_end    (GtkWidget *widget,
+                                       gint       margin);
 GDK_AVAILABLE_IN_3_6
 void                    gtk_widget_insert_action_group                  (GtkWidget    *widget,
                                                                          const gchar  *name,

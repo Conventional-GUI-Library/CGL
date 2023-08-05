@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <endian.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -55,6 +54,8 @@ struct _BroadwayServer {
   GHashTable *id_ht;
   GList *toplevels;
   BroadwayWindow *root;
+  gint32 focused_window_id; /* -1 => none */
+  gint show_keyboard;
 
   guint32 screen_width;
   guint32 screen_height;
@@ -107,11 +108,11 @@ struct BroadwayWindow {
   gint32 width;
   gint32 height;
   gboolean is_temp;
-  gboolean last_synced;
   gboolean visible;
   gint32 transient_for;
 
-  cairo_surface_t *last_surface;
+  BroadwayBuffer *buffer;
+  gboolean buffer_synced;
 
   char *cached_surface_name;
   cairo_surface_t *cached_surface;
@@ -216,6 +217,15 @@ update_event_state (BroadwayServer *server,
     break;
   case BROADWAY_EVENT_BUTTON_PRESS:
   case BROADWAY_EVENT_BUTTON_RELEASE:
+    if (message->base.type == BROADWAY_EVENT_BUTTON_PRESS &&
+        server->focused_window_id != message->pointer.mouse_window_id &&
+        server->pointer_grab_window_id == -1)
+      {
+        broadway_server_window_raise (server, message->pointer.mouse_window_id);
+        broadway_server_focus_window (server, message->pointer.mouse_window_id);
+        broadway_server_flush (server);
+      }
+
     server->last_x = message->pointer.root_x;
     server->last_y = message->pointer.root_y;
     server->last_state = message->pointer.state;
@@ -226,6 +236,23 @@ update_event_state (BroadwayServer *server,
     server->last_y = message->pointer.root_y;
     server->last_state = message->pointer.state;
     server->real_mouse_in_toplevel_id = message->pointer.mouse_window_id;
+    break;
+  case BROADWAY_EVENT_TOUCH:
+    if (message->touch.touch_type == 0 && message->touch.is_emulated &&
+        server->focused_window_id != message->touch.event_window_id)
+      {
+        broadway_server_window_raise (server, message->touch.event_window_id);
+        broadway_server_focus_window (server, message->touch.event_window_id);
+        broadway_server_flush (server);
+      }
+
+    if (message->touch.is_emulated)
+      {
+        server->last_x = message->pointer.root_x;
+        server->last_y = message->pointer.root_y;
+      }
+
+    server->last_state = message->touch.state;
     break;
   case BROADWAY_EVENT_KEY_PRESS:
   case BROADWAY_EVENT_KEY_RELEASE:
@@ -348,13 +375,29 @@ fake_configure_notify (BroadwayServer *server,
 static guint32 *
 parse_pointer_data (guint32 *p, BroadwayInputPointerMsg *data)
 {
-  data->mouse_window_id = be32toh (*p++);
-  data->event_window_id = be32toh (*p++);
-  data->root_x = be32toh (*p++);
-  data->root_y = be32toh (*p++);
-  data->win_x = be32toh (*p++);
-  data->win_y = be32toh (*p++);
-  data->state = be32toh (*p++);
+  data->mouse_window_id = ntohl (*p++);
+  data->event_window_id = ntohl (*p++);
+  data->root_x = ntohl (*p++);
+  data->root_y = ntohl (*p++);
+  data->win_x = ntohl (*p++);
+  data->win_y = ntohl (*p++);
+  data->state = ntohl (*p++);
+
+  return p;
+}
+
+static guint32 *
+parse_touch_data (guint32 *p, BroadwayInputTouchMsg *data)
+{
+  data->touch_type = ntohl (*p++);
+  data->event_window_id = ntohl (*p++);
+  data->sequence_id = ntohl (*p++);
+  data->is_emulated = ntohl (*p++);
+  data->root_x = ntohl (*p++);
+  data->root_y = ntohl (*p++);
+  data->win_x = ntohl (*p++);
+  data->win_y = ntohl (*p++);
+  data->state = ntohl (*p++);
 
   return p;
 }
@@ -369,7 +412,7 @@ update_future_pointer_info (BroadwayServer *server, BroadwayInputPointerMsg *dat
 }
 
 static void
-parse_input_message (BroadwayInput *input, const char *message)
+parse_input_message (BroadwayInput *input, const unsigned char *message)
 {
   BroadwayServer *server = input->server;
   BroadwayInputMsg msg;
@@ -380,9 +423,9 @@ parse_input_message (BroadwayInput *input, const char *message)
 
   p = (guint32 *) message;
 
-  msg.base.type = be32toh (*p++);
-  msg.base.serial = be32toh (*p++);
-  time_ = be32toh (*p++);
+  msg.base.type = ntohl (*p++);
+  msg.base.serial = ntohl (*p++);
+  time_ = ntohl (*p++);
 
   if (time_ == 0) {
     time_ = server->last_seen_time;
@@ -406,7 +449,7 @@ parse_input_message (BroadwayInput *input, const char *message)
   case BROADWAY_EVENT_LEAVE:
     p = parse_pointer_data (p, &msg.pointer);
     update_future_pointer_info (server, &msg.pointer);
-    msg.crossing.mode = be32toh (*p++);
+    msg.crossing.mode = ntohl (*p++);
     break;
 
   case BROADWAY_EVENT_POINTER_MOVE: /* Mouse move */
@@ -418,42 +461,46 @@ parse_input_message (BroadwayInput *input, const char *message)
   case BROADWAY_EVENT_BUTTON_RELEASE:
     p = parse_pointer_data (p, &msg.pointer);
     update_future_pointer_info (server, &msg.pointer);
-    msg.button.button = be32toh (*p++);
+    msg.button.button = ntohl (*p++);
     break;
 
   case BROADWAY_EVENT_SCROLL:
     p = parse_pointer_data (p, &msg.pointer);
     update_future_pointer_info (server, &msg.pointer);
-    msg.scroll.dir = be32toh (*p++);
+    msg.scroll.dir = ntohl (*p++);
+    break;
+
+  case BROADWAY_EVENT_TOUCH:
+    p = parse_touch_data (p, &msg.touch);
     break;
 
   case BROADWAY_EVENT_KEY_PRESS:
   case BROADWAY_EVENT_KEY_RELEASE:
-    msg.key.mouse_window_id = be32toh (*p++);
-    msg.key.key = be32toh (*p++);
-    msg.key.state = be32toh (*p++);
+    msg.key.window_id = server->focused_window_id;
+    msg.key.key = ntohl (*p++);
+    msg.key.state = ntohl (*p++);
     break;
 
   case BROADWAY_EVENT_GRAB_NOTIFY:
   case BROADWAY_EVENT_UNGRAB_NOTIFY:
-    msg.grab_reply.res = be32toh (*p++);
+    msg.grab_reply.res = ntohl (*p++);
     break;
 
   case BROADWAY_EVENT_CONFIGURE_NOTIFY:
-    msg.configure_notify.id = be32toh (*p++);
-    msg.configure_notify.x = be32toh (*p++);
-    msg.configure_notify.y = be32toh (*p++);
-    msg.configure_notify.width = be32toh (*p++);
-    msg.configure_notify.height = be32toh (*p++);
+    msg.configure_notify.id = ntohl (*p++);
+    msg.configure_notify.x = ntohl (*p++);
+    msg.configure_notify.y = ntohl (*p++);
+    msg.configure_notify.width = ntohl (*p++);
+    msg.configure_notify.height = ntohl (*p++);
     break;
 
   case BROADWAY_EVENT_DELETE_NOTIFY:
-    msg.delete_notify.id = be32toh (*p++);
+    msg.delete_notify.id = ntohl (*p++);
     break;
 
   case BROADWAY_EVENT_SCREEN_SIZE_CHANGED:
-    msg.screen_resize_notify.width = be32toh (*p++);
-    msg.screen_resize_notify.height = be32toh (*p++);
+    msg.screen_resize_notify.width = ntohl (*p++);
+    msg.screen_resize_notify.height = ntohl (*p++);
     break;
 
   default:
@@ -1356,6 +1403,55 @@ broadway_server_window_hide (BroadwayServer *server,
 }
 
 void
+broadway_server_window_raise (BroadwayServer *server,
+                              gint id)
+{
+  BroadwayWindow *window;
+
+  window = g_hash_table_lookup (server->id_ht,
+				GINT_TO_POINTER (id));
+  if (window == NULL)
+    return;
+
+  server->toplevels = g_list_remove (server->toplevels, window);
+  server->toplevels = g_list_append (server->toplevels, window);
+
+  if (server->output)
+    broadway_output_raise_surface (server->output, window->id);
+}
+
+void
+broadway_server_set_show_keyboard (BroadwayServer *server,
+                                   gboolean show)
+{
+  server->show_keyboard = show;
+
+  if (server->output)
+    {
+      broadway_output_set_show_keyboard (server->output, server->show_keyboard);
+      broadway_server_flush (server);
+   }
+}
+
+void
+broadway_server_window_lower (BroadwayServer *server,
+                              gint id)
+{
+  BroadwayWindow *window;
+
+  window = g_hash_table_lookup (server->id_ht,
+				GINT_TO_POINTER (id));
+  if (window == NULL)
+    return;
+
+  server->toplevels = g_list_remove (server->toplevels, window);
+  server->toplevels = g_list_prepend (server->toplevels, window);
+
+  if (server->output)
+    broadway_output_lower_surface (server->output, window->id);
+}
+
+void
 broadway_server_window_set_transient_for (BroadwayServer *server,
 					  gint id, gint parent)
 {
@@ -1381,142 +1477,13 @@ broadway_server_has_client (BroadwayServer *server)
   return server->output != NULL;
 }
 
-static void
-_cairo_region (cairo_t         *cr,
-	       const cairo_region_t *region)
-{
-  cairo_rectangle_int_t box;
-  gint n_boxes, i;
-
-  g_return_if_fail (cr != NULL);
-  g_return_if_fail (region != NULL);
-
-  n_boxes = cairo_region_num_rectangles (region);
-
-  for (i = 0; i < n_boxes; i++)
-    {
-      cairo_region_get_rectangle (region, i, &box);
-      cairo_rectangle (cr, box.x, box.y, box.width, box.height);
-    }
-}
-
-
-static void
-copy_region (cairo_surface_t *surface,
-	     cairo_region_t *area,
-	     gint            dx,
-	     gint            dy)
-{
-  cairo_t *cr;
-
-  cr = cairo_create (surface);
-  cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
-
-  _cairo_region (cr, area);
-  cairo_clip (cr);
-
-  /* NB: This is a self-copy and Cairo doesn't support that yet.
-   * So we do a litle trick.
-   */
-  cairo_push_group (cr);
-
-  cairo_set_source_surface (cr, surface, dx, dy);
-  cairo_paint (cr);
-
-  cairo_pop_group_to_source (cr);
-  cairo_paint (cr);
-
-  cairo_destroy (cr);
-}
-
-gboolean
-broadway_server_window_translate (BroadwayServer *server,
-				  gint id,
-				  cairo_region_t *area,
-				  gint            dx,
-				  gint            dy)
-{
-  BroadwayWindow *window;
-  gboolean sent = FALSE;
-
-  window = g_hash_table_lookup (server->id_ht,
-				GINT_TO_POINTER (id));
-  if (window == NULL)
-    return FALSE;
-
-  if (window->last_synced &&
-      server->output)
-    {
-      BroadwayRect *rects;
-      cairo_rectangle_int_t rect;
-      int i, n_rects;
-
-      copy_region (window->last_surface, area, dx, dy);
-      n_rects = cairo_region_num_rectangles (area);
-      rects = g_new (BroadwayRect, n_rects);
-      for (i = 0; i < n_rects; i++)
-	{
-	  cairo_region_get_rectangle (area, i, &rect);
-	  rects[i].x = rect.x;
-	  rects[i].y = rect.y;
-	  rects[i].width = rect.width;
-	  rects[i].height = rect.height;
-	}
-      broadway_output_copy_rectangles (server->output,
-				       window->id,
-				       rects, n_rects, dx, dy);
-      g_free (rects);
-      sent = TRUE;
-    }
-
-  return sent;
-}
-
-static void
-diff_surfaces (cairo_surface_t *surface,
-	       cairo_surface_t *old_surface)
-{
-  guint8 *data, *old_data;
-  guint32 *line, *old_line;
-  int w, h, stride, old_stride;
-  int x, y;
-
-  data = cairo_image_surface_get_data (surface);
-  old_data = cairo_image_surface_get_data (old_surface);
-
-  w = cairo_image_surface_get_width (surface);
-  h = cairo_image_surface_get_height (surface);
-
-  stride = cairo_image_surface_get_stride (surface);
-  old_stride = cairo_image_surface_get_stride (old_surface);
-
-  for (y = 0; y < h; y++)
-    {
-      line = (guint32 *)data;
-      old_line = (guint32 *)old_data;
-
-      for (x = 0; x < w; x++)
-	{
-	  if ((*line & 0xffffff) == (*old_line & 0xffffff))
-	    *old_line = 0;
-	  else
-	    *old_line = *line | 0xff000000;
-	  line ++;
-	  old_line ++;
-	}
-
-      data += stride;
-      old_data += old_stride;
-    }
-}
-
 void
 broadway_server_window_update (BroadwayServer *server,
 			       gint id,
 			       cairo_surface_t *surface)
 {
-  cairo_t *cr;
   BroadwayWindow *window;
+  BroadwayBuffer *buffer;
 
   if (surface == NULL)
     return;
@@ -1526,46 +1493,24 @@ broadway_server_window_update (BroadwayServer *server,
   if (window == NULL)
     return;
 
-  if (window->last_surface == NULL)
-    window->last_surface = cairo_image_surface_create (CAIRO_FORMAT_RGB24,
-						       window->width,
-						       window->height);
-
-  g_assert (window->width == cairo_image_surface_get_width (window->last_surface));
   g_assert (window->width == cairo_image_surface_get_width (surface));
-  g_assert (window->height == cairo_image_surface_get_height (window->last_surface));
   g_assert (window->height == cairo_image_surface_get_height (surface));
+
+  buffer = broadway_buffer_create (window->width, window->height,
+                                   cairo_image_surface_get_data (surface),
+                                   cairo_image_surface_get_stride (surface));
 
   if (server->output != NULL)
     {
-      if (window->last_synced)
-	{
-	  diff_surfaces (surface,
-			 window->last_surface);
-	  broadway_output_put_rgba (server->output, window->id, 0, 0,
-				    cairo_image_surface_get_width (window->last_surface),
-				    cairo_image_surface_get_height (window->last_surface),
-				    cairo_image_surface_get_stride (window->last_surface),
-				    cairo_image_surface_get_data (window->last_surface));
-	}
-      else
-	{
-	  window->last_synced = TRUE;
-	  broadway_output_put_rgb (server->output, window->id, 0, 0,
-				   cairo_image_surface_get_width (surface),
-				   cairo_image_surface_get_height (surface),
-				   cairo_image_surface_get_stride (surface),
-				   cairo_image_surface_get_data (surface));
-	}
-
-      broadway_output_surface_flush (server->output, window->id);
+      window->buffer_synced = TRUE;
+      broadway_output_put_buffer (server->output, window->id,
+                                  window->buffer, buffer);
     }
 
-  cr = cairo_create (window->last_surface);
-  cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
-  cairo_set_source_surface (cr, surface, 0, 0);
-  cairo_paint (cr);
-  cairo_destroy (cr);
+  if (window->buffer)
+    broadway_buffer_destroy (window->buffer);
+
+  window->buffer = buffer;
 }
 
 gboolean
@@ -1580,7 +1525,6 @@ broadway_server_window_move_resize (BroadwayServer *server,
   BroadwayWindow *window;
   gboolean with_resize;
   gboolean sent = FALSE;
-  cairo_t *cr;
 
   window = g_hash_table_lookup (server->id_ht,
 				GINT_TO_POINTER (id));
@@ -1590,25 +1534,6 @@ broadway_server_window_move_resize (BroadwayServer *server,
   with_resize = width != window->width || height != window->height;
   window->width = width;
   window->height = height;
-
-  if (with_resize && window->last_surface != NULL)
-    {
-      cairo_surface_t *old;
-
-      old = window->last_surface;
-
-      window->last_surface = cairo_image_surface_create (CAIRO_FORMAT_RGB24,
-							 width, height);
-
-
-      cr = cairo_create (window->last_surface);
-      cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
-      cairo_set_source_surface (cr, old, 0, 0);
-      cairo_paint (cr);
-      cairo_destroy (cr);
-
-      cairo_surface_destroy (old);
-    }
 
   if (server->output != NULL)
     {
@@ -1630,6 +1555,27 @@ broadway_server_window_move_resize (BroadwayServer *server,
     }
 
   return sent;
+}
+
+void
+broadway_server_focus_window (BroadwayServer *server,
+                              gint new_focused_window)
+{
+  BroadwayInputMsg focus_msg;
+
+  if (server->focused_window_id == new_focused_window)
+    return;
+
+  memset (&focus_msg, 0, sizeof (focus_msg));
+  focus_msg.base.type = BROADWAY_EVENT_FOCUS;
+  focus_msg.base.time = broadway_server_get_last_seen_time (server);
+  focus_msg.focus.old_id = server->focused_window_id;
+  focus_msg.focus.new_id = new_focused_window;
+
+  broadway_events_got_input (&focus_msg, -1);
+
+  /* Keep track of the new focused window */
+  server->focused_window_id = new_focused_window;
 }
 
 guint32
@@ -1746,7 +1692,7 @@ broadway_server_open_surface (BroadwayServer *server,
   data->data_size = size;
 
   surface = cairo_image_surface_create_for_data ((guchar *)data->data,
-						 CAIRO_FORMAT_RGB24,
+						 CAIRO_FORMAT_ARGB32,
 						 width, height,
 						 width * sizeof (guint32));
   g_assert (surface != NULL);
@@ -1793,7 +1739,7 @@ broadway_server_new_window (BroadwayServer *server,
 		       GINT_TO_POINTER (window->id),
 		       window);
 
-  server->toplevels = g_list_prepend (server->toplevels, window);
+  server->toplevels = g_list_append (server->toplevels, window);
 
   if (server->output)
     broadway_output_new_surface (server->output,
@@ -1825,7 +1771,7 @@ broadway_server_resync_windows (BroadwayServer *server)
       if (window->id == 0)
 	continue; /* Skip root */
 
-      window->last_synced = FALSE;
+      window->buffer_synced = FALSE;
       broadway_output_new_surface (server->output,
 				   window->id,
 				   window->x,
@@ -1849,18 +1795,17 @@ broadway_server_resync_windows (BroadwayServer *server)
 	{
 	  broadway_output_show_surface (server->output, window->id);
 
-	  if (window->last_surface != NULL)
+	  if (window->buffer != NULL)
 	    {
-	      window->last_synced = TRUE;
-	      broadway_output_put_rgb (server->output, window->id, 0, 0,
-				       cairo_image_surface_get_width (window->last_surface),
-				       cairo_image_surface_get_height (window->last_surface),
-				       cairo_image_surface_get_stride (window->last_surface),
-				       cairo_image_surface_get_data (window->last_surface));
+	      window->buffer_synced = TRUE;
+              broadway_output_put_buffer (server->output, window->id,
+                                          NULL, window->buffer);
 	    }
-	  broadway_output_surface_flush (server->output, window->id);
 	}
     }
+
+  if (server->show_keyboard)
+    broadway_output_set_show_keyboard (server->output, TRUE);
 
   broadway_server_flush (server);
 }

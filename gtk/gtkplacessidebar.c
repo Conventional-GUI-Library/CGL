@@ -138,6 +138,7 @@ struct _GtkPlacesSidebar {
 	GtkBookmarksManager	*bookmarks_manager;
 	GVolumeMonitor		*volume_monitor;
 	GtkTrashMonitor		*trash_monitor;
+    GtkSettings       *gtk_settings;
 
 	gulong trash_monitor_changed_id;
 
@@ -172,6 +173,8 @@ struct _GtkPlacesSidebar {
 
 	guint show_desktop : 1;
 	guint show_connect_to_server : 1;
+	guint show_desktop_set       : 1;
+	guint local_only       : 1;	
 };
 
 struct _GtkPlacesSidebarClass {
@@ -252,6 +255,7 @@ enum {
 	PROP_OPEN_FLAGS,
 	PROP_SHOW_DESKTOP,
 	PROP_SHOW_CONNECT_TO_SERVER,
+	PROP_LOCAL_ONLY,
 	NUM_PROPERTIES,
 };
 
@@ -262,7 +266,9 @@ enum {
 #define ICON_NAME_EJECT		 "media-eject"
 #define ICON_NAME_NETWORK	 "network-workgroup"
 #define ICON_NAME_NETWORK_SERVER "network-server"
+#define ICON_NAME_FOLDER_NETWORK "folder-remote"
 
+#define ICON_NAME_FOLDER                "folder"
 #define ICON_NAME_FOLDER_DESKTOP	"user-desktop"
 #define ICON_NAME_FOLDER_DOCUMENTS	"folder-documents"
 #define ICON_NAME_FOLDER_DOWNLOAD	"folder-download"
@@ -302,8 +308,7 @@ static const GtkTargetEntry dnd_source_targets[] = {
 
 /* Target types for dropping into the shortcuts list */
 static const GtkTargetEntry dnd_drop_targets [] = {
-	{ "GTK_TREE_MODEL_ROW", GTK_TARGET_SAME_WIDGET, GTK_TREE_MODEL_ROW },
-	{ "text/uri-list", 0, TEXT_URI_LIST }
+	{ "GTK_TREE_MODEL_ROW", GTK_TARGET_SAME_WIDGET, GTK_TREE_MODEL_ROW }
 };
 
 /* Drag and drop interface declarations */
@@ -668,6 +673,57 @@ get_desktop_directory_uri (void)
 	}
 }
 
+static gboolean
+should_show_file (GtkPlacesSidebar *sidebar,
+                  GFile            *file)
+{
+  gchar *path;
+
+  if (!sidebar->local_only)
+    return TRUE;
+
+  path = g_file_get_path (file);
+  if (path)
+    {
+      g_free (path);
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
+static gboolean
+file_is_shown (GtkPlacesSidebar *sidebar,
+               GFile            *file)
+{
+  GtkTreeIter iter;
+  gchar *uri;
+
+  if (!gtk_tree_model_get_iter_first (GTK_TREE_MODEL (sidebar->store), &iter))
+    return FALSE;
+
+  do
+    {
+      gtk_tree_model_get (GTK_TREE_MODEL (sidebar->store), &iter,
+                          PLACES_SIDEBAR_COLUMN_URI, &uri,
+                          -1);
+      if (uri)
+        {
+          GFile *other;
+          gboolean found;
+          other = g_file_new_for_uri (uri);
+          g_free (uri);
+          found = g_file_equal (file, other);
+          g_object_unref (other);
+          if (found)
+            return TRUE;
+        }
+    }
+  while (gtk_tree_model_iter_next (GTK_TREE_MODEL (sidebar->store), &iter));
+
+  return FALSE;
+}
+
 static void
 add_application_shortcuts (GtkPlacesSidebar *sidebar)
 {
@@ -679,6 +735,12 @@ add_application_shortcuts (GtkPlacesSidebar *sidebar)
 
 		file = G_FILE (l->data);
 
+		if (!should_show_file (sidebar, file))
+			continue;
+	
+		if (file_is_shown (sidebar, file))
+			continue;
+			
 		/* FIXME: we are getting file info synchronously.  We may want to do it async at some point. */
 		info = g_file_query_info (file,
 					  "standard::display-name,standard::icon",
@@ -804,15 +866,17 @@ update_places (GtkPlacesSidebar *sidebar)
 	add_special_dirs (sidebar);
 
 	/* Trash */
-	mount_uri = "trash:///"; /* No need to strdup */
-	icon = _gtk_trash_monitor_get_icon (sidebar->trash_monitor);
-	add_place (sidebar, PLACES_BUILT_IN,
-		   SECTION_COMPUTER,
-		   _("Trash"), icon, mount_uri,
-		   NULL, NULL, NULL, 0,
-		   _("Open the trash"));
-	g_object_unref (icon);
-
+  if (!sidebar->local_only)
+     {
+      mount_uri = "trash:///"; /* No need to strdup */
+      icon = _gtk_trash_monitor_get_icon (sidebar->trash_monitor);
+      add_place (sidebar, PLACES_BUILT_IN,
+                 SECTION_COMPUTER,
+                 _("Trash"), icon, mount_uri,
+                 NULL, NULL, NULL, 0,
+                 _("Open the trash"));
+     g_object_unref (icon);
+    }
 	/* Application-side shortcuts */
 	add_application_shortcuts (sidebar);
 
@@ -1008,129 +1072,153 @@ update_places (GtkPlacesSidebar *sidebar)
 	}
 	g_list_free (mounts);
 
-	/* add bookmarks */
+  /* add bookmarks */
 
-	bookmarks = _gtk_bookmarks_manager_list_bookmarks (sidebar->bookmarks_manager);
+  bookmarks = _gtk_bookmarks_manager_list_bookmarks (sidebar->bookmarks_manager);
 
-	for (sl = bookmarks, index = 0; sl; sl = sl->next, index++) {
-		GFileInfo *info;
+  for (sl = bookmarks, index = 0; sl; sl = sl->next, index++)
+    {
+      GFileInfo *info;
+      gboolean is_native;
 
-		root = sl->data;
+      root = sl->data;
+      is_native = g_file_is_native (root);
 
 #if 0
-		/* FIXME: remove this?  If we *do* show bookmarks for nonexistent files, the user will eventually clean them up */
-		if (!nautilus_bookmark_get_exists (bookmark)) {
-			continue;
-		}
+      /* FIXME: remove this?  If we *do* show bookmarks for nonexistent files, the user will eventually clean them up */
+      if (!nautilus_bookmark_get_exists (bookmark))
+        continue;
 #endif
 
-		if (_gtk_bookmarks_manager_get_is_builtin (sidebar->bookmarks_manager, root)) {
-			continue;
-		}
+      if (_gtk_bookmarks_manager_get_is_builtin (sidebar->bookmarks_manager, root))
+        continue;
 
-		/* FIXME: we are getting file info synchronously.  We may want to do it async at some point. */
-		info = g_file_query_info (root,
-					  "standard::display-name,standard::icon",
-					  G_FILE_QUERY_INFO_NONE,
-					  NULL,
-					  NULL); /* NULL-GError */
+      if (sidebar->local_only && !is_native)
+        continue;
 
-		if (info) {
-			bookmark_name = _gtk_bookmarks_manager_get_bookmark_label (sidebar->bookmarks_manager, root);
+      /* FIXME: we are getting file info synchronously.  We may want to do it async at some point. */
+      info = g_file_query_info (root,
+                                "standard::display-name,standard::icon",
+                                G_FILE_QUERY_INFO_NONE,
+                                NULL,
+                                NULL); /* NULL-GError */
 
-			if (bookmark_name == NULL)
-				bookmark_name = g_strdup (g_file_info_get_display_name (info));
+      bookmark_name = _gtk_bookmarks_manager_get_bookmark_label (sidebar->bookmarks_manager, root);
+      if (bookmark_name == NULL && info != NULL)
+        bookmark_name = g_strdup (g_file_info_get_display_name (info));
+      else if (bookmark_name == NULL)
+        {
+          /* Don't add non-UTF-8 bookmarks */
+          bookmark_name = g_file_get_basename (root);
+          if (!g_utf8_validate (bookmark_name, -1, NULL))
+            {
+              g_free (bookmark_name);
+              continue;
+            }
+        }
 
-			icon = g_file_info_get_icon (info);
+      if (info)
+        icon = g_object_ref (g_file_info_get_symbolic_icon (info));
+      else
+        icon = g_themed_icon_new_with_default_fallbacks (is_native ? ICON_NAME_FOLDER : ICON_NAME_FOLDER_NETWORK);
 
-			mount_uri = g_file_get_uri (root);
-			tooltip = g_file_get_parse_name (root);
+      mount_uri = g_file_get_uri (root);
+      tooltip = g_file_get_parse_name (root);
 
-			add_place (sidebar, PLACES_BOOKMARK,
-				   SECTION_BOOKMARKS,
-				   bookmark_name, icon, mount_uri,
-				   NULL, NULL, NULL, index,
-				   tooltip);
+      add_place (sidebar, PLACES_BOOKMARK,
+                 SECTION_BOOKMARKS,
+                 bookmark_name, icon, mount_uri,
+                 NULL, NULL, NULL, index,
+                 tooltip);
 
-			g_free (mount_uri);
-			g_free (tooltip);
-			g_free (bookmark_name);
+      g_free (mount_uri);
+      g_free (tooltip);
+      g_free (bookmark_name);
 
-			g_object_unref (info);
-		}
-	}
+      if (info)
+        g_object_unref (info);
+    }
 
-	g_slist_foreach (bookmarks, (GFunc) g_object_unref, NULL);
-	g_slist_free (bookmarks);
+  g_slist_foreach (bookmarks, (GFunc) g_object_unref, NULL);
+  g_slist_free (bookmarks);
 
-	/* network */
-	add_heading (sidebar, SECTION_NETWORK,
-		     _("Network"));
 
- 	mount_uri = "network:///"; /* No need to strdup */
-	icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK);
-	add_place (sidebar, PLACES_BUILT_IN,
-		   SECTION_NETWORK,
-		   _("Browse Network"), icon, mount_uri,
-		   NULL, NULL, NULL, 0,
-		   _("Browse the contents of the network"));
-	g_object_unref (icon);
+  /* network */
+  if (!sidebar->local_only)
+    {
+      add_heading (sidebar, SECTION_NETWORK, _("Network"));
 
-	if (sidebar->show_connect_to_server) {
-		icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK_SERVER);
-		add_place (sidebar, PLACES_CONNECT_TO_SERVER,
-			   SECTION_NETWORK,
-			   _("Connect to Server"), icon, NULL,
-			   NULL, NULL, NULL, 0,
-			   _("Connect to a network server address"));
-		g_object_unref (icon);
-	}
+      mount_uri = "network:///";
+      icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK);
+      add_place (sidebar, PLACES_BUILT_IN,
+                 SECTION_NETWORK,
+                 _("Browse Network"), icon, mount_uri,
+                 NULL, NULL, NULL, 0,
+                 _("Browse the contents of the network"));
+      g_object_unref (icon);
 
-	network_volumes = g_list_reverse (network_volumes);
-	for (l = network_volumes; l != NULL; l = l->next) {
-		volume = l->data;
-		mount = g_volume_get_mount (volume);
+      if (sidebar->show_connect_to_server)
+        {
+          icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK_SERVER);
+          add_place (sidebar, PLACES_CONNECT_TO_SERVER,
+                     SECTION_NETWORK,
+                     _("Connect to Server"), icon, NULL,
+                     NULL, NULL, NULL, 0,
+                     _("Connect to a network server address"));
+          g_object_unref (icon);
+        }
 
-		if (mount != NULL) {
-			network_mounts = g_list_prepend (network_mounts, mount);
-			continue;
-		} else {
-			icon = g_volume_get_icon (volume);
-			name = g_volume_get_name (volume);
-			tooltip = g_strdup_printf (_("Mount and open %s"), name);
+      network_volumes = g_list_reverse (network_volumes);
+      for (l = network_volumes; l != NULL; l = l->next)
+        {
+          volume = l->data;
+          mount = g_volume_get_mount (volume);
 
-			add_place (sidebar, PLACES_MOUNTED_VOLUME,
-				   SECTION_NETWORK,
-				   name, icon, NULL,
-				   NULL, volume, NULL, 0, tooltip);
-			g_object_unref (icon);
-			g_free (name);
-			g_free (tooltip);
-		}
-	}
+          if (mount != NULL)
+            {
+              network_mounts = g_list_prepend (network_mounts, mount);
+              continue;
+            }
+          else
+            {
+              icon = g_volume_get_icon (volume);
+              name = g_volume_get_name (volume);
+              tooltip = g_strdup_printf (_("Mount and open %s"), name);
 
-	g_list_free_full (network_volumes, g_object_unref);
+              add_place (sidebar, PLACES_MOUNTED_VOLUME,
+                         SECTION_NETWORK,
+                         name, icon, NULL,
+                         NULL, volume, NULL, 0, tooltip);
+              g_object_unref (icon);
+              g_free (name);
+              g_free (tooltip);
+            }
+        }
 
-	network_mounts = g_list_reverse (network_mounts);
-	for (l = network_mounts; l != NULL; l = l->next) {
-		mount = l->data;
-		root = g_mount_get_default_location (mount);
-		icon = g_mount_get_icon (mount);
-		mount_uri = g_file_get_uri (root);
-		name = g_mount_get_name (mount);
-		tooltip = g_file_get_parse_name (root);
-		add_place (sidebar, PLACES_MOUNTED_VOLUME,
-			   SECTION_NETWORK,
-			   name, icon, mount_uri,
-			   NULL, NULL, mount, 0, tooltip);
-		g_object_unref (root);
-		g_object_unref (icon);
-		g_free (name);
-		g_free (mount_uri);
-		g_free (tooltip);
-	}
+      network_mounts = g_list_reverse (network_mounts);
+      for (l = network_mounts; l != NULL; l = l->next)
+        {
+          mount = l->data;
+          root = g_mount_get_default_location (mount);
+          icon = g_mount_get_icon (mount);
+          mount_uri = g_file_get_uri (root);
+          name = g_mount_get_name (mount);
+          tooltip = g_file_get_parse_name (root);
+          add_place (sidebar, PLACES_MOUNTED_VOLUME,
+                     SECTION_NETWORK,
+                     name, icon, mount_uri,
+                     NULL, NULL, mount, 0, tooltip);
+          g_object_unref (root);
+          g_object_unref (icon);
+          g_free (name);
+          g_free (mount_uri);
+          g_free (tooltip);
+        }
+    }
 
-	g_list_free_full (network_mounts, g_object_unref);
+  g_list_free_full (network_volumes, g_object_unref);
+  g_list_free_full (network_mounts, g_object_unref);
+
 
 	/* restore original selection */
 	if (original_uri) {
@@ -3569,6 +3657,30 @@ update_hostname (GtkPlacesSidebar *sidebar)
 }
 
 static void
+shell_shows_desktop_changed (GtkSettings *settings,
+                             GParamSpec  *pspec,
+                             gpointer     user_data)
+{
+  GtkPlacesSidebar *sidebar = user_data;
+  gboolean b;
+
+  g_assert (settings == sidebar->gtk_settings);
+
+  /* Check if the user explicitly set this and, if so, don't change it. */
+  if (sidebar->show_desktop_set)
+    return;
+
+  g_object_get (settings, "gtk-shell-shows-desktop", &b, NULL);
+
+  if (b != sidebar->show_desktop)
+    {
+      sidebar->show_desktop = b;
+      update_places (sidebar);
+      g_object_notify_by_pspec (G_OBJECT (sidebar), properties[PROP_SHOW_DESKTOP]);
+    }
+}
+
+static void
 hostname_proxy_new_cb (GObject      *source_object,
 		       GAsyncResult *res,
 		       gpointer      user_data)
@@ -3648,6 +3760,8 @@ gtk_places_sidebar_init (GtkPlacesSidebar *sidebar)
 	GtkCellRenderer   *cell;
 	GtkTreeSelection  *selection;
 	GIcon             *eject;
+    GtkTargetList     *target_list;
+	gboolean           b;
 
 	gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (sidebar)), GTK_STYLE_CLASS_SIDEBAR);
 
@@ -3812,8 +3926,11 @@ gtk_places_sidebar_init (GtkPlacesSidebar *sidebar)
 						GDK_ACTION_MOVE);
 	gtk_drag_dest_set (GTK_WIDGET (tree_view),
 			   0,
-			   dnd_drop_targets, G_N_ELEMENTS (dnd_drop_targets),
+                           NULL, 0,
 			   GDK_ACTION_MOVE | GDK_ACTION_COPY | GDK_ACTION_LINK);
+	target_list = gtk_target_list_new  (dnd_drop_targets, G_N_ELEMENTS (dnd_drop_targets));
+	gtk_target_list_add_uri_targets (target_list, TEXT_URI_LIST);
+        gtk_drag_dest_set_target_list (GTK_WIDGET (tree_view), target_list);
 
 	g_signal_connect (tree_view, "key-press-event",
 			  G_CALLBACK (bookmarks_key_press_event_cb), sidebar);
@@ -3851,6 +3968,15 @@ gtk_places_sidebar_init (GtkPlacesSidebar *sidebar)
 	sidebar->drop_state = DROP_STATE_NORMAL;
 	sidebar->new_bookmark_index = -1;
 
+ 
+	/* Don't bother trying to trace this across hierarchy changes... */
+	sidebar->gtk_settings = gtk_settings_get_default ();
+	g_signal_connect (sidebar->gtk_settings, "notify::gtk-shell-shows-desktop",
+		G_CALLBACK (shell_shows_desktop_changed), sidebar);
+	g_object_get (sidebar->gtk_settings, "gtk-shell-shows-desktop", &b, NULL);
+	sidebar->show_desktop = b;
+
+
 	/* populate the sidebar */
 	update_places (sidebar);
 }
@@ -3876,6 +4002,9 @@ gtk_places_sidebar_set_property (GObject      *obj,
 	case PROP_SHOW_CONNECT_TO_SERVER:
 		gtk_places_sidebar_set_show_connect_to_server (sidebar, g_value_get_boolean (value));
 		break;
+    case PROP_LOCAL_ONLY:
+      gtk_places_sidebar_set_local_only (sidebar, g_value_get_boolean (value));
+      break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, property_id, pspec);
 		break;
@@ -3903,6 +4032,9 @@ gtk_places_sidebar_get_property (GObject    *obj,
 	case PROP_SHOW_CONNECT_TO_SERVER:
 		g_value_set_boolean (value, gtk_places_sidebar_get_show_connect_to_server (sidebar));
 		break;
+    case PROP_LOCAL_ONLY:
+      g_value_set_boolean (value, gtk_places_sidebar_get_local_only (sidebar));
+      break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, property_id, pspec);
 		break;
@@ -3977,6 +4109,13 @@ gtk_places_sidebar_dispose (GObject *object)
 	g_clear_object (&sidebar->hostnamed_proxy);
 	g_free (sidebar->hostname);
 	sidebar->hostname = NULL;
+
+  if (sidebar->gtk_settings)
+    {
+      g_signal_handlers_disconnect_by_func (sidebar->gtk_settings, shell_shows_desktop_changed, sidebar);
+      sidebar->gtk_settings = NULL;
+    }
+
 
 	G_OBJECT_CLASS (gtk_places_sidebar_parent_class)->dispose (object);
 }
@@ -4213,6 +4352,12 @@ gtk_places_sidebar_class_init (GtkPlacesSidebarClass *class)
 				      P_("Whether the sidebar includes a builtin shortcut to a 'Connect to server' dialog"),
 				      FALSE,
 				      G_PARAM_READWRITE);
+  properties[PROP_LOCAL_ONLY] =
+          g_param_spec_boolean ("local-only",
+                                P_("Local Only"),
+                                P_("Whether the sidebar only includes local files"),
+                                FALSE,
+                                G_PARAM_READWRITE);
 
 	g_object_class_install_properties (gobject_class, NUM_PROPERTIES, properties);
 }
@@ -4454,9 +4599,10 @@ gtk_places_sidebar_get_location (GtkPlacesSidebar *sidebar)
  * @sidebar: a places sidebar
  * @show_desktop: whether to show an item for the Desktop folder
  *
- * Sets whether the @sidebar should show an item for the Desktop folder; this is off by default.
- * An application may want to turn this on if the desktop environment actually supports the
- * notion of a desktop.
+ * Sets whether the @sidebar should show an item for the Desktop folder.
+ * The default value for this option is determined by the desktop
+ * environment and the user's configuration, but this function can be
+ * used to override it on a per-application basis.
  *
  * Since: 3.10
  */
@@ -4464,6 +4610,8 @@ void
 gtk_places_sidebar_set_show_desktop (GtkPlacesSidebar *sidebar, gboolean show_desktop)
 {
 	g_return_if_fail (GTK_IS_PLACES_SIDEBAR (sidebar));
+
+	sidebar->show_desktop_set = TRUE;
 
 	show_desktop = !!show_desktop;
 	if (sidebar->show_desktop != show_desktop) {
@@ -4531,6 +4679,48 @@ gtk_places_sidebar_get_show_connect_to_server (GtkPlacesSidebar *sidebar)
 	g_return_val_if_fail (GTK_IS_PLACES_SIDEBAR (sidebar), FALSE);
 
 	return sidebar->show_connect_to_server;
+}
+
+/**
+ * gtk_places_sidebar_set_local_only:
+ * @sidebar: a places sidebar
+ * @local_only: whether to show only local files
+ *
+ * Sets whether the @sidebar should only show local files.
+ *
+ * Since: 3.12
+ */
+void
+gtk_places_sidebar_set_local_only (GtkPlacesSidebar *sidebar,
+                                   gboolean          local_only)
+{
+  g_return_if_fail (GTK_IS_PLACES_SIDEBAR (sidebar));
+
+  local_only = !!local_only;
+  if (sidebar->local_only != local_only)
+    {
+      sidebar->local_only = local_only;
+      update_places (sidebar);
+      g_object_notify_by_pspec (G_OBJECT (sidebar), properties[PROP_LOCAL_ONLY]);
+    }
+}
+
+/**
+ * gtk_places_sidebar_get_local_only:
+ * @sidebar: a places sidebar
+ *
+ * Returns the value previously set with gtk_places_sidebar_set_local_only().
+ *
+ * Return value: %TRUE if the sidebar will only show local files.
+ *
+ * Since: 3.12
+ */
+gboolean
+gtk_places_sidebar_get_local_only (GtkPlacesSidebar *sidebar)
+{
+  g_return_val_if_fail (GTK_IS_PLACES_SIDEBAR (sidebar), FALSE);
+
+  return sidebar->local_only;
 }
 
 static GSList *

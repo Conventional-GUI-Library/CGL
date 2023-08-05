@@ -635,6 +635,8 @@ enum {
   PROP_VALIGN,
   PROP_MARGIN_LEFT,
   PROP_MARGIN_RIGHT,
+  PROP_MARGIN_START,
+  PROP_MARGIN_END,
   PROP_MARGIN_TOP,
   PROP_MARGIN_BOTTOM,
   PROP_MARGIN,
@@ -1513,6 +1515,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
    * request, the margin will be added in addition to the size from
    * gtk_widget_set_size_request() for example.
    *
+   * Deprecated: 3.12. Use #GtkWidget:margin-start instead.
+   *
    * Since: 3.0
    */
   g_object_class_install_property (gobject_class,
@@ -1534,6 +1538,8 @@ gtk_widget_class_init (GtkWidgetClass *klass)
    * request, the margin will be added in addition to the size from
    * gtk_widget_set_size_request() for example.
    *
+   * Deprecated: 3.12. Use #GtkWidget:margin-end instead.
+   *
    * Since: 3.0
    */
   g_object_class_install_property (gobject_class,
@@ -1541,6 +1547,48 @@ gtk_widget_class_init (GtkWidgetClass *klass)
                                    g_param_spec_int ("margin-right",
                                                      P_("Margin on Right"),
                                                      P_("Pixels of extra space on the right side"),
+                                                     0,
+                                                     G_MAXINT16,
+                                                     0,
+                                                     GTK_PARAM_READWRITE));
+
+  /**
+   * GtkWidget:margin-start:
+   *
+   * Margin on start of widget.
+   *
+   * This property adds margin outside of the widget's normal size
+   * request, the margin will be added in addition to the size from
+   * gtk_widget_set_size_request() for example.
+   *
+   * Since: 3.12
+   */
+  g_object_class_install_property (gobject_class,
+                                   PROP_MARGIN_LEFT,
+                                   g_param_spec_int ("margin-start",
+                                                     P_("Margin on Start"),
+                                                     P_("Pixels of extra space on the start"),
+                                                     0,
+                                                     G_MAXINT16,
+                                                     0,
+                                                     GTK_PARAM_READWRITE));
+
+  /**
+   * GtkWidget:margin-end:
+   *
+   * Margin on end of widget.
+   *
+   * This property adds margin outside of the widget's normal size
+   * request, the margin will be added in addition to the size from
+   * gtk_widget_set_size_request() for example.
+   *
+   * Since: 3.12
+   */
+  g_object_class_install_property (gobject_class,
+                                   PROP_MARGIN_RIGHT,
+                                   g_param_spec_int ("margin-end",
+                                                     P_("Margin on End"),
+                                                     P_("Pixels of extra space on the end"),
                                                      0,
                                                      G_MAXINT16,
                                                      0,
@@ -3478,7 +3526,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
   gtk_widget_class_install_style_property (klass,
                                            g_param_spec_boolean ("window-dragging",
                                                                  P_("Window dragging"),
-                                                                 P_("Whether windows can be dragged by clicking on empty areas"),
+                                                                 P_("Whether windows can be dragged and maximized by clicking on empty areas"),
                                                                  FALSE,
                                                                  GTK_PARAM_READABLE));
 
@@ -3736,6 +3784,12 @@ gtk_widget_set_property (GObject         *object,
     case PROP_MARGIN_RIGHT:
       gtk_widget_set_margin_right (widget, g_value_get_int (value));
       break;
+    case PROP_MARGIN_START:
+      gtk_widget_set_margin_start (widget, g_value_get_int (value));
+      break;
+    case PROP_MARGIN_END:
+      gtk_widget_set_margin_end (widget, g_value_get_int (value));
+      break;
     case PROP_MARGIN_TOP:
       gtk_widget_set_margin_top (widget, g_value_get_int (value));
       break;
@@ -3744,8 +3798,8 @@ gtk_widget_set_property (GObject         *object,
       break;
     case PROP_MARGIN:
       g_object_freeze_notify (G_OBJECT (widget));
-      gtk_widget_set_margin_left (widget, g_value_get_int (value));
-      gtk_widget_set_margin_right (widget, g_value_get_int (value));
+      gtk_widget_set_margin_start (widget, g_value_get_int (value));
+      gtk_widget_set_margin_end (widget, g_value_get_int (value));
       gtk_widget_set_margin_top (widget, g_value_get_int (value));
       gtk_widget_set_margin_bottom (widget, g_value_get_int (value));
       g_object_thaw_notify (G_OBJECT (widget));
@@ -14454,11 +14508,14 @@ gtk_widget_set_margin_left (GtkWidget *widget,
                             gint       margin)
 {
   GtkWidgetAuxInfo *aux_info;
+  gboolean rtl;
 
   g_return_if_fail (GTK_IS_WIDGET (widget));
   g_return_if_fail (margin <= G_MAXINT16);
 
   aux_info = gtk_widget_get_aux_info (widget, TRUE);
+
+  rtl = gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL;
 
   if (aux_info->margin.left == margin)
     return;
@@ -14466,6 +14523,7 @@ gtk_widget_set_margin_left (GtkWidget *widget,
   aux_info->margin.left = margin;
   gtk_widget_queue_resize (widget);
   g_object_notify (G_OBJECT (widget), "margin-left");
+  g_object_notify (G_OBJECT (widget), rtl ? "margin-end" : "margin-start");
 }
 
 /**
@@ -14501,11 +14559,14 @@ gtk_widget_set_margin_right (GtkWidget *widget,
                              gint       margin)
 {
   GtkWidgetAuxInfo *aux_info;
+  gboolean rtl;
 
   g_return_if_fail (GTK_IS_WIDGET (widget));
   g_return_if_fail (margin <= G_MAXINT16);
 
   aux_info = gtk_widget_get_aux_info (widget, TRUE);
+
+  rtl = gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL;
 
   if (aux_info->margin.right == margin)
     return;
@@ -14513,6 +14574,135 @@ gtk_widget_set_margin_right (GtkWidget *widget,
   aux_info->margin.right = margin;
   gtk_widget_queue_resize (widget);
   g_object_notify (G_OBJECT (widget), "margin-right");
+  g_object_notify (G_OBJECT (widget), rtl ? "margin-start" : "margin-end");
+}
+
+/**
+ * gtk_widget_get_margin_start:
+ * @widget: a #GtkWidget
+ *
+ * Gets the value of the #GtkWidget:margin-start property.
+ *
+ * Returns: The start margin of @widget
+ *
+ * Since: 3.12
+ */
+gint
+gtk_widget_get_margin_start (GtkWidget *widget)
+{
+  const GtkWidgetAuxInfo *aux_info;
+
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), 0);
+
+  aux_info = _gtk_widget_get_aux_info_or_defaults (widget);
+
+  if (gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL)
+    return aux_info->margin.right;
+  else
+    return aux_info->margin.left;
+}
+
+/**
+ * gtk_widget_set_margin_start:
+ * @widget: a #GtkWidget
+ * @margin: the start margin
+ *
+ * Sets the start margin of @widget.
+ * See the #GtkWidget:margin-start property.
+ *
+ * Since: 3.12
+ */
+void
+gtk_widget_set_margin_start (GtkWidget *widget,
+                             gint       margin)
+{
+  GtkWidgetAuxInfo *aux_info;
+  gint16 *start;
+  gboolean rtl;
+
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+  g_return_if_fail (margin <= G_MAXINT16);
+
+  aux_info = gtk_widget_get_aux_info (widget, TRUE);
+
+  rtl = gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL;
+
+  if (rtl)
+    start = &aux_info->margin.right;
+  else
+    start = &aux_info->margin.left;
+
+  if (*start == margin)
+    return;
+
+  *start = margin;
+  gtk_widget_queue_resize (widget);
+  g_object_notify (G_OBJECT (widget), "margin-start");
+  g_object_notify (G_OBJECT (widget), rtl ? "margin-right" : "margin-left");
+}
+
+/**
+ * gtk_widget_get_margin_end:
+ * @widget: a #GtkWidget
+ *
+ * Gets the value of the #GtkWidget:margin-end property.
+ *
+ * Returns: The end margin of @widget
+ *
+ * Since: 3.12
+ */
+gint
+gtk_widget_get_margin_end (GtkWidget *widget)
+{
+  const GtkWidgetAuxInfo *aux_info;
+
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), 0);
+
+  aux_info = _gtk_widget_get_aux_info_or_defaults (widget);
+
+  if (gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL)
+    return aux_info->margin.left;
+  else
+    return aux_info->margin.right;
+}
+
+/**
+ * gtk_widget_set_margin_end:
+ * @widget: a #GtkWidget
+ * @margin: the end margin
+ *
+ * Sets the end margin of @widget.
+ * See the #GtkWidget:margin-end property.
+ *
+ * Since: 3.12
+ */
+void
+gtk_widget_set_margin_end (GtkWidget *widget,
+                           gint       margin)
+{
+  GtkWidgetAuxInfo *aux_info;
+  gint16 *end;
+  gboolean rtl;
+
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+  g_return_if_fail (margin <= G_MAXINT16);
+
+  aux_info = gtk_widget_get_aux_info (widget, TRUE);
+
+  rtl = gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL;
+
+  if (rtl)
+    end = &aux_info->margin.left;
+  else
+    end = &aux_info->margin.right;
+
+  if (*end == margin)
+    return;
+
+  *end = margin;
+  gtk_widget_queue_resize (widget);
+  g_object_notify (G_OBJECT (widget), "margin-end");
+  g_object_notify (G_OBJECT (widget), rtl ? "margin-left" : "margin-right");
 }
 
 /**

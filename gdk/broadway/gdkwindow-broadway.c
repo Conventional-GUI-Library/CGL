@@ -537,6 +537,19 @@ static void
 gdk_broadway_window_focus (GdkWindow *window,
 			   guint32    timestamp)
 {
+  GdkWindowImplBroadway *impl;
+  GdkBroadwayDisplay *broadway_display;
+
+  g_return_if_fail (GDK_IS_WINDOW (window));
+
+  if (GDK_WINDOW_DESTROYED (window) ||
+      !window->accept_focus)
+    return;
+
+  impl = GDK_WINDOW_IMPL_BROADWAY (window->impl);
+  broadway_display = GDK_BROADWAY_DISPLAY (gdk_window_get_display (window));
+  _gdk_broadway_server_window_focus (broadway_display->server,
+				     impl->id);
 }
 
 static void
@@ -1184,6 +1197,34 @@ _gdk_broadway_moveresize_handle_event (GdkDisplay *display,
 
   switch (event->base.type)
     {
+    case BROADWAY_EVENT_TOUCH:
+      if (event->touch.touch_type == 2) /* END */
+        {
+          update_pos (mv_resize,
+                      event->touch.root_x,
+                      event->touch.root_y);
+
+          finish_drag (mv_resize);
+        }
+      else if (event->touch.touch_type == 1) /* UPDATE */
+        {
+          if (mv_resize->moveresize_window->resize_count > 0)
+            {
+              if (mv_resize->moveresize_pending_event)
+                *mv_resize->moveresize_pending_event = *event;
+              else
+                mv_resize->moveresize_pending_event =
+                  g_memdup (event, sizeof (BroadwayInputMsg));
+
+              break;
+            }
+          update_pos (mv_resize,
+                      event->touch.root_x,
+                      event->touch.root_y);
+        }
+
+      break;
+
     case BROADWAY_EVENT_POINTER_MOVE:
       if (mv_resize->moveresize_window->resize_count > 0)
 	{
@@ -1403,10 +1444,32 @@ gdk_broadway_window_begin_move_drag (GdkWindow *window,
 				     gint       root_y,
 				     guint32    timestamp)
 {
+  MoveResizeData *mv_resize;
+  GdkWindowImplBroadway *impl;
+
+  impl = GDK_WINDOW_IMPL_BROADWAY (window->impl);
+
   if (GDK_WINDOW_DESTROYED (window) ||
-      !WINDOW_IS_TOPLEVEL (window))
+      !WINDOW_IS_TOPLEVEL_OR_FOREIGN (window))
     return;
 
+  mv_resize = get_move_resize_data (gdk_window_get_display (window), TRUE);
+
+  mv_resize->is_resize = FALSE;
+  mv_resize->moveresize_button = button;
+  mv_resize->moveresize_x = root_x;
+  mv_resize->moveresize_y = root_y;
+  mv_resize->moveresize_window = g_object_ref (window);
+
+  mv_resize->moveresize_orig_width = gdk_window_get_width (window);
+  mv_resize->moveresize_orig_height = gdk_window_get_height (window);
+
+  mv_resize->moveresize_geom_mask = impl->geometry_hints_mask;
+  mv_resize->moveresize_geometry = impl->geometry_hints;
+
+  calculate_unmoving_origin (mv_resize);
+
+  create_moveresize_window (mv_resize, timestamp);
 }
 
 static gboolean
@@ -1499,7 +1562,7 @@ _gdk_broadway_window_translate (GdkWindow      *window,
 				gint            dx,
 				gint            dy)
 {
-  GdkWindowImplBroadway *impl;
+ /*  GdkWindowImplBroadway *impl;
   GdkBroadwayDisplay *broadway_display;
 
   impl = GDK_WINDOW_IMPL_BROADWAY (window->impl);
@@ -1513,7 +1576,7 @@ _gdk_broadway_window_translate (GdkWindow      *window,
 						 impl->id,
 						 area, dx, dy))
 	queue_flush (window);
-    }
+    }*/
 }
 
 guint32

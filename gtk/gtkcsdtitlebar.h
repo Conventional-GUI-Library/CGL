@@ -88,6 +88,13 @@ gtk_csd_title_bar_set_show_close_button (GtkCSDTitleBar *bar,
 gboolean
 gtk_csd_title_bar_get_show_close_button (GtkCSDTitleBar *bar);
 
+GDK_AVAILABLE_IN_3_12
+gboolean     gtk_csd_title_bar_get_show_fallback_app_menu (GtkCSDTitleBar *bar);
+
+GDK_AVAILABLE_IN_3_12
+void         gtk_csd_title_bar_set_show_fallback_app_menu (GtkCSDTitleBar *bar,
+							gboolean      setting);
+
 G_END_DECLS
 
 #endif /* __GTK_CSD_TITLE_BAR_H__ */

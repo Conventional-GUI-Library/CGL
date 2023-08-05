@@ -102,7 +102,7 @@ gdk_broadway_display_init_input (GdkDisplay *display)
 
   for (l = list; l; l = l->next)
     {
-      device = list->data;
+      device = l->data;
 
       if (gdk_device_get_source (device) != GDK_SOURCE_MOUSE)
         continue;
@@ -362,6 +362,22 @@ static void
 gdk_broadway_display_event_data_free (GdkDisplay    *display,
 				      GdkEvent *event)
 {
+}
+
+void
+gdk_broadway_display_show_keyboard (GdkBroadwayDisplay *display)
+{
+  g_return_if_fail (GDK_IS_BROADWAY_DISPLAY (display));
+
+  _gdk_broadway_server_set_show_keyboard (display->server, TRUE);
+}
+
+void
+gdk_broadway_display_hide_keyboard (GdkBroadwayDisplay *display)
+{
+  g_return_if_fail (GDK_IS_BROADWAY_DISPLAY (display));
+
+  _gdk_broadway_server_set_show_keyboard (display->server, FALSE);
 }
 
 static void

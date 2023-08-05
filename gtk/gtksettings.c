@@ -47,6 +47,10 @@
 #include "wayland/gdkwayland.h"
 #endif
 
+#ifdef GDK_WINDOWING_BROADWAY
+#include "broadway/gdkbroadway.h"
+#endif
+
 #ifdef GDK_WINDOWING_QUARTZ
 #include "quartz/gdkquartz.h"
 #endif
@@ -209,6 +213,7 @@ enum {
   PROP_IM_STATUS_STYLE,
   PROP_SHELL_SHOWS_APP_MENU,
   PROP_SHELL_SHOWS_MENUBAR,
+  PROP_SHELL_SHOWS_DESKTOP,
   PROP_ENABLE_PRIMARY_PASTE,
   PROP_RECENT_FILES_ENABLED
 };
@@ -1378,6 +1383,16 @@ gtk_settings_class_init (GtkSettingsClass *class)
                                              NULL);
   g_assert (result == PROP_SHELL_SHOWS_MENUBAR);
 
+  result = settings_install_property_parser (class,
+                                             g_param_spec_boolean ("gtk-shell-shows-desktop",
+                                                                   P_("Desktop environment shows the desktop folder"),
+                                                                   P_("Set to TRUE if the desktop environment "
+                                                                      "is displaying the desktop folder, FALSE "
+                                                                      "if not."),
+                                                                   FALSE, GTK_PARAM_READWRITE),
+                                             NULL);
+  g_assert (result == PROP_SHELL_SHOWS_DESKTOP);
+
   /**
    * GtkSettings:gtk-enable-primary-paste:
    *
@@ -1644,11 +1659,22 @@ gtk_settings_get_for_screen (GdkScreen *screen)
     {
 #ifdef GDK_WINDOWING_QUARTZ
       if (GDK_IS_QUARTZ_SCREEN (screen))
-        settings = g_object_new (GTK_TYPE_SETTINGS,
-                                 "gtk-key-theme-name", "Mac",
-                                 "gtk-shell-shows-app-menu", TRUE,
-                                 "gtk-shell-shows-menubar", TRUE,
-                                 NULL);
+        {
+          settings = g_object_new (GTK_TYPE_SETTINGS,
+                                   "gtk-key-theme-name", "Mac",
+                                   "gtk-shell-shows-app-menu", TRUE,
+                                   "gtk-shell-shows-menubar", TRUE,
+                                   NULL);
+        }
+      else
+#endif
+#ifdef GDK_WINDOWING_BROADWAY
+      if (GDK_IS_BROADWAY_DISPLAY (gdk_screen_get_display (screen)))
+        {
+          settings = g_object_new (GTK_TYPE_SETTINGS,
+                                   "gtk-im-module", "broadway",
+                                   NULL);
+        }
       else
 #endif
         settings = g_object_new (GTK_TYPE_SETTINGS, NULL);
@@ -2936,45 +2962,57 @@ settings_update_provider (GdkScreen       *screen,
     }
 }
 
+static char *
+get_theme_name (GtkSettings *settings)
+{
+  char *theme_name = NULL;
+
+  if (g_getenv ("GTK_THEME"))
+    theme_name = g_strdup (g_getenv ("GTK_THEME"));
+
+  if (theme_name && *theme_name)
+    return theme_name;
+
+  g_free (theme_name);
+  g_object_get (settings,
+                "gtk-theme-name", &theme_name,
+                NULL);
+
+  if (theme_name && *theme_name)
+    return theme_name;
+
+  g_free (theme_name);
+  return g_strdup ("Raleigh");
+}
+
 static void
 settings_update_theme (GtkSettings *settings)
 {
   GtkSettingsPrivate *priv = settings->priv;
   gboolean prefer_dark_theme;
   gchar *theme_name;
+  gchar *theme_dir;
+  gchar *path;
 
   g_object_get (settings,
-                "gtk-theme-name", &theme_name,
                 "gtk-application-prefer-dark-theme", &prefer_dark_theme,
                 NULL);
 
-  if (!theme_name || !*theme_name)
-    {
-      g_free (theme_name);
-      theme_name = g_strdup ("Raleigh");
-    }
-  
+  theme_name = get_theme_name (settings);
+
   _gtk_css_provider_load_named (priv->theme_provider,
                                 theme_name,
                                 prefer_dark_theme ? "dark" : NULL);
 
-  if (theme_name && *theme_name)
-    {
-      gchar *theme_dir;
-      gchar *path;
+  /* reload per-theme settings */
+  theme_dir = _gtk_css_provider_get_theme_dir ();
+  path = g_build_filename (theme_dir, theme_name, "gtk-3.0", "settings.ini", NULL);
 
-      /* reload per-theme settings */
-      theme_dir = _gtk_css_provider_get_theme_dir ();
-      path = g_build_filename (theme_dir, theme_name, "gtk-3.0", "settings.ini", NULL);
+  if (g_file_test (path, G_FILE_TEST_EXISTS))
+    gtk_settings_load_from_key_file (settings, path, GTK_SETTINGS_SOURCE_THEME);
 
-     if (g_file_test (path, G_FILE_TEST_EXISTS))
-       gtk_settings_load_from_key_file (settings, path, GTK_SETTINGS_SOURCE_THEME);
-
-      g_free (theme_dir);
-      g_free (path);
-    }
-
-  g_free (theme_name);
+  g_free (theme_dir);
+  g_free (path);
 }
 
 static void

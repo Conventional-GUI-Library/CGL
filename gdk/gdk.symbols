@@ -3,6 +3,8 @@
  */
 gdk_event_get_window
 gdk_event_get_event_type
+gdk_window_get_event_compression
+gdk_window_set_event_compression
 gdk_cursor_new_from_surface
 gdk_cursor_get_surface
 gdk_device_get_position_double

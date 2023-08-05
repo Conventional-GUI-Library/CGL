@@ -919,7 +919,9 @@ typedef enum
   GTK_STATE_FLAG_FOCUSED      = 1 << 5,
   GTK_STATE_FLAG_BACKDROP     = 1 << 6,
   GTK_STATE_FLAG_DIR_LTR      = 1 << 7,
-  GTK_STATE_FLAG_DIR_RTL      = 1 << 8
+  GTK_STATE_FLAG_DIR_RTL      = 1 << 8,
+  GTK_STATE_FLAG_LINK         = 1 << 9,
+  GTK_STATE_FLAG_VISITED      = 1 << 10
 } GtkStateFlags;
 
 /**

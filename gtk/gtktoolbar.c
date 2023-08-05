@@ -56,6 +56,7 @@
 #include "gtkintl.h"
 #include "gtktypebuiltins.h"
 #include "gtkwidgetprivate.h"
+#include "gtkwindowprivate.h"
 
 
 /**
@@ -921,7 +922,8 @@ get_widget_padding_and_border (GtkWidget *widget,
 
 static void
 gtk_toolbar_size_request (GtkWidget      *widget,
-			  GtkRequisition *requisition)
+			  GtkRequisition *min_requisition,
+			  GtkRequisition *nat_requisition)
 {
   GtkToolbar *toolbar = GTK_TOOLBAR (widget);
   GtkToolbarPrivate *priv = toolbar->priv;
@@ -931,10 +933,10 @@ gtk_toolbar_size_request (GtkWidget      *widget,
   gint max_homogeneous_child_width;
   gint max_homogeneous_child_height;
   gint homogeneous_size;
-  gint long_req;
   gint pack_front_size;
   GtkBorder padding;
   guint border_width;
+  gint extra_width, extra_height;
   GtkRequisition arrow_requisition;
   
   max_homogeneous_child_width = 0;
@@ -993,47 +995,43 @@ gtk_toolbar_size_request (GtkWidget      *widget,
 
       pack_front_size += size;
     }
+
+  arrow_requisition.height = 0;
+  arrow_requisition.width = 0;
   
   if (priv->show_arrow)
-    {
-      gtk_widget_get_preferred_size (priv->arrow_button,
+    gtk_widget_get_preferred_size (priv->arrow_button,
                                      &arrow_requisition, NULL);
-
-      if (priv->orientation == GTK_ORIENTATION_HORIZONTAL)
-	long_req = arrow_requisition.width;
-      else
-	long_req = arrow_requisition.height;
-      
-      /* There is no point requesting space for the arrow if that would take
-       * up more space than all the items combined
-       */
-      long_req = MIN (long_req, pack_front_size);
-    }
-  else
-    {
-      arrow_requisition.height = 0;
-      arrow_requisition.width = 0;
-      
-      long_req = pack_front_size;
-    }
   
   if (priv->orientation == GTK_ORIENTATION_HORIZONTAL)
     {
-      requisition->width = long_req;
-      requisition->height = MAX (max_child_height, arrow_requisition.height);
+      nat_requisition->width = pack_front_size;
+      nat_requisition->height = MAX (max_child_height, arrow_requisition.height);
+
+      min_requisition->width = priv->show_arrow ? arrow_requisition.width : nat_requisition->width;
+      min_requisition->height = nat_requisition->height;
     }
   else
     {
-      requisition->height = long_req;
-      requisition->width = MAX (max_child_width, arrow_requisition.width);
+      nat_requisition->height = pack_front_size;
+      nat_requisition->width = MAX (max_child_width, arrow_requisition.width);
+
+      min_requisition->height = priv->show_arrow ? arrow_requisition.height : nat_requisition->height;
+      min_requisition->width = nat_requisition->width;
     }
 
   /* Extra spacing */
   border_width = gtk_container_get_border_width (GTK_CONTAINER (toolbar));
   get_widget_padding_and_border (widget, &padding);
 
-  requisition->width += 2 * border_width + padding.left + padding.right;
-  requisition->height += 2 * border_width + padding.top + padding.bottom;
+  extra_width = 2 * border_width + padding.left + padding.right;
+  extra_height = 2 * border_width + padding.top + padding.bottom;
+
+  nat_requisition->width += extra_width;
+  nat_requisition->height += extra_height;
+
+  min_requisition->width += extra_width;
+  min_requisition->height += extra_height;
   
   priv->button_maxw = max_homogeneous_child_width;
   priv->button_maxh = max_homogeneous_child_height;
@@ -1044,11 +1042,14 @@ gtk_toolbar_get_preferred_width (GtkWidget *widget,
                                  gint      *minimum,
                                  gint      *natural)
 {
-  GtkRequisition requisition;
+  GtkRequisition min_requisition, nat_requisition;
 
-  gtk_toolbar_size_request (widget, &requisition);
+  gtk_toolbar_size_request (widget, &min_requisition, &nat_requisition);
 
-  *minimum = *natural = requisition.width;
+  if (minimum)
+    *minimum = min_requisition.width;
+  if (natural)
+    *natural = nat_requisition.width;
 }
 
 static void
@@ -1056,11 +1057,14 @@ gtk_toolbar_get_preferred_height (GtkWidget *widget,
                                   gint      *minimum,
                                   gint      *natural)
 {
-  GtkRequisition requisition;
+  GtkRequisition min_requisition, nat_requisition;
 
-  gtk_toolbar_size_request (widget, &requisition);
+  gtk_toolbar_size_request (widget, &min_requisition, &nat_requisition);
 
-  *minimum = *natural = requisition.height;
+  if (minimum)
+    *minimum = min_requisition.height;
+  if (natural)
+    *natural = nat_requisition.height;
 }
 
 static gint
@@ -2704,7 +2708,7 @@ gtk_toolbar_arrow_button_press (GtkWidget      *button,
 {
   show_menu (toolbar, event);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
-  
+
   return TRUE;
 }
 
@@ -2712,8 +2716,6 @@ static gboolean
 gtk_toolbar_button_press (GtkWidget      *toolbar,
     			  GdkEventButton *event)
 {
-  GtkWidget *window;
-
   if (gdk_event_triggers_context_menu ((GdkEvent *) event))
     {
       gboolean return_value;
@@ -2725,32 +2727,7 @@ gtk_toolbar_button_press (GtkWidget      *toolbar,
       return return_value;
     }
 
-  if (event->type != GDK_BUTTON_PRESS)
-    return FALSE;
-
-  window = gtk_widget_get_toplevel (toolbar);
-
-  if (window)
-    {
-      gboolean window_drag = FALSE;
-
-      gtk_widget_style_get (toolbar,
-                            "window-dragging", &window_drag,
-                            NULL);
-
-      if (window_drag)
-        {
-          gtk_window_begin_move_drag (GTK_WINDOW (window),
-                                      event->button,
-                                      event->x_root,
-                                      event->y_root,
-                                      event->time);
-
-          return TRUE;
-        }
-    }
-
-  return FALSE;
+  return _gtk_window_handle_button_press_for_widget (toolbar, event);
 }
 
 static gboolean

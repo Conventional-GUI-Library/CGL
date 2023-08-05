@@ -9879,8 +9879,6 @@ _gtk_tree_view_column_start_drag (GtkTreeView       *tree_view,
   gdk_window_show (tree_view->priv->drag_window);
 
   gtk_widget_grab_focus (GTK_WIDGET (tree_view));
-  while (gtk_events_pending ())
-    gtk_main_iteration ();
 
   tree_view->priv->in_column_drag = TRUE;
 
@@ -13113,7 +13111,8 @@ gtk_tree_view_real_set_cursor (GtkTreeView     *tree_view,
        */
       _gtk_tree_view_find_node (tree_view, path, &new_tree, &new_node);
 
-      if (tree_view->priv->cursor_node != new_node)
+      if (tree_view->priv->cursor_node == NULL ||
+          tree_view->priv->cursor_node != new_node)
         return;
 
       if (flags & CLAMP_NODE)

@@ -4,6 +4,7 @@
 #include <glib.h>
 #include <gio/gio.h>
 #include "broadway-protocol.h"
+#include "broadway-buffer.h"
 
 typedef struct BroadwayOutput BroadwayOutput;
 
@@ -36,6 +37,10 @@ void            broadway_output_show_surface    (BroadwayOutput *output,
 						 int             id);
 void            broadway_output_hide_surface    (BroadwayOutput *output,
 						 int             id);
+void            broadway_output_raise_surface   (BroadwayOutput *output,
+                                                 int             id);
+void            broadway_output_lower_surface   (BroadwayOutput *output,
+                                                 int             id);
 void            broadway_output_destroy_surface (BroadwayOutput *output,
 						 int             id);
 void            broadway_output_move_resize_surface (BroadwayOutput *output,
@@ -49,34 +54,16 @@ void            broadway_output_move_resize_surface (BroadwayOutput *output,
 void            broadway_output_set_transient_for (BroadwayOutput *output,
 						   int             id,
 						   int             parent_id);
-void            broadway_output_put_rgb         (BroadwayOutput *output,
+void            broadway_output_put_buffer      (BroadwayOutput *output,
 						 int             id,
-						 int             x,
-						 int             y,
-						 int             w,
-						 int             h,
-						 int             byte_stride,
-						 void           *data);
-void            broadway_output_put_rgba        (BroadwayOutput *output,
-						 int             id,
-						 int             x,
-						 int             y,
-						 int             w,
-						 int             h,
-						 int             byte_stride,
-						 void           *data);
-void            broadway_output_surface_flush   (BroadwayOutput *output,
-						 int             id);
-void            broadway_output_copy_rectangles (BroadwayOutput *output,
-						 int             id,
-						 BroadwayRect   *rects,
-						 int             n_rects,
-						 int             dx,
-						 int             dy);
+                                                 BroadwayBuffer *prev_buffer,
+                                                 BroadwayBuffer *buffer);
 void            broadway_output_grab_pointer    (BroadwayOutput *output,
 						 int id,
 						 gboolean owner_event);
 guint32         broadway_output_ungrab_pointer  (BroadwayOutput *output);
 void            broadway_output_pong            (BroadwayOutput *output);
+void            broadway_output_set_show_keyboard (BroadwayOutput *output,
+                                                   gboolean show);
 
 #endif /* __BROADWAY_H__ */

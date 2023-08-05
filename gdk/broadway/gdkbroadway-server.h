@@ -47,9 +47,13 @@ gboolean           _gdk_broadway_server_window_show              (GdkBroadwaySer
 								  gint                id);
 gboolean           _gdk_broadway_server_window_hide              (GdkBroadwayServer  *server,
 								  gint                id);
+void               _gdk_broadway_server_window_focus             (GdkBroadwayServer  *server,
+								  gint                id);
 void               _gdk_broadway_server_window_set_transient_for (GdkBroadwayServer  *server,
 								  gint                id,
 								  gint                parent);
+void               _gdk_broadway_server_set_show_keyboard        (GdkBroadwayServer  *server,
+								  gboolean            show_keyboard);
 gboolean           _gdk_broadway_server_window_translate         (GdkBroadwayServer  *server,
 								  gint                id,
 								  cairo_region_t     *area,
@@ -67,5 +71,9 @@ gboolean           _gdk_broadway_server_window_move_resize       (GdkBroadwaySer
 								  int                 y,
 								  int                 width,
 								  int                 height);
-
+gboolean           _gdk_broadway_server_window_translate         (GdkBroadwayServer  *server,
+								  gint                id,
+								  cairo_region_t     *area,
+								  gint                dx,
+								  gint                dy);
 #endif /* __GDK_BROADWAY_SERVER__ */

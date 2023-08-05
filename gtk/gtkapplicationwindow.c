@@ -28,6 +28,7 @@
 #include "gtkwindowprivate.h"
 #include "gtkmenubar.h"
 #include "gtkintl.h"
+#include "gtkcsdtitlebar.h"
 
 #include <gdk/gdk.h>
 #ifdef GDK_WINDOWING_X11
@@ -272,10 +273,14 @@ gtk_application_window_update_shell_shows_app_menu (GtkApplicationWindow *window
                                                     GtkSettings          *settings)
 {
   gboolean shown_by_shell;
+  gboolean shown_by_titlebar;
 
   g_object_get (settings, "gtk-shell-shows-app-menu", &shown_by_shell, NULL);
+  
+  shown_by_titlebar = _gtk_window_titlebar_shows_app_menu (GTK_WINDOW (window));
 
-  if (shown_by_shell)
+  if (shown_by_shell || shown_by_titlebar)
+
     {
       /* the shell shows it, so don't show it locally */
       if (g_menu_model_get_n_items (G_MENU_MODEL (window->priv->app_menu_section)) != 0)
@@ -519,8 +524,17 @@ gtk_application_window_real_get_preferred_width (GtkWidget *widget,
   if (window->priv->menubar != NULL)
     {
       gint menubar_min_width, menubar_nat_width;
+      gint border_width;
+      GtkBorder border = { 0 };
 
       gtk_widget_get_preferred_width (window->priv->menubar, &menubar_min_width, &menubar_nat_width);
+
+      border_width = gtk_container_get_border_width (GTK_CONTAINER (widget));
+      _gtk_window_get_decoration_size (GTK_WINDOW (widget), &border);
+
+      menubar_min_width += 2 * border_width + border.left + border.right;
+      menubar_nat_width += 2 * border_width + border.left + border.right;
+
       *minimum_width = MAX (*minimum_width, menubar_min_width);
       *natural_width = MAX (*natural_width, menubar_nat_width);
     }
@@ -546,8 +560,17 @@ gtk_application_window_real_get_preferred_width_for_height (GtkWidget *widget,
   if (window->priv->menubar != NULL)
     {
       gint menubar_min_width, menubar_nat_width;
+      gint border_width;
+      GtkBorder border = { 0 };
 
       gtk_widget_get_preferred_width_for_height (window->priv->menubar, menubar_height, &menubar_min_width, &menubar_nat_width);
+
+      border_width = gtk_container_get_border_width (GTK_CONTAINER (widget));
+      _gtk_window_get_decoration_size (GTK_WINDOW (widget), &border);
+
+      menubar_min_width += 2 * border_width + border.left + border.right;
+      menubar_nat_width += 2 * border_width + border.left + border.right;
+
       *minimum_width = MAX (*minimum_width, menubar_min_width);
       *natural_width = MAX (*natural_width, menubar_nat_width);
     }
@@ -576,19 +599,11 @@ gtk_application_window_real_size_allocate (GtkWidget     *widget,
       menubar_allocation.height = menubar_height;
       gtk_widget_size_allocate (window->priv->menubar, &menubar_allocation);
 
+      child_allocation.y += menubar_height;
+      child_allocation.height -= menubar_height;
       child = gtk_bin_get_child (GTK_BIN (window));
       if (child != NULL && gtk_widget_get_visible (child))
-        {
-          gint border_width;
-
-          border_width = gtk_container_get_border_width (GTK_CONTAINER (window));
-          child_allocation.x += border_width;
-          child_allocation.y += border_width + menubar_height;
-          child_allocation.width = MAX (1, child_allocation.width - border_width * 2);
-          child_allocation.height = MAX (1, child_allocation.height - border_width * 2 - menubar_height);
-
-          gtk_widget_size_allocate (child, &child_allocation);
-        }
+        gtk_widget_size_allocate (child, &child_allocation);
     }
   else
     GTK_WIDGET_CLASS (gtk_application_window_parent_class)
@@ -610,12 +625,14 @@ gtk_application_window_real_realize (GtkWidget *widget)
   g_signal_connect (settings, "notify::gtk-shell-shows-menubar",
                     G_CALLBACK (gtk_application_window_shell_shows_menubar_changed), window);
 
+  GTK_WIDGET_CLASS (gtk_application_window_parent_class)
+    ->realize (widget);
+    
   gtk_application_window_update_shell_shows_app_menu (window, settings);
   gtk_application_window_update_shell_shows_menubar (window, settings);
   gtk_application_window_update_menubar (window);
 
-  GTK_WIDGET_CLASS (gtk_application_window_parent_class)
-    ->realize (widget);
+
 
 #ifdef GDK_WINDOWING_X11
   {

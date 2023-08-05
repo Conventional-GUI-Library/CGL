@@ -40,7 +40,6 @@ typedef struct _GdkBroadwayDisplayClass GdkBroadwayDisplayClass;
 #define GDK_IS_BROADWAY_DISPLAY_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), GDK_TYPE_BROADWAY_DISPLAY))
 #define GDK_BROADWAY_DISPLAY_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), GDK_TYPE_BROADWAY_DISPLAY, GdkBroadwayDisplayClass))
 
-GDK_AVAILABLE_IN_ALL
 GType                   gdk_broadway_display_get_type            (void);
 
 GDK_AVAILABLE_IN_3_12

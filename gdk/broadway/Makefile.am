@@ -23,19 +23,20 @@ libgdkinclude_HEADERS = 	\
 	gdkbroadway.h
 
 libgdkbroadwayinclude_HEADERS = 	\
+	gdkbroadwaydisplay.h		\
 	gdkbroadwaywindow.h		\
 	gdkbroadwaycursor.h		\
 	gdkbroadwayvisual.h
 
 clienthtml.h: client.html
-	$(PERL) $(srcdir)/toarray.pl $(srcdir)/client.html client_html > $@
+	$(PERL) $(srcdir)/toarray.pl client_html $(srcdir)/client.html > $@
 
 EXTRA_DIST += client.html
 
-broadwayjs.h: broadway.js
-	$(PERL) $(srcdir)/toarray.pl $(srcdir)/broadway.js broadway_js > $@
+broadwayjs.h: broadway.js rawinflate.min.js
+	$(PERL) $(srcdir)/toarray.pl broadway_js $(srcdir)/broadway.js $(srcdir)/rawinflate.min.js  > $@
 
-EXTRA_DIST += broadway.js
+EXTRA_DIST += broadway.js rawinflate.min.js
 
 # built headers that don't get installed
 broadway_built_private_headers =	\
@@ -81,6 +82,8 @@ broadwayd_SOURCES = \
 	broadwayd.c 			\
 	broadway-server.h		\
 	broadway-server.c		\
+	broadway-buffer.c		\
+	broadway-buffer.h		\
 	broadway-output.h		\
 	broadway-output.c
 

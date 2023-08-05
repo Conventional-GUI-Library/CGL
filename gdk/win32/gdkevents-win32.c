@@ -3074,6 +3074,11 @@ gdk_event_translate (MSG  *msg,
 	  mmi->ptMaxTrackSize.x = maxw > 0 && maxw < G_MAXSHORT ? maxw : G_MAXSHORT;
 	  mmi->ptMaxTrackSize.y = maxh > 0 && maxh < G_MAXSHORT ? maxh : G_MAXSHORT;
 	}
+      else
+	{
+	  mmi->ptMaxTrackSize.x = 30000;
+	  mmi->ptMaxTrackSize.y = 30000;
+	}
 
       if (impl->hint_flags & (GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE))
 	{
@@ -3086,8 +3091,7 @@ gdk_event_translate (MSG  *msg,
 				     mmi->ptMaxSize.x, mmi->ptMaxSize.y));
 	  return_val = TRUE;
 	}
-      mmi->ptMaxTrackSize.x = 30000;
-      mmi->ptMaxTrackSize.y = 30000;
+
       return_val = TRUE;
       break;
 
@@ -3324,7 +3328,7 @@ gdk_event_prepare (GSource *source,
   *timeout = -1;
 
   if (_gdk_display->event_pause_count > 0)
-    retval = FALSE;
+    retval =_gdk_event_queue_find_first (_gdk_display) != NULL;
   else
     retval = (_gdk_event_queue_find_first (_gdk_display) != NULL ||
               (modal_win32_dialog == NULL &&
@@ -3343,7 +3347,7 @@ gdk_event_check (GSource *source)
   gdk_threads_enter ();
 
   if (_gdk_display->event_pause_count > 0)
-    retval = FALSE;
+    retval = _gdk_event_queue_find_first (_gdk_display) != NULL;
   else if (event_poll_fd.revents & G_IO_IN)
     retval = (_gdk_event_queue_find_first (_gdk_display) != NULL ||
               (modal_win32_dialog == NULL &&

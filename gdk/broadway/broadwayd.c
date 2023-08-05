@@ -124,26 +124,6 @@ send_reply (BroadwayClient *client,
     }
 }
 
-static cairo_region_t *
-region_from_rects (BroadwayRect *rects, int n_rects)
-{
-  cairo_region_t *region;
-  cairo_rectangle_int_t *cairo_rects;
-  int i;
-  
-  cairo_rects = g_new (cairo_rectangle_int_t, n_rects);
-  for (i = 0; i < n_rects; i++)
-    {
-      cairo_rects[i].x = rects[i].x;
-      cairo_rects[i].y = rects[i].y;
-      cairo_rects[i].width = rects[i].width;
-      cairo_rects[i].height = rects[i].height;
-    }
-  region = cairo_region_create_rectangles (cairo_rects, n_rects);
-  g_free (cairo_rects);
-  return region;
-}
-
 void
 add_client_serial_mapping (BroadwayClient *client,
 			   guint32 client_serial,
@@ -217,7 +197,6 @@ client_handle_request (BroadwayClient *client,
   BroadwayReplyQueryMouse reply_query_mouse;
   BroadwayReplyGrabPointer reply_grab_pointer;
   BroadwayReplyUngrabPointer reply_ungrab_pointer;
-  cairo_region_t *area;
   cairo_surface_t *surface;
   guint32 before_serial, now_serial;
 
@@ -274,16 +253,6 @@ client_handle_request (BroadwayClient *client,
 						request->set_transient_for.id,
 						request->set_transient_for.parent);
       break;
-    case BROADWAY_REQUEST_TRANSLATE:
-      area = region_from_rects (request->translate.rects,
-				request->translate.n_rects);
-      broadway_server_window_translate (server,
-					request->translate.id,
-					area,
-					request->translate.dx,
-					request->translate.dy);
-      cairo_region_destroy (area);
-      break;
     case BROADWAY_REQUEST_UPDATE:
       surface = broadway_server_open_surface (server,
 					      request->update.id,
@@ -324,6 +293,12 @@ client_handle_request (BroadwayClient *client,
 					request->ungrab_pointer.time_);
       send_reply (client, request, (BroadwayReply *)&reply_ungrab_pointer, sizeof (reply_ungrab_pointer),
 		  BROADWAY_REPLY_UNGRAB_POINTER);
+      break;
+    case BROADWAY_REQUEST_FOCUS_WINDOW:
+      broadway_server_focus_window (server, request->focus_window.id);
+      break;
+    case BROADWAY_REQUEST_SET_SHOW_KEYBOARD:
+      broadway_server_set_show_keyboard (server, request->set_show_keyboard.show_keyboard);
       break;
     default:
       g_warning ("Unknown request of type %d\n", request->base.type);
@@ -556,6 +531,8 @@ get_event_size (int type)
       return sizeof (BroadwayInputButtonMsg);
     case BROADWAY_EVENT_SCROLL:
       return sizeof (BroadwayInputScrollMsg);
+    case BROADWAY_EVENT_TOUCH:
+      return sizeof (BroadwayInputTouchMsg);
     case BROADWAY_EVENT_KEY_PRESS:
     case BROADWAY_EVENT_KEY_RELEASE:
       return  sizeof (BroadwayInputKeyMsg);
@@ -568,6 +545,8 @@ get_event_size (int type)
       return sizeof (BroadwayInputDeleteNotify);
     case BROADWAY_EVENT_SCREEN_SIZE_CHANGED:
       return sizeof (BroadwayInputScreenResizeNotify);
+    case BROADWAY_EVENT_FOCUS:
+      return sizeof (BroadwayInputFocusMsg);
     default:
       g_assert_not_reached ();
     }

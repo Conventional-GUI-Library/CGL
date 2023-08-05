@@ -69,6 +69,9 @@ void            _gtk_window_set_allocation         (GtkWindow           *window,
 
 
 
+gboolean       _gtk_window_handle_button_press_for_widget (GtkWidget      *widget,
+                                                           GdkEventButton *event);
+
 typedef void (*GtkWindowKeysForeachFunc) (GtkWindow      *window,
                                           guint           keyval,
                                           GdkModifierType modifiers,
@@ -87,6 +90,11 @@ gboolean        _gtk_window_query_nonaccels     (GtkWindow      *window,
 void            _gtk_window_schedule_mnemonics_visible (GtkWindow *window);
 
 void            _gtk_window_notify_keys_changed (GtkWindow *window);
+
+gboolean        _gtk_window_titlebar_shows_app_menu (GtkWindow *window);
+
+void            _gtk_window_get_decoration_size (GtkWindow *window,
+                                                 GtkBorder *border);
 
 G_END_DECLS
 
