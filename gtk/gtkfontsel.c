@@ -861,7 +861,6 @@ gtk_font_selection_show_available_fonts(GtkFontSelection * fontsel) {
 		fontsel_addfamily:
 		{
 			name = pango_font_family_get_name(families[i]);
-			GtkTreeIter iter;
 
 			gtk_list_store_append(model, &iter);
 			gtk_list_store_set(model, &iter,FAMILY_COLUMN, families[i], FAMILY_NAME_COLUMN, name, -1);	
