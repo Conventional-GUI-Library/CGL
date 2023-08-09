@@ -7,6 +7,7 @@ gtk_widget_get_margin_end
 gtk_widget_set_margin_end
 gtk_list_box_prepend
 gtk_places_sidebar_set_local_only
+gtk_get_locale_direction
 gtk_places_sidebar_get_local_only
 gtk_csd_title_bar_set_show_fallback_app_menu
 gtk_csd_title_bar_get_show_fallback_app_menu
@@ -880,6 +881,8 @@ gtk_css_section_get_type
 gtk_css_section_ref
 gtk_css_section_type_get_type
 gtk_css_section_unref
+gtk_csd_title_bar_set_has_subtitle
+gtk_csd_title_bar_get_has_subtitle
 #ifdef G_OS_UNIX
 gtk_custom_paper_unix_dialog_get_type
 #endif

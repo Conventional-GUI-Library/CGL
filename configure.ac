@@ -46,7 +46,7 @@ m4_define([pango_required_version], [1.32.4])
 m4_define([atk_required_version], [2.7.4])
 m4_define([cairo_required_version], [1.12.0])
 m4_define([gdk_pixbuf_required_version], [2.27.1])
-m4_define([introspection_required_version], [0.10.1])
+m4_define([introspection_required_version], [1.39.0])
 GLIB_REQUIRED_VERSION=glib_required_version
 PANGO_REQUIRED_VERSION=pango_required_version
 ATK_REQUIRED_VERSION=atk_required_version
@@ -385,7 +385,7 @@ if test "x$enable_broadway_backend" = xyes; then
   GDK_BACKENDS="$GDK_BACKENDS broadway"
   cairo_backends="$cairo_backends cairo"
   backend_immodules="$backend_immodules,broadway"
-  if test "$host_os" != "mingw*|windows*|winnt"; then
+  if test "$os_win32" != "yes"; then
     have_gio_unix=yes
   fi
   GDK_WINDOWING="$GDK_WINDOWING

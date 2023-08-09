@@ -49,6 +49,7 @@
 #include "gtkentryprivate.h"
 #include "gtkstylecontextprivate.h"
 #include "gtkcssstylepropertyprivate.h"
+#include "gtkcssrgbavalueprivate.h"
 #include "gtktypebuiltins.h"
 #include "gtkmain.h"
 #include "gtksettings.h"
@@ -2204,7 +2205,6 @@ gtk_tree_view_ensure_background (GtkTreeView *tree_view)
 
   context = gtk_widget_get_style_context (GTK_WIDGET (tree_view));
 
-  gtk_style_context_set_background (context, tree_view->priv->bin_window);
   gtk_style_context_set_background (context, gtk_widget_get_window (GTK_WIDGET (tree_view)));
   gtk_style_context_set_background (context, tree_view->priv->header_window);
 }
@@ -4627,13 +4627,19 @@ gtk_tree_view_draw_line (GtkTreeView         *tree_view,
                         2, 0.5);
       break;
     case GTK_TREE_VIEW_GRID_LINE:
-      cairo_set_source_rgb (cr, 0, 0, 0);
-      cairo_set_line_width (cr, tree_view->priv->grid_line_width);
-      if (tree_view->priv->grid_line_dashes[0])
-        cairo_set_dash (cr, 
-                        tree_view->priv->grid_line_dashes,
-                        2, 0.5);
+      {
+        GtkStyleContext *context = gtk_widget_get_style_context (GTK_WIDGET (tree_view));
+        const GdkRGBA *color = _gtk_css_rgba_value_get_rgba (_gtk_style_context_peek_property (context, GTK_CSS_PROPERTY_BORDER_TOP_COLOR));
+
+        gdk_cairo_set_source_rgba (cr, color);
+        cairo_set_line_width (cr, tree_view->priv->grid_line_width);
+        if (tree_view->priv->grid_line_dashes[0])
+          cairo_set_dash (cr,
+                          tree_view->priv->grid_line_dashes,
+                          2, 0.5);
+      }
       break;
+
     default:
       g_assert_not_reached ();
       /* fall through */
@@ -5369,10 +5375,6 @@ gtk_tree_view_draw (GtkWidget *widget,
   GtkStyleContext *context;
 
   context = gtk_widget_get_style_context (widget);
-  gtk_render_background (context, cr,
-                         0, 0,
-                         gtk_widget_get_allocated_width (widget),
-                         gtk_widget_get_allocated_height (widget));
 
   if (gtk_cairo_should_draw_window (cr, tree_view->priv->bin_window))
     {
@@ -5397,6 +5399,13 @@ gtk_tree_view_draw (GtkWidget *widget,
 
 	  gtk_container_propagate_draw (GTK_CONTAINER (tree_view), child->widget, cr);
 	}
+    }
+  else
+    {
+      gtk_render_background (context, cr,
+                             0, 0,
+                             gtk_widget_get_allocated_width (widget),
+                             gtk_widget_get_allocated_height (widget));
     }
 
   gtk_style_context_save (context);

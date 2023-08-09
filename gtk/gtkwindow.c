@@ -67,6 +67,10 @@
 #include "x11/gdkx.h"
 #endif
 
+#ifdef GDK_WINDOWING_WIN32
+#include "win32/gdkwin32.h"
+#endif
+
 #ifdef GDK_WINDOWING_WAYLAND
 #include "wayland/gdkwayland.h"
 #endif
@@ -556,7 +560,9 @@ static void gtk_window_buildable_custom_finished (GtkBuildable  *buildable,
 						      GObject       *child,
 						      const gchar   *tagname,
 						      gpointer       user_data);
-
+static void on_titlebar_title_notify (GtkCSDTitleBar *titlebar,
+                                      GParamSpec   *pspec,
+                                      GtkWindow    *self);
 static void ensure_state_flag_backdrop (GtkWidget *widget);
 static void unset_titlebar (GtkWindow *window);
 static gboolean
@@ -1817,8 +1823,8 @@ gtk_window_set_title_internal (GtkWindow   *window,
   if (gtk_widget_get_realized (widget))
     gdk_window_set_title (gtk_widget_get_window (widget), new_title);
 
-  if (priv->titlebar != NULL && update_titlebar)
-    gtk_csd_title_bar_set_title (GTK_CSD_TITLE_BAR (priv->titlebar), new_title);
+  if (update_titlebar && GTK_IS_CSD_TITLE_BAR (priv->title_box))
+    gtk_csd_title_bar_set_title (GTK_CSD_TITLE_BAR (priv->title_box), new_title);
 
   g_object_notify (G_OBJECT (window), "title");
 }
@@ -3496,6 +3502,11 @@ unset_titlebar (GtkWindow *window)
 {
   GtkWindowPrivate *priv = window->priv;
 
+  if (priv->titlebar != NULL)
+    g_signal_handlers_disconnect_by_func (priv->titlebar,
+                                          on_titlebar_title_notify,
+                                          window);
+
   if (priv->title_box != NULL)
     {
       gtk_widget_unparent (priv->title_box);
@@ -3514,8 +3525,10 @@ on_titlebar_title_notify (GtkCSDTitleBar *titlebar,
                           GParamSpec *pspec,
                           GtkWindow *self)
 {
-  gtk_window_set_title_internal (self, gtk_csd_title_bar_get_title (titlebar),
-                                 FALSE);
+  const gchar *title;
+
+  title = gtk_csd_title_bar_get_title (titlebar);
+  gtk_window_set_title_internal (self, title, FALSE);
 }
 
 /**
@@ -3558,8 +3571,12 @@ gtk_window_set_titlebar (GtkWindow *window,
 
   priv->title_box = titlebar;
   gtk_widget_set_parent (priv->title_box, widget);
-  g_signal_connect (titlebar, "notify::title",
-                    G_CALLBACK (on_titlebar_title_notify), window);
+  if (GTK_IS_CSD_TITLE_BAR (titlebar))
+    {
+      g_signal_connect (titlebar, "notify::title",
+                        G_CALLBACK (on_titlebar_title_notify), window);
+      on_titlebar_title_notify (GTK_CSD_TITLE_BAR (titlebar), NULL, window);
+    }
 
   visual = gdk_screen_get_rgba_visual (gtk_widget_get_screen (widget));
   if (visual)
@@ -5379,6 +5396,21 @@ gdk_window_supports_csd (GtkWindow *window)
     }
 #endif
 
+#ifdef GDK_WINDOWING_WIN32
+  if (GDK_IS_WIN32_DISPLAY (gtk_widget_get_display (widget)))
+    {
+      GdkScreen *screen;
+      GdkVisual *visual;
+
+      screen = gtk_widget_get_screen (widget);
+
+      /* We need a visual with alpha */
+      visual = gdk_screen_get_rgba_visual (screen);
+      if (!visual)
+        return FALSE;
+    }
+#endif
+
   return TRUE;
 }
 
@@ -5402,6 +5434,7 @@ static gboolean
 gdk_window_should_use_csd (GtkWindow *window)
 {
   GtkWindowPrivate *priv = window->priv;
+  const gchar *csd_env;
 
   if (!priv->decorated)
     return FALSE;
@@ -5409,17 +5442,20 @@ gdk_window_should_use_csd (GtkWindow *window)
   if (priv->type == GTK_WINDOW_POPUP)
     return FALSE;
 
-#ifdef GDK_WINDOWING_WAYLAND
-  if (GDK_IS_WAYLAND_DISPLAY (gtk_widget_get_display (GTK_WIDGET (window))))
-    return TRUE;
-#endif
-
 #ifdef GDK_WINDOWING_BROADWAY
   if (GDK_IS_BROADWAY_DISPLAY (gtk_widget_get_display (GTK_WIDGET (window))))
     return TRUE;
 #endif
 
-  return (g_strcmp0 (g_getenv ("GTK_CSD"), "1") == 0);
+  csd_env = g_getenv ("GTK_CSD");
+
+#ifdef GDK_WINDOWING_WAYLAND
+  if (GDK_IS_WAYLAND_DISPLAY (gtk_widget_get_display (GTK_WIDGET (window))) &&
+      g_strcmp0 (csd_env, "0") != 0)
+    return TRUE;
+#endif
+
+  return (g_strcmp0 (csd_env, "1") == 0);
 }
 
 static void
@@ -5767,13 +5803,6 @@ gtk_window_unmap (GtkWidget *widget)
  *    information from the windowing system.)
  */
 
-/* We use these for now to not make windows too big by accident. Note
- * that we still clamp these numbers by screen size. Also note that
- * minimum size still overrides this. So keep your windows small! :)
- */
-#define MAX_DEFAULT_WINDOW_WIDTH 640
-#define MAX_DEFAULT_WINDOW_HEIGHT 480
-
 static void
 gtk_window_guess_default_size (GtkWindow *window,
                                gint      *width,
@@ -5781,26 +5810,30 @@ gtk_window_guess_default_size (GtkWindow *window,
 {
   GtkWidget *widget;
   GdkScreen *screen;
+  GdkWindow *gdkwindow;
+  GdkRectangle workarea;
   int minimum, natural;
 
   widget = GTK_WIDGET (window);
   screen = gtk_widget_get_screen (widget);
+  gdkwindow = gtk_widget_get_window (GTK_WIDGET (window));
 
-  *width = gdk_screen_get_width (screen);
-  *height = gdk_screen_get_height (screen);
-
-  if (*width >= *height)
+  if (gdkwindow)
     {
-      /* landscape */
-      *width = MIN (*width, MAX_DEFAULT_WINDOW_WIDTH);
-      *height = MIN (*height, MAX_DEFAULT_WINDOW_HEIGHT);
+      gdk_screen_get_monitor_workarea (screen,
+                                       gdk_screen_get_monitor_at_window (screen, gdkwindow),
+                                       &workarea);
     }
   else
     {
-      /* portrait */
-      *width = MIN (*width, MAX_DEFAULT_WINDOW_HEIGHT);
-      *height = MIN (*height, MAX_DEFAULT_WINDOW_WIDTH);
+      /* XXX: Figure out what screen we appear on */
+      gdk_screen_get_monitor_workarea (screen,
+                                       0,
+                                       &workarea);
     }
+
+  *width = workarea.width;
+  *height = workarea.height;
 
   if (gtk_widget_get_request_mode (widget) == GTK_SIZE_REQUEST_WIDTH_FOR_HEIGHT)
     {

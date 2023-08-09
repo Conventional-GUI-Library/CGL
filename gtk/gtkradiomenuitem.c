@@ -238,7 +238,8 @@ gtk_radio_menu_item_set_group (GtkRadioMenuItem *radio_menu_item,
 
 /**
  * gtk_radio_menu_item_new_with_label:
- * @group: (element-type GtkRadioMenuItem) (transfer full):
+ * @group: (element-type GtkRadioMenuItem) (allow-none):
+ *         group the radio menu item is inside, or %NULL
  * @label: the text for the label
  *
  * Creates a new #GtkRadioMenuItem whose child is a simple #GtkLabel.

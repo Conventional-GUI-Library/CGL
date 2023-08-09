@@ -42,6 +42,10 @@
         <listitem>for GTK</listitem>
       </varlistentry>
       <varlistentry>
+        <term><filename>gtk/gtkx.h</filename></term>
+        <listitem>for the X-specfic widgets #GtkSocket and #GtkPlug</listitem>
+      </varlistentry>
+      <varlistentry>
         <term><filename>gtk/gtkunixprint.h</filename></term>
         <listitem>for low-level, UNIX-specific printing functions</listitem>
       </varlistentry>
@@ -78,9 +82,8 @@
     Over the years, a number of functions, and in some cases, entire
     widgets have been deprecated. These deprecations are clearly spelled
     out in the API reference, with hints about the recommended replacements.
-    The API reference also includes an
-    <link linkend="api-index-deprecated">index</link> of all deprecated
-    symbols.
+    The API reference for GTK+ 2 also includes an
+    <ulink url="http://developer.gnome.org/gtk/2.24/api-index-deprecated.html">index</ulink> of all deprecated symbols.
   </para>
   <para>
     To verify that your program does not use any deprecated symbols,
@@ -88,7 +91,14 @@
     as follows:
     <programlisting>
     make CFLAGS+="-DGDK_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED"
-    </programlisting>
+   </programlisting>
+  </para>
+  <para>
+    Note that some parts of our API, such as enumeration values, are
+    not well covered by the deprecation warnings. In most cases, using
+    them will require you to also use deprecated functions, which will
+    trigger warnings. But some things, like the %GTK_DIALOG_NO_SEPARATOR
+    flag that has disappeared in GTK+ 3, may not.
   </para>
   </section>
 
@@ -108,6 +118,46 @@
     <programlisting>
     make CFLAGS+="-DGSEAL_ENABLE"
     </programlisting>
+  </para>
+  <para>
+    While it may be painful to convert, this helps us keep API and ABI
+    compatibility when we change internal interfaces. As a quick example,
+    when adding GSEAL_ENABLE, if you see an error like:
+    <programlisting>
+    error: 'GtkToggleButton' has no member named 'active'
+    </programlisting>
+    this means that you are accessing the public structure of
+    GtkToggleButton directly, perhaps with some code like:
+    <informalexample><programlisting>
+      static void
+      on_toggled (GtkToggleButton *button)
+      {
+        if (button->active)
+          frob_active ();
+        else
+          frob_inactive ();
+      }
+    </programlisting></informalexample>
+  </para>
+  <para>
+    In most cases, this can easily be replaced with the correct accessor
+    method. The main rule is that if you have code like the above which
+    accesses the "active" field of a "GtkToggleButton", then the accessor
+    method becomes "gtk_toggle_button_get_active":
+    <informalexample><programlisting>
+      static void
+      on_toggled (GtkToggleButton *button)
+      {
+        if (gtk_toggle_button_get_active (button))
+          frob_active ();
+        else
+          frob_inactive ();
+      }
+    </programlisting></informalexample>
+  </para>
+  <para>
+    In the case of setting field members directly, there's usually
+    a corresponding setter method.
   </para>
   </section>
 
@@ -269,7 +319,7 @@ gdk_cairo_set_source_pixbuf() instead of cairo_set_source_surface().
         <para>
           Drawing layouts clipped is often used to avoid overdraw or to
           allow drawing selections. Code would have looked like this:
-	  <informalexample><programlisting>
+          <informalexample><programlisting>
 GdkGC *gc;
 
 /* setup */
@@ -990,7 +1040,8 @@ AM_CONDITIONAL(BUILD_x11, [test "x$have_x11" = "xyes"])
       Another convenience function that can help when implementing
       ::draw for multi-window widgets is gtk_cairo_transform_to_window(),
       which transforms a cairo context from widget-relative coordinates
-      to window-relative coordinates.
+      to window-relative coordinates. You may want to use cairo_save() and
+      cairo_restore() when modifying the cairo context in your draw function.
     </para>
     <para>
       All GtkStyle drawing functions (gtk_paint_box(), etc) have been changed
@@ -1120,6 +1171,15 @@ gtk_arrow_draw (GtkWidget *widget,
       from GtkObject and makes use of the destroy functionality, you have
       to implement ::destroy yourself.
     </para>
+
+    <para>
+      If your program used functions like gtk_object_get or gtk_object_set,
+      these can be replaced directly with g_object_get or g_object_set. In
+      fact, most every gtk_object_* function can be replaced with the
+      corresponding g_object_ function, even in GTK+ 2 code. The one exception
+      to this rule is gtk_object_destroy, which can be replaced with
+      gtk_widget_destroy, again in both GTK+ 2 and GTK+ 3.
+    </para>
   </section>
 
   <section>
@@ -1202,8 +1262,6 @@ gtk_arrow_draw (GtkWidget *widget,
     unhappiness and must be avoided.
   </para>
   </section>
-
-  <xi:include href="migrating-GtkStyleContext.xml" />
 
   </section>
 

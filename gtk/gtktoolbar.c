@@ -681,6 +681,9 @@ gtk_toolbar_init (GtkToolbar *toolbar)
                                                GtkToolbarPrivate);
   priv = toolbar->priv;
 
+  context = gtk_widget_get_style_context (GTK_WIDGET (toolbar));
+  gtk_style_context_add_class (context, GTK_STYLE_CLASS_TOOLBAR);
+
   gtk_widget_set_can_focus (GTK_WIDGET (toolbar), FALSE);
   gtk_widget_set_has_window (GTK_WIDGET (toolbar), FALSE);
 
@@ -714,9 +717,6 @@ gtk_toolbar_init (GtkToolbar *toolbar)
   priv->max_homogeneous_pixels = -1;
   
   priv->timer = g_timer_new ();
-
-  context = gtk_widget_get_style_context (GTK_WIDGET (toolbar));
-  gtk_style_context_add_class (context, GTK_STYLE_CLASS_TOOLBAR);
 }
 
 static void
@@ -3659,11 +3659,18 @@ _gtk_toolbar_paint_space_line (GtkWidget           *widget,
                             NULL);
 
       if (wide_separators)
-        gtk_render_frame (context, cr,
-                          (width - separator_width) / 2,
-                          height * start_fraction,
-                          separator_width,
-                          height * (end_fraction - start_fraction));
+        {
+          gtk_render_background (context, cr,
+                                 (width - separator_width) / 2,
+                                 padding.top,
+                                 separator_width,
+                                 height - padding.bottom);
+          gtk_render_frame (context, cr,
+                            (width - separator_width) / 2,
+                            padding.top,
+                            separator_width,
+                            height - padding.bottom);
+        }
       else
         gtk_render_line (context, cr,
                          (width - padding.left) / 2,
@@ -3682,11 +3689,18 @@ _gtk_toolbar_paint_space_line (GtkWidget           *widget,
                             NULL);
 
       if (wide_separators)
-        gtk_render_frame (context, cr,
-                          width * start_fraction,
-                          (height - separator_height) / 2,
-                          width * (end_fraction - start_fraction),
-                          separator_height);
+        {
+          gtk_render_background (context, cr,
+                                 padding.left,
+                                 (height - separator_height) / 2,
+                                 width - padding.right,
+                                 separator_height);
+          gtk_render_frame (context, cr,
+                            padding.left,
+                            (height - separator_height) / 2,
+                            width - padding.right,
+                            separator_height);
+        }
       else
         gtk_render_line (context, cr,
                          width * start_fraction,

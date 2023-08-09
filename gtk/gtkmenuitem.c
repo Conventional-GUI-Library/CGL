@@ -978,6 +978,9 @@ gtk_menu_item_real_get_height (GtkWidget *widget,
       gboolean wide_separators;
       gint     separator_height;
 
+      gtk_style_context_save (context);
+      gtk_style_context_add_class (context, GTK_STYLE_CLASS_SEPARATOR);
+
       gtk_widget_style_get (widget,
                             "wide-separators",  &wide_separators,
                             "separator-height", &separator_height,
@@ -998,6 +1001,8 @@ gtk_menu_item_real_get_height (GtkWidget *widget,
           if (nat_height % 2 == 0)
             nat_height += 1;
         }
+
+      gtk_style_context_restore (context);
     }
 
   accel_width = 0;
@@ -1689,6 +1694,9 @@ gtk_menu_item_draw (GtkWidget *widget,
       gboolean wide_separators;
       gint     separator_height;
 
+      gtk_style_context_save (context);
+      gtk_style_context_add_class (context, GTK_STYLE_CLASS_SEPARATOR);
+
       gtk_widget_style_get (widget,
                             "wide-separators",    &wide_separators,
                             "separator-height",   &separator_height,
@@ -1705,6 +1713,8 @@ gtk_menu_item_draw (GtkWidget *widget,
                          y + padding.top,
                          x + w - padding.right - 1,
                          y + padding.top);
+
+      gtk_style_context_restore (context);
     }
 
   GTK_WIDGET_CLASS (gtk_menu_item_parent_class)->draw (widget, cr);

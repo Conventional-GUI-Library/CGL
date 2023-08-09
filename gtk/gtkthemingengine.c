@@ -1480,7 +1480,7 @@ set_stroke_style (cairo_t        *cr,
           n = round ((1. / 3) * n);
 
           segments[0] = n ? (1. / 3) * length / n : 1;
-          segments[1] = 2 * segments[1];
+          segments[1] = 2 * segments[0];
         }
       cairo_set_dash (cr, segments, G_N_ELEMENTS (segments), 0);
 
@@ -2060,10 +2060,9 @@ gtk_theming_engine_render_frame_gap (GtkThemingEngine *engine,
   GtkStateFlags state;
   gint border_width;
   GtkCssValue *corner[4];
-  gdouble x0, y0, x1, y1, xc, yc, wc, hc;
+  gdouble x0, y0, x1, y1, xc = 0.0, yc = 0.0, wc = 0.0, hc = 0.0;
   GtkBorder border;
 
-  xc = yc = wc = hc = 0;
   state = gtk_theming_engine_get_state (engine);
   junction = gtk_theming_engine_get_junction_sides (engine);
 

@@ -126,7 +126,7 @@ variables like <envar>LANG</envar>, <envar>PATH</envar>, <envar>HOME</envar>
 or <envar>DISPLAY</envar>; mostly to determine paths to look for certain
 files. The <link linkend="x11-envar">X11</link>,
 <link linkend="win32-envar">Windows</link> and
-<link linkend="fb-envar">Framebuffer</link> GDK backends use some
+<link linkend="broadway-envar">Broadway</link> GDK backends use some
 additional environment variables.
 </para>
 
@@ -314,6 +314,16 @@ additional environment variables.
   </para>
 </formalpara>
 
+<formalpara>
+  <title><envar>GTK_THEME</envar></title>
+
+  <para>
+    If set, makes GTK+ use the named theme instead of the theme
+    that is specified by the gtk-theme-name setting. This is intended
+    mainly for easy debugging of theme issues.
+  </para>
+</formalpara>
+
 <para>
 The following environment variables are used by GdkPixbuf, GDK or
 Pango, not by GTK+ itself, but we list them here for completeness
@@ -430,8 +440,9 @@ nevertheless.
   <title><envar>GDK_BACKEND</envar></title>
 
   <para>
-    If set, selects the GDK backend to use. Selecting a backend requires that GTK is compiled
-    with support for that backend. The following backends can be selected:
+    If set, selects the GDK backend to use. Selecting a backend requires that
+    GTK+ is compiled with support for that backend. The following backends can
+    be selected:
     <variablelist>
 
       <varlistentry>
@@ -449,20 +460,21 @@ nevertheless.
         <listitem><para>Selects the native backend for connecting to X11 servers.</para></listitem>
       </varlistentry>
 
+      <varlistentry>
+        <term>broadway</term>
+        <listitem><para>Selects the Broadway backend for display in web browsers</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>wayland</term>
+        <listitem><para>Selects the Wayland backend for connecting to Wayland display servers</para></listitem>
+      </varlistentry>
+
     </variablelist>
     Since 3.10, this environment variable can contain a comma-separated list
     of backend names, which are tried in order. The list may also contain
     a *, which means: try all remaining backends.
     For more information about selecting backends, see the gdk_display_manager_get() function.
-  </para>
-</formalpara>
-
-<formalpara>
-  <title><envar>GDK_SYNCHRONIZE</envar></title>
-
-  <para>
-    If set, GDK makes all X requests synchronously. This is a useful
-    option for debugging, but it will slow down the performance considerably.
   </para>
 </formalpara>
 

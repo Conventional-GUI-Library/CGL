@@ -1,5 +1,8 @@
 #include "config.h"
 
+#define GDK_DISABLE_DEPRECATION_WARNINGS
+#undef GTK_DISABLE_DEPRECATED
+
 #include <gtk/gtkunixprint.h>
 #include <gdk/gdkkeysyms.h>
 #include <X11/Xatom.h>
@@ -116,6 +119,7 @@ new_widget_info (const char *name,
     {
       info->window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
       gtk_window_set_has_resize_grip (GTK_WINDOW (info->window), FALSE);
+      gtk_container_set_border_width (GTK_CONTAINER (info->window), 12);
       info->include_decorations = FALSE;
       gtk_widget_show_all (widget);
       gtk_container_add (GTK_CONTAINER (info->window), widget);
@@ -124,7 +128,6 @@ new_widget_info (const char *name,
 
   gtk_widget_set_app_paintable (info->window, TRUE);
   g_signal_connect (info->window, "focus", G_CALLBACK (gtk_true), NULL);
-  gtk_container_set_border_width (GTK_CONTAINER (info->window), 12);
 
   switch (size)
     {
@@ -221,6 +224,31 @@ create_link_button (void)
   return new_widget_info ("link-button", align, SMALL);
 }
 
+static WidgetInfo *
+create_menu_button (void)
+{
+  GtkWidget *widget;
+  GtkWidget *image;
+  GtkWidget *menu;
+  GtkWidget *vbox;
+
+  widget = gtk_menu_button_new ();
+  image = gtk_image_new ();
+  gtk_image_set_from_icon_name (GTK_IMAGE (image), "emblem-system-symbolic", GTK_ICON_SIZE_MENU);
+  gtk_button_set_image (GTK_BUTTON (widget), image);
+  menu = gtk_menu_new ();
+  gtk_menu_button_set_popup (GTK_MENU_BUTTON (widget), menu);
+
+  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
+  gtk_box_pack_start (GTK_BOX (vbox), widget, FALSE, FALSE, 0);
+  gtk_widget_set_halign (widget, GTK_ALIGN_CENTER);
+  gtk_widget_set_valign (widget, GTK_ALIGN_CENTER);
+
+  gtk_box_pack_start (GTK_BOX (vbox), gtk_label_new ("Menu Button"), TRUE, TRUE, 0);
+
+  return new_widget_info ("menu-button", vbox, SMALL);
+}
+
 #define G_TYPE_TEST_PERMISSION      (g_test_permission_get_type ())
 #define G_TEST_PERMISSION(inst)     (G_TYPE_CHECK_INSTANCE_CAST ((inst), \
                                      G_TYPE_TEST_PERMISSION,             \
@@ -259,14 +287,20 @@ g_test_permission_class_init (GTestPermissionClass *class)
 static WidgetInfo *
 create_lockbutton (void)
 {
+  GtkWidget *vbox;
   GtkWidget *widget;
-  GtkWidget *align;
 
   widget = gtk_lock_button_new (g_object_new (G_TYPE_TEST_PERMISSION, NULL));
-  align = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
-  gtk_container_add (GTK_CONTAINER (align), widget);
 
-  return new_widget_info ("lock-button", align, SMALL);
+  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
+  gtk_box_pack_start (GTK_BOX (vbox), widget, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox),
+		      gtk_label_new ("Lock Button"),
+		      FALSE, FALSE, 0);
+  gtk_widget_set_halign (vbox, GTK_ALIGN_CENTER);
+  gtk_widget_set_valign (vbox, GTK_ALIGN_CENTER);
+
+  return new_widget_info ("lock-button", vbox, SMALL);
 }
 
 static WidgetInfo *
@@ -278,10 +312,24 @@ create_entry (void)
   widget = gtk_entry_new ();
   gtk_entry_set_text (GTK_ENTRY (widget), "Entry");
   gtk_editable_set_position (GTK_EDITABLE (widget), -1);
-  align = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
+  align = gtk_alignment_new (0.5, 0.5, 1.0, 0.0);
   gtk_container_add (GTK_CONTAINER (align), widget);
 
   return  new_widget_info ("entry", align, SMALL);
+}
+
+static WidgetInfo *
+create_search_entry (void)
+{
+  GtkWidget *widget;
+  GtkWidget *align;
+
+  widget = gtk_search_entry_new ();
+  gtk_entry_set_placeholder_text (GTK_ENTRY (widget), "Search...");
+  align = gtk_alignment_new (0.5, 0.5, 1.0, 0.0);
+  gtk_container_add (GTK_CONTAINER (align), widget);
+
+  return  new_widget_info ("search-entry", align, SMALL);
 }
 
 static WidgetInfo *
@@ -379,15 +427,12 @@ create_combo_box (void)
 
   widget = gtk_combo_box_new ();
   gtk_cell_layout_clear (GTK_CELL_LAYOUT (widget));
-  cell = gtk_cell_renderer_pixbuf_new ();
-  gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (widget), cell, FALSE);
-  gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (widget), cell, "icon-name", 0, NULL);
   cell = gtk_cell_renderer_text_new ();
   gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (widget), cell, FALSE);
-  gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (widget), cell, "text", 1, NULL);
+  gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (widget), cell, "text", 0, NULL);
 
-  store = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
-  gtk_list_store_insert_with_values (store, NULL, -1, 0, "edit-delete", 1, "Combo Box", -1);
+  store = gtk_list_store_new (1, G_TYPE_STRING);
+  gtk_list_store_insert_with_values (store, NULL, -1, 0, "Combo Box", -1);
   gtk_combo_box_set_model (GTK_COMBO_BOX (widget), GTK_TREE_MODEL (store));
 
   gtk_combo_box_set_active (GTK_COMBO_BOX (widget), 0);
@@ -424,7 +469,7 @@ create_info_bar (void)
   gtk_container_add (GTK_CONTAINER (gtk_info_bar_get_content_area (GTK_INFO_BAR (widget))),
                      gtk_label_new ("Info Bar"));
 
-  align = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
+  align = gtk_alignment_new (0.5, 0, 1.0, 0.0);
   gtk_container_add (GTK_CONTAINER (align), widget);
 
   return new_widget_info ("info-bar", align, SMALL);
@@ -437,8 +482,8 @@ create_recent_chooser_dialog (void)
 
   widget = gtk_recent_chooser_dialog_new ("Recent Chooser Dialog",
 					  NULL,
-					  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-					  GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+					  "Cancel", GTK_RESPONSE_CANCEL,
+					  "Open", GTK_RESPONSE_ACCEPT,
 					  NULL); 
   gtk_window_set_default_size (GTK_WINDOW (widget), 505, 305);
   
@@ -591,6 +636,7 @@ create_file_button (void)
   GtkWidget *vbox2;
   GtkWidget *picker;
   GtkWidget *align;
+  char *path;
 
   vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
   vbox2 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
@@ -598,7 +644,6 @@ create_file_button (void)
   picker = gtk_file_chooser_button_new ("File Chooser Button",
 		  			GTK_FILE_CHOOSER_ACTION_OPEN);
   gtk_widget_set_size_request (picker, 150, -1);
-  gtk_file_chooser_set_filename (GTK_FILE_CHOOSER (picker), "/etc/yum.conf");
   gtk_container_add (GTK_CONTAINER (align), picker);
   gtk_box_pack_start (GTK_BOX (vbox2), align, FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (vbox2),
@@ -616,7 +661,9 @@ create_file_button (void)
   picker = gtk_file_chooser_button_new ("File Chooser Button",
 		  			GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
   gtk_widget_set_size_request (picker, 150, -1);
-  gtk_file_chooser_set_filename (GTK_FILE_CHOOSER (picker), "/");
+  path = g_build_filename (g_get_home_dir (), "Documents", NULL);
+  gtk_file_chooser_set_filename (GTK_FILE_CHOOSER (picker), path);
+  g_free (path);
   gtk_container_add (GTK_CONTAINER (align), picker);
   gtk_box_pack_start (GTK_BOX (vbox2), align, FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (vbox2),
@@ -726,50 +773,6 @@ create_window (void)
 }
 
 static WidgetInfo *
-create_colorsel (void)
-{
-  WidgetInfo *info;
-  GtkWidget *widget;
-  GtkColorSelection *colorsel;
-  GtkColorSelectionDialog *selection_dialog;
-  GdkRGBA rgba;
-
-  widget = gtk_color_selection_dialog_new ("Color Selection Dialog");
-  selection_dialog = GTK_COLOR_SELECTION_DIALOG (widget);
-  colorsel = GTK_COLOR_SELECTION (gtk_color_selection_dialog_get_color_selection (selection_dialog));
-
-  rgba.red   = 0.4745;
-  rgba.green = 0.8588;
-  rgba.blue  = 0.5843;
-
-  gtk_color_selection_set_previous_rgba (colorsel, &rgba);
-
-  rgba.red   = 0.4902;
-  rgba.green = 0.5764;
-  rgba.blue  = 0.7647;
-
-  gtk_color_selection_set_current_rgba (colorsel, &rgba);
-
-  info = new_widget_info ("colorsel", widget, ASIS);
-  info->include_decorations = TRUE;
-
-  return info;
-}
-
-static WidgetInfo *
-create_fontsel (void)
-{
-  WidgetInfo *info;
-  GtkWidget *widget;
-
-  widget = gtk_font_selection_dialog_new ("Font Selection Dialog");
-  info = new_widget_info ("fontsel", widget, ASIS);
-  info->include_decorations = TRUE;
-
-  return info;
-}
-
-static WidgetInfo *
 create_filesel (void)
 {
   WidgetInfo *info;
@@ -778,8 +781,8 @@ create_filesel (void)
   widget = gtk_file_chooser_dialog_new ("File Chooser Dialog",
 					NULL,
 					GTK_FILE_CHOOSER_ACTION_OPEN,
-					GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-					GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+					"Cancel", GTK_RESPONSE_CANCEL,
+					"Open", GTK_RESPONSE_ACCEPT,
 					NULL); 
   gtk_window_set_default_size (GTK_WINDOW (widget), 505, 305);
   
@@ -829,20 +832,21 @@ create_page_setup_dialog (void)
 static WidgetInfo *
 create_toolbar (void)
 {
-  GtkWidget *widget, *menu;
+  GtkWidget *widget;
   GtkToolItem *item;
 
   widget = gtk_toolbar_new ();
 
-  item = gtk_tool_button_new_from_stock (GTK_STOCK_NEW);
+  item = gtk_tool_button_new (NULL, NULL);
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), "document-new");
   gtk_toolbar_insert (GTK_TOOLBAR (widget), item, -1);
 
-  item = gtk_menu_tool_button_new_from_stock (GTK_STOCK_OPEN);
-  menu = gtk_menu_new ();
-  gtk_menu_tool_button_set_menu (GTK_MENU_TOOL_BUTTON (item), menu);
+  item = gtk_tool_button_new (NULL, NULL);
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), "document-open");
   gtk_toolbar_insert (GTK_TOOLBAR (widget), item, -1);
 
-  item = gtk_tool_button_new_from_stock (GTK_STOCK_REFRESH);
+  item = gtk_tool_button_new (NULL, NULL);
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), "view-refresh");
   gtk_toolbar_insert (GTK_TOOLBAR (widget), item, -1);
 
   gtk_toolbar_set_show_arrow (GTK_TOOLBAR (widget), FALSE);
@@ -859,20 +863,26 @@ create_toolpalette (void)
   widget = gtk_tool_palette_new ();
   group = gtk_tool_item_group_new ("Tools");
   gtk_container_add (GTK_CONTAINER (widget), group);
-  item = gtk_tool_button_new_from_stock (GTK_STOCK_ABOUT);
+  item = gtk_tool_button_new (NULL, NULL);
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), "help-about");
   gtk_tool_item_group_insert (GTK_TOOL_ITEM_GROUP (group), item, -1);
-  item = gtk_tool_button_new_from_stock (GTK_STOCK_FILE);
+  item = gtk_tool_button_new (NULL, NULL);
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), "document-new");
   gtk_tool_item_group_insert (GTK_TOOL_ITEM_GROUP (group), item, -1);
-  item = gtk_tool_button_new_from_stock (GTK_STOCK_CONNECT);
+  item = gtk_tool_button_new (NULL, NULL);
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), "folder");
   gtk_tool_item_group_insert (GTK_TOOL_ITEM_GROUP (group), item, -1);
 
   group = gtk_tool_item_group_new ("More tools");
   gtk_container_add (GTK_CONTAINER (widget), group);
-  item = gtk_tool_button_new_from_stock (GTK_STOCK_CUT);
+  item = gtk_tool_button_new (NULL, NULL);
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), "edit-cut");
   gtk_tool_item_group_insert (GTK_TOOL_ITEM_GROUP (group), item, -1);
-  item = gtk_tool_button_new_from_stock (GTK_STOCK_EXECUTE);
+  item = gtk_tool_button_new (NULL, NULL);
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), "edit-find");
   gtk_tool_item_group_insert (GTK_TOOL_ITEM_GROUP (group), item, -1);
-  item = gtk_tool_button_new_from_stock (GTK_STOCK_CANCEL);
+  item = gtk_tool_button_new (NULL, NULL);
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (item), "document-properties");
   gtk_tool_item_group_insert (GTK_TOOL_ITEM_GROUP (group), item, -1);
 
   return new_widget_info ("toolpalette", widget, MEDIUM);
@@ -895,7 +905,7 @@ create_menubar (void)
   gtk_menu_shell_append (GTK_MENU_SHELL (widget), item);
 
   vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
-  align = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
+  align = gtk_alignment_new (0.5, 0.5, 1.0, 0.0);
   gtk_container_add (GTK_CONTAINER (align), widget);
   gtk_box_pack_start (GTK_BOX (vbox), align, FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (vbox),
@@ -937,7 +947,7 @@ create_about_dialog (void)
   g_object_set (widget,
                 "program-name", "GTK+ Code Demos",
                 "version", PACKAGE_VERSION,
-                "copyright", "(C) 1997-2009 The GTK+ Team",
+                "copyright", "© 1997-2013 The GTK+ Team",
                 "website", "http://www.gtk.org",
                 "comments", "Program to demonstrate GTK+ functions.",
                 "logo-icon-name", "help-about",
@@ -975,7 +985,7 @@ create_progressbar (void)
   gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), 0.5);
 
   vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
-  align = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
+  align = gtk_alignment_new (0.5, 0.5, 1.0, 0.0);
   gtk_container_add (GTK_CONTAINER (align), widget);
   gtk_box_pack_start (GTK_BOX (vbox), align, FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (vbox),
@@ -986,17 +996,34 @@ create_progressbar (void)
 }
 
 static WidgetInfo *
+create_level_bar (void)
+{
+  GtkWidget *vbox;
+  GtkWidget *widget;
+
+  widget = gtk_level_bar_new ();
+  gtk_level_bar_set_value (GTK_LEVEL_BAR (widget), 0.333);
+
+  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
+  gtk_box_pack_start (GTK_BOX (vbox), widget, TRUE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox),
+		      gtk_label_new ("Level Bar"),
+		      FALSE, FALSE, 0);
+
+  return new_widget_info ("levelbar", vbox, SMALL);
+}
+
+static WidgetInfo *
 create_scrolledwindow (void)
 {
   GtkWidget *scrolledwin, *label;
 
   scrolledwin = gtk_scrolled_window_new (NULL, NULL);
   gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolledwin),
-                                  GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS);
+                                  GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
   label = gtk_label_new ("Scrolled Window");
 
-  gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwin), 
-					 label);
+  gtk_container_add (GTK_CONTAINER (scrolledwin), label);
 
   return new_widget_info ("scrolledwindow", scrolledwin, MEDIUM);
 }
@@ -1011,7 +1038,7 @@ create_scrollbar (void)
   gtk_widget_set_size_request (widget, 100, -1);
 
   vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
-  align = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
+  align = gtk_alignment_new (0.5, 0.5, 1.0, 0.0);
   gtk_container_add (GTK_CONTAINER (align), widget);
   gtk_box_pack_start (GTK_BOX (vbox), align, FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (vbox),
@@ -1052,7 +1079,7 @@ create_statusbar (void)
   gtk_container_add (GTK_CONTAINER (align), gtk_label_new ("Status Bar"));
   gtk_box_pack_start (GTK_BOX (vbox),
 		      align,
-		      TRUE, TRUE, 0);
+		      FALSE, FALSE, 0);
   widget = gtk_statusbar_new ();
   align = gtk_alignment_new (0.5, 1.0, 1.0, 0.0);
   gtk_container_add (GTK_CONTAINER (align), widget);
@@ -1098,8 +1125,8 @@ create_image (void)
   GtkWidget *widget;
   GtkWidget *align, *vbox;
 
-  widget = gtk_image_new_from_stock (GTK_STOCK_DIALOG_WARNING, 
-				     GTK_ICON_SIZE_DND);
+  widget = gtk_image_new_from_icon_name ("applications-graphics",
+                                         GTK_ICON_SIZE_DIALOG);
 
   vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
   align = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
@@ -1120,6 +1147,7 @@ create_spinner (void)
 
   widget = gtk_spinner_new ();
   gtk_widget_set_size_request (widget, 24, 24);
+  gtk_spinner_start (GTK_SPINNER (widget));
 
   vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
   align = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
@@ -1208,11 +1236,255 @@ create_appchooserdialog (void)
   return info;
 }
 
+static WidgetInfo *
+create_fontchooserdialog (void)
+{
+  WidgetInfo *info;
+  GtkWidget *widget;
+
+  widget = gtk_font_chooser_dialog_new ("Font Chooser Dialog", NULL);
+  gtk_window_set_default_size (GTK_WINDOW (widget), 200, 300);
+  info = new_widget_info ("fontchooser", widget, ASIS);
+  info->include_decorations = TRUE;
+
+  return info;
+}
+
+static WidgetInfo *
+create_colorchooserdialog (void)
+{
+  WidgetInfo *info;
+  GtkWidget *widget;
+
+  widget = gtk_color_chooser_dialog_new ("Color Chooser Dialog", NULL);
+  info = new_widget_info ("colorchooser", widget, ASIS);
+  info->include_decorations = TRUE;
+
+  return info;
+}
+
+/*static WidgetInfo *
+create_headerbar (void)
+{
+  GtkWidget *window;
+  GtkWidget *bar;
+  GtkWidget *view;
+  GtkWidget *button;
+
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gtk_container_set_border_width (GTK_CONTAINER (window), 0);
+  view = gtk_text_view_new ();
+  gtk_widget_show (view);
+  gtk_widget_set_size_request (window, 220, 150);
+  gtk_container_add (GTK_CONTAINER (window), view);
+  bar = gtk_csd_title_bar_new ();
+  gtk_csd_title_bar_set_title (GTK_HEADER_BAR (bar), "Header Bar");
+  gtk_csd_title_bar_set_subtitle (GTK_HEADER_BAR (bar), "(subtitle)");
+  gtk_window_set_titlebar (GTK_WINDOW (window), bar);
+  button = gtk_button_new ();
+  gtk_container_add (GTK_CONTAINER (button), gtk_image_new_from_icon_name ("bookmark-new-symbolic", GTK_ICON_SIZE_BUTTON));
+  gtk_widget_show_all (button);
+  gtk_csd_title_bar_pack_end (GTK_HEADER_BAR (bar), button);
+
+  return new_widget_info ("headerbar", window, ASIS);
+}
+*/
+static WidgetInfo *
+create_placessidebar (void)
+{
+  GtkWidget *bar;
+  GtkWidget *vbox;
+  GtkWidget *align;
+
+  bar = gtk_places_sidebar_new ();
+  gtk_widget_set_size_request (bar, 150, 300);
+  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
+  align = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
+
+  gtk_container_add (GTK_CONTAINER (align), bar);
+  gtk_box_pack_start (GTK_BOX (vbox), align, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox),
+                      gtk_label_new ("Places Sidebar"),
+                      FALSE, FALSE, 0);
+
+  return new_widget_info ("placessidebar", vbox, ASIS);
+}
+
+
+static WidgetInfo *
+create_stack (void)
+{
+  GtkWidget *stack;
+  GtkWidget *switcher;
+  GtkWidget *vbox;
+  GtkWidget *view;
+
+  stack = gtk_stack_new ();
+  gtk_widget_set_margin_top (stack, 10);
+  gtk_widget_set_margin_bottom (stack, 10);
+  gtk_widget_set_size_request (stack, 120, 120);
+  view = gtk_text_view_new ();
+  gtk_widget_show (view);
+  gtk_stack_add_titled (GTK_STACK (stack), view, "page1", "Page 1");
+  view = gtk_text_view_new ();
+  gtk_widget_show (view);
+  gtk_stack_add_titled (GTK_STACK (stack), view, "page2", "Page 2");
+
+  switcher = gtk_stack_switcher_new ();
+  gtk_stack_switcher_set_stack (GTK_STACK_SWITCHER (switcher), GTK_STACK (stack));
+  gtk_widget_set_halign (switcher, GTK_ALIGN_CENTER);
+
+  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+
+  gtk_box_pack_start (GTK_BOX (vbox), switcher, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox), stack, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox),
+                      gtk_label_new ("Stack"),
+                      FALSE, FALSE, 0);
+
+  return new_widget_info ("stack", vbox, ASIS);
+}
+
+static WidgetInfo *
+create_stack_switcher (void)
+{
+  GtkWidget *stack;
+  GtkWidget *switcher;
+  GtkWidget *vbox;
+  GtkWidget *view;
+
+  stack = gtk_stack_new ();
+  gtk_widget_set_margin_top (stack, 10);
+  gtk_widget_set_margin_bottom (stack, 10);
+  gtk_widget_set_size_request (stack, 120, 120);
+  view = gtk_text_view_new ();
+  gtk_widget_show (view);
+  gtk_stack_add_titled (GTK_STACK (stack), view, "page1", "Page 1");
+  view = gtk_text_view_new ();
+  gtk_widget_show (view);
+  gtk_stack_add_titled (GTK_STACK (stack), view, "page2", "Page 2");
+
+  switcher = gtk_stack_switcher_new ();
+  gtk_stack_switcher_set_stack (GTK_STACK_SWITCHER (switcher), GTK_STACK (stack));
+  gtk_widget_set_halign (switcher, GTK_ALIGN_CENTER);
+
+  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+
+  gtk_box_pack_start (GTK_BOX (vbox), switcher, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox), stack, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox),
+                      gtk_label_new ("Stack Switcher"),
+                      FALSE, FALSE, 0);
+
+  return new_widget_info ("stackswitcher", vbox, ASIS);
+}
+
+static WidgetInfo *
+create_list_box (void)
+{
+  GtkWidget *widget;
+  GtkWidget *list;
+  GtkWidget *row;
+  GtkWidget *button;
+  WidgetInfo *info;
+
+  widget = gtk_frame_new (NULL);
+  gtk_frame_set_shadow_type (GTK_FRAME (widget), GTK_SHADOW_IN);
+
+  list = gtk_list_box_new ();
+  gtk_list_box_set_selection_mode (GTK_LIST_BOX (list), GTK_SELECTION_BROWSE);
+  row = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
+  button = gtk_label_new ("List Box");
+  gtk_widget_set_hexpand (button, TRUE);
+  gtk_widget_set_halign (button, GTK_ALIGN_CENTER);
+  gtk_container_add (GTK_CONTAINER (row), button);
+  gtk_container_add (GTK_CONTAINER (list), row);
+  row = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
+  gtk_container_add (GTK_CONTAINER (row), gtk_label_new ("Line One"));
+  button = gtk_check_button_new ();
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
+  gtk_widget_set_hexpand (button, TRUE);
+  gtk_widget_set_halign (button, GTK_ALIGN_END);
+  gtk_container_add (GTK_CONTAINER (row), button);
+  gtk_container_add (GTK_CONTAINER (list), row);
+  gtk_list_box_select_row (GTK_LIST_BOX (list), GTK_LIST_BOX_ROW (gtk_widget_get_parent (row)));
+  row = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
+  gtk_container_add (GTK_CONTAINER (row), gtk_label_new ("Line Two"));
+  button = gtk_button_new_with_label ("2");
+  gtk_widget_set_hexpand (button, TRUE);
+  gtk_widget_set_halign (button, GTK_ALIGN_END);
+  gtk_container_add (GTK_CONTAINER (row), button);
+  gtk_container_add (GTK_CONTAINER (list), row);
+  row = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
+  gtk_container_add (GTK_CONTAINER (row), gtk_label_new ("Line Three"));
+  button = gtk_entry_new ();
+  gtk_widget_set_hexpand (button, TRUE);
+  gtk_widget_set_halign (button, GTK_ALIGN_END);
+  gtk_container_add (GTK_CONTAINER (row), button);
+  gtk_container_add (GTK_CONTAINER (list), row);
+
+  gtk_container_add (GTK_CONTAINER (widget), list);
+
+  info = new_widget_info ("list-box", widget, MEDIUM);
+  info->no_focus = FALSE;
+
+  return info;
+}
+
+static WidgetInfo *
+create_flow_box (void)
+{
+  GtkWidget *widget;
+  GtkWidget *box;
+  GtkWidget *vbox;
+  GtkWidget *child;
+  GtkWidget *button;
+  WidgetInfo *info;
+
+  widget = gtk_frame_new (NULL);
+  gtk_frame_set_shadow_type (GTK_FRAME (widget), GTK_SHADOW_IN);
+
+  box = gtk_flow_box_new ();
+  gtk_flow_box_set_min_children_per_line (GTK_FLOW_BOX (box), 2);
+  gtk_flow_box_set_max_children_per_line (GTK_FLOW_BOX (box), 2);
+  gtk_flow_box_set_selection_mode (GTK_FLOW_BOX (box), GTK_SELECTION_BROWSE);
+  button = gtk_label_new ("Child One");
+  gtk_container_add (GTK_CONTAINER (box), button);
+  button = gtk_button_new_with_label ("Child Two");
+  gtk_container_add (GTK_CONTAINER (box), button);
+  child = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+  gtk_container_add (GTK_CONTAINER (child), gtk_label_new ("Child Three"));
+  button = gtk_check_button_new ();
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
+  gtk_container_add (GTK_CONTAINER (child), button);
+  gtk_container_add (GTK_CONTAINER (box), child);
+  gtk_flow_box_select_child (GTK_FLOW_BOX (box),
+                             GTK_FLOW_BOX_CHILD (gtk_widget_get_parent (child)));
+
+  gtk_container_add (GTK_CONTAINER (widget), box);
+
+  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+
+  gtk_box_pack_start (GTK_BOX (vbox), widget, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox), gtk_label_new ("Flow Box"),
+                      FALSE, FALSE, 0);
+  info = new_widget_info ("flow-box", vbox, ASIS);
+  info->no_focus = FALSE;
+
+  return info;
+}
+
 GList *
 get_all_widgets (void)
 {
   GList *retval = NULL;
 
+  retval = g_list_prepend (retval, create_list_box());
+  retval = g_list_prepend (retval, create_flow_box());
+  //retval = g_list_prepend (retval, create_headerbar ());
+  retval = g_list_prepend (retval, create_placessidebar ());
+  retval = g_list_prepend (retval, create_stack ());
+  retval = g_list_prepend (retval, create_stack_switcher ());
   retval = g_list_prepend (retval, create_toolpalette ());
   retval = g_list_prepend (retval, create_spinner ());
   retval = g_list_prepend (retval, create_about_dialog ());
@@ -1248,9 +1520,7 @@ get_all_widgets (void)
   retval = g_list_prepend (retval, create_toolbar ());
   retval = g_list_prepend (retval, create_tree_view ());
   retval = g_list_prepend (retval, create_window ());
-  retval = g_list_prepend (retval, create_colorsel ());
   retval = g_list_prepend (retval, create_filesel ());
-  retval = g_list_prepend (retval, create_fontsel ());
   retval = g_list_prepend (retval, create_assistant ());
   retval = g_list_prepend (retval, create_recent_chooser_dialog ());
   retval = g_list_prepend (retval, create_page_setup_dialog ());
@@ -1260,6 +1530,11 @@ get_all_widgets (void)
   retval = g_list_prepend (retval, create_appchooserbutton ());
   retval = g_list_prepend (retval, create_appchooserdialog ());
   retval = g_list_prepend (retval, create_lockbutton ());
+  retval = g_list_prepend (retval, create_fontchooserdialog ());
+  retval = g_list_prepend (retval, create_colorchooserdialog ());
+  retval = g_list_prepend (retval, create_menu_button ());
+  retval = g_list_prepend (retval, create_search_entry ());
+  retval = g_list_prepend (retval, create_level_bar ());
   retval = g_list_prepend (retval, create_info_bar ());
 
   return retval;

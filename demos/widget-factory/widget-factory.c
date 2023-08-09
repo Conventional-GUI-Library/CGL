@@ -35,15 +35,14 @@ dark_toggled (GtkCheckMenuItem *item, gpointer data)
 }
 
 static void
-activate_about (GtkWidget* thing,
-                gpointer       user_data)
+show_about (GtkMenuItem *item, GtkWidget *window)
 {
-  GtkWidget *window = user_data;
   const gchar *authors[] = {
     "Andrea Cimitan",
     "Cosimo Cecchi",
     NULL
   };
+
 
   gtk_show_about_dialog (GTK_WINDOW (window),
                          "program-name", "GTK+ Widget Factory",
@@ -60,8 +59,8 @@ activate_about (GtkWidget* thing,
                          "logo-icon-name", "gtk3-widget-factory",
                          "title", "About GTK+ Widget Factory",
                          NULL);
-}
 
+}
 
 static void
 on_page_toggled (GtkToggleButton *button,
@@ -105,40 +104,6 @@ dismiss (GtkWidget *button)
   gtk_revealer_set_reveal_child (GTK_REVEALER (w), FALSE);
 }
 
-static gint pulse_time = 250;
-static guint pulse_id = 0;
-
-static gboolean
-pulse_it (GtkWidget *widget)
-{
-  gtk_progress_bar_pulse (GTK_PROGRESS_BAR (widget));
-
-  pulse_id = g_timeout_add (pulse_time, (GSourceFunc)pulse_it, widget);
-
-  return G_SOURCE_REMOVE;
-}
-
-static void
-update_pulse_time (GtkAdjustment *adjustment, GtkWidget *widget)
-{
-  gdouble value;
-
-  value = gtk_adjustment_get_value (adjustment);
-
-  /* vary between 50 and 450 */
-  pulse_time = 50 + 4 * value;
-
-  if (value == 100 && pulse_id != 0)
-    {
-      g_source_remove (pulse_id);
-      pulse_id = 0;
-    }
-  else if (value < 100 && pulse_id == 0)
-    {
-      pulse_id = g_timeout_add (pulse_time, (GSourceFunc)pulse_it, widget);
-    }
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -160,16 +125,6 @@ main (int argc, char *argv[])
   window = GTK_WIDGET (gtk_builder_get_object (builder, "window"));
   gtk_builder_connect_signals (builder, NULL);
 
-  widget = (GtkWidget *)gtk_builder_get_object (builder, "progressbar3");
-  pulse_id = g_timeout_add (250, (GSourceFunc)pulse_it, widget);
-
-  g_signal_connect (gtk_builder_get_object (builder, "adjustment1"),
-                    "value-changed",
-                     G_CALLBACK (update_pulse_time), widget);
-
-  widget = (GtkWidget*) gtk_builder_get_object (builder, "progressbar3");
-  g_timeout_add (250, (GSourceFunc)pulse_it, widget);
-
   widget = (GtkWidget*) gtk_builder_get_object (builder, "darkmenuitem");
   g_signal_connect (widget, "toggled", G_CALLBACK (dark_toggled), NULL);
   gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (widget), dark);
@@ -184,7 +139,7 @@ main (int argc, char *argv[])
   g_signal_connect (widget, "toggled", G_CALLBACK (on_page_toggled), notebook);
 
   widget = (GtkWidget*) gtk_builder_get_object (builder, "aboutmenuitem");
-  g_signal_connect (widget, "activate", G_CALLBACK (activate_about), window);
+  g_signal_connect (widget, "activate", G_CALLBACK (show_about), window);
 
   widget = (GtkWidget*) gtk_builder_get_object (builder, "page2dismiss");
   g_signal_connect (widget, "clicked", G_CALLBACK (dismiss), NULL);

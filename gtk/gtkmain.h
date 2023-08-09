@@ -165,7 +165,7 @@ GtkWidget *gtk_get_event_widget         (GdkEvent        *event);
 
 void       gtk_propagate_event          (GtkWidget       *widget,
                                          GdkEvent        *event);
-                                       
+GtkTextDirection gtk_get_locale_direction (void);                                       
 void cgl_set_gtk3_emulation(gboolean value);
 
 

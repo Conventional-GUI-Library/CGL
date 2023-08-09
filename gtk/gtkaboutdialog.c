@@ -1858,11 +1858,11 @@ gtk_about_dialog_get_logo_icon_name (GtkAboutDialog *about)
  *
  * Since: 2.6
  */
-void
 gtk_about_dialog_set_logo_icon_name (GtkAboutDialog *about,
                                      const gchar    *icon_name)
 {
   GtkAboutDialogPrivate *priv;
+  GList *icons;
 
   g_return_if_fail (GTK_IS_ABOUT_DIALOG (about));
 
@@ -1873,8 +1873,48 @@ gtk_about_dialog_set_logo_icon_name (GtkAboutDialog *about,
   if (gtk_image_get_storage_type (GTK_IMAGE (priv->logo_image)) == GTK_IMAGE_PIXBUF)
     g_object_notify (G_OBJECT (about), "logo");
 
-  gtk_image_set_from_icon_name (GTK_IMAGE (priv->logo_image), icon_name,
+  if (icon_name)
+    {
+      gint *sizes = gtk_icon_theme_get_icon_sizes (gtk_icon_theme_get_default (),
+                                                   icon_name);
+      gint i, best_size = 0;
+
+      for (i = 0; sizes[i]; i++)
+        {
+          if (sizes[i] >= 128 || sizes[i] == -1)
+            {
+              best_size = 128;
+              break;
+            }
+          else if (sizes[i] >= 96)
+            {
+              best_size = MAX (96, best_size);
+            }
+          else if (sizes[i] >= 64)
+            {
+              best_size = MAX (64, best_size);
+            }
+          else
+            {
+              best_size = MAX (48, best_size);
+            }
+        }
+      g_free (sizes);
+
+      gtk_image_set_from_icon_name (GTK_IMAGE (priv->logo_image), icon_name,
                                 GTK_ICON_SIZE_DIALOG);
+      gtk_image_set_pixel_size (GTK_IMAGE (priv->logo_image), best_size);
+    }
+  else if ((icons = gtk_window_get_default_icon_list ()))
+    {
+      gtk_image_set_from_pixbuf (GTK_IMAGE (priv->logo_image), icons->data);
+      g_list_free (icons);
+    }
+  else
+    {
+      gtk_image_clear (GTK_IMAGE (priv->logo_image));
+    }
+
   g_object_notify (G_OBJECT (about), "logo-icon-name");
 
   g_object_thaw_notify (G_OBJECT (about));

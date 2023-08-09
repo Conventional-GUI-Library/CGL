@@ -9,10 +9,11 @@ DOC_MODULE=gdk3
 DOC_MAIN_SGML_FILE=gdk-docs.sgml
 
 # Extra options to supply to gtkdoc-scan
-SCAN_OPTIONS=--deprecated-guards="GDK_ENABLE_BROKEN|GDK_DISABLE_DEPRECATED"
+SCAN_OPTIONS=--deprecated-guards=GDK_DISABLE_DEPRECATED \
+             --ignore-decorators=G_GNUC_WARN_UNUSED_RESULT
 
 # The directory containing the source code. Relative to $(srcdir)
-DOC_SOURCE_DIR=../../../gdk ../../../gdk/x11
+DOC_SOURCE_DIR=$(top_srcdir)/gdk $(top_srcdir)/gdk/x11
 
 # Used for dependencies
 HFILE_GLOB=$(top_srcdir)/gdk/*.h $(top_srcdir)/gdk/x11/gdkx.h
@@ -31,9 +32,9 @@ IGNORE_HFILES= 			\
 	x11			\
 	quartz
 
-# Extra files to add when scanning (relative to $srcdir)
+# Extra files to add when scanning
 EXTRA_HFILES=			\
-	../../../gdk/x11/gdkx.h
+	$(top_srcdir)/gdk/x11/gdkx.h
 
 # CFLAGS and LDFLAGS for compiling scan program. Only needed
 # if $(DOC_MODULE).types is non-empty.

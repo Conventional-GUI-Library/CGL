@@ -12,7 +12,7 @@ DOC_MAIN_SGML_FILE=gtk-docs.sgml
 SCAN_OPTIONS=--deprecated-guards="GTK_ENABLE_BROKEN|GTK_DISABLE_DEPRECATED"
 
 # The directory containing the source code. Relative to $(srcdir)
-DOC_SOURCE_DIR=../../../gtk
+DOC_SOURCE_DIR=$(top_srcdir)/gtk
 
 # Used for dependencies
 HFILE_GLOB=$(top_srcdir)/gtk/*.h
@@ -137,11 +137,13 @@ content_files =					\
 	glossary.xml				\
 	migrating-2to3.xml			\
 	migrating-checklist.sgml		\
-	migrating-GtkApplication.xml		\
+	migrating-unique-GtkApplication.xml	\
+	migrating-smclient-GtkApplication.xml	\
 	migrating-GtkGrid.xml			\
 	migrating-GtkStyleContext.xml		\
-	objects_grouped.sgml			\
 	osx.sgml				\
+	broadway.xml				\
+	wayland.xml				\
 	question_index.sgml			\
 	resources.sgml				\
 	text_widget.sgml			\
@@ -151,17 +153,20 @@ content_files =					\
 	gtk-query-immodules-3.0.xml		\
 	gtk-update-icon-cache.xml		\
 	gtk-launch.xml				\
+	broadwayd.xml				\
 	visual_index.xml			\
 	getting_started.xml			\
 	overview.xml
 
 expand_content_files = 				\
+	compiling.sgml				\
 	drawing-model.xml			\
 	getting_started.xml			\
 	glossary.xml				\
 	migrating-2to3.xml			\
 	migrating-checklist.sgml		\
-	migrating-GtkApplication.xml		\
+	migrating-unique-GtkApplication.xml	\
+	migrating-smclient-GtkApplication.xml	\
 	migrating-GtkGrid.xml			\
 	migrating-GtkStyleContext.xml		\
 	question_index.sgml			\
@@ -299,33 +304,39 @@ HTML_IMAGES = \
 	$(srcdir)/images/button.png					\
 	$(srcdir)/images/check-button.png				\
 	$(srcdir)/images/color-button.png				\
-	$(srcdir)/images/colorsel.png					\
+	$(srcdir)/images/colorchooser.png				\
 	$(srcdir)/images/combo-box.png					\
 	$(srcdir)/images/combo-box-entry.png				\
+	$(srcdir)/images/combo-box-text.png				\
 	$(srcdir)/images/entry.png					\
 	$(srcdir)/images/figure-hierarchical-drawing.png		\
 	$(srcdir)/images/figure-windowed-label.png			\
 	$(srcdir)/images/file-button.png				\
 	$(srcdir)/images/filechooser.png				\
 	$(srcdir)/images/font-button.png				\
-	$(srcdir)/images/fontsel.png					\
+	$(srcdir)/images/fontchooser.png				\
 	$(srcdir)/images/frame.png					\
+	$(srcdir)/images/headerbar.png					\
 	$(srcdir)/images/icon-view.png					\
 	$(srcdir)/images/image.png					\
 	$(srcdir)/images/info-bar.png					\
 	$(srcdir)/images/label.png					\
+	$(srcdir)/images/levelbar.png					\
 	$(srcdir)/images/link-button.png				\
 	$(srcdir)/images/list-and-tree.png				\
-	$(srcdir)/images/lockbutton.png				\
+	$(srcdir)/images/lock-button.png				\
+	$(srcdir)/images/lockbutton.png	        			\
 	$(srcdir)/images/lockbutton-locked.png				\
 	$(srcdir)/images/lockbutton-unlocked.png			\
 	$(srcdir)/images/lockbutton-sorry.png				\
 	$(srcdir)/images/menubar.png					\
+	$(srcdir)/images/menu-button.png				\
 	$(srcdir)/images/messagedialog.png				\
 	$(srcdir)/images/multiline-text.png				\
 	$(srcdir)/images/notebook.png					\
 	$(srcdir)/images/panes.png					\
 	$(srcdir)/images/pagesetupdialog.png				\
+	$(srcdir)/images/placessidebar.png				\
 	$(srcdir)/images/printdialog.png				\
 	$(srcdir)/images/progressbar.png				\
 	$(srcdir)/images/radio-group.png				\
@@ -337,6 +348,8 @@ HTML_IMAGES = \
 	$(srcdir)/images/separator.png					\
 	$(srcdir)/images/spinbutton.png					\
 	$(srcdir)/images/spinner.png					\
+	$(srcdir)/images/stack.png					\
+	$(srcdir)/images/stackswitcher.png				\
 	$(srcdir)/images/statusbar.png					\
 	$(srcdir)/images/toggle-button.png				\
 	$(srcdir)/images/toolbar.png					\
@@ -383,7 +396,34 @@ HTML_IMAGES = \
 	$(srcdir)/images/handles.png					\
 	$(srcdir)/images/extensions.png					\
 	$(srcdir)/images/numerableicon.png				\
-	$(srcdir)/images/numerableicon2.png
+	$(srcdir)/images/numerableicon2.png				\
+	$(srcdir)/images/bloatpad-osx.png				\
+	$(srcdir)/images/bloatpad-gnome.png				\
+	$(srcdir)/images/bloatpad-xfce.png				\
+	$(srcdir)/images/down-center.png				\
+	$(srcdir)/images/down-end.png					\
+	$(srcdir)/images/down-start.png					\
+	$(srcdir)/images/left-center.png				\
+	$(srcdir)/images/left-end.png					\
+	$(srcdir)/images/left-start.png					\
+	$(srcdir)/images/right-center.png				\
+	$(srcdir)/images/right-end.png					\
+	$(srcdir)/images/right-start.png				\
+	$(srcdir)/images/up-center.png					\
+	$(srcdir)/images/up-end.png					\
+	$(srcdir)/images/up-start.png					\
+	$(srcdir)/images/list-box.png					\
+	$(srcdir)/images/getting-started-app1.png			\
+	$(srcdir)/images/getting-started-app2.png			\
+	$(srcdir)/images/getting-started-app3.png			\
+	$(srcdir)/images/getting-started-app4.png			\
+	$(srcdir)/images/getting-started-app6.png			\
+	$(srcdir)/images/getting-started-app7.png			\
+	$(srcdir)/images/getting-started-app8.png			\
+	$(srcdir)/images/getting-started-app9.png			\
+	$(srcdir)/images/getting-started-app10.png			\
+	$(srcdir)/images/exampleapp.png					\
+	$(srcdir)/images/flow-box.png
 
 # Extra options to supply to gtkdoc-fixref
 FIXXREF_OPTIONS=--extra-dir=../gdk/html \
@@ -404,12 +444,21 @@ EXTRA_DIST += version.xml.in gtk3.types.in
 man_MANS = 				\
 	gtk-query-immodules-3.0.1	\
 	gtk-update-icon-cache.1		\
-	gtk-launch.1
+	gtk-launch.1			\
+	broadwayd.1
 
 if ENABLE_MAN
 
+XSLTPROC_FLAGS = \
+        --nonet \
+        --stringparam man.output.quietly 1 \
+        --stringparam funcsynopsis.style ansi \
+        --stringparam man.th.extra1.suppress 1 \
+        --stringparam man.authors.section.enabled 0 \
+        --stringparam man.copyright.section.enabled 0
+
 .xml.1:
-	@XSLTPROC@ -nonet http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
+	$(AM_V_GEN) $(XSLTPROC) $(XSLTPROC_FLAGS) http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
 
 dist-local-check-mans-enabled:
 	if grep "Man generation disabled" $(man_MANS) >/dev/null; then $(RM) $(man_MANS); fi

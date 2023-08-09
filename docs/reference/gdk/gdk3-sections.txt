@@ -52,6 +52,15 @@ gdk_error_trap_pop_ignored
 GDK_WINDOWING_X11
 GDK_WINDOWING_WIN32
 GDK_WINDOWING_QUARTZ
+GDK_WINDOWING_WAYLAND
+
+<SUBSECTION>
+GDK_VERSION_3_0
+GDK_VERSION_3_2
+GDK_VERSION_3_4
+GDK_VERSION_MIN_REQUIRED
+GDK_VERSION_MAX_ALLOWED
+GDK_DISABLE_DEPRECATION_WARNINGS
 
 <SUBSECTION Standard>
 GDK_TYPE_GRAB_STATUS
@@ -75,6 +84,7 @@ gdk_grab_status_get_type
 gdk_gravity_get_type
 gdk_input_mode_get_type
 gdk_input_source_get_type
+gdk_modifier_intent_get_type
 gdk_modifier_type_get_type
 gdk_notify_type_get_type
 gdk_property_state_get_type
@@ -162,7 +172,6 @@ GdkDisplayClass
 <TITLE>GdkDisplayManager</TITLE>
 GdkDisplayManager
 gdk_display_manager_get
-gdk_display_manager_peek
 gdk_display_manager_get_default_display
 gdk_display_manager_set_default_display
 gdk_display_manager_list_displays
@@ -200,11 +209,13 @@ gdk_screen_make_display_name
 gdk_screen_get_n_monitors
 gdk_screen_get_primary_monitor
 gdk_screen_get_monitor_geometry
+gdk_screen_get_monitor_workarea
 gdk_screen_get_monitor_at_point
 gdk_screen_get_monitor_at_window
 gdk_screen_get_monitor_height_mm
 gdk_screen_get_monitor_width_mm
 gdk_screen_get_monitor_plug_name
+gdk_screen_get_monitor_scale_factor
 gdk_screen_get_setting
 gdk_screen_get_font_options
 gdk_screen_set_font_options
@@ -375,6 +386,8 @@ gdk_window_begin_move_drag
 gdk_window_begin_move_drag_for_device
 gdk_window_constrain_size
 gdk_window_beep
+gdk_window_get_scale_factor
+gdk_window_set_opaque_region
 
 <SUBSECTION>
 gdk_window_get_clip_region
@@ -382,6 +395,8 @@ gdk_window_begin_paint_rect
 gdk_window_begin_paint_region
 gdk_window_end_paint
 gdk_window_get_visible_region
+GdkWindowInvalidateHandlerFunc
+gdk_window_set_invalidate_handler
 
 <SUBSECTION>
 gdk_window_invalidate_rect
@@ -396,6 +411,7 @@ gdk_window_process_updates
 gdk_window_set_debug_updates
 gdk_window_enable_synchronized_configure
 gdk_window_configure_finished
+gdk_window_get_frame_clock
 
 <SUBSECTION>
 gdk_window_set_user_data
@@ -444,10 +460,12 @@ gdk_window_get_origin
 gdk_window_get_root_coords
 gdk_window_get_pointer
 gdk_window_get_device_position
+gdk_window_get_device_position_double
 GdkModifierType
 gdk_window_get_parent
 gdk_window_get_toplevel
 gdk_window_get_children
+gdk_window_get_children_with_user_data
 gdk_window_peek_children
 gdk_window_get_events
 gdk_window_set_events
@@ -580,6 +598,7 @@ gdk_pango_context_get_for_screen
 <TITLE>Cairo Interaction</TITLE>
 <FILE>cairo_interaction</FILE>
 gdk_window_create_similar_surface
+gdk_window_create_similar_image_surface
 gdk_cairo_create
 gdk_cairo_get_clip_rectangle
 gdk_cairo_set_source_color
@@ -589,6 +608,7 @@ gdk_cairo_set_source_window
 gdk_cairo_rectangle
 gdk_cairo_region
 gdk_cairo_region_create_from_surface
+gdk_cairo_surface_create_from_pixbuf
 </SECTION>
 
 <SECTION>
@@ -640,6 +660,7 @@ gdk_keymap_get_num_lock_state
 gdk_keymap_get_modifier_state
 gdk_keymap_add_virtual_modifiers
 gdk_keymap_map_virtual_modifiers
+gdk_keymap_get_modifier_mask
 
 <SUBSECTION>
 gdk_keyval_name
@@ -704,7 +725,9 @@ gdk_device_ungrab
 <SUBSECTION>
 gdk_device_get_state
 gdk_device_get_position
+gdk_device_get_position_double
 gdk_device_get_window_at_position
+gdk_device_get_window_at_position_double
 gdk_device_get_history
 gdk_device_free_history
 GdkTimeCoord
@@ -763,6 +786,11 @@ GdkEventMask
 GDK_CURRENT_TIME
 GDK_PRIORITY_EVENTS
 GDK_PRIORITY_REDRAW
+GDK_EVENT_PROPAGATE
+GDK_EVENT_STOP
+GDK_BUTTON_PRIMARY
+GDK_BUTTON_MIDDLE
+GDK_BUTTON_SECONDARY
 
 <SUBSECTION>
 gdk_events_pending
@@ -780,12 +808,18 @@ gdk_event_get_keycode
 gdk_event_get_keyval
 gdk_event_get_root_coords
 gdk_event_get_scroll_direction
+gdk_event_get_scroll_deltas
 gdk_event_get_state
 gdk_event_get_time
+gdk_event_get_window
+gdk_event_get_event_type
+GdkEventSequence
+gdk_event_get_event_sequence
 gdk_event_request_motions
 gdk_events_get_angle
 gdk_events_get_center
 gdk_events_get_distance
+gdk_event_triggers_context_menu
 
 <SUBSECTION>
 gdk_event_handler_set
@@ -818,6 +852,7 @@ GdkEvent
 GdkEventAny
 GdkEventKey
 GdkEventButton
+GdkEventTouch
 GdkEventScroll
 GdkEventMotion
 GdkEventExpose
@@ -867,10 +902,12 @@ GdkCursor
 GdkCursorType
 gdk_cursor_new
 gdk_cursor_new_from_pixbuf
+gdk_cursor_new_from_surface
 gdk_cursor_new_from_name
 gdk_cursor_new_for_display
 gdk_cursor_get_display
 gdk_cursor_get_image
+gdk_cursor_get_surface
 gdk_cursor_get_cursor_type
 gdk_cursor_ref
 gdk_cursor_unref
@@ -957,6 +994,7 @@ gdk_x11_display_error_trap_push
 gdk_x11_display_error_trap_pop
 gdk_x11_display_error_trap_pop_ignored
 gdk_x11_display_set_cursor_theme
+gdk_x11_display_set_window_scale
 gdk_x11_register_standard_event_type
 gdk_x11_screen_get_screen_number
 gdk_x11_screen_get_xscreen
@@ -969,9 +1007,15 @@ gdk_x11_screen_get_current_desktop
 gdk_x11_window_foreign_new_for_display
 gdk_x11_window_lookup_for_display
 gdk_x11_window_get_xid
+gdk_x11_window_set_hide_titlebar_when_maximized
 gdk_x11_window_set_theme_variant
 gdk_x11_window_set_user_time
 gdk_x11_window_move_to_current_desktop
+gdk_x11_window_move_to_desktop
+gdk_x11_window_get_desktop
+gdk_x11_window_set_utf8_property
+gdk_x11_window_set_frame_extents
+gdk_x11_window_set_frame_sync_enabled
 gdk_x11_get_default_root_xwindow
 gdk_x11_get_default_screen
 gdk_x11_get_default_xdisplay
@@ -997,6 +1041,98 @@ gdk_x11_display_string_to_compound_text
 gdk_x11_display_utf8_to_compound_text
 gdk_x11_free_compound_text
 
+<SUBSECTION Standard>
+GDK_TYPE_X11_APP_LAUNCH_CONTEXT
+GDK_X11_APP_LAUNCH_CONTEXT
+GDK_X11_APP_LAUNCH_CONTEXT_CLASS
+GDK_IS_X11_APP_LAUNCH_CONTEXT
+GDK_IS_X11_APP_LAUNCH_CONTEXT_CLASS
+GDK_X11_APP_LAUNCH_CONTEXT_GET_CLASS
+GDK_TYPE_X11_CURSOR
+GDK_X11_CURSOR
+GDK_X11_CURSOR_CLASS
+GDK_IS_X11_CURSOR
+GDK_IS_X11_CURSOR_CLASS
+GDK_X11_CURSOR_GET_CLASS
+GDK_TYPE_X11_DEVICE_CORE
+GDK_X11_DEVICE_CORE
+GDK_X11_DEVICE_CORE_CLASS
+GDK_IS_X11_DEVICE_CORE
+GDK_IS_X11_DEVICE_CORE_CLASS
+GDK_X11_DEVICE_CORE_GET_CLASS
+GDK_TYPE_X11_DEVICE_MANAGER_CORE
+GDK_X11_DEVICE_MANAGER_CORE
+GDK_X11_DEVICE_MANAGER_CORE_CLASS
+GDK_IS_X11_DEVICE_MANAGER_CORE
+GDK_IS_X11_DEVICE_MANAGER_CORE_CLASS
+GDK_X11_DEVICE_MANAGER_CORE_GET_CLASS
+GDK_TYPE_X11_DEVICE_MANAGER_XI2
+GDK_X11_DEVICE_MANAGER_XI2
+GDK_X11_DEVICE_MANAGER_XI2_CLASS
+GDK_IS_X11_DEVICE_MANAGER_XI2
+GDK_IS_X11_DEVICE_MANAGER_XI2_CLASS
+GDK_X11_DEVICE_MANAGER_XI2_GET_CLASS
+GDK_TYPE_X11_DEVICE_MANAGER_XI
+GDK_X11_DEVICE_MANAGER_XI
+GDK_X11_DEVICE_MANAGER_XI_CLASS
+GDK_IS_X11_DEVICE_MANAGER_XI
+GDK_IS_X11_DEVICE_MANAGER_XI_CLASS
+GDK_X11_DEVICE_MANAGER_XI_GET_CLASS
+GDK_TYPE_X11_DEVICE_XI2
+GDK_X11_DEVICE_XI2
+GDK_X11_DEVICE_XI2_CLASS
+GDK_IS_X11_DEVICE_XI2
+GDK_IS_X11_DEVICE_XI2_CLASS
+GDK_X11_DEVICE_XI2_GET_CLASS
+GDK_TYPE_X11_DEVICE_XI
+GDK_X11_DEVICE_XI
+GDK_X11_DEVICE_XI_CLASS
+GDK_IS_X11_DEVICE_XI
+GDK_IS_X11_DEVICE_XI_CLASS
+GDK_X11_DEVICE_XI_GET_CLASS
+GDK_TYPE_X11_DISPLAY
+GDK_X11_DISPLAY
+GDK_X11_DISPLAY_CLASS
+GDK_IS_X11_DISPLAY
+GDK_IS_X11_DISPLAY_CLASS
+GDK_X11_DISPLAY_GET_CLASS
+GDK_TYPE_X11_DISPLAY_MANAGER
+GDK_X11_DISPLAY_MANAGER
+GDK_X11_DISPLAY_MANAGER_CLASS
+GDK_IS_X11_DISPLAY_MANAGER
+GDK_IS_X11_DISPLAY_MANAGER_CLASS
+GDK_X11_DISPLAY_MANAGER_GET_CLASS
+GDK_TYPE_X11_DRAG_CONTEXT
+GDK_X11_DRAG_CONTEXT
+GDK_X11_DRAG_CONTEXT_CLASS
+GDK_IS_X11_DRAG_CONTEXT
+GDK_IS_X11_DRAG_CONTEXT_CLASS
+GDK_X11_DRAG_CONTEXT_GET_CLASS
+GDK_TYPE_X11_KEYMAP
+GDK_X11_KEYMAP
+GDK_X11_KEYMAP_CLASS
+GDK_IS_X11_KEYMAP
+GDK_IS_X11_KEYMAP_CLASS
+GDK_X11_KEYMAP_GET_CLASS
+GDK_TYPE_X11_SCREEN
+GDK_X11_SCREEN
+GDK_X11_SCREEN_CLASS
+GDK_IS_X11_SCREEN
+GDK_IS_X11_SCREEN_CLASS
+GDK_X11_SCREEN_GET_CLASS
+GDK_TYPE_X11_VISUAL
+GDK_X11_VISUAL
+GDK_X11_VISUAL_CLASS
+GDK_IS_X11_VISUAL
+GDK_IS_X11_VISUAL_CLASS
+GDK_X11_VISUAL_GET_CLASS
+GDK_TYPE_X11_WINDOW
+GDK_X11_WINDOW
+GDK_X11_WINDOW_CLASS
+GDK_IS_X11_WINDOW
+GDK_IS_X11_WINDOW_CLASS
+GDK_X11_WINDOW_GET_CLASS
+
 <SUBSECTION Private>
 gdk_x11_app_launch_context_get_type
 gdk_x11_cursor_get_type
@@ -1014,6 +1150,54 @@ gdk_x11_screen_get_type
 gdk_x11_visual_get_type
 gdk_x11_window_get_type
 gdk_window_impl_x11_get_type
+</SECTION>
+
+<SECTION>
+<INCLUDE>gdk/gdkwayland.h</INCLUDE>
+<TITLE>Wayland Interaction</TITLE>
+<FILE>wayland_interaction</FILE>
+gdk_wayland_device_get_wl_keyboard
+gdk_wayland_device_get_wl_pointer
+gdk_wayland_device_get_wl_seat
+gdk_wayland_display_get_wl_compositor
+gdk_wayland_display_get_wl_display
+gdk_wayland_display_get_wl_shell
+gdk_wayland_window_get_wl_shell_surface
+gdk_wayland_window_get_wl_surface
+gdk_wayland_window_set_use_custom_surface
+
+<SUBSECTION Standard>
+GDK_TYPE_WAYLAND_DEVICE
+GDK_WAYLAND_DEVICE
+GDK_WAYLAND_DEVICE_CLASS
+GDK_WAYLAND_DEVICE_GET_CLASS
+GDK_IS_WAYLAND_DEVICE
+GDK_IS_WAYLAND_DEVICE_CLASS
+GDK_TYPE_WAYLAND_DISPLAY
+GDK_WAYLAND_DISPLAY
+GDK_WAYLAND_DISPLAY_CLASS
+GDK_WAYLAND_DISPLAY_GET_CLASS
+GDK_IS_WAYLAND_DISPLAY
+GDK_IS_WAYLAND_DISPLAY_CLASS
+GDK_TYPE_WAYLAND_DISPLAY_MANAGER
+GDK_WAYLAND_DISPLAY_MANAGER
+GDK_WAYLAND_DISPLAY_MANAGER_CLASS
+GDK_WAYLAND_DISPLAY_MANAGER_GET_CLASS
+GDK_IS_WAYLAND_DISPLAY_MANAGER
+GDK_IS_WAYLAND_DISPLAY_MANAGER_CLASS
+GDK_TYPE_WAYLAND_WINDOW
+GDK_WAYLAND_WINDOW
+GDK_WAYLAND_WINDOW_CLASS
+GDK_WAYLAND_WINDOW_GET_CLASS
+GDK_IS_WAYLAND_WINDOW
+GDK_IS_WAYLAND_WINDOW_CLASS
+
+<SUBSECTION Private>
+gdk_wayland_device_get_type
+gdk_wayland_display_get_type
+gdk_wayland_display_manager_get_type
+gdk_wayland_window_get_type
+
 </SECTION>
 
 <SECTION>
@@ -1041,8 +1225,43 @@ gdk_app_launch_context_get_type
 
 <SECTION>
 <TITLE>Testing</TITLE>
-<FILE>gdktesting</FILE>
+<FILE>gdktestutils</FILE>
 gdk_test_render_sync
 gdk_test_simulate_button
 gdk_test_simulate_key
+</SECTION>
+
+<SECTION>
+<TITLE>GdkFrameClock</TITLE>
+<FILE>gdkframeclock</FILE>
+GdkFrameClock
+gdk_frame_clock_get_frame_time
+GdkFrameClockPhase
+gdk_frame_clock_request_phase
+gdk_frame_clock_begin_updating
+gdk_frame_clock_end_updating
+gdk_frame_clock_get_frame_counter
+gdk_frame_clock_get_history_start
+gdk_frame_clock_get_timings
+gdk_frame_clock_get_current_timings
+gdk_frame_clock_get_refresh_info
+<SUBSECTION Private>
+GdkFrameClockPrivate
+gdk_frame_clock_get_type
+</SECTION>
+
+<SECTION>
+<TITLE>GdkFrameTimings</TITLE>
+<FILE>gdkframetimings</FILE>
+GdkFrameTimings
+gdk_frame_timings_ref
+gdk_frame_timings_unref
+gdk_frame_timings_get_frame_counter
+gdk_frame_timings_get_complete
+gdk_frame_timings_get_frame_time
+gdk_frame_timings_get_presentation_time
+gdk_frame_timings_get_refresh_interval
+gdk_frame_timings_get_predicted_presentation_time
+<SUBSECTION Private>
+gdk_frame_get_type
 </SECTION>

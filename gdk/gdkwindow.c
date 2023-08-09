@@ -1660,7 +1660,6 @@ gdk_window_reparent (GdkWindow *window,
   old_parent = window->parent;
 
   was_mapped = GDK_WINDOW_IS_MAPPED (window);
-  show = FALSE;
 
   /* Reparenting to toplevel. Ensure we have a native window so this can work */
   if (new_parent->window_type == GDK_WINDOW_ROOT ||
@@ -3180,7 +3179,7 @@ gdk_window_end_paint (GdkWindow *window)
 #ifdef USE_BACKING_STORE
   GdkWindow *composited;
   GdkWindowPaint *paint;
-  GdkRectangle clip_box;
+  GdkRectangle clip_box = { 0, };
   cairo_region_t *full_clip;
 
   g_return_if_fail (GDK_IS_WINDOW (window));
@@ -9361,6 +9360,10 @@ get_event_window (GdkDisplay                 *display,
   touch_grab = _gdk_display_has_touch_grab (display, device, sequence, serial);
   grab = _gdk_display_get_last_device_grab (display, device);
 
+  /* Default value. */
+  if (evmask_out)
+    *evmask_out = 0;
+
   if (is_touch_type (type) && pointer_emulated)
     {
       switch (type)
@@ -10440,9 +10443,6 @@ gdk_window_create_similar_image_surface (GdkWindow *     window,
       window = gdk_screen_get_root_window (screen);
     }
 
-  if (scale == 0)
-    scale = gdk_window_get_scale_factor (window);
-
   impl_class = GDK_WINDOW_IMPL_GET_CLASS (window->impl);
 
   if (impl_class->create_similar_image_surface)
@@ -10459,6 +10459,9 @@ gdk_window_create_similar_image_surface (GdkWindow *     window,
     }
 
 #ifdef HAVE_CAIRO_SURFACE_SET_DEVICE_SCALE
+  if (scale == 0)
+    scale = gdk_window_get_scale_factor (window);
+
   cairo_surface_set_device_scale (surface, scale, scale);
 #endif
 

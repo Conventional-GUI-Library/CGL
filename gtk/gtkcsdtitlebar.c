@@ -53,6 +53,7 @@ struct _GtkCSDTitleBarPrivate
   GtkWidget *subtitle_label;
   GtkWidget *label_box;
   GtkWidget *label_sizing_box;
+  GtkWidget *subtitle_sizing_label;
   GtkWidget *custom_title;
   GtkWidget *close_button;
   GtkWidget *separator;
@@ -60,6 +61,7 @@ struct _GtkCSDTitleBarPrivate
   gboolean show_fallback_app_menu;
   GtkWidget *menu_button;
   GtkWidget *menu_separator;
+  gboolean has_subtitle;
 
   GList *children;
 };
@@ -75,6 +77,7 @@ enum {
   PROP_0,
   PROP_TITLE,
   PROP_SUBTITLE,
+  PROP_HAS_SUBTITLE,
   PROP_CUSTOM_TITLE,
   PROP_SPACING,
   PROP_SHOW_CLOSE_BUTTON,
@@ -125,8 +128,10 @@ init_sizing_box (GtkCSDTitleBar *bar)
    * in case we have only the title.
    */
   priv->label_sizing_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+  gtk_widget_show (priv->label_sizing_box);
 
   w = gtk_label_new (NULL);
+  gtk_widget_show (w);
   context = gtk_widget_get_style_context (w);
   gtk_style_context_add_class (context, "title");
   gtk_box_pack_start (GTK_BOX (priv->label_sizing_box), w, FALSE, FALSE, 0);
@@ -142,8 +147,8 @@ init_sizing_box (GtkCSDTitleBar *bar)
   gtk_label_set_line_wrap (GTK_LABEL (w), FALSE);
   gtk_label_set_single_line_mode (GTK_LABEL (w), TRUE);
   gtk_label_set_ellipsize (GTK_LABEL (w), PANGO_ELLIPSIZE_END);
-
-  gtk_widget_show_all (priv->label_sizing_box);
+  gtk_widget_set_visible (w, priv->has_subtitle || (priv->subtitle && priv->subtitle[0]));
+  priv->subtitle_sizing_label = w;
 }
 
 GtkWidget *
@@ -395,7 +400,8 @@ gtk_csd_title_bar_init (GtkCSDTitleBar *bar)
   priv->spacing = DEFAULT_SPACING;
   priv->close_button = NULL;
   priv->separator = NULL;
-
+  priv->has_subtitle = TRUE;
+  
   init_sizing_box (bar);
   construct_label_box (bar);
 
@@ -1053,7 +1059,7 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
 /**
  * gtk_csd_title_bar_set_title:
  * @bar: a #GtkCSDTitleBar
- * @title: (allow-none): a title
+ * @title: (allow-none): a title, or %NULL
  *
  * Sets the title of the #GtkCSDTitleBar. The title should help a user
  * identify the current view. A good title should not include the
@@ -1133,9 +1139,11 @@ gtk_csd_title_bar_set_subtitle (GtkCSDTitleBar *bar,
   if (priv->subtitle_label != NULL)
     {
       gtk_label_set_label (GTK_LABEL (priv->subtitle_label), priv->subtitle);
-      gtk_widget_set_visible (priv->subtitle_label, priv->subtitle != NULL);
+      gtk_widget_set_visible (priv->subtitle_label, priv->subtitle && priv->subtitle[0]);
       gtk_widget_queue_resize (GTK_WIDGET (bar));
     }
+
+  gtk_widget_set_visible (priv->subtitle_sizing_label, priv->has_subtitle || (priv->subtitle && priv->subtitle[0]));
 
   g_object_notify (G_OBJECT (bar), "subtitle");
 }
@@ -1291,6 +1299,10 @@ gtk_csd_title_bar_get_property (GObject    *object,
       g_value_set_boolean (value, priv->show_fallback_app_menu);
       break;
 
+    case PROP_HAS_SUBTITLE:
+      g_value_set_boolean (value, gtk_csd_title_bar_get_has_subtitle (bar));
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -1330,6 +1342,10 @@ gtk_csd_title_bar_set_property (GObject      *object,
 
     case PROP_SHOW_FALLBACK_APP_MENU:
       gtk_csd_title_bar_set_show_fallback_app_menu (bar, g_value_get_boolean (value));
+      break;
+
+    case PROP_HAS_SUBTITLE:
+      gtk_csd_title_bar_set_has_subtitle (bar, g_value_get_boolean (value));
       break;
 
     default:
@@ -1669,7 +1685,7 @@ gtk_csd_title_bar_class_init (GtkCSDTitleBarClass *class)
   g_object_class_install_property (object_class,
                                    PROP_SUBTITLE,
                                    g_param_spec_string ("subtitle",
-                                                        P_("Subitle"),
+                                                        P_("Subtitle"),
                                                         P_("The subtitle to display"),
                                                         NULL,
                                                         G_PARAM_READWRITE));
@@ -1701,6 +1717,22 @@ gtk_csd_title_bar_class_init (GtkCSDTitleBarClass *class)
                                                          GTK_PARAM_READWRITE));
 
   g_type_class_add_private (object_class, sizeof (GtkCSDTitleBarPrivate));
+
+  /**
+   * GtkCSDTitleBar:has-subtitle: 
+   * 
+   * If %TRUE, reserve space for a subtitle, even if none
+   * is currently set.
+   *
+   * Since: 3.12
+   */
+  g_object_class_install_property (object_class,
+                                   PROP_HAS_SUBTITLE,
+                                   g_param_spec_boolean ("has-subtitle",
+                                                         P_("Has Subtitle"),
+                                                         P_("Whether to reserve space for a subtitle"),
+                                                         TRUE,
+                                                         GTK_PARAM_READWRITE));
 
   /**
    * GtkCSDTitleBar:show-fallback-app-menu:
@@ -1904,4 +1936,58 @@ gtk_csd_title_bar_set_show_fallback_app_menu (GtkCSDTitleBar *bar,
   update_fallback_app_menu (bar);
 
   g_object_notify (G_OBJECT (bar), "show-fallback-app-menu");
+}
+
+/**
+ * gtk_csd_title_bar_set_has_subtitle:
+ * @bar: a #GtkCSDTitleBar
+ * @setting: %TRUE to reserve space for a subtitle
+ *
+ * Sets whether the header bar should reserve space
+ * for a subtitle, even if none is currently set.
+ *
+ * Since: 3.12
+ */
+void
+gtk_csd_title_bar_set_has_subtitle (GtkCSDTitleBar *bar,
+                                 gboolean      setting)
+{
+  GtkCSDTitleBarPrivate *priv;
+
+  g_return_if_fail (GTK_IS_CSD_TITLE_BAR (bar));
+
+  priv = gtk_csd_title_bar_get_instance_private (bar);
+
+  setting = setting != FALSE;
+
+  if (priv->has_subtitle == setting)
+    return;
+
+  priv->has_subtitle = setting;
+  gtk_widget_set_visible (priv->subtitle_sizing_label, setting || (priv->subtitle && priv->subtitle[0]));
+
+  gtk_widget_queue_resize (GTK_WIDGET (bar));
+
+  g_object_notify (G_OBJECT (bar), "has-subtitle");
+}
+
+/**
+ * gtk_csd_title_bar_get_has_subtitle:
+ * @bar: a #GtkCSDTitleBar
+ *
+ * Returns whether the header bar reserves space
+ * for a subtitle.
+ *
+ * Since: 3.12
+ */
+gboolean
+gtk_csd_title_bar_get_has_subtitle (GtkCSDTitleBar *bar)
+{
+  GtkCSDTitleBarPrivate *priv;
+
+  g_return_val_if_fail (GTK_IS_CSD_TITLE_BAR (bar), FALSE);
+
+  priv = gtk_csd_title_bar_get_instance_private (bar);
+
+  return priv->has_subtitle;
 }

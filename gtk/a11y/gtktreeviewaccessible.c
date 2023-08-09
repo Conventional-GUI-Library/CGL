@@ -765,7 +765,11 @@ gtk_tree_view_accessible_get_selected_rows (AtkTable  *table,
 
   widget = gtk_accessible_get_widget (GTK_ACCESSIBLE (table));
   if (widget == NULL)
-    return 0;
+    {
+      if (rows_selected != NULL)
+        *rows_selected = NULL;
+      return 0;
+    }
 
   data.treeview = GTK_TREE_VIEW (widget);
   data.array = g_array_new (FALSE, FALSE, sizeof (gint));
@@ -957,7 +961,7 @@ gtk_tree_view_accessible_ref_selection (AtkSelection *selection,
   table = ATK_TABLE (selection);
   n_columns = gtk_tree_view_accessible_get_n_columns (table);
   n_selected = gtk_tree_view_accessible_get_selected_rows (table, &selected);
-  if (i >= n_columns * n_selected)
+  if (n_columns == 0 || i >= n_columns * n_selected)
     return NULL;
 
   row = selected[i / n_columns];
@@ -1018,6 +1022,12 @@ gtk_tree_view_accessible_get_cell_area (GtkCellAccessibleParent *parent,
   AtkObject *parent_cell;
   GtkTreeViewAccessibleCellInfo *cell_info;
   GtkCellAccessible *top_cell;
+
+  /* Default value. */
+  cell_rect->x = 0;
+  cell_rect->y = 0;
+  cell_rect->width = 0;
+  cell_rect->height = 0;
 
   widget = gtk_accessible_get_widget (GTK_ACCESSIBLE (parent));
   if (widget == NULL)
@@ -1259,7 +1269,7 @@ gtk_tree_view_accessible_get_renderer_state (GtkCellAccessibleParent *parent,
       GtkTreeViewColumn *column;
       GtkTreePath *path;
       GtkRBTree *tree;
-      GtkRBNode *node;
+      GtkRBNode *node = NULL;
       
       gtk_tree_view_get_cursor (treeview, &path, &column);
       if (path)

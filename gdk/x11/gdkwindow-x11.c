@@ -772,10 +772,8 @@ set_wm_protocols (GdkWindow *window)
   int n = 0;
   
   protocols[n++] = gdk_x11_get_xatom_by_name_for_display (display, "WM_DELETE_WINDOW");
+  protocols[n++] = gdk_x11_get_xatom_by_name_for_display (display, "WM_TAKE_FOCUS");
   protocols[n++] = gdk_x11_get_xatom_by_name_for_display (display, "_NET_WM_PING");
-
-  if (window->accept_focus)
-    protocols[n++] = gdk_x11_get_xatom_by_name_for_display (display, "WM_TAKE_FOCUS");
 
 #ifdef HAVE_XSYNC
   if (GDK_X11_DISPLAY (display)->use_sync)
@@ -1229,6 +1227,8 @@ gdk_x11_window_foreign_new_for_display (GdkDisplay *display,
     XFree (children);
 
   screen = _gdk_x11_display_screen_for_xrootwin (display, root);
+  if (screen == NULL)
+    return NULL;
 
   win = _gdk_display_create_window (display);
   win->impl = g_object_new (GDK_TYPE_WINDOW_IMPL_X11, NULL);
@@ -3479,10 +3479,7 @@ gdk_x11_window_set_accept_focus (GdkWindow *window,
 
       if (!GDK_WINDOW_DESTROYED (window) &&
 	  WINDOW_IS_TOPLEVEL_OR_FOREIGN (window))
-        {
-          update_wm_hints (window, FALSE);
-          set_wm_protocols (window);
-        }
+	update_wm_hints (window, FALSE);
     }
 }
 
