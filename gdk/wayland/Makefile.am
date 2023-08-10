@@ -27,6 +27,9 @@ BUILT_SOURCES = 				\
 nodist_libgdk_wayland_la_SOURCES =		\
 	$(BUILT_SOURCES)
 
+DISTCLEANFILES =				\
+	$(BUILT_SOURCES)
+
 libgdk_wayland_la_SOURCES =			\
 	gdkapplaunchcontext-wayland.c		\
 	gdkcursor-wayland.c			\

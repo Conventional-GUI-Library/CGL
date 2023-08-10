@@ -1,5 +1,6 @@
 /*
  * Copyright © 2010 Codethink Limited
+ * Copyright © 2013 Canonical Limited
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -12,9 +13,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Ryan Lortie <desrt@desrt.ca>
  */
@@ -24,9 +23,7 @@
 #include "gtkapplication.h"
 
 #include <stdlib.h>
-#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
 #include <string.h>
 
 #include "gtkapplicationprivate.h"
@@ -35,19 +32,12 @@
 #include "gtkmain.h"
 #include "gtkrecentmanager.h"
 #include "gtkaccelmapprivate.h"
+#include "gtkbuilder.h"
 #include "gtkintl.h"
 
-#ifdef GDK_WINDOWING_QUARTZ
-#include "gtkmodelmenu-quartz.h"
-#import <Cocoa/Cocoa.h>
-#include <Carbon/Carbon.h>
-#include "gtkmessagedialog.h"
-#endif
-
-#include <gdk/gdk.h>
-#ifdef GDK_WINDOWING_X11
-#include <gdk/x11/gdkx.h>
-#endif
+/* NB: please do not add backend-specific GDK headers here.  This should
+ * be abstracted via GtkApplicationImpl.
+ */
 
 /**
  * SECTION:gtkapplication
@@ -67,11 +57,37 @@
  * While GtkApplication works fine with plain #GtkWindows, it is recommended
  * to use it together with #GtkApplicationWindow.
  *
- * To set an app menu on a GtkApplication, use g_application_set_app_menu().
- * The #GMenuModel that this function expects is usually constructed using
- * #GtkBuilder, as seen in the following example. To set a menubar that will
- * be automatically picked up by #GApplicationWindows, use
- * g_application_set_menubar().
+ * When GDK threads are enabled, GtkApplication will acquire the GDK
+ * lock when invoking actions that arrive from other processes.  The GDK
+ * lock is not touched for local action invocations.  In order to have
+ * actions invoked in a predictable context it is therefore recommended
+ * that the GDK lock be held while invoking actions locally with
+ * g_action_group_activate_action().  The same applies to actions
+ * associated with #GtkApplicationWindow and to the 'activate' and
+ * 'open' #GApplication methods.
+ *
+ * To set an application menu for a GtkApplication, use
+ * gtk_application_set_app_menu(). The #GMenuModel that this function
+ * expects is usually constructed using #GtkBuilder, as seen in the
+ * following example. To specify a menubar that will be shown by
+ * #GtkApplicationWindows, use gtk_application_set_menubar(). Use the base
+ * #GActionMap interface to add actions, to respond to the user
+ * selecting these menu items.
+ *
+ * GTK+ displays these menus as expected, depending on the platform
+ * the application is running on.
+ *
+ * <figure label="Menu integration in OS X">
+ * <graphic fileref="bloatpad-osx.png" format="PNG"/>
+ * </figure>
+ *
+ * <figure label="Menu integration in GNOME">
+ * <graphic fileref="bloatpad-gnome.png" format="PNG"/>
+ * </figure>
+ *
+ * <figure label="Menu integration in Xfce">
+ * <graphic fileref="bloatpad-xfce.png" format="PNG"/>
+ * </figure>
  *
  * <example id="gtkapplication"><title>A simple application</title>
  * <programlisting>
@@ -85,9 +101,6 @@
  * of the users session (if you set the #GtkApplication:register-session
  * property) and offers various functionality related to the session
  * life-cycle.
- *
- * An application can be informed when the session is about to end
- * by connecting to the #GtkApplication::quit signal.
  *
  * An application can block various ways to end the session with
  * the gtk_application_inhibit() function. Typical use cases for
@@ -446,247 +459,34 @@ accels_finalize (Accels *accels)
   g_hash_table_unref (accels->action_to_accels);
 }
 
-
-G_DEFINE_TYPE (GtkApplication, gtk_application, G_TYPE_APPLICATION)
-
 struct _GtkApplicationPrivate
 {
-  GList *windows;
+  GtkApplicationImpl *impl;
 
-  gboolean register_session;
-  GtkActionMuxer  *muxer;
-  Accels           accels;
+  GList *windows;
 
   GMenuModel      *app_menu;
   GMenuModel      *menubar;
+  Accels           accels;
+  guint            last_window_id;
 
-#ifdef GDK_WINDOWING_X11
-  GDBusConnection *session_bus;
-  const gchar     *application_id;
-  const gchar     *object_path;
-
-  gchar           *app_menu_path;
-  guint            app_menu_id;
-
-  gchar           *menubar_path;
-  guint            menubar_id;
-
-  guint next_id;
-
-  GDBusProxy *sm_proxy;
-  GDBusProxy *client_proxy;
-  gchar *app_id;
-  gchar *client_path;
-#endif
-
-#ifdef GDK_WINDOWING_QUARTZ
-  GMenu *combined;
-
-  GSList *inhibitors;
-  gint quit_inhibit;
-  guint next_cookie;
-#endif
+  gboolean register_session;
+  GtkActionMuxer  *muxer;
 };
 
-#ifdef GDK_WINDOWING_X11
-static void
-gtk_application_x11_publish_menu (GtkApplication  *application,
-                                  const gchar     *type,
-                                  GMenuModel      *model,
-                                  guint           *id,
-                                  gchar          **path)
-{
-  gint i;
-
-  if (application->priv->session_bus == NULL)
-    return;
-
-  /* unexport any existing menu */
-  if (*id)
-    {
-      g_dbus_connection_unexport_menu_model (application->priv->session_bus, *id);
-      g_free (*path);
-      *path = NULL;
-      *id = 0;
-    }
-
-  /* export the new menu, if there is one */
-  if (model != NULL)
-    {
-      /* try getting the preferred name */
-      *path = g_strconcat (application->priv->object_path, "/menus/", type, NULL);
-      *id = g_dbus_connection_export_menu_model (application->priv->session_bus, *path, model, NULL);
-
-      /* keep trying until we get a working name... */
-      for (i = 0; *id == 0; i++)
-        {
-          g_free (*path);
-          *path = g_strdup_printf ("%s/menus/%s%d", application->priv->object_path, type, i);
-          *id = g_dbus_connection_export_menu_model (application->priv->session_bus, *path, model, NULL);
-        }
-    }
-}
-
-static void
-gtk_application_set_app_menu_x11 (GtkApplication *application,
-                                  GMenuModel     *app_menu)
-{
-  gtk_application_x11_publish_menu (application, "appmenu", app_menu,
-                                    &application->priv->app_menu_id,
-                                    &application->priv->app_menu_path);
-}
-
-static void
-gtk_application_set_menubar_x11 (GtkApplication *application,
-                                 GMenuModel     *menubar)
-{
-  gtk_application_x11_publish_menu (application, "menubar", menubar,
-                                    &application->priv->menubar_id,
-                                    &application->priv->menubar_path);
-}
-
-static void
-gtk_application_window_added_x11 (GtkApplication *application,
-                                  GtkWindow      *window)
-{
-  if (application->priv->session_bus == NULL)
-    return;
-
-  if (GTK_IS_APPLICATION_WINDOW (window))
-    {
-      GtkApplicationWindow *app_window = GTK_APPLICATION_WINDOW (window);
-      gboolean success;
-
-      /* GtkApplicationWindow associates with us when it is first created,
-       * so surely it's not realized yet...
-       */
-      g_assert (!gtk_widget_get_realized (GTK_WIDGET (window)));
-
-      do
-        {
-          gchar *window_path;
-          guint window_id;
-
-          window_id = application->priv->next_id++;
-          window_path = g_strdup_printf ("%s/window/%u", application->priv->object_path, window_id);
-          success = gtk_application_window_publish (app_window, application->priv->session_bus, window_path, window_id);
-          g_free (window_path);
-        }
-      while (!success);
-    }
-}
-
-static void
-gtk_application_window_removed_x11 (GtkApplication *application,
-                                    GtkWindow      *window)
-{
-  if (application->priv->session_bus == NULL)
-    return;
-
-  if (GTK_IS_APPLICATION_WINDOW (window))
-    gtk_application_window_unpublish (GTK_APPLICATION_WINDOW (window));
-}
-
-static void gtk_application_startup_session_dbus (GtkApplication *app);
-
-static void
-gtk_application_startup_x11 (GtkApplication *application)
-{
-  application->priv->session_bus = g_application_get_dbus_connection (G_APPLICATION (application));
-  application->priv->object_path = g_application_get_dbus_object_path (G_APPLICATION (application));
-
-  gtk_application_startup_session_dbus (GTK_APPLICATION (application));
-}
-
-static void
-gtk_application_shutdown_x11 (GtkApplication *application)
-{
-  gtk_application_set_app_menu_x11 (application, NULL);
-  gtk_application_set_menubar_x11 (application, NULL);
-
-  application->priv->session_bus = NULL;
-  application->priv->object_path = NULL;
-
-  g_clear_object (&application->priv->sm_proxy);
-  g_clear_object (&application->priv->client_proxy);
-  g_free (application->priv->app_id);
-  g_free (application->priv->client_path);
-}
+G_DEFINE_TYPE_WITH_PRIVATE (GtkApplication, gtk_application, G_TYPE_APPLICATION)
 
 const gchar *
 gtk_application_get_app_menu_object_path (GtkApplication *application)
 {
-  return application->priv->app_menu_path;
+  g_assert_not_reached (); /* XXX */
 }
 
 const gchar *
 gtk_application_get_menubar_object_path (GtkApplication *application)
 {
-  return application->priv->menubar_path;
+  g_assert_not_reached (); /* XXX */
 }
-
-#endif
-
-#ifdef GDK_WINDOWING_QUARTZ
-
-typedef struct {
-  guint cookie;
-  GtkApplicationInhibitFlags flags;
-  char *reason;
-  GtkWindow *window;
-} GtkApplicationQuartzInhibitor;
-
-static void
-gtk_application_quartz_inhibitor_free (GtkApplicationQuartzInhibitor *inhibitor)
-{
-  g_free (inhibitor->reason);
-  g_clear_object (&inhibitor->window);
-  g_slice_free (GtkApplicationQuartzInhibitor, inhibitor);
-}
-
-static void
-gtk_application_menu_changed_quartz (GObject    *object,
-                                     GParamSpec *pspec,
-                                     gpointer    user_data)
-{
-  GtkApplication *application = GTK_APPLICATION (object);
-  GMenu *combined;
-
-  combined = g_menu_new ();
-  g_menu_append_submenu (combined, "Application", gtk_application_get_app_menu (application));
-  g_menu_append_section (combined, NULL, gtk_application_get_menubar (application));
-
-  gtk_quartz_set_main_menu (G_MENU_MODEL (combined), application);
-
-  g_object_unref (combined);
-}
-
-static void gtk_application_startup_session_quartz (GtkApplication *app);
-
-static void
-gtk_application_startup_quartz (GtkApplication *application)
-{
-  [NSApp finishLaunching];
-
-  g_signal_connect (application, "notify::app-menu", G_CALLBACK (gtk_application_menu_changed_quartz), NULL);
-  g_signal_connect (application, "notify::menubar", G_CALLBACK (gtk_application_menu_changed_quartz), NULL);
-  gtk_application_menu_changed_quartz (G_OBJECT (application), NULL, NULL);
-
-  gtk_application_startup_session_quartz (application);
-}
-
-static void
-gtk_application_shutdown_quartz (GtkApplication *application)
-{
-  gtk_quartz_clear_main_menu ();
-
-  g_signal_handlers_disconnect_by_func (application, gtk_application_menu_changed_quartz, NULL);
-
-  g_slist_free_full (application->priv->inhibitors,
-		     (GDestroyNotify) gtk_application_quartz_inhibitor_free);
-  application->priv->inhibitors = NULL;
-}
-#endif
 
 static gboolean
 gtk_application_focus_in_event_cb (GtkWindow      *window,
@@ -704,6 +504,7 @@ gtk_application_focus_in_event_cb (GtkWindow      *window,
       priv->windows = g_list_concat (link, priv->windows);
     }
 
+  gtk_application_impl_active_window_changed (application->priv->impl, window);
   g_object_notify (G_OBJECT (application), "active-window");
 
   return FALSE;
@@ -721,25 +522,17 @@ gtk_application_startup (GApplication *g_application)
 
   gtk_init (0, 0);
 
-#ifdef GDK_WINDOWING_X11
-  gtk_application_startup_x11 (application);
-#endif
-
-#ifdef GDK_WINDOWING_QUARTZ
-  gtk_application_startup_quartz (application);
-#endif
+  application->priv->impl = gtk_application_impl_new (application, gdk_display_get_default ());
+  gtk_application_impl_startup (application->priv->impl, application->priv->register_session);
 }
 
 static void
-gtk_application_shutdown (GApplication *application)
+gtk_application_shutdown (GApplication *g_application)
 {
-#ifdef GDK_WINDOWING_X11
-  gtk_application_shutdown_x11 (GTK_APPLICATION (application));
-#endif
+  GtkApplication *application = GTK_APPLICATION (g_application);
 
-#ifdef GDK_WINDOWING_QUARTZ
-  gtk_application_shutdown_quartz (GTK_APPLICATION (application));
-#endif
+  gtk_application_impl_shutdown (application->priv->impl);
+  g_clear_object (&application->priv->impl);
 
   /* Keep this section in sync with gtk_main() */
 
@@ -750,7 +543,7 @@ gtk_application_shutdown (GApplication *application)
   _gtk_recent_manager_sync ();
 
   G_APPLICATION_CLASS (gtk_application_parent_class)
-    ->shutdown (application);
+    ->shutdown (g_application);
 }
 
 static void
@@ -759,39 +552,29 @@ gtk_application_add_platform_data (GApplication    *application,
 {
   const gchar *startup_id;
 
+  /* This is slightly evil.
+   *
+   * We don't have an impl here because we're remote so we can't figure
+   * out what to do on a per-display-server basis.
+   *
+   * So we do all the things... which currently is just one thing.
+   */
   startup_id = getenv ("DESKTOP_STARTUP_ID");
-  
+
   if (startup_id && g_utf8_validate (startup_id, -1, NULL))
     g_variant_builder_add (builder, "{sv}", "desktop-startup-id",
                            g_variant_new_string (startup_id));
 }
 
 static void
-gtk_application_before_emit (GApplication *application,
+gtk_application_before_emit (GApplication *g_application,
                              GVariant     *platform_data)
 {
-  GVariantIter iter;
-  const gchar *key;
-  GVariant *value;
+  GtkApplication *application = GTK_APPLICATION (g_application);
 
   gdk_threads_enter ();
 
-  g_variant_iter_init (&iter, platform_data);
-  while (g_variant_iter_loop (&iter, "{&sv}", &key, &value))
-    {
-#ifdef GDK_WINDOWING_X11
-      if (strcmp (key, "desktop-startup-id") == 0)
-        {
-          GdkDisplay *display;
-          const gchar *id;
-
-          display = gdk_display_get_default ();
-          id = g_variant_get_string (value, NULL);
-          if (GDK_IS_X11_DISPLAY (display))
-            gdk_x11_display_set_startup_notification_id (display, id);
-       }
-#endif
-    }
+  gtk_application_impl_before_emit (application->priv->impl, platform_data);
 }
 
 static void
@@ -806,17 +589,11 @@ gtk_application_after_emit (GApplication *application,
 static void
 gtk_application_init (GtkApplication *application)
 {
-  application->priv = G_TYPE_INSTANCE_GET_PRIVATE (application,
-                                                   GTK_TYPE_APPLICATION,
-                                                   GtkApplicationPrivate);
+  application->priv = gtk_application_get_instance_private (application);
 
   application->priv->muxer = gtk_action_muxer_new ();
 
   accels_init (&application->priv->accels);
-
-#ifdef GDK_WINDOWING_X11
-  application->priv->next_id = 1;
-#endif
 }
 
 static void
@@ -824,6 +601,9 @@ gtk_application_window_added (GtkApplication *application,
                               GtkWindow      *window)
 {
   GtkApplicationPrivate *priv = application->priv;
+
+  if (GTK_IS_APPLICATION_WINDOW (window))
+    gtk_application_window_set_id (GTK_APPLICATION_WINDOW (window), ++application->priv->last_window_id);
 
   priv->windows = g_list_prepend (priv->windows, window);
   gtk_window_set_application (window, application);
@@ -833,10 +613,9 @@ gtk_application_window_added (GtkApplication *application,
                     G_CALLBACK (gtk_application_focus_in_event_cb),
                     application);
 
-#ifdef GDK_WINDOWING_X11
-  gtk_application_window_added_x11 (application, window);
-#endif
+  gtk_application_impl_window_added (application->priv->impl, window);
 
+  gtk_application_impl_active_window_changed (application->priv->impl, window);
   g_object_notify (G_OBJECT (application), "active-window");
 }
 
@@ -849,9 +628,7 @@ gtk_application_window_removed (GtkApplication *application,
 
   old_active = priv->windows;
 
-#ifdef GDK_WINDOWING_X11
-  gtk_application_window_removed_x11 (application, window);
-#endif
+  gtk_application_impl_window_removed (application->priv->impl, window);
 
   g_signal_handlers_disconnect_by_func (window,
                                         gtk_application_focus_in_event_cb,
@@ -862,7 +639,10 @@ gtk_application_window_removed (GtkApplication *application,
   gtk_window_set_application (window, NULL);
 
   if (priv->windows != old_active)
-    g_object_notify (G_OBJECT (application), "active-window");
+    {
+      gtk_application_impl_active_window_changed (application->priv->impl, priv->windows ? priv->windows->data : NULL);
+      g_object_notify (G_OBJECT (application), "active-window");
+    }
 }
 
 static void
@@ -1009,8 +789,6 @@ gtk_application_class_init (GtkApplicationClass *class)
   class->window_added = gtk_application_window_added;
   class->window_removed = gtk_application_window_removed;
 
-  g_type_class_add_private (class, sizeof (GtkApplicationPrivate));
-
   /**
    * GtkApplication::window-added:
    * @application: the #GtkApplication which emitted the signal
@@ -1049,9 +827,7 @@ gtk_application_class_init (GtkApplicationClass *class)
   /**
    * GtkApplication:register-session:
    *
-   * Set this property to %TRUE to register with the session manager
-   * and receive the #GtkApplication::quit signal when the session
-   * is about to end.
+   * Set this property to %TRUE to register with the session manager.
    *
    * Since: 3.4
    */
@@ -1085,7 +861,7 @@ gtk_application_class_init (GtkApplicationClass *class)
 
 /**
  * gtk_application_new:
- * @application_id: the application id
+ * @application_id: (allow-none): The application ID.
  * @flags: the application flags
  *
  * Creates a new #GtkApplication instance.
@@ -1095,8 +871,8 @@ gtk_application_class_init (GtkApplicationClass *class)
  * the primary instance.
  *
  * Concretely, gtk_init() is called in the default handler for the
- * startup() signal. Therefore, #GtkApplication subclasses should
- * chain up in their startup() handler before using any GTK+ API.
+ * #GApplication::startup signal. Therefore, #GtkApplication subclasses should
+ * chain up in their #GApplication:startup handler before using any GTK+ API.
  *
  * Note that commandline arguments are not passed to gtk_init().
  * All GTK+ functionality that is available via commandline arguments
@@ -1106,7 +882,12 @@ gtk_application_class_init (GtkApplicationClass *class)
  * you can explicitly call gtk_init() before creating the application
  * instance.
  *
- * The application id must be valid. See g_application_id_is_valid().
+ * If non-%NULL, the application ID must be valid.  See
+ * g_application_id_is_valid().
+ *
+ * If no application ID is given then some features (most notably application 
+ * uniqueness) will be disabled. A null application ID is only allowed with 
+ * GTK+ 3.6 or later.
  *
  * Returns: a new #GtkApplication instance
  *
@@ -1129,7 +910,7 @@ gtk_application_new (const gchar       *application_id,
  * @application: a #GtkApplication
  * @window: a #GtkWindow
  *
- * Adds a window from @application.
+ * Adds a window to @application.
  *
  * This call is equivalent to setting the #GtkWindow:application
  * property of @window to @application.
@@ -1212,7 +993,9 @@ gtk_application_get_windows (GtkApplication *application)
  * @application: a #GtkApplication
  * @id: an identifier number
  *
- * Returns: (transfer none): the #GtkApplicationWindow with ID @id, or
+ * Returns the #GtkApplicationWindow with the given ID.
+ *
+ * Returns: (transfer none): the window with ID @id, or
  *   %NULL if there is no window with this ID
  *
  * Since: 3.6
@@ -1280,7 +1063,8 @@ gtk_application_update_accels (GtkApplication *application)
  * is pressed.
  *
  * @accelerator must be a string that can be parsed by
- * gtk_accelerator_parse(), e.g. "<Primary>q" or "<Control><Alt>p".
+ * gtk_accelerator_parse(), e.g. "&lt;Primary&gt;q" or
+ * "&lt;Control&gt;&lt;Alt&gt;p".
  *
  * @action_name must be the name of an action as it would be used
  * in the app menu, i.e. actions that have been added to the application
@@ -1363,6 +1147,9 @@ gtk_application_remove_accelerator (GtkApplication *application,
  * If supported, the application menu will be rendered by the desktop
  * environment.
  *
+ * Use the base #GActionMap interface to add actions, to respond to the user
+ * selecting these menu items.
+ *
  * Since: 3.4
  */
 void
@@ -1376,19 +1163,17 @@ gtk_application_set_app_menu (GtkApplication *application,
   if (app_menu != application->priv->app_menu)
     {
       if (application->priv->app_menu != NULL)
-       g_object_unref (application->priv->app_menu);
+        g_object_unref (application->priv->app_menu);
 
-     application->priv->app_menu = app_menu;
+      application->priv->app_menu = app_menu;
 
       if (application->priv->app_menu != NULL)
-     g_object_ref (application->priv->app_menu);
+        g_object_ref (application->priv->app_menu);
 
       if (app_menu)
         extract_accels_from_menu (app_menu, application);
 
-#ifdef GDK_WINDOWING_X11
-      gtk_application_set_app_menu_x11 (application, app_menu);
-#endif
+      gtk_application_impl_set_app_menu (application->priv->impl, app_menu);
 
       g_object_notify (G_OBJECT (application), "app-menu");
     }
@@ -1401,7 +1186,7 @@ gtk_application_set_app_menu (GtkApplication *application,
  * Returns the menu model that has been set with
  * gtk_application_set_app_menu().
  *
- * Returns: the application menu of @application
+ * Returns: (transfer none): the application menu of @application
  *
  * Since: 3.4
  */
@@ -1409,6 +1194,7 @@ GMenuModel *
 gtk_application_get_app_menu (GtkApplication *application)
 {
   g_return_val_if_fail (GTK_IS_APPLICATION (application), NULL);
+
   return application->priv->app_menu;
 }
 
@@ -1433,6 +1219,9 @@ gtk_application_get_app_menu (GtkApplication *application)
  * example, the application menu may be rendered by the desktop shell
  * while the menubar (if set) remains in each individual window.
  *
+ * Use the base #GActionMap interface to add actions, to respond to the user
+ * selecting these menu items.
+ *
  * Since: 3.4
  */
 void
@@ -1453,13 +1242,10 @@ gtk_application_set_menubar (GtkApplication *application,
       if (application->priv->menubar != NULL)
         g_object_ref (application->priv->menubar);
 
-      extract_accels_from_menu (menubar, application);
       if (menubar)
         extract_accels_from_menu (menubar, application);
 
-#ifdef GDK_WINDOWING_X11
-     gtk_application_set_menubar_x11 (application, menubar);
-#endif
+      gtk_application_impl_set_menubar (application->priv->impl, menubar);
 
       g_object_notify (G_OBJECT (application), "menubar");
     }
@@ -1472,7 +1258,7 @@ gtk_application_set_menubar (GtkApplication *application,
  * Returns the menu model that has been set with
  * gtk_application_set_menubar().
  *
- * Returns: the menubar for windows of @application
+ * Returns: (transfer none): the menubar for windows of @application
  *
  * Since: 3.4
  */
@@ -1480,181 +1266,9 @@ GMenuModel *
 gtk_application_get_menubar (GtkApplication *application)
 {
   g_return_val_if_fail (GTK_IS_APPLICATION (application), NULL);
- 
+
   return application->priv->menubar;
 }
-
-#if defined(GDK_WINDOWING_X11)
-
-/* D-Bus Session Management
- *
- * The protocol and the D-Bus API are described here:
- * http://live.gnome.org/SessionManagement/GnomeSession
- * http://people.gnome.org/~mccann/gnome-session/docs/gnome-session.html
- */
-
-static void
-unregister_client (GtkApplication *app)
-{
-  GError *error = NULL;
-
-  g_debug ("Unregistering client");
-
-  g_dbus_proxy_call_sync (app->priv->sm_proxy,
-                          "UnregisterClient",
-                          g_variant_new ("(o)", app->priv->client_path),
-                          G_DBUS_CALL_FLAGS_NONE,
-                          G_MAXINT,
-                          NULL,
-                          &error);
-
-  if (error)
-    {
-      g_warning ("Failed to unregister client: %s", error->message);
-      g_error_free (error);
-    }
-
-  g_clear_object (&app->priv->client_proxy);
-
-  g_free (app->priv->client_path);
-  app->priv->client_path = NULL;
-}
-
-static void
-gtk_application_quit_response (GtkApplication *application,
-                               gboolean        will_quit,
-                               const gchar    *reason)
-{
-  g_debug ("Calling EndSessionResponse %d '%s'", will_quit, reason);
-
-  g_dbus_proxy_call (application->priv->client_proxy,
-                     "EndSessionResponse",
-                     g_variant_new ("(bs)", will_quit, reason ? reason : ""),
-                     G_DBUS_CALL_FLAGS_NONE,
-                     G_MAXINT,
-                     NULL, NULL, NULL);
-}
-static void
-client_proxy_signal (GDBusProxy     *proxy,
-                     const gchar    *sender_name,
-                     const gchar    *signal_name,
-                     GVariant       *parameters,
-                     GtkApplication *app)
-{
-  if (strcmp (signal_name, "QueryEndSession") == 0)
-    {
-      g_debug ("Received QueryEndSession");
-      gtk_application_quit_response (app, TRUE, NULL);
-    }
-  else if (strcmp (signal_name, "CancelEndSession") == 0)
-    {
-      g_debug ("Received CancelEndSession");
-    }
-  else if (strcmp (signal_name, "EndSession") == 0)
-    {
-      g_debug ("Received EndSession");
-      gtk_application_quit_response (app, TRUE, NULL);
-      unregister_client (app);
-      g_application_quit (G_APPLICATION (app));
-    }
-  else if (strcmp (signal_name, "Stop") == 0)
-    {
-      g_debug ("Received Stop");
-      unregister_client (app);
-      g_application_quit (G_APPLICATION (app));
-    }
-}
-
-static void
-gtk_application_startup_session_dbus (GtkApplication *app)
-{
-  static gchar *client_id;
-  GError *error = NULL;
-  GVariant *res;
-
-  if (app->priv->session_bus == NULL)
-    return;
-
-  if (client_id == NULL)
-    {
-      const gchar *desktop_autostart_id;
-
-      desktop_autostart_id = g_getenv ("DESKTOP_AUTOSTART_ID");
-      /* Unset DESKTOP_AUTOSTART_ID in order to avoid child processes to
-       * use the same client id.
-       */
-      g_unsetenv ("DESKTOP_AUTOSTART_ID");
-      client_id = g_strdup (desktop_autostart_id ? desktop_autostart_id : "");
-    }
-
-  g_debug ("Connecting to session manager");
-
-  app->priv->sm_proxy = g_dbus_proxy_new_sync (app->priv->session_bus,
-                                               G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES |
-                                               G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
-                                               NULL,
-                                               "org.gnome.SessionManager",
-                                               "/org/gnome/SessionManager",
-                                               "org.gnome.SessionManager",
-                                               NULL,
-                                               &error);
-  if (error)
-    {
-      g_warning ("Failed to get a session proxy: %s", error->message);
-      g_error_free (error);
-      return;
-    }
-
-  /* FIXME: should we reuse the D-Bus application id here ? */
-  app->priv->app_id = g_strdup (g_get_prgname ());
-
-  if (!app->priv->register_session)
-    return;
-
-  g_debug ("Registering client '%s' '%s'", app->priv->app_id, client_id);
-
-  res = g_dbus_proxy_call_sync (app->priv->sm_proxy,
-                                "RegisterClient",
-                                g_variant_new ("(ss)", app->priv->app_id, client_id),
-                                G_DBUS_CALL_FLAGS_NONE,
-                                G_MAXINT,
-                                NULL,
-                                &error);
-
-  if (error)
-    {
-      g_warning ("Failed to register client: %s", error->message);
-      g_error_free (error);
-      g_clear_object (&app->priv->sm_proxy);
-      return;
-    }
-
-  g_variant_get (res, "(o)", &app->priv->client_path);
-  g_variant_unref (res);
-
-  g_debug ("Registered client at '%s'", app->priv->client_path);
-
-  app->priv->client_proxy = g_dbus_proxy_new_sync (app->priv->session_bus, 0,
-                                                   NULL,
-                                                   "org.gnome.SessionManager",
-                                                   app->priv->client_path,
-                                                   "org.gnome.SessionManager.ClientPrivate",
-                                                   NULL,
-                                                   &error);
-  if (error)
-    {
-      g_warning ("Failed to get client proxy: %s", error->message);
-      g_error_free (error);
-      g_clear_object (&app->priv->sm_proxy);
-      g_free (app->priv->client_path);
-      app->priv->client_path = NULL;
-      return;
-    }
-
-  g_signal_connect (app->priv->client_proxy, "g-signal", G_CALLBACK (client_proxy_signal), app);
-}
-
-
 
 /**
  * GtkApplicationInhibitFlags:
@@ -1687,7 +1301,7 @@ gtk_application_startup_session_dbus (GtkApplication *app)
  * that should not be interrupted, such as creating a CD or DVD. The
  * types of actions that may be blocked are specified by the @flags
  * parameter. When the application completes the operation it should
- * call g_application_uninhibit() to remove the inhibitor. Note that
+ * call gtk_application_uninhibit() to remove the inhibitor. Note that
  * an application can have multiple inhibitors, and all of the must
  * be individually removed. Inhibitors are also cleared when the
  * application exits.
@@ -1702,7 +1316,7 @@ gtk_application_startup_session_dbus (GtkApplication *app)
  * this window to find out more about why the action is inhibited.
  *
  * Returns: A non-zero cookie that is used to uniquely identify this
- *     request. It should be used as an argument to g_application_uninhibit()
+ *     request. It should be used as an argument to gtk_application_uninhibit()
  *     in order to remove the request. If the platform does not support
  *     inhibiting or the request failed for some reason, 0 is returned.
  *
@@ -1714,60 +1328,18 @@ gtk_application_inhibit (GtkApplication             *application,
                          GtkApplicationInhibitFlags  flags,
                          const gchar                *reason)
 {
-  GVariant *res;
-  GError *error = NULL;
-  guint cookie;
-  guint xid = 0;
-
   g_return_val_if_fail (GTK_IS_APPLICATION (application), 0);
   g_return_val_if_fail (!g_application_get_is_remote (G_APPLICATION (application)), 0);
 
-  if (application->priv->sm_proxy == NULL)
-    return 0;
-
-  if (window != NULL)
-    {
-      GdkWindow *gdkwindow;
-
-      gdkwindow = gtk_widget_get_window (GTK_WIDGET (window));
-      if (gdkwindow == NULL)
-        g_warning ("Inhibit called with an unrealized window");
-#ifdef GDK_WINDOWING_X11
-      else if (GDK_IS_X11_WINDOW (gdkwindow))
-        xid = GDK_WINDOW_XID (gdkwindow);
-#endif
-    }
-
-  res = g_dbus_proxy_call_sync (application->priv->sm_proxy,
-                                "Inhibit",
-                                g_variant_new ("(susu)",
-                                               application->priv->app_id,
-                                               xid,
-                                               reason,
-                                               flags),
-                                G_DBUS_CALL_FLAGS_NONE,
-                                G_MAXINT,
-                                NULL,
-                                &error);
- if (error)
-    {
-      g_warning ("Calling Inhibit failed: %s", error->message);
-      g_error_free (error);
-      return 0;
-    }
-
-  g_variant_get (res, "(u)", &cookie);
-  g_variant_unref (res);
-
-  return cookie;
+  return gtk_application_impl_inhibit (application->priv->impl, window, flags, reason);
 }
 
 /**
  * gtk_application_uninhibit:
  * @application: the #GApplication
- * @cookie: a cookie that was returned by g_application_inhibit()
+ * @cookie: a cookie that was returned by gtk_application_inhibit()
  *
- * Removes an inhibitor that has been established with g_application_inhibit().
+ * Removes an inhibitor that has been established with gtk_application_inhibit().
  * Inhibitors are also cleared when the application exits.
  *
  * Since: 3.4
@@ -1780,16 +1352,7 @@ gtk_application_uninhibit (GtkApplication *application,
   g_return_if_fail (!g_application_get_is_remote (G_APPLICATION (application)));
   g_return_if_fail (cookie > 0);
 
-  /* Application could only obtain a cookie through a session
-   * manager proxy, so it's valid to assert its presence here. */
-  g_return_if_fail (application->priv->sm_proxy != NULL);
-
-  g_dbus_proxy_call (application->priv->sm_proxy,
-                     "Uninhibit",
-                     g_variant_new ("(u)", cookie),
-                     G_DBUS_CALL_FLAGS_NONE,
-                     G_MAXINT,
-                     NULL, NULL, NULL);
+  gtk_application_impl_uninhibit (application->priv->impl, cookie);
 }
 
 /**
@@ -1808,193 +1371,11 @@ gboolean
 gtk_application_is_inhibited (GtkApplication             *application,
                               GtkApplicationInhibitFlags  flags)
 {
-  GVariant *res;
-  GError *error = NULL;
-  gboolean inhibited;
-
   g_return_val_if_fail (GTK_IS_APPLICATION (application), FALSE);
   g_return_val_if_fail (!g_application_get_is_remote (G_APPLICATION (application)), FALSE);
 
-  if (application->priv->sm_proxy == NULL)
-    return FALSE;
-
-  res = g_dbus_proxy_call_sync (application->priv->sm_proxy,
-                                "IsInhibited",
-                                g_variant_new ("(u)", flags),
-                                G_DBUS_CALL_FLAGS_NONE,
-                                G_MAXINT,
-                                NULL,
-                                &error);
-  if (error)
-    {
-      g_warning ("Calling IsInhibited failed: %s", error->message);
-      g_error_free (error);
-      return FALSE;
-    }
-
-  g_variant_get (res, "(b)", &inhibited);
-  g_variant_unref (res);
-
-  return inhibited;
+  return gtk_application_impl_is_inhibited (application->priv->impl, flags);
 }
-
-#elif defined(GDK_WINDOWING_QUARTZ)
-
-/* OS X implementation copied from EggSMClient, but simplified since
- * it doesn't need to interact with the user.
- */
-
-static gboolean
-idle_will_quit (gpointer data)
-{
-  GtkApplication *app = data;
-
-  if (app->priv->quit_inhibit == 0)
-    g_application_quit (G_APPLICATION (app));
-  else
-    {
-      GtkApplicationQuartzInhibitor *inhibitor;
-      GSList *iter;
-      GtkWidget *dialog;
-
-      for (iter = app->priv->inhibitors; iter; iter = iter->next)
-	{
-	  inhibitor = iter->data;
-	  if (inhibitor->flags & GTK_APPLICATION_INHIBIT_LOGOUT)
-	    break;
-        }
-      g_assert (inhibitor != NULL);
-
-      dialog = gtk_message_dialog_new (inhibitor->window,
-				       GTK_DIALOG_MODAL,
-				       GTK_MESSAGE_ERROR,
-				       GTK_BUTTONS_OK,
-				       _("%s cannot quit at this time:\n\n%s"),
-				       g_get_application_name (),
-				       inhibitor->reason);
-      g_signal_connect_swapped (dialog,
-                                "response",
-                                G_CALLBACK (gtk_widget_destroy),
-                                dialog);
-      gtk_widget_show_all (dialog);
-    }
-
-  return G_SOURCE_REMOVE;
-}
-
-static pascal OSErr
-quit_requested (const AppleEvent *aevt,
-                AppleEvent       *reply,
-                long              refcon)
-{
-  GtkApplication *app = GSIZE_TO_POINTER ((gsize)refcon);
-
-  /* Don't emit the "quit" signal immediately, since we're
-   * called from a weird point in the guts of gdkeventloop-quartz.c
-   */
-  g_idle_add_full (G_PRIORITY_DEFAULT, idle_will_quit, app, NULL);
-
-  return app->priv->quit_inhibit == 0 ? noErr : userCanceledErr;
-}
-
-static void
-gtk_application_startup_session_quartz (GtkApplication *app)
-{
-  if (app->priv->register_session)
-    AEInstallEventHandler (kCoreEventClass, kAEQuitApplication,
-                           NewAEEventHandlerUPP (quit_requested),
-                           (long)GPOINTER_TO_SIZE (app), false);
-}
-
-guint
-gtk_application_inhibit (GtkApplication             *application,
-                         GtkWindow                  *window,
-                         GtkApplicationInhibitFlags  flags,
-                         const gchar                *reason)
-{
-  GtkApplicationQuartzInhibitor *inhibitor;
-
-  g_return_val_if_fail (GTK_IS_APPLICATION (application), 0);
-  g_return_val_if_fail (flags != 0, 0);
-
-  inhibitor = g_slice_new (GtkApplicationQuartzInhibitor);
-  inhibitor->cookie = ++application->priv->next_cookie;
-  inhibitor->flags = flags;
-  inhibitor->reason = g_strdup (reason);
-  inhibitor->window = window ? g_object_ref (window) : NULL;
-
-  application->priv->inhibitors = g_slist_prepend (application->priv->inhibitors, inhibitor);
-
-  if (flags & GTK_APPLICATION_INHIBIT_LOGOUT)
-    application->priv->quit_inhibit++;
-
-  return inhibitor->cookie;
-}
-
-void
-gtk_application_uninhibit (GtkApplication *application,
-                           guint           cookie)
-{
-  GSList *iter;
-
-  for (iter = application->priv->inhibitors; iter; iter = iter->next)
-    {
-      GtkApplicationQuartzInhibitor *inhibitor = iter->data;
-
-      if (inhibitor->cookie == cookie)
-	{
-	  if (inhibitor->flags & GTK_APPLICATION_INHIBIT_LOGOUT)
-	    application->priv->quit_inhibit--;
-	  gtk_application_quartz_inhibitor_free (inhibitor);
-	  application->priv->inhibitors = g_slist_delete_link (application->priv->inhibitors, iter);
-	  return;
-	}
-    }
-
-  g_warning ("Invalid inhibitor cookie");
-}
-
-gboolean
-gtk_application_is_inhibited (GtkApplication             *application,
-                              GtkApplicationInhibitFlags  flags)
-{
-  if (flags & GTK_APPLICATION_INHIBIT_LOGOUT)
-    return application->priv->quit_inhibit > 0;
-
-  return FALSE;
-}
-
-#else
-
-/* Trivial implementation.
- *
- * For the inhibit API on Windows, see
- * http://msdn.microsoft.com/en-us/library/ms700677%28VS.85%29.aspx
- */
-
-guint
-gtk_application_inhibit (GtkApplication             *application,
-                         GtkWindow                  *window,
-                         GtkApplicationInhibitFlags  flags,
-                         const gchar                *reason)
-{
-  return 0;
-}
-
-void
-gtk_application_uninhibit (GtkApplication *application,
-                           guint           cookie)
-{
-}
-
-gboolean
-gtk_application_is_inhibited (GtkApplication             *application,
-                              GtkApplicationInhibitFlags  flags)
-{
-  return FALSE;
-}
-
-#endif
 
 GtkActionMuxer *
 gtk_application_get_parent_muxer_for_window (GtkWindow *window)
@@ -2027,6 +1408,18 @@ gtk_application_foreach_accel_keys (GtkApplication           *application,
   accels_foreach_key (&application->priv->accels, window, callback, user_data);
 }
 
+/**
+ * gtk_application_list_action_descriptions:
+ * @application: a #GtkApplication
+ *
+ * Lists the detailed action names which have associated accelerators.
+ * See gtk_application_set_accels_for_action().
+ *
+ * Returns: (transfer full): a %NULL-terminated array of strings,
+ *     free with g_strfreev() when done
+ *
+ * Since: 3.12
+ */
 gchar **
 gtk_application_list_action_descriptions (GtkApplication *application)
 {
@@ -2078,6 +1471,20 @@ normalise_detailed_name (const gchar *detailed_action_name)
   return action_and_target;
 }
 
+/**
+ * gtk_application_set_accels_for_action:
+ * @application: a #GtkApplication
+ * @detailed_action_name: a detailed action name, specifying and action
+ *     and target to associate accelerators with
+ * @accels: a list of accelerators in the format understood by
+ *     gtk_accelerator_parse()
+ *
+ * Sets one or more keyboard accelerator that will trigger the
+ * given action. The first item in @accels will be the primary 
+ * accelerator, which may be displayed in the UI.
+ *
+ * Since: 3.12
+ */
 void
 gtk_application_set_accels_for_action (GtkApplication      *application,
                                        const gchar         *detailed_action_name,
@@ -2095,6 +1502,20 @@ gtk_application_set_accels_for_action (GtkApplication      *application,
   g_free (action_and_target);
 }
 
+/**
+ * gtk_application_get_accels_for_action:
+ * @application: a #GtkApplication
+ * @detailed_action_name: a detailed action name, specifying and action
+ *     and target to obtain accelerators for
+ *
+ * Gets the accelerators that are currently associated with
+ * the given action.
+ *
+ * Returns: (transfer full): accelerators for @detailed_action_name, as
+ *     a %NULL-terminated array. Free with g_strfreev() when no longer needed
+ *
+ * Since: 3.12
+ */
 gchar **
 gtk_application_get_accels_for_action (GtkApplication *application,
                                        const gchar    *detailed_action_name)
@@ -2110,4 +1531,26 @@ gtk_application_get_accels_for_action (GtkApplication *application,
   g_free (action_and_target);
 
   return accels;
+}
+
+GtkActionMuxer *
+gtk_application_get_action_muxer (GtkApplication *application)
+{
+  g_assert (application->priv->muxer);
+
+  return application->priv->muxer;
+}
+
+void
+gtk_application_handle_window_realize (GtkApplication *application,
+                                       GtkWindow      *window)
+{
+  gtk_application_impl_handle_window_realize (application->priv->impl, window);
+}
+
+void
+gtk_application_handle_window_map (GtkApplication *application,
+                                   GtkWindow      *window)
+{
+  gtk_application_impl_handle_window_map (application->priv->impl, window);
 }

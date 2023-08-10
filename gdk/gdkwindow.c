@@ -3878,7 +3878,7 @@ gdk_window_add_update_window (GdkWindow *window)
 	      prev = tmp;
 	    }
 	  /* here, tmp got advanced past all lower stacked siblings */
-	  tmp = g_slist_prepend (tmp, window);
+	  tmp = g_slist_prepend (tmp, g_object_ref (window));
 	  if (prev)
 	    prev->next = tmp;
 	  else
@@ -3891,7 +3891,7 @@ gdk_window_add_update_window (GdkWindow *window)
        */
       if (has_ancestor_in_list && gdk_window_is_ancestor (tmp->data, window))
 	{
-	  tmp = g_slist_prepend (tmp, window);
+	  tmp = g_slist_prepend (tmp, g_object_ref (window));
 
 	  if (prev)
 	    prev->next = tmp;
@@ -3905,7 +3905,7 @@ gdk_window_add_update_window (GdkWindow *window)
        */
       if (! tmp->next && has_ancestor_in_list)
 	{
-	  tmp = g_slist_append (tmp, window);
+	  tmp = g_slist_append (tmp, g_object_ref (window));
 	  return;
 	}
 
@@ -3916,13 +3916,20 @@ gdk_window_add_update_window (GdkWindow *window)
    *  hierarchy than what is already in the list) or the list is
    *  empty, prepend
    */
-  update_windows = g_slist_prepend (update_windows, window);
+  update_windows = g_slist_prepend (update_windows, g_object_ref (window));
 }
 
 static void
 gdk_window_remove_update_window (GdkWindow *window)
 {
-  update_windows = g_slist_remove (update_windows, window);
+  GSList *link;
+
+  link = g_slist_find (update_windows, window);
+  if (link != NULL)
+    {
+      update_windows = g_slist_delete_link (update_windows, link);
+      g_object_unref (window);
+    }
 }
 
 static gboolean
@@ -4315,8 +4322,6 @@ gdk_window_process_all_updates (void)
   update_windows = NULL;
 
   before_process_all_updates ();
-
-  g_slist_foreach (old_update_windows, (GFunc)g_object_ref, NULL);
 
   while (tmp_list)
     {
@@ -5013,12 +5018,12 @@ gdk_window_set_debug_updates (gboolean setting)
  * set of geometry hints (such as minimum and maximum size).
  */
 void
-gdk_window_constrain_size (GdkGeometry *geometry,
-			   guint        flags,
-			   gint         width,
-			   gint         height,
-			   gint        *new_width,
-			   gint        *new_height)
+gdk_window_constrain_size (GdkGeometry    *geometry,
+			   GdkWindowHints  flags,
+			   gint            width,
+			   gint            height,
+			   gint           *new_width,
+			   gint           *new_height)
 {
   /* This routine is partially borrowed from fvwm.
    *
@@ -11977,4 +11982,43 @@ gdk_window_set_opaque_region (GdkWindow      *window,
 
   if (impl_class->set_opaque_region)
     return impl_class->set_opaque_region (window, region);
+}
+
+/**
+ * gdk_window_set_shadow_width:
+ * @window: a #GdkWindow
+ * @left: The left extent
+ * @right: The right extent
+ * @top: The top extent
+ * @bottom: The bottom extent
+ *
+ * Newer GTK+ windows using client-side decorations use extra geometry
+ * around their frames for effects like shadows and invisible borders.
+ * Window managers that want to maximize windows or snap to edges need
+ * to know where the extents of the actual frame lie, so that users
+ * don't feel like windows are snapping against random invisible edges.
+ *
+ * Note that this property is automatically updated by GTK+, so this
+ * function should only be used by applications which do not use GTK+
+ * to create toplevel windows.
+ *
+ * Since: 3.12
+ */
+void
+gdk_window_set_shadow_width (GdkWindow *window,
+                             gint       left,
+                             gint       right,
+                             gint       top,
+                             gint       bottom)
+{
+  GdkWindowImplClass *impl_class;
+
+  g_return_if_fail (GDK_IS_WINDOW (window));
+  g_return_if_fail (!GDK_WINDOW_DESTROYED (window));
+  g_return_if_fail (left >= 0 && right >= 0 && top >= 0 && bottom >= 0);
+
+  impl_class = GDK_WINDOW_IMPL_GET_CLASS (window->impl);
+
+  if (impl_class->set_shadow_width)
+    impl_class->set_shadow_width (window, left, right, top, bottom);
 }

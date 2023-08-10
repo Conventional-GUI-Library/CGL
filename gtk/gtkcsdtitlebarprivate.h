@@ -27,7 +27,7 @@ GtkWidget * _gtk_csd_title_bar_create_title_box (const char *title,
 
 gboolean     _gtk_csd_title_bar_get_shows_app_menu    (GtkCSDTitleBar *bar);
 void         _gtk_csd_title_bar_update_window_buttons (GtkCSDTitleBar *bar);
-void         _gtk_csd_title_bar_update_window_icon    (GtkCSDTitleBar *bar,
-                                                    GList        *list);
+gboolean     _gtk_csd_title_bar_update_window_icon    (GtkCSDTitleBar *bar,
+                                                    GtkWindow    *window);
 
 #endif /* __GTK_CSD_TITLE_BAR_PRIVATE_H__ */

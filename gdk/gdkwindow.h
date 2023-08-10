@@ -892,7 +892,7 @@ void       gdk_window_process_updates     (GdkWindow    *window,
 void       gdk_window_set_debug_updates   (gboolean      setting);
 
 void       gdk_window_constrain_size      (GdkGeometry  *geometry,
-                                           guint         flags,
+                                           GdkWindowHints  flags,
                                            gint          width,
                                            gint          height,
                                            gint         *new_width,
@@ -931,6 +931,13 @@ void       gdk_window_set_event_compression    (GdkWindow      *window,
                                                 gboolean        event_compression);
 GDK_AVAILABLE_IN_3_12
 gboolean   gdk_window_get_event_compression    (GdkWindow      *window);
+
+GDK_AVAILABLE_IN_3_12
+void       gdk_window_set_shadow_width         (GdkWindow      *window,
+                                                gint            left,
+                                                gint            right,
+                                                gint            top,
+                                                gint            bottom);
 
 G_END_DECLS
 
