@@ -284,7 +284,9 @@ void              gtk_tree_model_get_valist      (GtkTreeModel *tree_model,
 void              gtk_tree_model_foreach         (GtkTreeModel            *model,
 						  GtkTreeModelForeachFunc  func,
 						  gpointer                 user_data);
-
+GtkTreePath *gtk_tree_path_new_from_indicesv (gint             *indices,
+					      gsize             length);
+					      
 /* Signals */
 void gtk_tree_model_row_changed           (GtkTreeModel *tree_model,
 					   GtkTreePath  *path,

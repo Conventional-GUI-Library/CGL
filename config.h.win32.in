@@ -61,7 +61,7 @@
 /* #undef HAVE_HTTP_AUTHSTRING */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
-#ifndef _MSC_VER
+#if !defined (_MSC_VER) || (_MSC_VER >= 1800)
 #define HAVE_INTTYPES_H 1
 #else
 /* #undef HAVE_INTTYPES_H */
@@ -107,12 +107,12 @@
 /* #undef HAVE_RANDR */
 
 /* Define to 1 if rint() is available */
-#ifndef _MSC_VER
+#if !defined (_MSC_VER) || (_MSC_VER >= 1800)
 #define HAVE_RINT 1
 #endif
 
 /* Define to 1 if round() is available */
-#ifndef _MSC_VER
+#if !defined (_MSC_VER) || (_MSC_VER >= 1800)
 #define HAVE_ROUND 1
 #endif
 

@@ -140,6 +140,7 @@ gtk_accel_label_get_accel_widget
 gtk_accel_label_set_accel_widget
 gtk_accel_label_get_accel_width
 gtk_accel_label_set_accel
+gtk_accel_label_get_accel
 gtk_accel_label_refetch
 <SUBSECTION Standard>
 GTK_ACCEL_LABEL
@@ -4243,6 +4244,7 @@ GtkTreeModelFlags
 gtk_tree_path_new
 gtk_tree_path_new_from_string
 gtk_tree_path_new_from_indices
+gtk_tree_path_new_from_indicesv
 gtk_tree_path_to_string
 gtk_tree_path_new_first
 gtk_tree_path_append_index
@@ -5578,6 +5580,7 @@ gtk_window_set_hide_titlebar_when_maximized
 gtk_window_set_screen
 gtk_window_get_screen
 gtk_window_is_active
+gtk_window_is_maximized
 gtk_window_has_toplevel_focus
 gtk_window_list_toplevels
 gtk_window_add_mnemonic
@@ -6677,6 +6680,7 @@ gtk_icon_info_set_raw_coordinates
 gtk_icon_info_get_embedded_rect
 gtk_icon_info_get_attach_points
 gtk_icon_info_get_display_name
+gtk_icon_info_is_symbolic
 <SUBSECTION Standard>
 GtkIconThemeClass
 GTK_ICON_THEME
@@ -7680,6 +7684,28 @@ gtk_color_chooser_dialog_get_type
 </SECTION>
 
 <SECTION>
+<FILE>gtkactionbar</FILE>
+<TITLE>GtkActionBar</TITLE>
+GtkActionBar
+gtk_action_bar_new
+gtk_action_bar_pack_start
+gtk_action_bar_pack_end
+gtk_action_bar_get_center_widget
+gtk_action_bar_set_center_widget
+
+<SUBSECTION Standard>
+GTK_TYPE_ACTION_BAR
+GTK_ACTION_BAR
+GTK_ACTION_BAR_CLASS
+GTK_IS_ACTION_BAR
+GTK_IS_ACTION_BAR_CLASS
+GTK_ACTION_BAR_GET_CLASS
+
+<SUBSECTION Private>
+gtk_action_bar_get_type
+</SECTION>
+
+<SECTION>
 <FILE>gtkheaderbar</FILE>
 <TITLE>GtkCSDTitleBar</TITLE>
 GtkCSDTitleBar
@@ -7696,8 +7722,8 @@ gtk_csd_title_bar_pack_start
 gtk_csd_title_bar_pack_end
 gtk_csd_title_bar_set_show_close_button
 gtk_csd_title_bar_get_show_close_button
-gtk_csd_title_bar_set_show_fallback_app_menu
-gtk_csd_title_bar_get_show_fallback_app_menu
+gtk_csd_title_bar_set_decoration_layout
+gtk_csd_title_bar_get_decoration_layout
 
 <SUBSECTION Standard>
 GTK_TYPE_HEADER_BAR

@@ -192,6 +192,12 @@ struct _GdkWindow
   gint y;
 
   GdkEventMask event_mask;
+  guint8 window_type;
+
+  guint8 depth;
+  guint8 resize_count;
+
+  gint8 toplevel_window_type;
 
   GList *filters;
   GList *children;
@@ -203,14 +209,10 @@ struct _GdkWindow
   cairo_region_t *update_area;
   guint update_freeze_count;
 
-  guint8 window_type;
-  guint8 depth;
-  guint8 resize_count;
-
-  gint8 toplevel_window_type;
-  guint8 alpha;
-
   GdkWindowState state;
+
+  guint8 alpha;
+  guint8 fullscreen_mode;
 
   guint guffaw_gravity : 1;
   guint input_only : 1;
@@ -232,7 +234,6 @@ struct _GdkWindow
   guint applied_shape : 1;
   guint in_update : 1;
   guint event_compression : 1;
-  GdkFullscreenMode fullscreen_mode;
 
   /* The GdkWindow that has the impl, ref:ed if another window.
    * This ref is required to keep the wrapper of the impl window alive
@@ -243,6 +244,8 @@ struct _GdkWindow
 
   gint abs_x, abs_y; /* Absolute offset in impl */
   gint width, height;
+
+  guint num_offscreen_children;
 
   /* The clip region is the part of the window, in window coordinates
      that is fully or partially (i.e. semi transparently) visible in
@@ -273,8 +276,6 @@ struct _GdkWindow
   GHashTable *source_event_masks;
   gulong device_added_handler_id;
   gulong device_changed_handler_id;
-
-  guint num_offscreen_children;
 
   GdkFrameClock *frame_clock; /* NULL to use from parent or default */
 };

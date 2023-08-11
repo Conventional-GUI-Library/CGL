@@ -30,6 +30,8 @@ G_BEGIN_DECLS
 
 NSImage  *gdk_quartz_pixbuf_to_ns_image_libgtk_only             (GdkPixbuf      *pixbuf);
 NSEvent  *gdk_quartz_event_get_nsevent                          (GdkEvent       *event);
+GDK_AVAILABLE_IN_3_12
+gunichar  gdk_quartz_get_key_equivalent                         (guint           key);
 
 G_END_DECLS
 

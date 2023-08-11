@@ -337,6 +337,8 @@
 
 - (BOOL)trackManualMove
 {
+  GdkWindow *window = [[self contentView] gdkWindow];
+  GdkWindowImplQuartz *impl = GDK_WINDOW_IMPL_QUARTZ (window->impl);
   NSPoint currentLocation;
   NSPoint newOrigin;
   NSRect screenFrame = [[NSScreen mainScreen] visibleFrame];
@@ -350,17 +352,21 @@
   newOrigin.y = currentLocation.y - initialMoveLocation.y;
 
   /* Clamp vertical position to below the menu bar. */
-  if (newOrigin.y + windowFrame.size.height > screenFrame.origin.y + screenFrame.size.height)
-    newOrigin.y = screenFrame.origin.y + screenFrame.size.height - windowFrame.size.height;
+  if (newOrigin.y + windowFrame.size.height - impl->shadow_top > screenFrame.origin.y + screenFrame.size.height)
+    newOrigin.y = screenFrame.origin.y + screenFrame.size.height - windowFrame.size.height + impl->shadow_top;
 
   [self setFrameOrigin:newOrigin];
 
   return YES;
 }
 
--(BOOL)isInManualResize
+/* Used by gdkevents-quartz.c to decide if our sendEvent() handler above
+ * will see the event or if it will be subjected to standard processing
+ * by GDK.
+*/
+-(BOOL)isInManualResizeOrMove
 {
-  return inManualResize;
+  return inManualResize || inManualMove;
 }
 
 -(void)beginManualMove

@@ -228,6 +228,7 @@ GdkPixbuf *           gtk_icon_info_load_symbolic_for_context (GtkIconInfo      
                                                                GtkStyleContext  *context,
                                                                gboolean         *was_symbolic,
                                                                GError          **error);
+gboolean              gtk_icon_info_is_symbolic        (GtkIconInfo   *icon_info);
 void                  gtk_icon_info_load_symbolic_for_context_async (GtkIconInfo      *icon_info,
 								     GtkStyleContext  *context,
 								     GCancellable     *cancellable,

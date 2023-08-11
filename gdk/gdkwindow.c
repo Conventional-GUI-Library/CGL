@@ -3853,6 +3853,15 @@ gdk_window_add_update_window (GdkWindow *window)
   GSList *prev = NULL;
   gboolean has_ancestor_in_list = FALSE;
 
+  /*  Check whether "window" is already in "update_windows" list.
+   *  It could be added during execution of gtk_widget_destroy() when
+   *  setting focus widget to NULL and redrawing old focus widget.
+   *  See bug 711552.
+   */
+  tmp = g_slist_find (update_windows, window);
+  if (tmp != NULL)
+    return;
+
   for (tmp = update_windows; tmp; tmp = tmp->next)
     {
       GdkWindow *parent = window->parent;
@@ -11302,7 +11311,7 @@ gdk_window_set_functions (GdkWindow    *window,
  * @window: a toplevel #GdkWindow
  * @edge: the edge or corner from which the drag is started
  * @device: the device used for the operation
- * @button: the button being used to drag
+ * @button: the button being used to drag, or 0 for a keyboard-initiated drag
  * @root_x: root window X coordinate of mouse click that began the drag
  * @root_y: root window Y coordinate of mouse click that began the drag
  * @timestamp: timestamp of mouse click that began the drag (use gdk_event_get_time())
@@ -11331,7 +11340,7 @@ gdk_window_begin_resize_drag_for_device (GdkWindow     *window,
  * gdk_window_begin_resize_drag:
  * @window: a toplevel #GdkWindow
  * @edge: the edge or corner from which the drag is started
- * @button: the button being used to drag
+ * @button: the button being used to drag, or 0 for a keyboard-initiated drag
  * @root_x: root window X coordinate of mouse click that began the drag
  * @root_y: root window Y coordinate of mouse click that began the drag
  * @timestamp: timestamp of mouse click that began the drag (use gdk_event_get_time())
@@ -11363,7 +11372,7 @@ gdk_window_begin_resize_drag (GdkWindow     *window,
  * gdk_window_begin_move_drag_for_device:
  * @window: a toplevel #GdkWindow
  * @device: the device used for the operation
- * @button: the button being used to drag
+ * @button: the button being used to drag, or 0 for a keyboard-initiated drag
  * @root_x: root window X coordinate of mouse click that began the drag
  * @root_y: root window Y coordinate of mouse click that began the drag
  * @timestamp: timestamp of mouse click that began the drag
@@ -11392,7 +11401,7 @@ gdk_window_begin_move_drag_for_device (GdkWindow *window,
 /**
  * gdk_window_begin_move_drag:
  * @window: a toplevel #GdkWindow
- * @button: the button being used to drag
+ * @button: the button being used to drag, or 0 for a keyboard-initiated drag
  * @root_x: root window X coordinate of mouse click that began the drag
  * @root_y: root window Y coordinate of mouse click that began the drag
  * @timestamp: timestamp of mouse click that began the drag

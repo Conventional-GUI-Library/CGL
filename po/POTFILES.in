@@ -54,6 +54,7 @@ gtk/gtkappchooserwidget.c
 gtk/gtkapplication.c
 gtk/gtkapplication-quartz.c
 gtk/gtkapplicationwindow.c
+gtk/gtkactionbar.c
 gtk/gtkarrow.c
 gtk/gtkaspectframe.c
 gtk/gtkassistant.c

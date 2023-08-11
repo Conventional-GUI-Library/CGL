@@ -21,9 +21,6 @@
 #include "config.h"
 
 #include "gtkapplicationprivate.h"
-#include "gtkmodelmenu-quartz.h"
-#include "gtkmessagedialog.h"
-#include <glib/gi18n-lib.h>
 #import <Cocoa/Cocoa.h>
 
 typedef struct
@@ -48,83 +45,45 @@ typedef struct
 {
   GtkApplicationImpl impl;
 
+  GtkActionMuxer *muxer;
+  GMenu *combined;
+
   GSList *inhibitors;
   gint quit_inhibit;
   guint next_cookie;
+  NSObject *delegate;
 } GtkApplicationImplQuartz;
 
 G_DEFINE_TYPE (GtkApplicationImplQuartz, gtk_application_impl_quartz, GTK_TYPE_APPLICATION_IMPL)
 
-/* OS X implementation copied from EggSMClient, but simplified since
- * it doesn't need to interact with the user.
- */
-
-static gboolean
-idle_will_quit (gpointer user_data)
+@interface GtkApplicationQuartzDelegate : NSObject
 {
-  GtkApplicationImplQuartz *quartz = user_data;
-
-  if (quartz->quit_inhibit == 0)
-    g_application_quit (G_APPLICATION (quartz->impl.application));
-  else
-    {
-      GtkApplicationQuartzInhibitor *inhibitor;
-      GSList *iter;
-      GtkWidget *dialog;
-
-      for (iter = quartz->inhibitors; iter; iter = iter->next)
-       {
-         inhibitor = iter->data;
-         if (inhibitor->flags & GTK_APPLICATION_INHIBIT_LOGOUT)
-           break;
-        }
-      g_assert (inhibitor != NULL);
-
-      dialog = gtk_message_dialog_new (inhibitor->window,
-                                      GTK_DIALOG_MODAL,
-                                      GTK_MESSAGE_ERROR,
-                                      GTK_BUTTONS_OK,
-                                      _("%s cannot quit at this time:\n\n%s"),
-                                      g_get_application_name (),
-                                      inhibitor->reason);
-      g_signal_connect_swapped (dialog,
-                                "response",
-                                G_CALLBACK (gtk_widget_destroy),
-                                dialog);
-      gtk_widget_show_all (dialog);
-    }
-
-  return G_SOURCE_REMOVE;
+  GtkApplicationImplQuartz *quartz;
 }
 
-static pascal OSErr
-quit_requested (const AppleEvent *aevt,
-                AppleEvent       *reply,
-                long              refcon)
-{
-  GtkApplicationImplQuartz *quartz = GSIZE_TO_POINTER ((gsize)refcon);
+- (id)initWithImpl:(GtkApplicationImplQuartz*)impl;
+- (NSApplicationTerminateReply) applicationShouldTerminate:(NSApplication *)sender;
+@end
 
-  /* Don't emit the "quit" signal immediately, since we're
-   * called from a weird point in the guts of gdkeventloop-quartz.c
+@implementation GtkApplicationQuartzDelegate
+-(id)initWithImpl:(GtkApplicationImplQuartz*)impl
+{
+  [super init];
+  quartz = impl;
+  return self;
+}
+
+-(NSApplicationTerminateReply) applicationShouldTerminate:(NSApplication *)sender
+{
+  /* We have no way to give our message other than to pop up a dialog
+   * ourselves, which we should not do since the OS will already show
+   * one when we return NSTerminateNow.
+   *
+   * Just let the OS show the generic message...
    */
-  g_idle_add_full (G_PRIORITY_DEFAULT, idle_will_quit, quartz, NULL);
-
-  return quartz->quit_inhibit == 0 ? noErr : userCanceledErr;
+  return quartz->quit_inhibit == 0 ? NSTerminateNow : NSTerminateCancel;
 }
-
-static void
-gtk_application_impl_quartz_menu_changed (GtkApplicationImplQuartz *quartz)
-{
-  GMenu *combined;
-
-  combined = g_menu_new ();
-  g_menu_append_submenu (combined, "Application", gtk_application_get_app_menu (quartz->impl.application));
-  g_menu_append_section (combined, NULL, gtk_application_get_menubar (quartz->impl.application));
-
-  gtk_quartz_set_main_menu (G_MENU_MODEL (combined), quartz->impl.application);
-
-  g_object_unref (combined);
-}
+@end
 
 static void
 gtk_application_impl_quartz_startup (GtkApplicationImpl *impl,
@@ -133,11 +92,22 @@ gtk_application_impl_quartz_startup (GtkApplicationImpl *impl,
   GtkApplicationImplQuartz *quartz = (GtkApplicationImplQuartz *) impl;
 
   if (register_session)
-    AEInstallEventHandler (kCoreEventClass, kAEQuitApplication,
-                           NewAEEventHandlerUPP (quit_requested),
-                           (long)GPOINTER_TO_SIZE (quartz), false);
+    {
+      quartz->delegate = [[GtkApplicationQuartzDelegate alloc] initWithImpl:quartz];
+      [NSApp setDelegate: quartz->delegate];
+    }
 
-  gtk_application_impl_quartz_menu_changed (quartz);
+  quartz->muxer = gtk_action_muxer_new ();
+  gtk_action_muxer_set_parent (quartz->muxer, gtk_application_get_action_muxer (impl->application));
+
+  /* app menu must come first so that we always see index '0' in
+   * 'combined' as being the app menu.
+   */
+  gtk_application_impl_set_app_menu (impl, gtk_application_get_app_menu (impl->application));
+  gtk_application_impl_set_menubar (impl, gtk_application_get_menubar (impl->application));
+
+  /* OK.  Now put it in the menu. */
+  gtk_application_impl_quartz_setup_menu (G_MENU_MODEL (quartz->combined), quartz->muxer);
 
   [NSApp finishLaunching];
 }
@@ -147,10 +117,29 @@ gtk_application_impl_quartz_shutdown (GtkApplicationImpl *impl)
 {
   GtkApplicationImplQuartz *quartz = (GtkApplicationImplQuartz *) impl;
 
-  gtk_quartz_clear_main_menu ();
+  /* destroy our custom menubar */
+  [NSApp setMainMenu:[[[NSMenu alloc] init] autorelease]];
+
+  if (quartz->delegate)
+    {
+      [quartz->delegate release];
+      quartz->delegate = NULL;
+    }
 
   g_slist_free_full (quartz->inhibitors, (GDestroyNotify) gtk_application_quartz_inhibitor_free);
   quartz->inhibitors = NULL;
+}
+
+static void
+gtk_application_impl_quartz_active_window_changed (GtkApplicationImpl *impl,
+                                                   GtkWindow          *window)
+{
+  GtkApplicationImplQuartz *quartz = (GtkApplicationImplQuartz *) impl;
+
+  gtk_action_muxer_remove (quartz->muxer, "win");
+
+  if (G_IS_ACTION_GROUP (window))
+    gtk_action_muxer_insert (quartz->muxer, "win", G_ACTION_GROUP (window));
 }
 
 static void
@@ -159,7 +148,21 @@ gtk_application_impl_quartz_set_app_menu (GtkApplicationImpl *impl,
 {
   GtkApplicationImplQuartz *quartz = (GtkApplicationImplQuartz *) impl;
 
-  gtk_application_impl_quartz_menu_changed (quartz);
+  /* If there are any items at all, then the first one is the app menu */
+  if (g_menu_model_get_n_items (G_MENU_MODEL (quartz->combined)))
+    g_menu_remove (quartz->combined, 0);
+
+  if (app_menu)
+    g_menu_prepend_submenu (quartz->combined, "Application", app_menu);
+  else
+    {
+      GMenu *empty;
+
+      /* We must preserve the rule that index 0 is the app menu */
+      empty = g_menu_new ();
+      g_menu_prepend_submenu (quartz->combined, "Application", G_MENU_MODEL (empty));
+      g_object_unref (empty);
+    }
 }
 
 static void
@@ -168,7 +171,12 @@ gtk_application_impl_quartz_set_menubar (GtkApplicationImpl *impl,
 {
   GtkApplicationImplQuartz *quartz = (GtkApplicationImplQuartz *) impl;
 
-  gtk_application_impl_quartz_menu_changed (quartz);
+  /* If we have the menubar, it is a section at index '1' */
+  if (g_menu_model_get_n_items (G_MENU_MODEL (quartz->combined)) > 1)
+    g_menu_remove (quartz->combined, 1);
+
+  if (menubar)
+    g_menu_append_section (quartz->combined, NULL, menubar);
 }
 
 static guint
@@ -233,6 +241,7 @@ gtk_application_impl_quartz_is_inhibited (GtkApplicationImpl         *impl,
 static void
 gtk_application_impl_quartz_init (GtkApplicationImplQuartz *quartz)
 {
+  quartz->combined = g_menu_new ();
 }
 
 static void
@@ -240,7 +249,7 @@ gtk_application_impl_quartz_finalize (GObject *object)
 {
   GtkApplicationImplQuartz *quartz = (GtkApplicationImplQuartz *) object;
 
-  g_slist_free_full (quartz->inhibitors, (GDestroyNotify) gtk_application_quartz_inhibitor_free);
+  g_clear_object (&quartz->combined);
 
   G_OBJECT_CLASS (gtk_application_impl_quartz_parent_class)->finalize (object);
 }
@@ -252,6 +261,7 @@ gtk_application_impl_quartz_class_init (GtkApplicationImplClass *class)
 
   class->startup = gtk_application_impl_quartz_startup;
   class->shutdown = gtk_application_impl_quartz_shutdown;
+  class->active_window_changed = gtk_application_impl_quartz_active_window_changed;
   class->set_app_menu = gtk_application_impl_quartz_set_app_menu;
   class->set_menubar = gtk_application_impl_quartz_set_menubar;
   class->inhibit = gtk_application_impl_quartz_inhibit;

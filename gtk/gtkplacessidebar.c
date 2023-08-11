@@ -852,14 +852,16 @@ update_places (GtkPlacesSidebar *sidebar)
 	if (sidebar->show_desktop) {
 		/* desktop */
 		mount_uri = get_desktop_directory_uri ();
-		icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_DESKTOP);
-		add_place (sidebar, PLACES_BUILT_IN,
+		if (mount_uri)  {
+			icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_DESKTOP);
+			add_place (sidebar, PLACES_BUILT_IN,
 			   SECTION_COMPUTER,
 			   _("Desktop"), icon, mount_uri,
 			   NULL, NULL, NULL, 0,
 			   _("Open the contents of your desktop in a folder"));
-		g_object_unref (icon);
-		g_free (mount_uri);
+			g_object_unref (icon);
+			g_free (mount_uri);
+		}
 	}
 
 	/* XDG directories */
@@ -1481,7 +1483,7 @@ compute_drop_position (GtkTreeView             *tree_view,
 				    PLACES_SIDEBAR_COLUMN_URI, &uri,
 				    -1);
 
-		if (strcmp (uri, "recent:///") == 0)
+      if (g_strcmp0 (uri, "recent:///") == 0)
 			drop_possible = FALSE;
 
 		g_free (uri);
@@ -3931,6 +3933,7 @@ gtk_places_sidebar_init (GtkPlacesSidebar *sidebar)
 	target_list = gtk_target_list_new  (dnd_drop_targets, G_N_ELEMENTS (dnd_drop_targets));
 	gtk_target_list_add_uri_targets (target_list, TEXT_URI_LIST);
         gtk_drag_dest_set_target_list (GTK_WIDGET (tree_view), target_list);
+   gtk_target_list_unref (target_list);
 
 	g_signal_connect (tree_view, "key-press-event",
 			  G_CALLBACK (bookmarks_key_press_event_cb), sidebar);

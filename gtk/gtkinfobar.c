@@ -1164,7 +1164,7 @@ gtk_info_bar_set_message_type (GtkInfoBar     *info_bar,
           GtkStockItem item;
           const char *stock_id = NULL;
 
-          atk_object_set_role (atk_obj, ATK_ROLE_ALERT);
+          atk_object_set_role (atk_obj, ATK_ROLE_INFO_BAR);
 
           switch (message_type)
             {

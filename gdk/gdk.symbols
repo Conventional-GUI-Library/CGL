@@ -2,6 +2,7 @@
  * the gdk.def file used to control exports on Windows.
  */
 gdk_event_get_window
+gdk_window_set_shadow_width
 gdk_event_get_event_type
 gdk_window_get_event_compression
 gdk_window_set_event_compression

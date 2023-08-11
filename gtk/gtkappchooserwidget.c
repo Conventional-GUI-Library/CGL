@@ -85,6 +85,10 @@ struct _GtkAppChooserWidgetPrivate {
   GtkListStore *program_list_store;
 
   GtkCellRenderer *padding_renderer;
+  
+  GAppInfoMonitor *monitor;
+
+  GtkWidget *popup_menu;
 };
 
 enum {
@@ -201,6 +205,15 @@ get_app_info_for_event (GtkAppChooserWidget *self,
   return info;
 }
 
+static void
+popup_menu_detach (GtkWidget *attach_widget,
+                   GtkMenu   *menu)
+{
+  GtkAppChooserWidget *self = GTK_APP_CHOOSER_WIDGET (attach_widget);
+
+  self->priv->popup_menu = NULL;
+}
+
 static gboolean
 widget_button_press_event_cb (GtkWidget      *widget,
                               GdkEventButton *event,
@@ -220,10 +233,13 @@ widget_button_press_event_cb (GtkWidget      *widget,
       if (info == NULL)
         return FALSE;
 
-      menu = gtk_menu_new ();
+      if (self->priv->popup_menu)
+        gtk_widget_destroy (self->priv->popup_menu);
 
-      g_signal_emit (self, signals[SIGNAL_POPULATE_POPUP], 0,
-                     menu, info);
+      self->priv->popup_menu = menu = gtk_menu_new ();
+      gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (self), popup_menu_detach);
+
+      g_signal_emit (self, signals[SIGNAL_POPULATE_POPUP], 0, menu, info);
 
       g_object_unref (info);
 
@@ -232,12 +248,9 @@ widget_button_press_event_cb (GtkWidget      *widget,
       n_children = g_list_length (children);
 
       if (n_children > 0)
-        {
-          /* actually popup the menu */
-          gtk_menu_attach_to_widget (GTK_MENU (menu), self->priv->program_list, NULL);
-          gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL,
-                          event->button, event->time);
-        }
+        /* actually popup the menu */
+        gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL,
+                        event->button, event->time);
 
       g_list_free (children);
     }
@@ -893,6 +906,13 @@ gtk_app_chooser_widget_add_items (GtkAppChooserWidget *self)
 }
 
 static void
+app_info_changed (GAppInfoMonitor     *monitor,
+                  GtkAppChooserWidget *self)
+{
+  gtk_app_chooser_refresh (GTK_APP_CHOOSER (self));
+}
+
+static void
 gtk_app_chooser_widget_set_property (GObject      *object,
                                      guint         property_id,
                                      const GValue *value,
@@ -984,6 +1004,8 @@ gtk_app_chooser_widget_finalize (GObject *object)
 
   g_free (self->priv->content_type);
   g_free (self->priv->default_text);
+  g_signal_handlers_disconnect_by_func (self->priv->monitor, app_info_changed, self);
+  g_object_unref (self->priv->monitor);
 
   G_OBJECT_CLASS (gtk_app_chooser_widget_parent_class)->finalize (object);
 }
@@ -1201,6 +1223,10 @@ gtk_app_chooser_widget_init (GtkAppChooserWidget *self)
   g_signal_connect (self->priv->program_list, "button-press-event",
                     G_CALLBACK (widget_button_press_event_cb),
                     self);
+                    
+  self->priv->monitor = g_app_info_monitor_get ();
+  g_signal_connect (self->priv->monitor, "changed",
+		    G_CALLBACK (app_info_changed), self);
 }
 
 static GAppInfo *

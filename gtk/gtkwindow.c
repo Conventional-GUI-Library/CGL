@@ -226,6 +226,11 @@ struct _GtkWindowPrivate
   guint    tiled                     : 1;
   guint    maximized                 : 1;
 
+  guint    drag_possible             : 1;
+
+  gint     button_press_x;
+  gint     button_press_y;
+  guint32  button_press_time;
 };
 
 enum {
@@ -279,6 +284,8 @@ enum {
 
   PROP_MNEMONICS_VISIBLE,
   PROP_FOCUS_VISIBLE,
+
+  PROP_IS_MAXIMIZED,
 
   LAST_ARG
 };
@@ -394,6 +401,10 @@ static gint gtk_window_key_release_event  (GtkWidget         *widget,
 					   GdkEventKey       *event);
 static gint gtk_window_button_press_event (GtkWidget         *widget,
                                            GdkEventButton    *event);
+static gint gtk_window_button_release_event (GtkWidget         *widget,
+                                             GdkEventButton    *event);
+static gint gtk_window_motion_notify_event (GtkWidget         *widget,
+                                            GdkEventMotion    *event);
 static gint gtk_window_focus_in_event     (GtkWidget         *widget,
 					   GdkEventFocus     *event);
 static gint gtk_window_focus_out_event    (GtkWidget         *widget,
@@ -489,7 +500,6 @@ static void        gtk_window_on_theme_variant_changed (GtkSettings *settings,
 #endif
 static void        gtk_window_set_theme_variant         (GtkWindow  *window);
 
-static gboolean    gtk_window_popup_menu       (GtkWidget      *widget);
 static void        gtk_window_do_popup         (GtkWindow      *window,
                                                 GdkEventButton *event);
 
@@ -674,6 +684,8 @@ gtk_window_class_init (GtkWindowClass *klass)
   widget_class->key_release_event = gtk_window_key_release_event;
   widget_class->focus_in_event = gtk_window_focus_in_event;
   widget_class->button_press_event = gtk_window_button_press_event;
+  widget_class->button_release_event = gtk_window_button_release_event;
+  widget_class->motion_notify_event = gtk_window_motion_notify_event;
   widget_class->focus_out_event = gtk_window_focus_out_event;
   widget_class->focus = gtk_window_focus;
   widget_class->move_focus = gtk_window_move_focus;
@@ -682,7 +694,6 @@ gtk_window_class_init (GtkWindowClass *klass)
   widget_class->direction_changed = gtk_window_direction_changed;
   widget_class->state_changed = gtk_window_state_changed;
   widget_class->style_updated = gtk_window_style_updated;
-  widget_class->popup_menu = gtk_window_popup_menu;
   widget_class->get_preferred_width = gtk_window_get_preferred_width;
   widget_class->get_preferred_width_for_height = gtk_window_get_preferred_width_for_height;
   widget_class->get_preferred_height = gtk_window_get_preferred_height;
@@ -1081,6 +1092,14 @@ gtk_window_class_init (GtkWindowClass *klass)
                                                         GTK_TYPE_WIDGET,
                                                         GTK_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 
+  g_object_class_install_property (gobject_class,
+                                   PROP_IS_MAXIMIZED,
+                                   g_param_spec_boolean ("is-maximized",
+                                                         P_("Is maximized"),
+                                                         P_("Whether the window is maximized"),
+                                                         FALSE,
+                                                         GTK_PARAM_READABLE));
+
   /* Style properties.
    */
   gtk_widget_class_install_style_property (widget_class,
@@ -1088,7 +1107,7 @@ gtk_window_class_init (GtkWindowClass *klass)
                                                                 P_("Decorated button layout"),
                                                                 P_("Decorated button layout"),
                                                                 "menu:close",
-                                                                GTK_PARAM_READABLE));
+                                                                GTK_PARAM_READABLE|G_PARAM_DEPRECATED));
 
   gtk_widget_class_install_style_property (widget_class,
                                            g_param_spec_int ("decoration-resize-handle",
@@ -1133,6 +1152,16 @@ gtk_window_class_init (GtkWindowClass *klass)
                                                         GTK_TYPE_APPLICATION,
                                                         GTK_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  /**
+   * GtkWindow:set-focus:
+   * @window: the window which received the signal
+   * @widget: the newly focused widget (or %NULL for no focus)
+   *
+   * This signal is emitted whenever the currently focused widget in
+   * this window changes.
+   *
+   * Since: 2.24
+   */
   window_signals[SET_FOCUS] =
     g_signal_new (I_("set-focus"),
                   G_TYPE_FROM_CLASS (gobject_class),
@@ -1229,10 +1258,28 @@ gtk_window_class_init (GtkWindowClass *klass)
   gtk_widget_class_set_accessible_type (widget_class, GTK_TYPE_WINDOW_ACCESSIBLE);
 }
 
+/**
+ * gtk_window_is_maximized:
+ * @window: a #GtkWindow
+ *
+ * Retrieves the current maximized state of @window.
+ *
+ * Note that since maximization is ultimately handled by the window
+ * manager and happens asynchronously to an application request, you
+ * shouldn't assume the return value of this function changing
+ * immediately (or at all), as an effect of calling
+ * gtk_window_maximize() or gtk_window_unmaximize().
+ *
+ * Returns: whether the window has a maximized state.
+ *
+ * Since: 3.12
+ */
 gboolean
-_gtk_window_get_maximized (GtkWindow *window)
+gtk_window_is_maximized (GtkWindow *window)
 {
   GtkWindowPrivate *priv = window->priv;
+
+  g_return_val_if_fail (GTK_IS_WINDOW (window), FALSE);
 
   return priv->maximized;
 }
@@ -1608,6 +1655,9 @@ gtk_window_get_property (GObject      *object,
       break;
     case PROP_FOCUS_VISIBLE:
       g_value_set_boolean (value, priv->focus_visible);
+      break;
+    case PROP_IS_MAXIMIZED:
+      g_value_set_boolean (value, gtk_window_is_maximized (window));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -5805,6 +5855,8 @@ gtk_window_realize (GtkWidget *widget)
   attributes.event_mask = gtk_widget_get_events (widget);
   attributes.event_mask |= (GDK_EXPOSURE_MASK |
 			    GDK_BUTTON_PRESS_MASK |
+			    GDK_BUTTON_RELEASE_MASK |
+			    GDK_BUTTON_MOTION_MASK |
 			    GDK_KEY_PRESS_MASK |
 			    GDK_KEY_RELEASE_MASK |
 			    GDK_ENTER_NOTIFY_MASK |
@@ -6204,8 +6256,8 @@ update_window_style_classes (GtkWindow *window)
 }
 
 static void
-get_decoration_size (GtkWidget *widget,
-                     GtkBorder *decorations)
+get_shadow_width (GtkWidget *widget,
+                  GtkBorder *shadow_width)
 {
   GtkWindowPrivate *priv = GTK_WINDOW (widget)->priv;
   GtkBorder border = { 0 };
@@ -6216,7 +6268,7 @@ get_decoration_size (GtkWidget *widget,
   GtkCssValue *shadows;
   gint i;
 
-  *decorations = border;
+  *shadow_width = border;
 
   if (!priv->client_decorated)
     return;
@@ -6258,7 +6310,7 @@ get_decoration_size (GtkWidget *widget,
       max_borders (&border, &margin);
 
       sum_borders (&d, &border);
-      max_borders (decorations, &d);
+      max_borders (shadow_width, &d);
     }
 
   gtk_style_context_restore (context);
@@ -6325,7 +6377,7 @@ update_border_windows (GtkWindow *window)
                         "decoration-resize-handle", &handle,
                         NULL);
   gtk_style_context_restore (context);
-  get_decoration_size (widget, &window_border);
+  get_shadow_width (widget, &window_border);
 
   if (!priv->resizable ||
       priv->tiled ||
@@ -6638,7 +6690,7 @@ _gtk_window_set_allocation (GtkWindow           *window,
 
   gtk_widget_set_allocation (widget, allocation);
 
-  get_decoration_size (widget, &window_border);
+  get_shadow_width (widget, &window_border);
   border_width = gtk_container_get_border_width (GTK_CONTAINER (window));
 
   child_allocation.x = 0;
@@ -6831,6 +6883,7 @@ gtk_window_state_event (GtkWidget           *widget,
     {
       priv->maximized =
         (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) ? 1 : 0;
+      g_object_notify (G_OBJECT (widget), "is-maximized");
     }
 
   if (event->changed_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_TILED))
@@ -7108,7 +7161,7 @@ gtk_window_get_resize_grip_area (GtkWindow    *window,
   if (!priv->has_resize_grip)
     return FALSE;
 
-  get_decoration_size (widget, &window_border);
+  get_shadow_width (widget, &window_border);
   gtk_widget_get_allocation (widget, &allocation);
 
   gtk_widget_style_get (widget,
@@ -7299,6 +7352,78 @@ get_active_region_type (GtkWindow *window, GdkEventAny *event, gint x, gint y)
   return GTK_WINDOW_REGION_CONTENT;
 }
 
+static inline gboolean
+in_double_click_range (GtkWidget      *widget,
+                       GdkEventButton *event)
+{
+  GtkWindowPrivate *priv = GTK_WINDOW (widget)->priv;
+  gint double_click_time;
+  gint double_click_distance;
+
+  g_object_get (gtk_widget_get_settings (widget),
+                "gtk-double-click-time", &double_click_time,
+                "gtk-double-click-distance", &double_click_distance,
+                NULL);
+
+  if (event->time < priv->button_press_time + double_click_time &&
+      ABS (event->x_root - priv->button_press_x) <= double_click_distance &&
+      ABS (event->y_root - priv->button_press_y) <= double_click_distance)
+    return TRUE;
+
+  return FALSE;
+}
+
+static gint
+gtk_window_motion_notify_event (GtkWidget      *widget,
+                                GdkEventMotion *event)
+{
+  GtkWindowPrivate *priv = GTK_WINDOW (widget)->priv;
+  GtkWidget *src;
+  gboolean window_drag;
+
+  if (!priv->drag_possible)
+    return FALSE;
+
+  gdk_window_get_user_data (event->window, (gpointer *)&src);
+  if (src && src != widget)
+    {
+      gtk_widget_style_get (GTK_WIDGET (src),
+                            "window-dragging", &window_drag,
+                            NULL);
+      if (!window_drag)
+        {
+          priv->drag_possible = FALSE;
+          return FALSE;
+        }
+    }
+
+  if (!in_double_click_range (widget, (GdkEventButton *)event))
+    {
+      gdk_window_begin_move_drag_for_device (gtk_widget_get_window (widget),
+                                             gdk_event_get_device ((GdkEvent *)event),
+                                             GDK_BUTTON_PRIMARY,
+                                             event->x_root,
+                                             event->y_root,
+                                             event->time);
+      priv->drag_possible = FALSE;
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
+static gint
+gtk_window_button_release_event (GtkWidget      *widget,
+                                 GdkEventButton *event)
+{
+  GtkWindow *window = GTK_WINDOW (widget);
+  GtkWindowPrivate *priv = window->priv;
+
+  priv->drag_possible = FALSE;
+
+  return FALSE;
+}
+
 static gint
 gtk_window_button_press_event (GtkWidget      *widget,
                                GdkEventButton *event)
@@ -7307,8 +7432,21 @@ gtk_window_button_press_event (GtkWidget      *widget,
   GtkWindowPrivate *priv = window->priv;
   GdkWindowEdge edge;
   GdkWindow *gdk_window;
+  gint x, y;
+  GtkWidget *src;
+  GtkWindowRegion region;
+  gboolean window_drag = FALSE;
 
   gdk_window = gtk_widget_get_window (widget);
+
+  /* We do our own double-click detection, so we ignore
+   * GDK_2BUTTON_PRESS and GDK_3BUTTON_PRESS events
+   */
+  if (event->type != GDK_BUTTON_PRESS)
+    return FALSE;
+
+  if (priv->fullscreen)
+    return FALSE;
 
   if (event->window == priv->grip_window)
     {
@@ -7323,82 +7461,87 @@ gtk_window_button_press_event (GtkWidget      *widget,
 
       return TRUE;
     }
-  else if (!priv->fullscreen)
-    {
-      gint x, y;
-      GtkWidget *src;
-      GtkWindowRegion region;
 
-      gdk_window_get_user_data (event->window, (gpointer *)&src);
-      if (src && src != widget)
+  gdk_window_get_user_data (event->window, (gpointer *)&src);
+  if (src && src != widget)
+    {
+      gtk_widget_style_get (GTK_WIDGET (src),
+                            "window-dragging", &window_drag,
+                            NULL);
+      gtk_widget_translate_coordinates (src, widget, event->x, event->y, &x, &y);
+    }
+  else
+    {
+      x = event->x;
+      y = event->y;
+    }
+
+  region = get_active_region_type (window, (GdkEventAny*)event, x, y);
+
+  if (event->button == GDK_BUTTON_PRIMARY)
+    {
+      if (in_double_click_range (widget, event))
         {
-          gtk_widget_translate_coordinates (src, widget, event->x, event->y, &x, &y);
+          switch (region)
+            {
+            case GTK_WINDOW_REGION_CONTENT:
+              if (!window_drag) /* do nothing */
+                break;
+              /* fall thru */
+            case GTK_WINDOW_REGION_TITLE:
+              _gtk_window_toggle_maximized (window);
+              return TRUE;
+            default:
+              break;
+            }
         }
       else
         {
-          x = event->x;
-          y = event->y;
-        }
-      region = get_active_region_type (window, (GdkEventAny*)event, x, y);
+          switch (region)
+            {
+            case GTK_WINDOW_REGION_CONTENT:
+              if (!window_drag)
+                break;
+              /* fall thru */
 
-      if (event->type == GDK_BUTTON_PRESS)
-        {
-          if (event->button == GDK_BUTTON_PRIMARY)
-            {
-              switch (region)
-                {
-                case GTK_WINDOW_REGION_CONTENT:
-                  /* do nothing */
-                  break;
-                case GTK_WINDOW_REGION_TITLE:
-                case GTK_WINDOW_REGION_EDGE:
-                   gdk_window_begin_move_drag_for_device (gdk_window,
-                                                          gdk_event_get_device ((GdkEvent *) event),
-                                                          event->button,
-                                                          event->x_root,
-                                                          event->y_root,
-                                                          event->time);
-                  return TRUE;
-
-                default:
-                  if (!priv->maximized)
-                    {
-                      gdk_window_begin_resize_drag_for_device (gdk_window,
-                                                               (GdkWindowEdge)region,
-                                                               gdk_event_get_device ((GdkEvent *) event),
-                                                               event->button,
-                                                               event->x_root,
-                                                               event->y_root,
-                                                               event->time);
-                      return TRUE;
-                    }
-                  break;
-                }
-            }
-          else if (event->button == GDK_BUTTON_SECONDARY)
-            {
-              if (region == GTK_WINDOW_REGION_TITLE)
-                {
-                  gtk_window_do_popup (window, event);
-                  return TRUE;
-                }
-            }
-          else if (event->button == GDK_BUTTON_MIDDLE)
-            {
-              if (region == GTK_WINDOW_REGION_TITLE)
-                {
-                  gdk_window_lower (gdk_window);
-                  return TRUE;
-                }
-            }
-        }
-      else if (event->type == GDK_2BUTTON_PRESS)
-        {
-          if (region == GTK_WINDOW_REGION_TITLE)
-            {
-              _gtk_window_toggle_maximized (window);
+            case GTK_WINDOW_REGION_TITLE:
+            case GTK_WINDOW_REGION_EDGE:
+              priv->drag_possible = TRUE;
+              priv->button_press_x = event->x_root;
+              priv->button_press_y = event->y_root;
+              priv->button_press_time = event->time;
               return TRUE;
+
+            default:
+              if (!priv->maximized)
+                {
+                  gdk_window_begin_resize_drag_for_device (gdk_window,
+                                                           (GdkWindowEdge)region,
+                                                           gdk_event_get_device ((GdkEvent *) event),
+                                                           event->button,
+                                                           event->x_root,
+                                                           event->y_root,
+                                                           event->time);
+                  return TRUE;
+                }
+              break;
             }
+        }
+    }
+  else if (event->button == GDK_BUTTON_SECONDARY)
+    {
+      if (region == GTK_WINDOW_REGION_TITLE)
+        {
+          gtk_window_do_popup (window, event);
+          return TRUE;
+        }
+    }
+  else if (event->button == GDK_BUTTON_MIDDLE)
+    {
+      if (region == GTK_WINDOW_REGION_TITLE)
+        {
+          gdk_window_lower (gdk_window);
+          return TRUE;
         }
     }
 
@@ -7801,7 +7944,7 @@ gtk_window_get_preferred_width (GtkWidget *widget,
   if (priv->decorated &&
       !priv->fullscreen)
     {
-      get_decoration_size (widget, &window_border);
+      get_shadow_width (widget, &window_border);
 
       if (priv->title_box != NULL)
         gtk_widget_get_preferred_width (priv->title_box,
@@ -7850,7 +7993,7 @@ gtk_window_get_preferred_width_for_height (GtkWidget *widget,
   if (priv->decorated &&
       !priv->fullscreen)
     {
-      get_decoration_size (widget, &window_border);
+      get_shadow_width (widget, &window_border);
 
       if (priv->title_box != NULL)
         gtk_widget_get_preferred_width_for_height (priv->title_box,
@@ -7903,7 +8046,7 @@ gtk_window_get_preferred_height (GtkWidget *widget,
   if (priv->decorated &&
       !priv->fullscreen)
     {
-      get_decoration_size (widget, &window_border);
+      get_shadow_width (widget, &window_border);
 
       if (priv->title_box != NULL)
         gtk_widget_get_preferred_height (priv->title_box,
@@ -7954,7 +8097,7 @@ gtk_window_get_preferred_height_for_width (GtkWidget *widget,
   if (priv->decorated &&
       !priv->fullscreen)
     {
-      get_decoration_size (widget, &window_border);
+      get_shadow_width (widget, &window_border);
 
       if (priv->title_box != NULL)
         gtk_widget_get_preferred_height_for_width (priv->title_box,
@@ -8110,6 +8253,28 @@ close_window_clicked (GtkMenuItem *menuitem,
 }
 
 static void
+move_window_clicked (GtkMenuItem *menuitem,
+                     gpointer     user_data)
+{
+  GtkWidget *widget = (GtkWidget *)user_data;
+
+  gdk_window_begin_move_drag (gtk_widget_get_window (widget),
+                              0, 0, 0,
+                              gtk_get_current_event_time ());
+}
+
+static void
+resize_window_clicked (GtkMenuItem *menuitem,
+                       gpointer     user_data)
+{
+  GtkWidget *widget = (GtkWidget *)user_data;
+
+  gdk_window_begin_resize_drag (gtk_widget_get_window (widget),
+                                0, 0, 0, 0,
+                                gtk_get_current_event_time ());
+}
+
+static void
 gtk_window_do_popup (GtkWindow      *window,
                      GdkEventButton *event)
 {
@@ -8142,6 +8307,24 @@ gtk_window_do_popup (GtkWindow      *window,
     gtk_widget_set_sensitive (menuitem, FALSE);
   g_signal_connect_swapped (G_OBJECT (menuitem), "activate",
                             G_CALLBACK (_gtk_window_toggle_maximized), window);
+  gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+
+  menuitem = gtk_menu_item_new_with_label (_("Move"));
+  gtk_widget_show (menuitem);
+  g_signal_connect (G_OBJECT (menuitem), "activate",
+                    G_CALLBACK (move_window_clicked), window);
+  gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+
+  menuitem = gtk_menu_item_new_with_label (_("Resize"));
+  gtk_widget_show (menuitem);
+  if (!priv->resizable || priv->maximized)
+    gtk_widget_set_sensitive (menuitem, FALSE);
+  g_signal_connect (G_OBJECT (menuitem), "activate",
+                    G_CALLBACK (resize_window_clicked), window);
+  gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+
+  menuitem = gtk_separator_menu_item_new ();
+  gtk_widget_show (menuitem);
   gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
 
   menuitem = gtk_check_menu_item_new_with_label (_("Always on Top"));
@@ -8253,14 +8436,6 @@ gtk_window_do_popup (GtkWindow      *window,
 }
 
 
-
-static gboolean
-gtk_window_popup_menu (GtkWidget *widget)
-{
-  gtk_window_do_popup (GTK_WINDOW (widget), NULL);
-
-  return TRUE;
-}
 
 /*********************************
  * Functions related to resizing *
@@ -9323,7 +9498,7 @@ gtk_window_draw (GtkWidget *widget,
 
   context = gtk_widget_get_style_context (widget);
   
-  get_decoration_size (widget, &window_border);
+  get_shadow_width (widget, &window_border);
 
   gtk_widget_get_allocation (widget, &allocation);
  
@@ -9656,8 +9831,9 @@ gtk_window_unstick (GtkWindow *window)
  * initially.
  *
  * You can track maximization via the "window-state-event" signal
- * on #GtkWidget.
- * 
+ * on #GtkWidget, or by listening to notifications on the
+ * #GtkWindow:is-maximized property.
+ *
  **/
 void
 gtk_window_maximize (GtkWindow *window)
@@ -11663,8 +11839,8 @@ _gtk_window_handle_button_press_for_widget (GtkWidget      *widget,
 
 
 void
-_gtk_window_get_decoration_size (GtkWindow *window,
-                                 GtkBorder *border)
+_gtk_window_get_shadow_width (GtkWindow *window,
+                              GtkBorder *border)
 {
-  get_decoration_size (GTK_WIDGET (window), border);
+  get_shadow_width (GTK_WIDGET (window), border);
 }

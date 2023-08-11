@@ -94,6 +94,12 @@ void         gtk_csd_title_bar_set_has_subtitle (GtkCSDTitleBar *bar,
 GDK_AVAILABLE_IN_3_12
 gboolean     gtk_csd_title_bar_get_has_subtitle (GtkCSDTitleBar *bar);
 
+GDK_AVAILABLE_IN_3_12
+void         gtk_csd_title_bar_set_decoration_layout (GtkCSDTitleBar *bar,
+                                                   const gchar  *layout);
+GDK_AVAILABLE_IN_3_12
+const gchar *gtk_csd_title_bar_get_decoration_layout (GtkCSDTitleBar *bar);
+
 G_END_DECLS
 
 #endif /* __GTK_CSD_TITLE_BAR_H__ */

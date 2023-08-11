@@ -310,6 +310,7 @@ gtk_model_menu_item_set_property (GObject *object, guint prop_id,
 
     case PROP_TOGGLED:
       _gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (item), g_value_get_boolean (value));
+      g_object_notify (object, "active");
       break;
 
     case PROP_ACCEL:
@@ -357,6 +358,8 @@ gtk_model_menu_item_class_init (GtkModelMenuItemClass *class)
   g_object_class_install_property (object_class, PROP_ACCEL,
                                    g_param_spec_string ("accel", "accel", "accel", NULL,
                                                         G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
+
+  gtk_widget_class_set_accessible_role (GTK_WIDGET_CLASS (class), ATK_ROLE_MENU_ITEM);
 }
 
 GtkWidget *

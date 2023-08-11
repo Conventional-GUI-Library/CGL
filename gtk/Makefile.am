@@ -161,6 +161,7 @@ gtk_public_h_sources = 		\
 	gtkactivatable.h	\
 	gtkadjustment.h		\
 	gtkalignment.h		\
+	gtkactionbar.h		\
 	gtkappchooser.h		\
 	gtkappchooserbutton.h	\
 	gtkappchooserdialog.h	\
@@ -496,6 +497,7 @@ gtk_private_h_sources =		\
 	gtkimcontextsimpleseqs.h \
 	gtkintl.h		\
 	gtkkeyhash.h		\
+	gtklabelprivate.h	\
 	gtklockbuttonprivate.h	\
 	gtkmenubuttonprivate.h	\
 	gtkmenuprivate.h	\
@@ -579,6 +581,7 @@ gtk_base_c_sources = 		\
 	gtkaccelmap.c		\
 	gtkaccessible.c		\
 	gtkaction.c		\
+	gtkactionbar.c		\
 	gtkactionhelper.c	\
 	gtkactiongroup.c	\
 	gtkactivatable.c	\
@@ -968,8 +971,8 @@ gtk_use_win32_c_sources = 	\
 gtk_use_quartz_c_sources = 	\
 	gtksearchenginequartz.c	\
 	gtkmountoperation-stub.c \
-	gtkmodelmenu-quartz.c \
 	gtkapplication-quartz.c \
+	gtkapplication-quartz-menu.c \
 	gtkquartz.c
 gtk_use_stub_c_sources = 	\
 	gtkmountoperation-stub.c
@@ -1007,7 +1010,6 @@ endif
 
 gtk_use_quartz_private_h_sources = 	\
 	gtksearchenginequartz.h	\
-	gtkmodelmenu-quartz.h \
 	gtkquartz.h
 if USE_QUARTZ
 gtk_c_sources += $(gtk_use_quartz_c_sources)

@@ -365,6 +365,10 @@ gtk_application_window_list_actions (GActionGroup *group)
 {
   GtkApplicationWindow *window = GTK_APPLICATION_WINDOW (group);
 
+  /* may be NULL after dispose has run */
+  if (!window->priv->actions)
+    return g_new0 (char *, 0 + 1);
+
   return g_action_group_list_actions (G_ACTION_GROUP (window->priv->actions));
 }
 
@@ -379,6 +383,9 @@ gtk_application_window_query_action (GActionGroup        *group,
 {
   GtkApplicationWindow *window = GTK_APPLICATION_WINDOW (group);
 
+  if (!window->priv->actions)
+    return FALSE;
+
   return g_action_group_query_action (G_ACTION_GROUP (window->priv->actions),
                                       action_name, enabled, parameter_type, state_type, state_hint, state);
 }
@@ -390,7 +397,10 @@ gtk_application_window_activate_action (GActionGroup *group,
 {
   GtkApplicationWindow *window = GTK_APPLICATION_WINDOW (group);
 
-  return g_action_group_activate_action (G_ACTION_GROUP (window->priv->actions), action_name, parameter);
+  if (!window->priv->actions)
+    return;
+
+  g_action_group_activate_action (G_ACTION_GROUP (window->priv->actions), action_name, parameter);
 }
 
 static void
@@ -400,7 +410,10 @@ gtk_application_window_change_action_state (GActionGroup *group,
 {
   GtkApplicationWindow *window = GTK_APPLICATION_WINDOW (group);
 
-  return g_action_group_change_action_state (G_ACTION_GROUP (window->priv->actions), action_name, state);
+  if (!window->priv->actions)
+    return;
+
+  g_action_group_change_action_state (G_ACTION_GROUP (window->priv->actions), action_name, state);
 }
 
 static GAction *
@@ -408,6 +421,9 @@ gtk_application_window_lookup_action (GActionMap  *action_map,
                                       const gchar *action_name)
 {
   GtkApplicationWindow *window = GTK_APPLICATION_WINDOW (action_map);
+
+  if (!window->priv->actions)
+    return NULL;
 
   return g_action_map_lookup_action (G_ACTION_MAP (window->priv->actions), action_name);
 }
@@ -418,6 +434,9 @@ gtk_application_window_add_action (GActionMap *action_map,
 {
   GtkApplicationWindow *window = GTK_APPLICATION_WINDOW (action_map);
 
+  if (!window->priv->actions)
+    return;
+
   g_action_map_add_action (G_ACTION_MAP (window->priv->actions), action);
 }
 
@@ -426,6 +445,9 @@ gtk_application_window_remove_action (GActionMap  *action_map,
                                       const gchar *action_name)
 {
   GtkApplicationWindow *window = GTK_APPLICATION_WINDOW (action_map);
+
+  if (!window->priv->actions)
+    return;
 
   g_action_map_remove_action (G_ACTION_MAP (window->priv->actions), action_name);
 }
@@ -518,7 +540,7 @@ gtk_application_window_real_get_preferred_width (GtkWidget *widget,
       gtk_widget_get_preferred_width (window->priv->menubar, &menubar_min_width, &menubar_nat_width);
 
       border_width = gtk_container_get_border_width (GTK_CONTAINER (widget));
-      _gtk_window_get_decoration_size (GTK_WINDOW (widget), &border);
+      _gtk_window_get_shadow_width (GTK_WINDOW (widget), &border);
 
       menubar_min_width += 2 * border_width + border.left + border.right;
       menubar_nat_width += 2 * border_width + border.left + border.right;
@@ -554,7 +576,7 @@ gtk_application_window_real_get_preferred_width_for_height (GtkWidget *widget,
       gtk_widget_get_preferred_width_for_height (window->priv->menubar, menubar_height, &menubar_min_width, &menubar_nat_width);
 
       border_width = gtk_container_get_border_width (GTK_CONTAINER (widget));
-      _gtk_window_get_decoration_size (GTK_WINDOW (widget), &border);
+      _gtk_window_get_shadow_width (GTK_WINDOW (widget), &border);
 
       menubar_min_width += 2 * border_width + border.left + border.right;
       menubar_nat_width += 2 * border_width + border.left + border.right;
@@ -718,10 +740,18 @@ gtk_application_window_dispose (GObject *object)
 
   g_clear_object (&window->priv->app_menu_section);
   g_clear_object (&window->priv->menubar_section);
-  g_clear_object (&window->priv->actions);
 
   G_OBJECT_CLASS (gtk_application_window_parent_class)
     ->dispose (object);
+
+  /* We do this below the chain-up above to give us a chance to be
+   * removed from the GtkApplication (which is done in the dispose
+   * handler of GtkWindow).
+   *
+   * That reduces our chances of being watched as a GActionGroup from a
+   * muxer constructed by GtkApplication.
+   */
+  g_clear_object (&window->priv->actions);
 }
 
 static void

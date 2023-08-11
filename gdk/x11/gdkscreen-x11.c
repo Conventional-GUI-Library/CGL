@@ -314,7 +314,7 @@ get_work_area (GdkScreen    *screen,
   gulong          num;
   gulong          leftovers;
   gulong          max_len = 4 * 32;
-  guchar         *ret_workarea;
+  guchar         *ret_workarea = NULL;
   long           *workareas;
   int             result;
   int             disp_screen;
@@ -356,9 +356,11 @@ get_work_area (GdkScreen    *screen,
       format == 0 ||
       leftovers ||
       num % 4 != 0)
-    return;
+    goto out;
 
   desktop = get_current_desktop (screen);
+  if (desktop + 1 > num / 4) /* fvwm gets this wrong */
+    goto out;
 
   workareas = (long *) ret_workarea;
   area->x = workareas[desktop * 4];
@@ -371,7 +373,9 @@ get_work_area (GdkScreen    *screen,
   area->width /= x11_screen->window_scale;
   area->height /= x11_screen->window_scale;
 
-  XFree (ret_workarea);
+out:
+  if (ret_workarea)
+    XFree (ret_workarea);
 }
 
 static void
@@ -1785,7 +1789,7 @@ get_netwm_cardinal_property (GdkScreen   *screen,
 
 /**
  * gdk_x11_screen_get_number_of_desktops:
- * @screen: a #GdkScreen
+ * @screen: (type GdkX11Screen): a #GdkScreen
  *
  * Returns the number of workspaces for @screen when running under a
  * window manager that supports multiple workspaces, as described
@@ -1804,7 +1808,7 @@ gdk_x11_screen_get_number_of_desktops (GdkScreen *screen)
 
 /**
  * gdk_x11_screen_get_current_desktop:
- * @screen: a #GdkScreen
+ * @screen: (type GdkX11Screen): a #GdkScreen
  *
  * Returns the current workspace for @screen when running under a
  * window manager that supports multiple workspaces, as described

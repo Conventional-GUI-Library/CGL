@@ -29,6 +29,7 @@
 #include <string.h>
 
 #include "gtklabel.h"
+#include "gtklabelprivate.h"
 #include "gtkaccellabel.h"
 #include "gtkdnd.h"
 #include "gtkmarshalers.h"
@@ -2530,6 +2531,7 @@ gtk_label_set_markup_internal (GtkLabel    *label,
     {
       gtk_label_ensure_select_info (label);
       priv->select_info->links = g_list_reverse (links);
+      _gtk_label_accessible_update_links (label);
       gtk_label_ensure_has_tooltip (label);
     }
 
@@ -4459,6 +4461,7 @@ gtk_label_grab_focus (GtkWidget *widget)
           link = priv->select_info->links->data;
           priv->select_info->selection_anchor = link->start;
           priv->select_info->selection_end = link->start;
+          _gtk_label_accessible_focus_link_changed (label);
         }
     }
 }
@@ -4485,6 +4488,7 @@ gtk_label_focus (GtkWidget        *widget,
               focus_link = l->data;
               info->selection_anchor = focus_link->start;
               info->selection_end = focus_link->start;
+              _gtk_label_accessible_focus_link_changed (label);
             }
         }
 
@@ -4511,6 +4515,7 @@ gtk_label_focus (GtkWidget        *widget,
             if (link->start > index)
               {
                 gtk_label_select_region_index (label, link->start, link->start);
+                _gtk_label_accessible_focus_link_changed (label);
                 return TRUE;
               }
           }
@@ -4522,6 +4527,7 @@ gtk_label_focus (GtkWidget        *widget,
             if (link->end < index)
               {
                 gtk_label_select_region_index (label, link->start, link->start);
+                _gtk_label_accessible_focus_link_changed (label);
                 return TRUE;
               }
           }
@@ -4562,6 +4568,7 @@ gtk_label_focus (GtkWidget        *widget,
           focus_link = l->data;
           info->selection_anchor = focus_link->start;
           info->selection_end = focus_link->start;
+          _gtk_label_accessible_focus_link_changed (label);
           gtk_widget_queue_draw (widget);
 
           return TRUE;
@@ -6242,6 +6249,8 @@ gtk_label_clear_links (GtkLabel *label)
   g_list_free_full (priv->select_info->links, (GDestroyNotify) link_free);
   priv->select_info->links = NULL;
   priv->select_info->active_link = NULL;
+
+  _gtk_label_accessible_update_links (label);
 }
 
 static gboolean
@@ -6535,4 +6544,157 @@ gtk_label_get_lines (GtkLabel *label)
   g_return_val_if_fail (GTK_IS_LABEL (label), -1);
 
   return label->priv->lines;
+}
+
+gint
+_gtk_label_get_n_links (GtkLabel *label)
+{
+  GtkLabelPrivate *priv = label->priv;
+
+  if (priv->select_info)
+    return g_list_length (priv->select_info->links);
+
+  return 0;
+}
+
+const gchar *
+_gtk_label_get_link_uri (GtkLabel *label,
+                         gint      idx)
+{
+  GtkLabelPrivate *priv = label->priv;
+  gint i;
+  GList *l;
+  GtkLabelLink *link;
+
+  if (priv->select_info)
+    for (l = priv->select_info->links, i = 0; l; l = l->next, i++)
+      {
+        if (i == idx)
+          {
+            link = l->data;
+            return link->uri;
+          }
+      }
+
+  return NULL;
+}
+
+void
+_gtk_label_get_link_extent (GtkLabel *label,
+                            gint      idx,
+                            gint     *start,
+                            gint     *end)
+{
+  GtkLabelPrivate *priv = label->priv;
+  gint i;
+  GList *l;
+  GtkLabelLink *link;
+
+  if (priv->select_info)
+    for (l = priv->select_info->links, i = 0; l; l = l->next, i++)
+      {
+        if (i == idx)
+          {
+            link = l->data;
+            *start = link->start;
+            *end = link->end;
+            return;
+          }
+      }
+
+  *start = -1;
+  *end = -1;
+}
+
+gint
+_gtk_label_get_link_at (GtkLabel *label, 
+                        gint      pos)
+{
+  GtkLabelPrivate *priv = label->priv;
+  gint i;
+  GList *l;
+  GtkLabelLink *link;
+
+  if (priv->select_info)
+    for (l = priv->select_info->links, i = 0; l; l = l->next, i++)
+      {
+        link = l->data;
+        if (link->start <= pos && pos < link->end)
+          return i;
+      }
+
+  return -1;
+}
+
+void
+_gtk_label_activate_link (GtkLabel *label, 
+                          gint      idx)
+{
+  GtkLabelPrivate *priv = label->priv;
+  gint i;
+  GList *l;
+  GtkLabelLink *link;
+
+  if (priv->select_info)
+    for (l = priv->select_info->links, i = 0; l; l = l->next, i++)
+      {
+        if (i == idx)
+          {
+            link = l->data;
+            emit_activate_link (label, link);
+            return;
+          }
+      }
+}
+
+gboolean
+_gtk_label_get_link_visited (GtkLabel *label,
+                             gint      idx)
+{
+  GtkLabelPrivate *priv = label->priv;
+  gint i;
+  GList *l;
+  GtkLabelLink *link;
+
+  if (priv->select_info)
+    for (l = priv->select_info->links, i = 0; l; l = l->next, i++)
+      {
+        if (i == idx)
+          {
+            link = l->data;
+            return link->visited;
+          }
+      }
+
+  return FALSE;
+}
+
+gboolean
+_gtk_label_get_link_focused (GtkLabel *label,
+                             gint      idx)
+{
+  GtkLabelPrivate *priv = label->priv;
+  gint i;
+  GList *l;
+  GtkLabelLink *link;
+  GtkLabelSelectionInfo *info = priv->select_info;
+
+  if (!info)
+    return FALSE;
+
+  if (info->selection_anchor != info->selection_end)
+    return FALSE;
+
+  for (l = info->links, i = 0; l; l = l->next, i++)
+    {
+      if (i == idx)
+        {
+          link = l->data;
+          if (link->start <= info->selection_anchor &&
+              info->selection_anchor <= link->end)
+            return TRUE;
+        }
+    }
+
+  return FALSE;
 }
