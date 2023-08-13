@@ -151,7 +151,7 @@
  *
  * Height for width requests are generally implemented in terms of a virtual allocation
  * of widgets in the input orientation. Assuming an height-for-width request mode, a container
- * would implement the <function>get_preferred_height_for_width()</function> virtual function by first calling
+ * would implement the <function>get_preferred_height_for_width(<!-- -->)</function> virtual function by first calling
  * gtk_widget_get_preferred_width() for each of its children.
  *
  * For each potential group of children that are lined up horizontally, the values returned by
@@ -1676,7 +1676,7 @@ gtk_container_idle_sizer (GdkFrameClock *clock,
   /* we may be invoked with a container_resize_queue of NULL, because
    * queue_resize could have been adding an extra idle function while
    * the queue still got processed. we better just ignore such case
-   * than trying to explicitely work around them with some extra flags,
+   * than trying to explicitly work around them with some extra flags,
    * since it doesn't cause any actual harm.
    */
   if (container->priv->resize_pending)

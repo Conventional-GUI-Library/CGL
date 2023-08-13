@@ -91,10 +91,10 @@
  *
  * Typically, the specific kind of object represented by an &lt;object&gt;
  * element is specified by the "class" attribute. If the type has not been
- * loaded yet, GTK+ tries to find the <function>_get_type()</function> from the
+ * loaded yet, GTK+ tries to find the <function>_get_type(<!-- -->)</function> from the
  * class name by applying heuristics. This works in most cases, but if
  * necessary, it is possible to specify the name of the
- * <function>_get_type()</function> explictly with the "type-func" attribute.
+ * <function>_get_type(<!-- -->)</function> explictly with the "type-func" attribute.
  * As a special case, GtkBuilder allows to use an object that has been
  * constructed by a #GtkUIManager in another part of the UI definition by
  * specifying the id of the #GtkUIManager in the "constructor" attribute and the
@@ -220,16 +220,6 @@
  * <para>
  * Additionally, since 3.10 a special &lt;template&gt; tag has been added to the format
  * allowing one to <link linkend="GtkWidget-BUILDER-TEMPLATES">define a widget class's components</link>.
- * </para>
- * </refsect2>
- * <refsect2>
- * <title>Embedding other XML</title>
- * <para>
- * Apart from the language for UI descriptions that has been explained
- * in the previous section, GtkBuilder can also parse XML fragments
- * of <link linkend="gio-GMenu-Markup">GMenu markup</link>. The resulting
- * #GMenu object and its named submenus are available via
- * gtk_builder_get_object() like other constructed objects.
  * </para>
  * </refsect2>
  */
@@ -1055,7 +1045,7 @@ gtk_builder_add_from_file (GtkBuilder   *builder,
  * <note><para>
  * If you are adding an object that depends on an object that is not 
  * its child (for instance a #GtkTreeView that depends on its
- * #GtkTreeModel), you have to explicitely list all of them in @object_ids. 
+ * #GtkTreeModel), you have to explicitly list all of them in @object_ids. 
  * </para></note>
  *
  * Returns: A positive value on success, 0 if an error occurred
@@ -1239,7 +1229,7 @@ gtk_builder_add_from_resource (GtkBuilder   *builder,
  * <note><para>
  * If you are adding an object that depends on an object that is not
  * its child (for instance a #GtkTreeView that depends on its
- * #GtkTreeModel), you have to explicitely list all of them in @object_ids.
+ * #GtkTreeModel), you have to explicitly list all of them in @object_ids.
  * </para></note>
  *
  * Returns: A positive value on success, 0 if an error occurred
@@ -1370,7 +1360,7 @@ gtk_builder_add_from_string (GtkBuilder   *builder,
  * <note><para>
  * If you are adding an object that depends on an object that is not 
  * its child (for instance a #GtkTreeView that depends on its
- * #GtkTreeModel), you have to explicitely list all of them in @object_ids. 
+ * #GtkTreeModel), you have to explicitly list all of them in @object_ids. 
  * </para></note>
  *
  * Returns: A positive value on success, 0 if an error occurred
@@ -2428,7 +2418,7 @@ gtk_builder_lookup_callback_symbol (GtkBuilder    *builder,
  * the program will be aborted.  You should only ever attempt to parse
  * user interface descriptions that are shipped as part of your program.
  *
- * Returns: a #Gtkbuilder containing the described interface
+ * Returns: a #GtkBuilder containing the described interface
  *
  * Since: 3.10
  **/
@@ -2455,7 +2445,7 @@ gtk_builder_new_from_file (const gchar *filename)
  * If there is an error locating the resurce or parsing the description
  * then the program will be aborted.
  *
- * Returns: a #Gtkbuilder containing the described interface
+ * Returns: a #GtkBuilder containing the described interface
  *
  * Since: 3.10
  **/
@@ -2487,7 +2477,7 @@ gtk_builder_new_from_resource (const gchar *resource_path)
  * aborted.  You should not attempt to parse user interface description
  * from untrusted sources.
  *
- * Returns: a #Gtkbuilder containing the interface described by @string
+ * Returns: a #GtkBuilder containing the interface described by @string
  *
  * Since: 3.10
  **/

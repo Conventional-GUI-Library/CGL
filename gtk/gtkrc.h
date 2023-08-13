@@ -51,6 +51,15 @@ typedef struct _GtkRcStyleClass GtkRcStyleClass;
 #define GTK_IS_RC_STYLE_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_RC_STYLE))
 #define GTK_RC_STYLE_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_RC_STYLE, GtkRcStyleClass))
 
+/**
+ * GtkRcFlags:
+ * @GTK_RC_FG :Deprecated
+ * @GTK_RC_BG: Deprecated
+ * @GTK_RC_TEXT: Deprecated
+ * @GTK_RC_BASE: Deprecated
+ *
+ * Deprecated
+ */
 typedef enum
 {
   GTK_RC_FG		= 1 << 0,
@@ -61,16 +70,16 @@ typedef enum
 
 /**
  * GtkRcStyle:
- * @name:
- * @bg_pixmap_name:
- * @font_desc:
- * @color_flags:
- * @fg:
- * @bg:
- * @text:
- * @base:
- * @xthickness:
- * @ythickness:
+ * @name: Name
+ * @bg_pixmap_name: Pixmap name
+ * @font_desc: A #PangoFontDescription
+ * @color_flags: #GtkRcFlags
+ * @fg: Foreground colors
+ * @bg: Background colors
+ * @text: Text colors
+ * @base: Base colors
+ * @xthickness: X thickness
+ * @ythickness: Y thickness
  *
  * The #GtkRcStyle structure is used to represent a set
  * of information about the appearance of a widget.
@@ -107,9 +116,19 @@ struct _GtkRcStyle
   guint engine_specified : 1;	/* The RC file specified the engine */
 };
 
+/**
+ * GtkRcStyleClass:
+ * @parent_class: The parent class.
+ * @create_rc_style: 
+ * @parse: 
+ * @merge: 
+ * @create_style: 
+ */
 struct _GtkRcStyleClass
 {
   GObjectClass parent_class;
+
+  /*< public >*/
 
   /* Create an empty RC style of the same type as this RC style.
    * The default implementation, which does
@@ -135,6 +154,8 @@ struct _GtkRcStyleClass
   /* Create an empty style suitable to this RC style
    */
   GtkStyle * (*create_style) (GtkRcStyle *rc_style);
+
+  /*< private >*/
 
   /* Padding for future expansion */
   void (*_gtk_reserved1) (void);
@@ -293,6 +314,16 @@ guint	  gtk_rc_parse_priority	(GScanner	     *scanner,
 
 /* rc properties
  * (structure forward declared in gtkstyle.h)
+ */
+/**
+ * GtkRcProperty:
+ * @type_name: quark-ified type identifier
+ * @property_name: quark-ified property identifier like
+ *   "GtkScrollbar::spacing"
+ * @origin: field similar to one found in #GtkSettingsValue
+ * @value:field similar to one found in #GtkSettingsValue
+ *
+ * Deprecated
  */
 struct _GtkRcProperty
 {

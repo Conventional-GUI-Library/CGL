@@ -50,9 +50,8 @@
  * @Short_description: Manipulating stock icons
  * @Title: Themeable Stock Images
  *
- * Browse the available stock icons in the list of stock IDs found <link
- * linkend="gtk-Stock-Items">here</link>. You can also use
- * the <application>gtk-demo</application> application for this purpose.
+ * Browse the available stock icons using
+ * the <application>gtk3-demo</application> application.
  *
  * An icon factory manages a collection of #GtkIconSet; a #GtkIconSet manages a
  * set of variants of a particular icon (i.e. a #GtkIconSet contains variants for
@@ -2352,7 +2351,7 @@ gtk_icon_source_get_icon_name (const GtkIconSource *source)
  * In addition, if a filename source is in use, this
  * function in some cases will return the pixbuf from
  * loaded from the filename. This is, for example, true
- * for the GtkIconSource passed to the GtkStyle::render_icon()
+ * for the GtkIconSource passed to the #GtkStyle render_icon(<!-- -->)
  * virtual function. The reference count on the pixbuf is
  * not incremented.
  *

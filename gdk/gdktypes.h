@@ -171,9 +171,22 @@ typedef enum
  * @GDK_BUTTON4_MASK: the fourth mouse button.
  * @GDK_BUTTON5_MASK: the fifth mouse button.
  * @GDK_MODIFIER_RESERVED_13_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_14_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_15_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_16_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_17_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_18_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_19_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_20_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_21_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_22_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_23_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_24_MASK: A reserved bit flag; do not use in your own code
+ * @GDK_MODIFIER_RESERVED_25_MASK: A reserved bit flag; do not use in your own code
  * @GDK_SUPER_MASK: the Super modifier. Since 2.10
  * @GDK_HYPER_MASK: the Hyper modifier. Since 2.10
  * @GDK_META_MASK: the Meta modifier. Since 2.10
+ * @GDK_MODIFIER_RESERVED_29_MASK: A reserved bit flag; do not use in your own code
  * @GDK_RELEASE_MASK: not used in GDK itself. GTK+ uses it to differentiate
  *  between (keyval, modifiers) pairs from key press and release events.
  * @GDK_MODIFIER_MASK: a mask covering all modifier types.
@@ -258,8 +271,8 @@ typedef enum
  * @GDK_MODIFIER_INTENT_SHIFT_GROUP: the modifier that switches between keyboard
  *  groups (AltGr on X11/Windows and Option/Alt on OS X).
  *
- * This enum is used with gdk_keymap_get_modifier_mask() and
- * gdk_get_modifier_mask() in order to determine what modifiers the
+ * This enum is used with gdk_keymap_get_modifier_mask()
+ * in order to determine what modifiers the
  * currently used windowing system backend uses for particular
  * purposes. For example, on X11/Windows, the Control key is used for
  * invoking menu shortcuts (accelerators), whereas on Apple computers

@@ -463,6 +463,7 @@ gdk_window_get_pointer
 gdk_window_get_device_position
 gdk_window_get_device_position_double
 GdkModifierType
+GdkModifierIntent
 gdk_window_get_parent
 gdk_window_get_toplevel
 gdk_window_get_children
@@ -1162,8 +1163,7 @@ gdk_wayland_device_get_wl_pointer
 gdk_wayland_device_get_wl_seat
 gdk_wayland_display_get_wl_compositor
 gdk_wayland_display_get_wl_display
-gdk_wayland_display_get_wl_shell
-gdk_wayland_window_get_wl_shell_surface
+gdk_wayland_display_get_xdg_shell
 gdk_wayland_window_get_wl_surface
 gdk_wayland_window_set_use_custom_surface
 

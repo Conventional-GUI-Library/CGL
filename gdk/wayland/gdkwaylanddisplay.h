@@ -46,7 +46,7 @@ GType                   gdk_wayland_display_get_type            (void);
 
 struct wl_display      *gdk_wayland_display_get_wl_display      (GdkDisplay *display);
 struct wl_compositor   *gdk_wayland_display_get_wl_compositor   (GdkDisplay *display);
-struct wl_shell        *gdk_wayland_display_get_wl_shell        (GdkDisplay *display);
+struct xdg_shell       *gdk_wayland_display_get_xdg_shell       (GdkDisplay *display);
 void                    gdk_wayland_display_set_cursor_theme    (GdkDisplay  *display,
                                                                  const gchar *theme,
                                                                  gint         size);

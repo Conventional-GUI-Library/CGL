@@ -41,7 +41,7 @@
  *
  * GTK+ provides a higher level abstraction based on top of these functions,
  * and so they are not normally needed in GTK+ applications.
- * See the <link linkend="gtk-Drag-and-Drop">Drag and Drop</link> section of
+ * See the <link linkend="gtk3-Drag-and-Drop">Drag and Drop</link> section of
  * the GTK+ documentation for more information.
  */
 
@@ -398,7 +398,7 @@ gdk_drop_reply (GdkDragContext *context,
 
 /**
  * gdk_drop_finish:
- * @context: a #GtkDragContext
+ * @context: a #GdkDragContext
  * @success: %TRUE if the data was successfully received
  * @time_: the timestamp for this operation
  *

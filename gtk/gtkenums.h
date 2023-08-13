@@ -164,6 +164,7 @@ typedef enum
  * @GTK_BUTTONBOX_END: Buttons are grouped towards the end of the box,
  *   (on the right for a HBox, or the bottom for a VBox).
  * @GTK_BUTTONBOX_CENTER: Buttons are centered in the box. Since 2.12.
+ * @GTK_BUTTONBOX_EXPAND: Buttons expand to fill the box. Since 3.12.
  *
  * Used to dictate the style that a #GtkButtonBox uses to layout the buttons it
  * contains. (See also: #GtkVButtonBox and #GtkHButtonBox).
@@ -174,10 +175,30 @@ typedef enum
   GTK_BUTTONBOX_EDGE,
   GTK_BUTTONBOX_START,
   GTK_BUTTONBOX_END,
-  GTK_BUTTONBOX_CENTER
+  GTK_BUTTONBOX_CENTER,
+  GTK_BUTTONBOX_EXPAND
 } GtkButtonBoxStyle;
 
 
+/**
+ * GtkDeleteType:
+ * @GTK_DELETE_CHARS: Delete characters.
+ * @GTK_DELETE_WORD_ENDS: Delete only the portion of the word to the
+ *   left/right of cursor if we're in the middle of a word.
+ * @GTK_DELETE_WORDS: Delete words.
+ * @GTK_DELETE_DISPLAY_LINES: Delete display-lines. Display-lines
+ *   refers to the visible lines, with respect to to the current line
+ *   breaks. As opposed to paragraphs, which are defined by line
+ *   breaks in the input.
+ * @GTK_DELETE_DISPLAY_LINE_ENDS: Delete only the portion of the
+ *   display-line to the left/right of cursor.
+ * @GTK_DELETE_PARAGRAPH_ENDS: Delete to the end of the
+ *   paragraph. Like C-k in Emacs (or its reverse).
+ * @GTK_DELETE_PARAGRAPHS: Delete entire line. Like C-k in pico.
+ * @GTK_DELETE_WHITESPACE: Delete only whitespace. Like M-\ in Emacs.
+ *
+ * See also: #GtkEntry::delete-from-cursor.
+ */
 typedef enum
 {
   GTK_DELETE_CHARS,
@@ -193,6 +214,17 @@ typedef enum
 } GtkDeleteType;
 
 /* Focus movement types */
+/**
+ * GtkDirectionType:
+ * @GTK_DIR_TAB_FORWARD: Move forward.
+ * @GTK_DIR_TAB_BACKWARD: Move backward.
+ * @GTK_DIR_UP: Move up.
+ * @GTK_DIR_DOWN: Move down.
+ * @GTK_DIR_LEFT: Move left.
+ * @GTK_DIR_RIGHT: Move right.
+ *
+ * Focus movement types.
+ */
 typedef enum
 {
   GTK_DIR_TAB_FORWARD,
@@ -220,7 +252,18 @@ typedef enum
   GTK_EXPANDER_EXPANDED
 } GtkExpanderStyle;
 
-/* Built-in stock icon sizes */
+/**
+ * GtkIconSize:
+ * @GTK_ICON_SIZE_INVALID: Invalid size.
+ * @GTK_ICON_SIZE_MENU: Size appropriate for menus (16px).
+ * @GTK_ICON_SIZE_SMALL_TOOLBAR: Size appropriate for small toolbars (18px).
+ * @GTK_ICON_SIZE_LARGE_TOOLBAR: Size appropriate for large toolbars (24px)
+ * @GTK_ICON_SIZE_BUTTON: Size appropriate for buttons (20px)
+ * @GTK_ICON_SIZE_DND: Size appropriate for drag and drop (32px)
+ * @GTK_ICON_SIZE_DIALOG: Size appropriate for dialogs (48px)
+ *
+ * Built-in stock icon sizes.
+ */
 typedef enum
 {
   GTK_ICON_SIZE_INVALID,
@@ -250,6 +293,14 @@ typedef enum
 } GtkSensitivityType;
 
 /* Reading directions for text */
+/**
+ * GtkTextDirection:
+ * @GTK_TEXT_DIR_NONE: No direction.
+ * @GTK_TEXT_DIR_LTR: Left to right text direction.
+ * @GTK_TEXT_DIR_RTL: Right to left text direction.
+ *
+ * Reading directions for text.
+ */
 typedef enum
 {
   GTK_TEXT_DIR_NONE,
@@ -338,6 +389,15 @@ typedef enum
   GTK_MOVEMENT_HORIZONTAL_PAGES
 } GtkMovementStep;
 
+/**
+ * GtkScrollStep:
+ * @GTK_SCROLL_STEPS: Scroll in steps.
+ * @GTK_SCROLL_PAGES: Scroll by pages.
+ * @GTK_SCROLL_ENDS: Scroll to ends.
+ * @GTK_SCROLL_HORIZONTAL_STEPS: Scroll in horizontal steps.
+ * @GTK_SCROLL_HORIZONTAL_PAGES: Scroll by horizontal pages.
+ * @GTK_SCROLL_HORIZONTAL_ENDS: Scroll to the horizontal ends.
+ */
 typedef enum
 {
   GTK_SCROLL_STEPS,
@@ -399,7 +459,20 @@ typedef enum
   GTK_PACK_END
 } GtkPackType;
 
-/* priorities for path lookups */
+/**
+ * GtkPathPriorityType:
+ * @GTK_PATH_PRIO_LOWEST: Deprecated
+ * @GTK_PATH_PRIO_GTK: Deprecated
+ * @GTK_PATH_PRIO_APPLICATION: Deprecated
+ * @GTK_PATH_PRIO_THEME: Deprecated
+ * @GTK_PATH_PRIO_RC: Deprecated
+ * @GTK_PATH_PRIO_HIGHEST: Deprecated
+ *
+ * Priorities for path lookups.
+ * See also gtk_binding_set_add_path().
+ *
+ * Deprecated: 3.0
+ */
 typedef enum
 {
   GTK_PATH_PRIO_LOWEST      = 0,
@@ -411,7 +484,17 @@ typedef enum
 } GtkPathPriorityType;
 #define GTK_PATH_PRIO_MASK 0x0f
 
-/* widget path types */
+/**
+ * GtkPathType:
+ * @GTK_PATH_WIDGET: Deprecated
+ * @GTK_PATH_WIDGET_CLASS: Deprecated
+ * @GTK_PATH_CLASS: Deprecated
+ *
+ * Widget path types.
+ * See also gtk_binding_set_add_path().
+ *
+ * Deprecated: 3.0
+ */
 typedef enum
 {
   GTK_PATH_WIDGET,
@@ -482,7 +565,27 @@ typedef enum
   GTK_RESIZE_IMMEDIATE
 } GtkResizeMode;
 
-/* scrolling types */
+/**
+ * GtkScrollType:
+ * @GTK_SCROLL_NONE: No scrolling.
+ * @GTK_SCROLL_JUMP: Jump to new location.
+ * @GTK_SCROLL_STEP_BACKWARD: Step backward.
+ * @GTK_SCROLL_STEP_FORWARD: Step forward.
+ * @GTK_SCROLL_PAGE_BACKWARD: Page backward.
+ * @GTK_SCROLL_PAGE_FORWARD: Page forward.
+ * @GTK_SCROLL_STEP_UP: Step up.
+ * @GTK_SCROLL_STEP_DOWN: Step down.
+ * @GTK_SCROLL_PAGE_UP: Page up.
+ * @GTK_SCROLL_PAGE_DOWN: Page down.
+ * @GTK_SCROLL_STEP_LEFT: Step to the left.
+ * @GTK_SCROLL_STEP_RIGHT: Step to the right.
+ * @GTK_SCROLL_PAGE_LEFT: Page to the left.
+ * @GTK_SCROLL_PAGE_RIGHT: Page to the right.
+ * @GTK_SCROLL_START: Scroll to start.
+ * @GTK_SCROLL_END: Scroll to end.
+ *
+ * Scrolling types.
+ */
 typedef enum
 {
   GTK_SCROLL_NONE,
@@ -699,6 +802,17 @@ typedef enum
 } GtkSortType;
 
 /* Style for gtk input method preedit/status */
+/**
+ * GtkIMPreeditStyle:
+ * @GTK_IM_PREEDIT_NOTHING: Deprecated
+ * @GTK_IM_PREEDIT_CALLBACK: Deprecated
+ * @GTK_IM_PREEDIT_NONE: Deprecated
+ *
+ * Style for input method preedit. See also
+ * #GtkSettings:gtk-im-preedit-style
+ *
+ * Deprecated: 3.10
+ */
 typedef enum
 {
   GTK_IM_PREEDIT_NOTHING,
@@ -706,6 +820,17 @@ typedef enum
   GTK_IM_PREEDIT_NONE
 } GtkIMPreeditStyle;
 
+/**
+ * GtkIMStatusStyle:
+ * @GTK_IM_STATUS_NOTHING: Deprecated
+ * @GTK_IM_STATUS_CALLBACK: Deprecated
+ * @GTK_IM_STATUS_NONE: Deprecated
+ *
+ * Style for input method status. See also
+ * #GtkSettings:gtk-im-status-style
+ *
+ * Deprecated: 3.10
+ */
 typedef enum
 {
   GTK_IM_STATUS_NOTHING,
@@ -731,6 +856,15 @@ typedef enum
   GTK_PACK_DIRECTION_BTT
 } GtkPackDirection;
 
+/**
+ * GtkPrintPages:
+ * @GTK_PRINT_PAGES_ALL: All pages.
+ * @GTK_PRINT_PAGES_CURRENT: Current page.
+ * @GTK_PRINT_PAGES_RANGES: Range of pages.
+ * @GTK_PRINT_PAGES_SELECTION: Selected pages.
+ *
+ * See also gtk_print_job_set_pages()
+ */
 typedef enum
 {
   GTK_PRINT_PAGES_ALL,
@@ -739,6 +873,14 @@ typedef enum
   GTK_PRINT_PAGES_SELECTION
 } GtkPrintPages;
 
+/**
+ * GtkPageSet:
+ * @GTK_PAGE_SET_ALL: All pages.
+ * @GTK_PAGE_SET_EVEN: Even pages.
+ * @GTK_PAGE_SET_ODD: Odd pages.
+ *
+ * See also gtk_print_job_set_page_set().
+ */
 typedef enum
 {
   GTK_PAGE_SET_ALL,
@@ -772,6 +914,15 @@ typedef enum
   GTK_NUMBER_UP_LAYOUT_BOTTOM_TO_TOP_RIGHT_TO_LEFT  /*< nick=btrl >*/
 } GtkNumberUpLayout;
 
+/**
+ * GtkPageOrientation:
+ * @GTK_PAGE_ORIENTATION_PORTRAIT: Portrait mode.
+ * @GTK_PAGE_ORIENTATION_LANDSCAPE: Landscape mode.
+ * @GTK_PAGE_ORIENTATION_REVERSE_PORTRAIT: Reverse portrait mode.
+ * @GTK_PAGE_ORIENTATION_REVERSE_LANDSCAPE: Reverse landscape mode.
+ *
+ * See also gtk_print_settings_set_orientation().
+ */
 typedef enum
 {
   GTK_PAGE_ORIENTATION_PORTRAIT,
@@ -780,6 +931,15 @@ typedef enum
   GTK_PAGE_ORIENTATION_REVERSE_LANDSCAPE
 } GtkPageOrientation;
 
+/**
+ * GtkPrintQuality:
+ * @GTK_PRINT_QUALITY_LOW: Low quality.
+ * @GTK_PRINT_QUALITY_NORMAL: Normal quality.
+ * @GTK_PRINT_QUALITY_HIGH: High quality.
+ * @GTK_PRINT_QUALITY_DRAFT: Draft quality.
+ *
+ * See also gtk_print_settings_set_quality().
+ */
 typedef enum
 {
   GTK_PRINT_QUALITY_LOW,
@@ -788,6 +948,14 @@ typedef enum
   GTK_PRINT_QUALITY_DRAFT
 } GtkPrintQuality;
 
+/**
+ * GtkPrintDuplex:
+ * @GTK_PRINT_DUPLEX_SIMPLEX: No duplex.
+ * @GTK_PRINT_DUPLEX_HORIZONTAL: Horizontal duplex.
+ * @GTK_PRINT_DUPLEX_VERTICAL: Vertical duplex.
+ *
+ * See also gtk_print_settings_set_duplex().
+ */
 typedef enum
 {
   GTK_PRINT_DUPLEX_SIMPLEX,
@@ -796,6 +964,15 @@ typedef enum
 } GtkPrintDuplex;
 
 
+/**
+ * GtkUnit:
+ * @GTK_UNIT_NONE: No units.
+ * @GTK_UNIT_POINTS: Dimensions in points.
+ * @GTK_UNIT_INCH: Dimensions in inches.
+ * @GTK_UNIT_MM: Dimensions in millimeters
+ *
+ * See also gtk_print_settings_set_paper_width().
+ */
 typedef enum
 {
   GTK_UNIT_NONE,

@@ -55,6 +55,7 @@
 #include "gtktypebuiltins.h"
 #include "gtkprivate.h"
 #include "gtkintl.h"
+#include "gtkicontheme.h"
 
 
 /**

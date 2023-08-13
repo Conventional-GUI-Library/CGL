@@ -1056,7 +1056,7 @@ gtk_action_get_sensitive (GtkAction *action)
  * @action: the action object
  * @sensitive: %TRUE to make the action sensitive
  * 
- * Sets the ::sensitive property of the action to @sensitive. Note that 
+ * Sets the :sensitive property of the action to @sensitive. Note that 
  * this doesn't necessarily mean effective sensitivity. See 
  * gtk_action_is_sensitive() 
  * for that.
@@ -1127,7 +1127,7 @@ gtk_action_get_visible (GtkAction *action)
  * @action: the action object
  * @visible: %TRUE to make the action visible
  * 
- * Sets the ::visible property of the action to @visible. Note that 
+ * Sets the :visible property of the action to @visible. Note that 
  * this doesn't necessarily mean effective visibility. See 
  * gtk_action_is_visible() 
  * for that.

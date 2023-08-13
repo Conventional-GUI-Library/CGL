@@ -52,6 +52,15 @@ struct _GtkToolItem
   GtkToolItemPrivate *priv;
 };
 
+/**
+ * GtkToolItemClass:
+ * @parent_class: The parent class.
+ * @create_menu_proxy: Signal emitted when the toolbar needs
+ *    information from tool_item about whether the item should appear in
+ *    the toolbar overflow menu.
+ * @toolbar_reconfigured: Signal emitted when some property of the
+ *    toolbar that the item is a child of changes.
+ */
 struct _GtkToolItemClass
 {
   GtkBinClass parent_class;
@@ -59,6 +68,8 @@ struct _GtkToolItemClass
   /* signals */
   gboolean   (* create_menu_proxy)    (GtkToolItem *tool_item);
   void       (* toolbar_reconfigured) (GtkToolItem *tool_item);
+
+  /*< private >*/
 
   /* Padding for future expansion */
   void (* _gtk_reserved1) (void);

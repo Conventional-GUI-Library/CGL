@@ -88,6 +88,15 @@
  */
 
 /**
+ * GDK_WINDOWING_WAYLAND:
+ *
+ * The #GDK_WINDOWING_WAYLAND macro is defined if the Wayland backend
+ * is supported.
+ *
+ * Use this macro to guard code that is specific to the Wayland backend.
+ */
+
+/**
  * GDK_DISABLE_DEPRECATION_WARNINGS:
  *
  * A macro that should be defined before including the gdk.h header.
@@ -289,7 +298,7 @@ gdk_pre_parse_libgtk_only (void)
  * Any arguments used by GDK are removed from the array and @argc and @argv are
  * updated accordingly.
  *
- * You shouldn't call this function explicitely if you are using
+ * You shouldn't call this function explicitly if you are using
  * gtk_init(), gtk_init_check(), gdk_init(), or gdk_init_check().
  *
  * Since: 2.2
@@ -331,7 +340,7 @@ gdk_parse_args (int    *argc,
  * Gets the display name specified in the command line arguments passed
  * to gdk_init() or gdk_parse_args(), if any.
  *
- * Returns: the display name, if specified explicitely, otherwise %NULL
+ * Returns: the display name, if specified explicitly, otherwise %NULL
  *   this string is owned by GTK+ and must not be modified or freed.
  *
  * Since: 2.2

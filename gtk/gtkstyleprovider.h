@@ -94,7 +94,10 @@ typedef struct _GtkStyleProvider GtkStyleProvider; /* dummy typedef */
  */
 struct _GtkStyleProviderIface
 {
+  /*< private >*/
   GTypeInterface g_iface;
+
+  /*< public >*/
 
   GtkStyleProperties * (* get_style) (GtkStyleProvider *provider,
                                       GtkWidgetPath    *path);

@@ -915,7 +915,7 @@ gtk_rc_make_default_dir (const gchar *type)
  * gtk_rc_get_im_module_path:
  *
  * Obtains the path in which to look for IM modules. See the documentation
- * of the <link linkend="im-module-path"><envar>GTK_PATH</envar></link>
+ * of the <envar>GTK_PATH</envar>
  * environment variable for more details about looking up modules. This
  * function is useful solely for utilities supplied with GTK+ and should
  * not be used by applications under normal circumstances.
@@ -939,7 +939,7 @@ gtk_rc_get_im_module_path (void)
  * gtk_rc_get_im_module_file:
  *
  * Obtains the path to the IM modules file. See the documentation
- * of the <link linkend="im-module-file"><envar>GTK_IM_MODULE_FILE</envar></link>
+ * of the <envar>GTK_IM_MODULE_FILE</envar>
  * environment variable for more details.
  *
  * Returns: (type filename): a newly-allocated string containing the
@@ -1409,7 +1409,7 @@ gtk_rc_style_real_create_style (GtkRcStyle *rc_style)
  * both redraw and recompute any cached information about its
  * appearance. As an example, it is used when the default font size
  * set by the operating system changes. Note that this function
- * doesn't affect widgets that have a style set explicitely on them
+ * doesn't affect widgets that have a style set explicitly on them
  * with gtk_widget_set_style().
  *
  * Since: 2.4
@@ -1754,7 +1754,7 @@ gtk_rc_parse_state (GScanner	 *scanner,
 
 /**
  * gtk_rc_parse_priority:
- * @scanner: a #GtkScanner (must be initialized for parsing an RC file)
+ * @scanner: a #GScanner (must be initialized for parsing an RC file)
  * @priority: A pointer to #GtkPathPriorityType variable in which
  *  to store the result.
  *
@@ -1822,7 +1822,7 @@ gtk_rc_parse_priority (GScanner	           *scanner,
  * @color: (out): a pointer to a #GdkColor structure in which to store
  *     the result
  *
- * Parses a color in the <link linkend="color=format">format</link> expected
+ * Parses a color in the format expected
  * in a RC file.
  *
  * Note that theme engines should use gtk_rc_parse_color_full() in
@@ -1847,7 +1847,7 @@ gtk_rc_parse_color (GScanner *scanner,
  * @color: (out): a pointer to a #GdkColor structure in which to store
  *     the result
  *
- * Parses a color in the <link linkend="color=format">format</link> expected
+ * Parses a color in the format expected
  * in a RC file. If @style is not %NULL, it will be consulted to resolve
  * references to symbolic colors.
  *

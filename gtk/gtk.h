@@ -168,6 +168,9 @@
 #include <gtk/gtkprintoperationpreview.h>
 #include <gtk/gtkprintsettings.h>
 #include <gtk/gtkprogressbar.h>
+#if defined(CGL_ENABLE_SEMIPRIVATES) || defined(GTK_COMPILATION)						
+#include <gtk/gtkpopover.h>
+#endif
 #include <gtk/gtkradioaction.h>
 #include <gtk/gtkradiobutton.h>
 #include <gtk/gtkradiomenuitem.h>

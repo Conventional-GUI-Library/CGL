@@ -51,6 +51,7 @@
  */
 
 #define DEFAULT_SPACING 6
+#define MIN_TITLE_CHARS 20
 
 struct _GtkCSDTitleBarPrivate
 {
@@ -155,6 +156,7 @@ init_sizing_box (GtkCSDTitleBar *bar)
   gtk_label_set_line_wrap (GTK_LABEL (w), FALSE);
   gtk_label_set_single_line_mode (GTK_LABEL (w), TRUE);
   gtk_label_set_ellipsize (GTK_LABEL (w), PANGO_ELLIPSIZE_END);
+  gtk_label_set_width_chars (GTK_LABEL (w), MIN_TITLE_CHARS);
 
   w = gtk_label_new (NULL);
   context = gtk_widget_get_style_context (w);
@@ -191,6 +193,7 @@ create_title_box (const char *title,
   gtk_label_set_ellipsize (GTK_LABEL (title_label), PANGO_ELLIPSIZE_END);
   gtk_box_pack_start (GTK_BOX (label_box), title_label, FALSE, FALSE, 0);
   gtk_widget_show (title_label);
+  gtk_label_set_width_chars (GTK_LABEL (title_label), MIN_TITLE_CHARS);
 
   subtitle_label = gtk_label_new (subtitle);
   context = gtk_widget_get_style_context (subtitle_label);
@@ -389,27 +392,6 @@ _gtk_csd_title_bar_update_window_buttons (GtkCSDTitleBar *bar)
                       priv->titlebar_icon = NULL;
                       button = NULL;
                     }
-                }
-              else if (strcmp (t[j], "menu") == 0 &&
-                       menu != NULL &&
-                       type_hint == GDK_WINDOW_TYPE_HINT_NORMAL)
-                {
-                  button = gtk_menu_button_new ();
-                  gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (button), menu);
-                  gtk_style_context_add_class (gtk_widget_get_style_context (button), "titlebutton");
-                  gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
-                  image = gtk_image_new ();
-                  gtk_container_add (GTK_CONTAINER (button), image);
-                  gtk_widget_set_can_focus (button, FALSE);
-                  gtk_widget_show_all (button);
-                  accessible = gtk_widget_get_accessible (button);
-                  if (GTK_IS_ACCESSIBLE (accessible))
-                    atk_object_set_name (accessible, _("Application menu"));
-                  priv->titlebar_icon = image;
-                  priv->titlebar_menu_button = button;
-
-                  if (!_gtk_csd_title_bar_update_window_icon (bar, window))
-                    gtk_image_set_from_icon_name (GTK_IMAGE (priv->titlebar_icon), "process-stop-symbolic", GTK_ICON_SIZE_MENU);
                 }
               else if (strcmp (t[j], "minimize") == 0 &&
                        type_hint == GDK_WINDOW_TYPE_HINT_NORMAL)
@@ -729,8 +711,7 @@ gtk_csd_title_bar_compute_size_for_orientation (GtkWidget *widget,
         }
     }
 
-  if (priv->label_box != NULL &&
-      gtk_widget_get_visible (priv->label_box))
+  if (priv->label_box != NULL)
     {
       gtk_widget_get_preferred_width (priv->label_sizing_box,
                                       &child_size, &child_natural);
@@ -864,8 +845,7 @@ gtk_csd_title_bar_compute_size_for_opposing_orientation (GtkWidget *widget,
       i += 1;
     }
 
-  if (priv->label_box != NULL &&
-      gtk_widget_get_visible (priv->label_box))
+  if (priv->label_box != NULL)
     {
       gtk_widget_get_preferred_height (priv->label_sizing_box,
                                        &child_minimum, &child_natural);
@@ -992,14 +972,19 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
       i++;
     }
 
-  if (priv->custom_title)
+  title_minimum_size = 0;
+  title_natural_size = 0;
+
+  if (priv->custom_title &&
+      gtk_widget_get_visible (priv->custom_title))
     {
       gtk_widget_get_preferred_width_for_height (priv->custom_title,
                                                  height,
                                                  &title_minimum_size,
                                                  &title_natural_size);
     }
-  else
+
+  if (priv->label_box != NULL)
     {
       gtk_widget_get_preferred_width_for_height (priv->label_box,
                                                  height,
@@ -1107,9 +1092,11 @@ gtk_csd_title_bar_size_allocate (GtkWidget     *widget,
   if (direction == GTK_TEXT_DIR_RTL)
     child_allocation.x = allocation->x + allocation->width - (child_allocation.x - allocation->x) - child_allocation.width;
 
-  if (priv->custom_title)
+  if (priv->custom_title != NULL &&
+      gtk_widget_get_visible (priv->custom_title))
     gtk_widget_size_allocate (priv->custom_title, &child_allocation);
-  else
+
+  if (priv->label_box != NULL)
     gtk_widget_size_allocate (priv->label_box, &child_allocation);
 
   if (priv->titlebar_start_box)
@@ -1297,7 +1284,6 @@ gtk_csd_title_bar_set_custom_title (GtkCSDTitleBar *bar,
 
       gtk_widget_set_parent (priv->custom_title, GTK_WIDGET (bar));
       gtk_widget_set_valign (priv->custom_title, GTK_ALIGN_CENTER);
-      gtk_widget_show (title_widget);
 
       if (priv->label_box != NULL)
         {

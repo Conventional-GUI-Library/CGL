@@ -26,7 +26,7 @@
 
 #include <string.h>
 
-/**
+/*< private >
  * SECTION:gtkmenutrackeritem
  * @Title: GtkMenuTrackerItem
  * @Short_description: Small helper for model menu items
@@ -542,11 +542,11 @@ _gtk_menu_tracker_item_get_observable (GtkMenuTrackerItem *self)
   return self->observable;
 }
 
-/**
+/*< private >
  * gtk_menu_tracker_item_get_is_separator:
  * @self: A #GtkMenuTrackerItem instance
  *
- * Returns whether the menu item is a separator. If so, only
+ * Returns: whether the menu item is a separator. If so, only
  * certain properties may need to be obeyed. See the documentation
  * for #GtkMenuTrackerItem.
  */
@@ -556,11 +556,11 @@ gtk_menu_tracker_item_get_is_separator (GtkMenuTrackerItem *self)
   return self->is_separator;
 }
 
-/**
+/*< private >
  * gtk_menu_tracker_item_get_has_submenu:
  * @self: A #GtkMenuTrackerItem instance
  *
- * Returns whether the menu item has a submenu. If so, only
+ * Returns: whether the menu item has a submenu. If so, only
  * certain properties may need to be obeyed. See the documentation
  * for #GtkMenuTrackerItem.
  */
@@ -590,7 +590,7 @@ gtk_menu_tracker_item_get_label (GtkMenuTrackerItem *self)
   return label;
 }
 
-/**
+/*< private >
  * gtk_menu_tracker_item_get_icon:
  *
  * Returns: (transfer full):
@@ -651,6 +651,16 @@ gtk_menu_tracker_item_get_accel (GtkMenuTrackerItem *self)
     return NULL;
 
   return gtk_action_muxer_get_primary_accel (GTK_ACTION_MUXER (self->observable), self->action_and_target);
+}
+
+const gchar *
+gtk_menu_tracker_item_get_special (GtkMenuTrackerItem *self)
+{
+  const gchar *special = NULL;
+
+  g_menu_item_get_attribute (self->item, "x-gtk-private-special", "&s", &special);
+
+  return special;
 }
 
 GMenuModel *

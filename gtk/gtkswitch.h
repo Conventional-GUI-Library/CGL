@@ -65,16 +65,17 @@ struct _GtkSwitch
 /**
  * GtkSwitchClass:
  *
- * The <structname>GtkSwitchClass</structname> structure contains only
- * private data.
- */
+ * @parent_class: The parent class.
+ * @activate: An action signal and emitting it causes the switch to animate.
+  */
 struct _GtkSwitchClass
 {
-  /*< private >*/
   GtkBoxClass parent_class;
 
+  /*< public >*/
   void (* activate) (GtkSwitch *sw);
 
+  /*< private >*/
   void (* _switch_padding_1) (void);
   void (* _switch_padding_2) (void);
   void (* _switch_padding_3) (void);

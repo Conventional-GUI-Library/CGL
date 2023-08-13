@@ -48,6 +48,14 @@ G_BEGIN_DECLS
 
 
 /* --- accel flags --- */
+/**
+ * GtkAccelFlags:
+ * @GTK_ACCEL_VISIBLE: Accelerator is visible
+ * @GTK_ACCEL_LOCKED: Accelerator not removable
+ * @GTK_ACCEL_MASK: Mask
+ *
+ * Accelerator flags used with gtk_accel_group_connect().
+ */
 typedef enum
 {
   GTK_ACCEL_VISIBLE        = 1 << 0,	/* display in GtkAccelLabel? */
@@ -90,15 +98,25 @@ struct _GtkAccelGroup
   GtkAccelGroupPrivate *priv;
 };
 
+/**
+ * GtkAccelGroupClass:
+ * @parent_class: The parent class.
+ * @accel_changed: Signal emitted when an entry is added to or removed
+ *    from the accel group.
+ */
 struct _GtkAccelGroupClass
 {
   GObjectClass parent_class;
+
+  /*< public >*/
 
   void	(*accel_changed)	(GtkAccelGroup	*accel_group,
 				 guint           keyval,
 				 GdkModifierType modifier,
 				 GClosure       *accel_closure);
-  
+
+  /*< private >*/
+
   /* Padding for future expansion */
   void (*_gtk_reserved1) (void);
   void (*_gtk_reserved2) (void);
@@ -106,6 +124,12 @@ struct _GtkAccelGroupClass
   void (*_gtk_reserved4) (void);
 };
 
+/**
+ * GtkAccelKey:
+ * @accel_key: The accelerator keyval
+ * @accel_mods:The accelerator modifiers
+ * @accel_flags: The accelerator flags
+ */
 struct _GtkAccelKey
 {
   guint           accel_key;

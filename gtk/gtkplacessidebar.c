@@ -4564,7 +4564,7 @@ gtk_places_sidebar_set_location (GtkPlacesSidebar *sidebar, GFile *location)
  * show.
  *
  * You can use this function to get the selection in the @sidebar.  Also, if you
- * connect to the #GtkPlacesSidebar::popup-menu signal, you can use this
+ * connect to the #GtkPlacesSidebar::populate-popup signal, you can use this
  * function to get the location that is being referred to during the callbacks
  * for your menu items.
  *

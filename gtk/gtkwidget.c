@@ -254,7 +254,7 @@
  * <structname>GtkWidget</structname> introduces <firstterm>style
  * properties</firstterm> - these are basically object properties that are stored
  * not on the object, but in the style object associated to the widget. Style
- * properties are set in <link linkend="gtk-Resource-Files">resource files</link>.
+ * properties are set in <link linkend="gtk3-Resource-Files">resource files</link>.
  * This mechanism is used for configuring such things as the location of the
  * scrollbar arrows through the theme, giving theme authors more control over the
  * look of applications without the need to write a theme engine in C.
@@ -3577,7 +3577,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
    * GtkWidget:separator-width:
    *
    * The "separator-width" style property defines the width of separators.
-   * This property only takes effect if #GtkWidget:wide-separators is %TRUE.
+   * This property only takes effect if the "wide-separators" style property is %TRUE.
    *
    * Since: 2.10
    */
@@ -3592,7 +3592,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
    * GtkWidget:separator-height:
    *
    * The "separator-height" style property defines the height of separators.
-   * This property only takes effect if #GtkWidget:wide-separators is %TRUE.
+   * This property only takes effect if the "wide-separators" style property is %TRUE.
    *
    * Since: 2.10
    */
@@ -7528,8 +7528,8 @@ gtk_widget_has_visible_focus (GtkWidget *widget)
  * @widget: a #GtkWidget
  *
  * Determines if the widget is the focus widget within its
- * toplevel. (This does not mean that the %HAS_FOCUS flag is
- * necessarily set; %HAS_FOCUS will only be set if the
+ * toplevel. (This does not mean that the #GtkWidget:has-focus property is
+ * necessarily set; #GtkWidget:has-focus will only be set if the
  * toplevel widget additionally has the global input focus.)
  *
  * Return value: %TRUE if the widget is the focus widget.
@@ -8460,13 +8460,14 @@ gtk_widget_get_double_buffered (GtkWidget *widget)
  * leaves the upper left unchanged when made bigger, turning this
  * setting off will improve performance.
 
- * Note that for %NO_WINDOW widgets setting this flag to %FALSE turns
- * off all allocation on resizing: the widget will not even redraw if
- * its position changes; this is to allow containers that don't draw
- * anything to avoid excess invalidations. If you set this flag on a
- * %NO_WINDOW widget that <emphasis>does</emphasis> draw on @widget->window,
- * you are responsible for invalidating both the old and new allocation
- * of the widget when the widget is moved and responsible for invalidating
+ * Note that for widgets where gtk_widget_get_has_window() is %FALSE
+ * setting this flag to %FALSE turns off all allocation on resizing:
+ * the widget will not even redraw if its position changes; this is to
+ * allow containers that don't draw anything to avoid excess
+ * invalidations. If you set this flag on a widget with no window that
+ * <emphasis>does</emphasis> draw on @widget->window, you are
+ * responsible for invalidating both the old and new allocation of the
+ * widget when the widget is moved and responsible for invalidating
  * regions newly when the widget increases size.
  **/
 void
@@ -9118,7 +9119,7 @@ gtk_widget_override_symbolic_color (GtkWidget     *widget,
  *     calls to of gtk_widget_override_cursor().
  *
  * Sets the cursor color to use in a widget, overriding the
- * #GtkWidget:cursor-color and #GtkWidget:secondary-cursor-color
+ * cursor-color and secondary-cursor-color
  * style properties. All other style values are left untouched.
  * See also gtk_widget_modify_style().
  *
@@ -10784,9 +10785,10 @@ _gtk_widget_restore_size_request (GtkWidget *widget,
  * so be careful. This function must be called while a widget is
  * unrealized. Consider gtk_widget_add_events() for widgets that are
  * already realized, or if you want to preserve the existing event
- * mask. This function can't be used with #GTK_NO_WINDOW widgets;
- * to get events on those widgets, place them inside a #GtkEventBox
- * and receive events on the event box.
+ * mask. This function can't be used with widgets that have no window.
+ * (See gtk_widget_get_has_window()).  To get events on those widgets,
+ * place them inside a #GtkEventBox and receive events on the event
+ * box.
  **/
 void
 gtk_widget_set_events (GtkWidget *widget,
@@ -11041,8 +11043,8 @@ gtk_widget_add_device_events (GtkWidget    *widget,
  * inside a #GtkSocket within the same application.
  *
  * To reliably find the toplevel #GtkWindow, use
- * gtk_widget_get_toplevel() and check if the %TOPLEVEL flags
- * is set on the result.
+ * gtk_widget_get_toplevel() and call gtk_widget_is_toplevel()
+ * on the result.
  * |[
  *  GtkWidget *toplevel = gtk_widget_get_toplevel (widget);
  *  if (gtk_widget_is_toplevel (toplevel))
@@ -11443,7 +11445,7 @@ gtk_widget_emit_direction_changed (GtkWidget        *widget,
  * so that correct localization into languages with right-to-left
  * reading directions can be done. Generally, applications will
  * let the default reading direction present, except for containers
- * where the containers are arranged in an order that is explicitely
+ * where the containers are arranged in an order that is explicitly
  * visual rather than logical (such as buttons for text justification).
  *
  * If the direction is set to %GTK_TEXT_DIR_NONE, then the value
@@ -16651,7 +16653,7 @@ gtk_widget_class_set_connect_func (GtkWidgetClass        *widget_class,
  *                 where the automated child pointer should be set, or -1 to not assign the pointer.
  *
  * Automatically assign an object declared in the class template XML to be set to a location
- * on a freshly built instance's private data, or alternatively accessible via gtk_widget_get_automated_child().
+ * on a freshly built instance's private data, or alternatively accessible via gtk_widget_get_template_child().
  *
  * An explicit strong reference will be held automatically for the duration of your
  * instance's life cycle, it will be released automatically when #GObjectClass.dispose() runs
@@ -16664,7 +16666,7 @@ gtk_widget_class_set_connect_func (GtkWidgetClass        *widget_class,
  * implemented by the #GtkWidget class so there is no need to implement it manually.
  *
  * The wrapper macros gtk_widget_class_bind_template_child(), gtk_widget_class_bind_template_child_internal(),
- * gtk_widget_class_bind_template_child_private() and gtk_widget_class_bind_private_template_child_internal()
+ * gtk_widget_class_bind_template_child_private() and gtk_widget_class_bind_template_child_internal_private()
  * might be more convenient to use.
  *
  * <note><para>This must be called from a composite widget classes class
@@ -16699,7 +16701,9 @@ gtk_widget_class_bind_template_child_full (GtkWidgetClass *widget_class,
  *
  * Fetch an object build from the template XML for @widget_type in this @widget instance.
  *
- * This will only report children which were previously declared with gtk_widget_class_bind_template_child_private_full() or one of its variants.
+ * This will only report children which were previously declared with
+ * gtk_widget_class_bind_template_child_full() or one of its
+ * variants.
  *
  * This function is only meant to be called for code which is private to the @widget_type which
  * declared the child and is meant for language bindings which cannot easily make use

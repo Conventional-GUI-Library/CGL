@@ -58,9 +58,28 @@ struct _GtkContainer
   GtkContainerPrivate *priv;
 };
 
+/**
+ * GtkContainerClass:
+ * @parent_class: The parent class.
+ * @add: Signal emitted when a widget is added to container.
+ * @remove: Signal emitted when a widget is removed from container.
+ * @check_resize: Signal emitted when a size recalculation is needed.
+ * @forall: Invokes callback on each child of container.
+ * @set_focus_child: Sets the focused child of container.
+ * @child_type: Returns the type of the children supported by the container.
+ * @composite_name: Gets a widget's composite name. Deprecated: 3.10.
+ * @set_child_property: Set a property on a child of container.
+ * @get_child_property: Get a property from a child of container.
+ * @get_path_for_child: Get path representing entire widget hierarchy
+ *    from the toplevel down to and including @child.
+ *
+ * Base class for containers.
+ */
 struct _GtkContainerClass
 {
   GtkWidgetClass parent_class;
+
+  /*< public >*/
 
   void    (*add)       		(GtkContainer	 *container,
 				 GtkWidget	 *widget);
@@ -203,13 +222,13 @@ void gtk_container_child_notify (GtkContainer *container,
 
 /**
  * GTK_CONTAINER_WARN_INVALID_CHILD_PROPERTY_ID:
- * @object: the #GObject on which set_child_property() or get_child_property()
+ * @object: the #GObject on which set_child_property(<!-- -->) or get_child_property(<!-- -->)
  *  was called
  * @property_id: the numeric id of the property
  * @pspec: the #GParamSpec of the property
  *
  * This macro should be used to emit a standard warning about unexpected
- * properties in set_child_property() and get_child_property() implementations.
+ * properties in set_child_property(<!-- -->) and get_child_property(<!-- -->) implementations.
  */
 #define GTK_CONTAINER_WARN_INVALID_CHILD_PROPERTY_ID(object, property_id, pspec) \
     G_OBJECT_WARN_INVALID_PSPEC ((object), "child property id", (property_id), (pspec))

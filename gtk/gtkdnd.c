@@ -67,7 +67,7 @@
  *
  * As well as the functions listed here, applications
  * may need to use some facilities provided for
- * <link linkend="gtk-Selections">Selections</link>.
+ * <link linkend="gtk3-Selections">Selections</link>.
  * Also, the Drag and Drop API makes use of signals
  * in the #GtkWidget class.
  */
@@ -1483,7 +1483,7 @@ gtk_drag_dest_set_target_list (GtkWidget      *widget,
  * gtk_drag_dest_add_text_targets: (method)
  * @widget: a #GtkWidget that's a drag destination
  *
- * Add the text targets supported by #GtkSelection to
+ * Add the text targets supported by #GtkSelectionData to
  * the target list of the drag destination. The targets
  * are added with @info = 0. If you need another value, 
  * use gtk_target_list_add_text_targets() and
@@ -1510,7 +1510,7 @@ gtk_drag_dest_add_text_targets (GtkWidget *widget)
  * gtk_drag_dest_add_image_targets: (method)
  * @widget: a #GtkWidget that's a drag destination
  *
- * Add the image targets supported by #GtkSelection to
+ * Add the image targets supported by #GtkSelectionData to
  * the target list of the drag destination. The targets
  * are added with @info = 0. If you need another value, 
  * use gtk_target_list_add_image_targets() and
@@ -1537,7 +1537,7 @@ gtk_drag_dest_add_image_targets (GtkWidget *widget)
  * gtk_drag_dest_add_uri_targets: (method)
  * @widget: a #GtkWidget that's a drag destination
  *
- * Add the URI targets supported by #GtkSelection to
+ * Add the URI targets supported by #GtkSelectionData to
  * the target list of the drag destination. The targets
  * are added with @info = 0. If you need another value, 
  * use gtk_target_list_add_uri_targets() and
@@ -2831,7 +2831,7 @@ gtk_drag_source_set_target_list (GtkWidget     *widget,
  * gtk_drag_source_add_text_targets: (method)
  * @widget: a #GtkWidget that's is a drag source
  *
- * Add the text targets supported by #GtkSelection to
+ * Add the text targets supported by #GtkSelectionData to
  * the target list of the drag source.  The targets
  * are added with @info = 0. If you need another value, 
  * use gtk_target_list_add_text_targets() and
@@ -2858,7 +2858,7 @@ gtk_drag_source_add_text_targets (GtkWidget *widget)
  * gtk_drag_source_add_image_targets: (method)
  * @widget: a #GtkWidget that's is a drag source
  *
- * Add the writable image targets supported by #GtkSelection to
+ * Add the writable image targets supported by #GtkSelectionData to
  * the target list of the drag source. The targets
  * are added with @info = 0. If you need another value, 
  * use gtk_target_list_add_image_targets() and
@@ -2885,7 +2885,7 @@ gtk_drag_source_add_image_targets (GtkWidget *widget)
  * gtk_drag_source_add_uri_targets: (method)
  * @widget: a #GtkWidget that's is a drag source
  *
- * Add the URI targets supported by #GtkSelection to
+ * Add the URI targets supported by #GtkSelectionData to
  * the target list of the drag source.  The targets
  * are added with @info = 0. If you need another value, 
  * use gtk_target_list_add_uri_targets() and

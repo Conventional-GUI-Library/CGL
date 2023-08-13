@@ -1,3 +1,5 @@
+#define CGL_ENABLE_SEMIPRIVATES
+
 #include "config.h"
 #include <errno.h>
 #include <stdio.h>
@@ -914,7 +916,8 @@ main (int argc, char **argv)
   /* -- End of hack -- */
 
   gtk_init (&argc, &argv);
-
+  cgl_set_gtk3_emulation(TRUE);
+  
   setup_default_icon ();
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);

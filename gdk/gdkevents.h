@@ -460,8 +460,7 @@ typedef enum
  * @GDK_WINDOW_STATE_ABOVE: the window is kept above other windows.
  * @GDK_WINDOW_STATE_BELOW: the window is kept below other windows.
  * @GDK_WINDOW_STATE_FOCUSED: the window is presented as focused (with active decorations).
- * @GDK_WINDOW_TILED: the window is in a tiled state, see
- *   gdk_window_get_tiled_edges() for more details. Since 3.10
+ * @GDK_WINDOW_STATE_TILED: the window is in a tiled state, Since 3.10
  *
  * Specifies the state of a toplevel window.
  */
@@ -761,6 +760,8 @@ struct _GdkEventTouch
  *   screen.
  * @y_root: the y coordinate of the pointer relative to the root of the
  *   screen.
+ * @delta_x: the x coordinate of the scroll delta
+ * @delta_y: the y coordinate of the scroll delta
  *
  * Generated from button presses for the buttons 4 to 7. Wheel mice are
  * usually configured to generate button press events for buttons 4 and 5
@@ -1132,6 +1133,26 @@ struct _GdkEventDND {
 
 /**
  * GdkEvent:
+ * @type: the #GdkEventType
+ * @any: a #GdkEventAny
+ * @expose: a #GdkEventExpose
+ * @visibility: a #GdkEventVisibility
+ * @motion: a #GdkEventMotion
+ * @button: a #GdkEventButton
+ * @touch: a #GdkEventTouch
+ * @scroll: a #GdkEventScroll
+ * @key: a #GdkEventKey
+ * @crossing: a #GdkEventCrossing
+ * @focus_change: a #GdkEventFocus
+ * @configure: a #GdkEventConfigure
+ * @property: a #GdkEventProperty
+ * @selection: a #GdkEventSelection
+ * @owner_change: a #GdkEventOwnerChange
+ * @proximity: a #GdkEventProximity
+ * @dnd: a #GdkEventDND
+ * @window_state: a #GdkEventWindowState
+ * @setting: a #GdkEventSetting
+ * @grab_broken: a #GdkEventGrabBroken
  *
  * The #GdkEvent struct contains a union of all of the event structs,
  * and allows access to the data fields in a number of ways.

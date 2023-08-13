@@ -435,7 +435,7 @@ gdk_window_class_init (GdkWindowClass *klass)
    * The ::to-embedder signal is emitted to translate coordinates
    * in an offscreen window to its embedder.
    *
-   * See also #GtkWindow::from-embedder.
+   * See also #GdkWindow::from-embedder.
    *
    * Since: 2.18
    */
@@ -466,7 +466,7 @@ gdk_window_class_init (GdkWindowClass *klass)
    * The ::from-embedder signal is emitted to translate coordinates
    * in the embedder of an offscreen window to the offscreen window.
    *
-   * See also #GtkWindow::to-embedder.
+   * See also #GdkWindow::to-embedder.
    *
    * Since: 2.18
    */
@@ -2347,7 +2347,7 @@ from_embedder (GdkWindow *window,
  * Checks whether the window has a native window or not. Note that
  * you can use gdk_window_ensure_native() if a native window is needed.
  *
- * Returns: %TRUE if the %window has a native window, %FALSE otherwise.
+ * Returns: %TRUE if the @window has a native window, %FALSE otherwise.
  *
  * Since: 2.22
  */
@@ -7066,7 +7066,7 @@ gdk_window_get_device_cursor (GdkWindow *window,
 
 /**
  * gdk_window_set_device_cursor:
- * @window: a #Gdkwindow
+ * @window: a #GdkWindow
  * @device: a master, pointer #GdkDevice
  * @cursor: a #GdkCursor
  *
@@ -7760,8 +7760,7 @@ gdk_window_get_composited (GdkWindow *window)
  * and an expose event is emitted on the parent of the composited
  * window. It is the responsibility of the parent's expose handler
  * to manually merge the off-screen content onto the screen in
- * whatever way it sees fit. See <xref linkend="composited-window-example"/>
- * for an example.
+ * whatever way it sees fit.
  *
  * It only makes sense for child windows to be composited; see
  * gdk_window_set_opacity() if you need translucent toplevel
@@ -11974,7 +11973,7 @@ gdk_window_get_scale_factor (GdkWindow *window)
  * GTK+ will automatically update this property automatically if
  * the @window background is opaque, as we know where the opaque regions
  * are. If your window background is not opaque, please update this
- * property in your #GtkWindow::style_updated handler.
+ * property in your #GtkWidget::style-updated handler.
  *
  * Since: 3.10
  */

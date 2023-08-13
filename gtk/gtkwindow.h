@@ -59,9 +59,20 @@ struct _GtkWindow
   GtkWindowPrivate *priv;
 };
 
+/**
+ * GtkWindowClass:
+ * @parent_class: The parent class.
+ * @set_focus: Sets child as the focus widget for the window.
+ * @activate_focus: Activates the current focused widget within the window.
+ * @activate_default: Activates the default widget for the window.
+ * @keys_changed: Signal gets emitted when the set of accelerators or
+ *   mnemonics that are associated with window changes.
+ */
 struct _GtkWindowClass
 {
   GtkBinClass parent_class;
+
+  /*< public >*/
 
   void     (* set_focus)   (GtkWindow *window,
                             GtkWidget *focus);
@@ -71,6 +82,8 @@ struct _GtkWindowClass
   void     (* activate_focus)   (GtkWindow *window);
   void     (* activate_default) (GtkWindow *window);
   void	   (* keys_changed)     (GtkWindow *window);
+
+  /*< private >*/
 
   /* Padding for future expansion */
   void (*_gtk_reserved1) (void);

@@ -65,12 +65,30 @@ typedef gboolean (*GtkRcPropertyParser) (const GParamSpec *pspec,
  * GTK_STYLE_ATTACHED:
  * @style: a #GtkStyle.
  *
- * Returns whether the style is attached to a window.
+ * Returns: whether the style is attached to a window.
  */
 #define GTK_STYLE_ATTACHED(style)	(GTK_STYLE (style)->attach_count > 0)
 
+/**
+ * GtkStyle:
+ * @fg: Set of foreground #GdkColor
+ * @bg: Set of background #GdkColor
+ * @light: Set of light #GdkColor
+ * @dark: Set of dark #GdkColor
+ * @mid: Set of mid #GdkColor
+ * @text: Set of text #GdkColor
+ * @base: Set of base #GdkColor
+ * @text_aa: Color halfway between text/base
+ * @black: #GdkColor to use for black
+ * @white: #GdkColor to use for white
+ * @font_desc: #PangoFontDescription
+ * @xthickness: Thickness in X direction
+ * @ythickness: Thickness in Y direction
+ * @background: Set of background #cairo_pattern_t
+ */
 struct _GtkStyle
 {
+  /*< private >*/
   GObject parent_instance;
 
   /*< public >*/
@@ -108,9 +126,42 @@ struct _GtkStyle
   GSList         *icon_factories; /* of type GtkIconFactory* */
 };
 
+/**
+ * GtkStyleClass:
+ * @parent_class: The parent class.
+ * @realize: 
+ * @unrealize: 
+ * @copy: 
+ * @clone: 
+ * @init_from_rc: 
+ * @set_background: 
+ * @render_icon: 
+ * @draw_hline: 
+ * @draw_vline: 
+ * @draw_shadow: 
+ * @draw_arrow: 
+ * @draw_diamond: 
+ * @draw_box: 
+ * @draw_flat_box: 
+ * @draw_check: 
+ * @draw_option: 
+ * @draw_tab: 
+ * @draw_shadow_gap: 
+ * @draw_box_gap: 
+ * @draw_extension: 
+ * @draw_focus: 
+ * @draw_slider: 
+ * @draw_handle: 
+ * @draw_expander: 
+ * @draw_layout: 
+ * @draw_resize_grip: 
+ * @draw_spinner: 
+ */
 struct _GtkStyleClass
 {
   GObjectClass parent_class;
+
+  /*< public >*/
 
   /* Initialize for a particular visual. style->visual
    * will have been set at this point. Will typically chain
@@ -361,6 +412,8 @@ struct _GtkStyleClass
 				 gint			 y,
 				 gint			 width,
 				 gint			 height);
+
+  /*< private >*/
 
   /* Padding for future expansion */
   void (*_gtk_reserved1)  (void);

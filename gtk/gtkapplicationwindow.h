@@ -50,6 +50,10 @@ struct _GtkApplicationWindow
   GtkApplicationWindowPrivate *priv;
 };
 
+/**
+ * GtkApplicationWindowClass:
+ * @parent_class: The parent class.
+ */
 struct _GtkApplicationWindowClass
 {
   GtkWindowClass parent_class;

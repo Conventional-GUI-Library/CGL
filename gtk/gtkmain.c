@@ -1052,7 +1052,7 @@ gtk_init_with_args (gint                 *argc,
  * Any arguments used by GTK+ or GDK are removed from the array and
  * @argc and @argv are updated accordingly.
  *
- * There is no need to call this function explicitely if you are using
+ * There is no need to call this function explicitly if you are using
  * gtk_init(), or gtk_init_check().
  *
  * Return value: %TRUE if initialization succeeded, otherwise %FALSE
@@ -1699,6 +1699,12 @@ gtk_main_do_event (GdkEvent *event)
     {
       event = rewritten_event;
       event_widget = gtk_get_event_widget (event);
+    }
+
+  if (GTK_IS_WINDOW (event_widget))
+    {
+      if (_gtk_window_check_handle_wm_event (event))
+        return;
     }
 
   window_group = gtk_main_get_window_group (event_widget);

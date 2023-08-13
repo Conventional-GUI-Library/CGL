@@ -290,6 +290,7 @@ gtk_public_h_sources = 		\
 	gtkprogressbar.h	\
 	gtkradioaction.h	\
 	gtkradiobutton.h	\
+	gtkpopover.h	\
 	gtkradiomenuitem.h	\
 	gtkradiotoolbutton.h	\
 	gtkrange.h		\
@@ -790,6 +791,7 @@ gtk_base_c_sources = 		\
 	gtkprogressbar.c	\
 	gtkpixelcache.c		\
 	gtkradioaction.c	\
+	gtkpopover.c	\
 	gtkradiobutton.c	\
 	gtkradiomenuitem.c	\
 	gtkradiotoolbutton.c	\
@@ -1113,6 +1115,7 @@ DND_CURSORS = \
 	cursor_dnd_none.png
 
 COMPOSITE_TEMPLATES =	\		
+	gtkapplication-quartz.ui	\
 	gtksearchbar.ui			
 
 template_headers = $(COMPOSITE_TEMPLATES:.ui=.ui.h)

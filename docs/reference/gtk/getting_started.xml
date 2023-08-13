@@ -419,7 +419,7 @@ example_app_window_class_init (ExampleAppWindowClass *class)
         <para>(<ulink url="https://git.gnome.org/browse/gtk+/tree/examples/application2/exampleappwin.c">full source</ulink>)</para>
       </informalexample>
 
-      <para>You may have noticed that we used the _from_resource() variant
+      <para>You may have noticed that we used the <literal>_from_resource(<!-- -->)</literal> variant
       of the function that sets a template. Now we need to use GLib's resource
       functionality to include the ui file in the binary. This is commonly
       done by listing all resources in a .gresource.xml file, such as this:
@@ -456,10 +456,10 @@ example_app_window_class_init (ExampleAppWindowClass *class)
 
       <para>To this end, we add a private struct to our application
       window subclass and keep a reference to the #GtkStack there.
-      The gtk_widget_class_bind_child() function arranges things so
-      that after instantiating the template, the @stack member of
-      the private struct will point to the widget of the same name
-      from the template.</para>
+      The gtk_widget_class_bind_template_child_private() function
+      arranges things so that after instantiating the template, the
+      @stack member of the private struct will point to the widget of
+      the same name from the template.</para>
 
       <informalexample>
         <programlisting><![CDATA[
@@ -720,7 +720,7 @@ example_app_window_init (ExampleAppWindow *win)
         <programlisting><xi:include href="../../../../examples/application6/exampleappprefs.c" parse="text"><xi:fallback>FIXME: MISSING XINCLUDE CONTENT</xi:fallback></xi:include></programlisting>
       </informalexample>
 
-      <para>Now we revisit the preferences_activated() function in our
+      <para>Now we revisit the <literal>preferences_activated(<!-- -->)</literal> function in our
       application class, and make it open a new preference dialog.</para>
 
       <informalexample>
@@ -863,8 +863,8 @@ example_app_window_init (ExampleAppWindow *win)
         <programlisting><xi:include href="../../../../examples/application8/gears-menu.ui" parse="text"><xi:fallback>FIXME: MISSING XINCLUDE CONTENT</xi:fallback></xi:include></programlisting>
       </informalexample>
 
-      <para>To connect the menuitem to the show-words setting,
-      we use a #GSettingsAction.</para>
+      <para>To connect the menuitem to the show-words setting, we use
+      a #GAction corresponding to the given #GSettings key.</para>
 
       <informalexample>
         <programlisting><![CDATA[

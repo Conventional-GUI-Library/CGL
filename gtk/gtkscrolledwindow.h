@@ -55,11 +55,22 @@ struct _GtkScrolledWindow
   GtkScrolledWindowPrivate *priv;
 };
 
+/**
+ * GtkScrolledWindowClass:
+ * @parent_class: The parent class.
+ * @scrollbar_spacing: 
+ * @scroll_child: Keybinding signal which gets emitted when a
+ *    keybinding that scrolls is pressed.
+ * @move_focus_out: Keybinding signal which gets emitted when focus is
+ *    moved away from the scrolled window by a keybinding.
+ */
 struct _GtkScrolledWindowClass
 {
   GtkBinClass parent_class;
 
   gint scrollbar_spacing;
+
+  /*< public >*/
 
   /* Action signals for keybindings. Do not connect to these signals
    */
@@ -74,6 +85,8 @@ struct _GtkScrolledWindowClass
 
   void (* move_focus_out) (GtkScrolledWindow *scrolled_window,
 			   GtkDirectionType   direction);
+
+  /*< private >*/
 
   /* Padding for future expansion */
   void (*_gtk_reserved1) (void);

@@ -59,18 +59,19 @@
   GtkMenuTrackerItem *trackerItem;
   gulong trackerItemChangedHandler;
   GCancellable *cancellable;
+  BOOL isSpecial;
 }
 
 - (id)initWithTrackerItem:(GtkMenuTrackerItem *)aTrackerItem;
 
 - (void)didChangeLabel;
 - (void)didChangeIcon;
-- (void)didChangeSensitive;
 - (void)didChangeVisible;
 - (void)didChangeToggled;
 - (void)didChangeAccel;
 
 - (void)didSelectItem:(id)sender;
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem;
 
 @end
 
@@ -126,6 +127,11 @@ icon_loaded (GObject      *object,
 
 @implementation GNSMenuItem
 
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem
+{
+  return gtk_menu_tracker_item_get_sensitive (trackerItem) ? YES : NO;
+}
+
 - (id)initWithTrackerItem:(GtkMenuTrackerItem *)aTrackerItem
 {
   self = [super initWithTitle:@""
@@ -134,14 +140,38 @@ icon_loaded (GObject      *object,
 
   if (self != nil)
     {
-      [self setTarget:self];
+      const gchar *special = gtk_menu_tracker_item_get_special (aTrackerItem);
+
+      if (special && g_str_equal (special, "hide-this"))
+        {
+          [self setAction:@selector(hide:)];
+          [self setTarget:NSApp];
+        }
+      else if (special && g_str_equal (special, "hide-others"))
+        {
+          [self setAction:@selector(hideOtherApplications:)];
+          [self setTarget:NSApp];
+        }
+      else if (special && g_str_equal (special, "show-all"))
+        {
+          [self setAction:@selector(unhideAllApplications:)];
+          [self setTarget:NSApp];
+        }
+      else if (special && g_str_equal (special, "services-submenu"))
+        {
+          [self setSubmenu:[[[NSMenu alloc] init] autorelease]];
+          [NSApp setServicesMenu:[self submenu]];
+          [self setTarget:self];
+        }
+      else
+        [self setTarget:self];
 
       trackerItem = g_object_ref (aTrackerItem);
       trackerItemChangedHandler = g_signal_connect (trackerItem, "notify", G_CALLBACK (tracker_item_changed), self);
+      isSpecial = (special != NULL);
 
       [self didChangeLabel];
       [self didChangeIcon];
-      [self didChangeSensitive];
       [self didChangeVisible];
       [self didChangeToggled];
       [self didChangeAccel];
@@ -171,7 +201,29 @@ icon_loaded (GObject      *object,
 {
   gchar *label = _gtk_toolbar_elide_underscores (gtk_menu_tracker_item_get_label (trackerItem));
 
-  [self setTitle:[NSString stringWithUTF8String:label ? : ""]];
+  NSString *title = [NSString stringWithUTF8String:label ? : ""];
+
+  if (isSpecial)
+    {
+      NSRange range = [title rangeOfString:@"%s"];
+
+      if (range.location != NSNotFound)
+        {
+          NSBundle *bundle = [NSBundle mainBundle];
+          NSString *name = [[bundle localizedInfoDictionary] objectForKey:@"CFBundleName"];
+
+          if (name == nil)
+            name = [[bundle infoDictionary] objectForKey:@"CFBundleName"];
+
+          if (name == nil)
+            name = [[NSProcessInfo processInfo] processName];
+
+          if (name != nil)
+            title = [title stringByReplacingCharactersInRange:range withString:name];
+        }
+    }
+
+  [self setTitle:title];
 
   g_free (label);
 }
@@ -224,11 +276,6 @@ icon_loaded (GObject      *object,
     }
 
   [self setImage:nil];
-}
-
-- (void)didChangeSensitive
-{
-  [self setEnabled:gtk_menu_tracker_item_get_sensitive (trackerItem) ? YES : NO];
 }
 
 - (void)didChangeVisible
@@ -321,8 +368,6 @@ menu_item_removed (gint     position,
 
   if (self != nil)
     {
-      [self setAutoenablesItems:NO];
-
       tracker = gtk_menu_tracker_new (observable,
                                       model,
                                       NO,
@@ -341,8 +386,6 @@ menu_item_removed (gint     position,
 
   if (self != nil)
     {
-      [self setAutoenablesItems:NO];
-
       tracker = gtk_menu_tracker_new_for_item_submenu (trackerItem,
                                                        menu_item_inserted,
                                                        menu_item_removed,
