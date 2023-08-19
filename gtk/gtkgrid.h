@@ -13,9 +13,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __GTK_GRID_H__
@@ -71,46 +69,76 @@ struct _GtkGridClass
   void (*_gtk_reserved8) (void);
 };
 
+
 GType      gtk_grid_get_type               (void) G_GNUC_CONST;
+
 GtkWidget* gtk_grid_new                    (void);
+
 void       gtk_grid_attach                 (GtkGrid         *grid,
                                             GtkWidget       *child,
                                             gint             left,
                                             gint             top,
                                             gint             width,
                                             gint             height);
+
 void       gtk_grid_attach_next_to         (GtkGrid         *grid,
                                             GtkWidget       *child,
                                             GtkWidget       *sibling,
                                             GtkPositionType  side,
                                             gint             width,
                                             gint             height);
+GDK_AVAILABLE_IN_3_2
 GtkWidget *gtk_grid_get_child_at           (GtkGrid         *grid,
                                             gint             left,
                                             gint             top);
+GDK_AVAILABLE_IN_3_2
 void       gtk_grid_insert_row             (GtkGrid         *grid,
                                             gint             position);
+GDK_AVAILABLE_IN_3_2
 void       gtk_grid_insert_column          (GtkGrid         *grid,
                                             gint             position);
+GDK_AVAILABLE_IN_3_10
 void       gtk_grid_remove_row             (GtkGrid         *grid,
-                                           gint             position);
+                                            gint             position);
+GDK_AVAILABLE_IN_3_10
 void       gtk_grid_remove_column          (GtkGrid         *grid,
                                             gint             position);
+GDK_AVAILABLE_IN_3_2
 void       gtk_grid_insert_next_to         (GtkGrid         *grid,
                                             GtkWidget       *sibling,
                                             GtkPositionType  side);
+
 void       gtk_grid_set_row_homogeneous    (GtkGrid         *grid,
                                             gboolean         homogeneous);
+
 gboolean   gtk_grid_get_row_homogeneous    (GtkGrid         *grid);
+
 void       gtk_grid_set_row_spacing        (GtkGrid         *grid,
                                             guint            spacing);
+
 guint      gtk_grid_get_row_spacing        (GtkGrid         *grid);
+
 void       gtk_grid_set_column_homogeneous (GtkGrid         *grid,
                                             gboolean         homogeneous);
+
 gboolean   gtk_grid_get_column_homogeneous (GtkGrid         *grid);
+
 void       gtk_grid_set_column_spacing     (GtkGrid         *grid,
                                             guint            spacing);
+
 guint      gtk_grid_get_column_spacing     (GtkGrid         *grid);
+GDK_AVAILABLE_IN_3_10
+void       gtk_grid_set_row_baseline_position (GtkGrid      *grid,
+					       gint          row,
+					       GtkBaselinePosition pos);
+GDK_AVAILABLE_IN_3_10
+GtkBaselinePosition gtk_grid_get_row_baseline_position (GtkGrid      *grid,
+							gint          row);
+GDK_AVAILABLE_IN_3_10
+void       gtk_grid_set_baseline_row       (GtkGrid         *grid,
+					    gint             row);
+GDK_AVAILABLE_IN_3_10
+gint       gtk_grid_get_baseline_row       (GtkGrid         *grid);
 
 
 G_END_DECLS

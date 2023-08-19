@@ -174,7 +174,7 @@ preedit_changed_cb (GtkEntry  *entry,
  *
  * <example>
  * <title>Showing the search bar on key presses</title>
- * <programlisting><![CDATA[
+ * |[<!-- language="C" -->
  * static gboolean
  * window_key_press_event_cb (GtkWidget *widget,
  *                            GdkEvent  *event,
@@ -185,7 +185,7 @@ preedit_changed_cb (GtkEntry  *entry,
  *
  * g_signal_connect (window, "key-press-event",
  *                   G_CALLBACK (window_key_press_event_cb), search_bar);
- * ]]></programlisting>
+ * ]|
  * </example>
  *
  * Return value: %GDK_EVENT_STOP if the key press event resulted

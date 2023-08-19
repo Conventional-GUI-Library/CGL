@@ -685,11 +685,11 @@ gtk_settings_class_init (GtkSettingsClass *class)
    * GtkSettings:gtk-color-scheme:
    *
    * A palette of named colors for use in themes. The format of the string is
-   * <programlisting>
+   * |[
    * name1: color1
    * name2: color2
    * ...
-   * </programlisting>
+   * ]|
    * Color names must be acceptable as identifiers in the
    * <link linkend="gtk3-Resource-Files">gtkrc</link> syntax, and
    * color specifications must be in the format accepted by
@@ -701,9 +701,9 @@ gtk_settings_class_init (GtkSettingsClass *class)
    *
    * Starting with GTK+ 2.12, the entries can alternatively be separated
    * by ';' instead of newlines:
-   * <programlisting>
+   * |[
    * name1: color1; name2: color2; ...
-   * </programlisting>
+   * ]|
    *
    * Since: 2.10
    */

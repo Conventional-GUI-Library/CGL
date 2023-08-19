@@ -49,25 +49,20 @@
  * #GtkMenuToolButton. Use gtk_menu_tool_button_new_from_stock() to
  * create a new #GtkMenuToolButton containing a stock item.
  *
- * <refsect2 id="GtkMenuToolButton-BUILDER-UI">
- * <title>GtkMenuToolButton as GtkBuildable</title>
- * <para>
+ * ## GtkMenuToolButton as GtkBuildable
+ *
  * The GtkMenuToolButton implementation of the GtkBuildable interface
  * supports adding a menu by specifying "menu" as the "type"
  * attribute of a &lt;child&gt; element.
  *
- * <example>
- * <title>A UI definition fragment with menus</title>
- * <programlisting><![CDATA[
+ * An example for a UI definition fragment with menus:
+ * |[
  * <object class="GtkMenuToolButton">
  *   <child type="menu">
  *     <object class="GtkMenu"/>
  *   </child>
  * </object>
- * ]]></programlisting>
- * </example>
- * </para>
- * </refsect2>
+ * ]|
  */
 
 

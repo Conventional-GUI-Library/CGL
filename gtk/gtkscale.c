@@ -62,14 +62,14 @@
  * applications that want to show an undeterminate value on the scale, without
  * changing the layout of the application (such as movie or music players).
  *
- * <refsect2 id="GtkScale-BUILDER-UI"><title>GtkScale as GtkBuildable</title>
+ * ## GtkScale as GtkBuildable
+ *
  * GtkScale supports a custom &lt;marks&gt; element, which
  * can contain multiple &lt;mark&gt; elements. The "value" and "position"
  * attributes have the same meaning as gtk_scale_add_mark() parameters of the
  * same name. If the element is not empty, its content is taken as the markup
  * to show at the mark. It can be translated with the usual "translatable and
  * "context" attributes.
- * </refsect2>
  */
 
 
@@ -281,7 +281,7 @@ gtk_scale_class_init (GtkScaleClass *class)
    *
    * Here's an example signal handler which displays a value 1.0 as
    * with "--&gt;1.0&lt;--".
-   * |[
+   * |[<!-- language="C" -->
    * static gchar*
    * format_value_callback (GtkScale *scale,
    *                        gdouble   value)

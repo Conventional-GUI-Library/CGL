@@ -70,35 +70,31 @@
  * implies, most labels are used to label another widget such as a
  * #GtkButton, a #GtkMenuItem, or a #GtkOptionMenu.
  *
- * <refsect2 id="GtkLabel-BUILDER-UI">
- * <title>GtkLabel as GtkBuildable</title>
- * <para>
+ * ## GtkLabel as GtkBuildable
+ *
  * The GtkLabel implementation of the GtkBuildable interface supports a
  * custom &lt;attributes&gt; element, which supports any number of &lt;attribute&gt;
  * elements. the &lt;attribute&gt; element has attributes named name, value,
  * start and end and allows you to specify #PangoAttribute values for this label.
  *
- * <example>
- * <title>A UI definition fragment specifying Pango attributes</title>
- * <programlisting><![CDATA[
+ * An example of a UI definition fragment specifying Pango attributes:
+ * |[
  * <object class="GtkLabel">
  *   <attributes>
  *     <attribute name="weight" value="PANGO_WEIGHT_BOLD"/>
  *     <attribute name="background" value="red" start="5" end="10"/>"
  *   </attributes>
  * </object>
- * ]]></programlisting>
- * </example>
+ * ]|
+ *
  * The start and end attributes specify the range of characters to which the
  * Pango attribute applies. If start and end are not specified, the attribute is
  * applied to the whole text. Note that specifying ranges does not make much
  * sense with translatable attributes. Use markup embedded in the translatable
  * content instead.
- * </para>
- * </refsect2>
- * <refsect2>
- * <title>Mnemonics</title>
- * <para>
+ *
+ * ## Mnemonics
+ *
  * Labels may contain <firstterm>mnemonics</firstterm>. Mnemonics are
  * underlined characters in the label, used for keyboard navigation.
  * Mnemonics are created by providing a string with an underscore before
@@ -112,53 +108,43 @@
  * using gtk_label_set_mnemonic_widget(). Here's a simple example where
  * the label is inside a button:
  *
- * <informalexample>
- * <programlisting>
- *   // Pressing Alt+H will activate this button
- *   button = gtk_button_new (<!-- -->);
+ * |[<!-- language="C" -->
+ *   /&ast; Pressing Alt+H will activate this button &ast;/
+ *   button = gtk_button_new ();
  *   label = gtk_label_new_with_mnemonic ("_Hello");
  *   gtk_container_add (GTK_CONTAINER (button), label);
- * </programlisting>
- * </informalexample>
+ * ]|
  *
  * There's a convenience function to create buttons with a mnemonic label
  * already inside:
  *
- * <informalexample>
- * <programlisting>
- *   // Pressing Alt+H will activate this button
+ * |[<!-- language="C" -->
+ *   /&ast; Pressing Alt+H will activate this button &ast;/
  *   button = gtk_button_new_with_mnemonic ("_Hello");
- * </programlisting>
- * </informalexample>
+ * ]|
  *
  * To create a mnemonic for a widget alongside the label, such as a
  * #GtkEntry, you have to point the label at the entry with
  * gtk_label_set_mnemonic_widget():
  *
- * <informalexample>
- * <programlisting>
- *   // Pressing Alt+H will focus the entry
- *   entry = gtk_entry_new (<!-- -->);
+ * |[<!-- language="C" -->
+ *   /&ast; Pressing Alt+H will focus the entry &ast;/
+ *   entry = gtk_entry_new ();
  *   label = gtk_label_new_with_mnemonic ("_Hello");
  *   gtk_label_set_mnemonic_widget (GTK_LABEL (label), entry);
- * </programlisting>
- * </informalexample>
- * </para>
- * </refsect2>
- * <refsect2>
- * <title>Markup (styled text)</title>
- * <para>
- * To make it easy to format text in a label (changing colors, fonts,
- * etc.), label text can be provided in a simple <link
- * linkend="PangoMarkupFormat">markup format</link>.
- * Here's how to create a label with a small font:
+ * ]|
  *
- * <informalexample>
- * <programlisting>
+ * ## Markup (styled text)
+ *
+ * To make it easy to format text in a label (changing colors,
+ * fonts, etc.), label text can be provided in a simple <link
+ * linkend="PangoMarkupFormat">markup format</link>.
+ *
+ * Here's how to create a label with a small font:
+ * |[<!-- language="C" -->
  *   label = gtk_label_new (NULL);
  *   gtk_label_set_markup (GTK_LABEL (label), "<small>Small text</small>");
- * </programlisting>
- * </informalexample>
+ * ]|
  *
  * (See <link
  * linkend="PangoMarkupFormat">complete documentation</link> of available
@@ -178,18 +164,16 @@
  * to [0, %G_MAXINT)). The reason is that specifying the start_index and
  * end_index for a #PangoAttribute requires knowledge of the exact string
  * being displayed, so translations will cause problems.
- * </para>
- * </refsect2>
- * <refsect2>
- * <title>Selectable labels</title>
+ *
+ * ## Selectable labels
+ *
  * Labels can be made selectable with gtk_label_set_selectable().
  * Selectable labels allow the user to copy the label contents to
  * the clipboard. Only labels that contain useful-to-copy information
  * &mdash; such as error messages &mdash; should be made selectable.
- * </refsect2>
- * <refsect2 id="label-text-layout">
- * <title>Text layout</title>
- * <para>
+ *
+ * ## Text layout
+ *
  * A label can contain any number of paragraphs, but will have
  * performance problems if it contains more than a small number.
  * Paragraphs are separated by newlines or other paragraph separators
@@ -211,30 +195,25 @@
  * is used as the natural width. Even if max-width-chars specified, wrapping
  * labels will be rewrapped to use all of the available width.
  *
- * <note><para>
  * Note that the interpretation of #GtkLabel:width-chars and
  * #GtkLabel:max-width-chars has changed a bit with the introduction of
  * <link linkend="geometry-management">width-for-height geometry management.</link>
- * </para></note>
- * </para>
- * </refsect2>
- * <refsect2>
- * <title>Links</title>
- * <para>
+ *
+ * ## Links
+ *
  * Since 2.18, GTK+ supports markup for clickable hyperlinks in addition
  * to regular Pango markup. The markup for links is borrowed from HTML, using the
  * <tag>a</tag> with href and title attributes. GTK+ renders links similar to the
  * way they appear in web browsers, with colored, underlined text. The title
- * attribute is displayed as a tooltip on the link. An example looks like this:
+ * attribute is displayed as a tooltip on the link.
  *
- * <informalexample><programlisting>
+ * An example looks like this:
+ * |[<!-- language="C" -->
  * gtk_label_set_markup (label, "Go to the <a href="http://www.gtk.org" title="&lt;i&gt;Our&lt;/i&gt; website">GTK+ website</a> for more...");
- * </programlisting></informalexample>
+ * ]|
  *
  * It is possible to implement custom handling for links and their tooltips with
  * the #GtkLabel::activate-link signal and the gtk_label_get_current_uri() function.
- * </para>
- * </refsect2>
  */
 
 struct _GtkLabelPrivate
@@ -609,11 +588,9 @@ gtk_label_class_init (GtkLabelClass *class)
    * the variant with the Shift modifier extends the selection,
    * the variant without the Shift modifer does not.
    * There are too many key combinations to list them all here.
-   * <itemizedlist>
-   * <listitem>Arrow keys move by individual characters/lines</listitem>
-   * <listitem>Ctrl-arrow key combinations move by words/paragraphs</listitem>
-   * <listitem>Home/End keys move to the ends of the buffer</listitem>
-   * </itemizedlist>
+   * - Arrow keys move by individual characters/lines
+   * - Ctrl-arrow key combinations move by words/paragraphs
+   * - Home/End keys move to the ends of the buffer
    */
   signals[MOVE_CURSOR] = 
     g_signal_new (I_("move-cursor"),
@@ -2154,12 +2131,12 @@ gtk_label_set_text (GtkLabel    *label,
  * Sets a #PangoAttrList; the attributes in the list are applied to the
  * label text. 
  *
- * <note><para>The attributes set with this function will be applied
+ * The attributes set with this function will be applied
  * and merged with any other attributes previously effected by way
  * of the #GtkLabel:use-underline or #GtkLabel:use-markup properties.
  * While it is not recommended to mix markup strings with manually set
  * attributes, if you must; know that the attributes will be applied
- * to the label after the markup string is parsed.</para></note>
+ * to the label after the markup string is parsed.
  **/
 void
 gtk_label_set_attributes (GtkLabel         *label,
@@ -2627,7 +2604,7 @@ gtk_label_set_markup_internal (GtkLabel    *label,
  * label's text and attribute list based on the parse results. If the @str is
  * external data, you may need to escape it with g_markup_escape_text() or
  * g_markup_printf_escaped()<!-- -->:
- * |[
+ * |[<!-- language="C" -->
  * char *markup;
  *
  * markup = g_markup_printf_escaped ("&lt;span style=\"italic\"&gt;&percnt;s&lt;/span&gt;", str);

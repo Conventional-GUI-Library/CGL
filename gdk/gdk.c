@@ -467,7 +467,7 @@ gdk_init (int *argc, char ***argv)
  * like #GtkWidget::button-press-event, do not need thread protection.
  *
  * In particular, this means, if you are writing widgets that might
- * be used in threaded programs, you <emphasis>must</emphasis> surround
+ * be used in threaded programs, you must surround
  * timeouts and idle functions in this matter.
  *
  * As always, you must also surround any calls to GTK+ not made within
@@ -483,8 +483,7 @@ gdk_init (int *argc, char ***argv)
  *
  * A minimal main program for a threaded GTK+ application
  * looks like:
- * <informalexample>
- * <programlisting role="C">
+ * |[<!-- language="C" -->
  * int
  * main (int argc, char *argv[])
  * {
@@ -503,8 +502,7 @@ gdk_init (int *argc, char ***argv)
  *
  *   return 0;
  * }
- * </programlisting>
- * </informalexample>
+ * ]|
  *
  * Callbacks require a bit of attention. Callbacks from GTK+ signals
  * are made within the GTK+ lock. However callbacks from GLib (timeouts,
@@ -515,8 +513,7 @@ gdk_init (int *argc, char ***argv)
  *
  * Erik Mouw contributed the following code example to
  * illustrate how to use threads within GTK+ programs.
- * <informalexample>
- * <programlisting role="C">
+ * |[<!-- language="C" -->
  * /<!---->*-------------------------------------------------------------------------
  *  * Filename:      gtk-thread.c
  *  * Version:       0.99.1
@@ -653,8 +650,7 @@ gdk_init (int *argc, char ***argv)
  *
  *   return 0;
  * }
- * </programlisting>
- * </informalexample>
+ * ]|
  *
  * Unfortunately, all of the above documentation holds with the X11
  * backend only. With the Win32 or Quartz backends, GDK and GTK+ calls
@@ -828,7 +824,7 @@ gdk_threads_dispatch_free (gpointer data)
  * running in thread A and accessing @self after it has been finalized
  * in thread B:
  *
- * |[
+ * |[<!-- language="C" -->
  * static gboolean
  * idle_callback (gpointer data)
  * {
@@ -934,7 +930,7 @@ gdk_threads_add_idle (GSourceFunc    function,
  * This variant of g_timeout_add_full() can be thought of a MT-safe version 
  * for GTK+ widgets for the following use case:
  *
- * |[
+ * |[<!-- language="C" -->
  * static gboolean timeout_callback (gpointer data)
  * {
  *    SomeWidget *self = data;

@@ -57,14 +57,14 @@
  * GTK+ treats a dialog as a window split vertically. The top section is a
  * #GtkVBox, and is where widgets such as a #GtkLabel or a #GtkEntry should
  * be packed. The bottom area is known as the
- * <structfield>action_area</structfield>. This is generally used for
+ * <quote>action_area</quote>. This is generally used for
  * packing buttons into the dialog which may perform functions such as
  * cancel, ok, or apply.
  *
  * #GtkDialog boxes are created with a call to gtk_dialog_new() or
  * gtk_dialog_new_with_buttons(). gtk_dialog_new_with_buttons() is
- * recommended; it allows you to set the dialog title, some convenient flags,
- * and add simple buttons.
+ * recommended; it allows you to set the dialog title, some convenient
+ * flags, and add simple buttons.
  *
  * If 'dialog' is a newly created dialog, the two primary areas of the
  * window can be accessed through gtk_dialog_get_content_area() and
@@ -96,9 +96,9 @@
  * use #GtkMessageDialog to save yourself some effort. But you'd need to
  * create the dialog contents manually if you had more than a simple message
  * in the dialog.
- * <example>
- * <title>Simple GtkDialog usage</title>
- * <programlisting>
+ *
+ * An example for simple GtkDialog usage:
+ * |[<!-- language="C" -->
  * /&ast; Function to open a dialog box displaying the message provided. &ast;/
  * void
  * quick_message (gchar *message)
@@ -126,26 +126,23 @@
  *    gtk_container_add (GTK_CONTAINER (content_area), label);
  *    gtk_widget_show_all (dialog);
  * }
- * </programlisting>
- * </example>
+ * ]|
  *
- * <refsect2 id="GtkDialog-BUILDER-UI"><title>GtkDialog as GtkBuildable</title>
- * <para>
+ * ## GtkDialog as GtkBuildable
+ *
  * The GtkDialog implementation of the #GtkBuildable interface exposes the
  * @vbox and @action_area as internal children with the names "vbox" and
  * "action_area".
- * </para>
- * <para>
+ *
  * GtkDialog supports a custom &lt;action-widgets&gt; element, which
  * can contain multiple &lt;action-widget&gt; elements. The "response"
  * attribute specifies a numeric response, and the content of the element
  * is the id of widget (which should be a child of the dialogs @action_area).
- * </para>
- * <example>
- * <title>A <structname>GtkDialog</structname> UI definition fragment.</title>
- * <programlisting><![CDATA[
+ *
+ * An example of a #GtkDialog UI definition fragment:
+ * |[
  * <object class="GtkDialog" id="dialog1">
- *   <child internal-child="vbox">"
+ *   <child internal-child="vbox">
  *     <object class="GtkVBox" id="vbox">
  *       <child internal-child="action_area">
  *         <object class="GtkHButtonBox" id="button_box">
@@ -164,9 +161,7 @@
  *     <action-widget response="-5">button_cancel</action-widget>
  *   </action-widgets>
  * </object>
- * ]]></programlisting>
- * </example>
- * </refsect2>
+ * ]|
  */
 
 struct _GtkDialogPrivate
@@ -621,7 +616,7 @@ gtk_dialog_new_empty (const gchar     *title,
  * so the first button in the list will be the leftmost button in the dialog.
  *
  * Here's a simple example:
- * |[
+ * |[<!-- language="C" -->
  *  GtkWidget *dialog = gtk_dialog_new_with_buttons ("My dialog",
  *                                                   main_app_window,
  *                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -1029,7 +1024,7 @@ run_destroy_handler (GtkDialog *dialog, gpointer data)
  * destroying the dialog if you wish to do so.
  *
  * Typical usage of this function might be:
- * |[
+ * |[<!-- language="C" -->
  *   gint result = gtk_dialog_run (GTK_DIALOG (dialog));
  *   switch (result)
  *     {
@@ -1046,7 +1041,7 @@ run_destroy_handler (GtkDialog *dialog, gpointer data)
  * Note that even though the recursive main loop gives the effect of a
  * modal dialog (it prevents the user from interacting with other
  * windows in the same window group while the dialog is run), callbacks
- * such as timeouts, IO channel watches, DND drops, etc, <emphasis>will</emphasis>
+ * such as timeouts, IO channel watches, DND drops, etc, will
  * be triggered during a gtk_dialog_run() call.
  *
  * Return value: response ID
@@ -1273,7 +1268,7 @@ gtk_dialog_set_alternative_button_order_valist (GtkDialog *dialog,
  *
  * Use this function after adding all the buttons to your dialog, as the
  * following example shows:
- * |[
+ * |[<!-- language="C" -->
  * cancel_button = gtk_dialog_add_button (GTK_DIALOG (dialog),
  *                                        GTK_STOCK_CANCEL,
  *                                        GTK_RESPONSE_CANCEL);

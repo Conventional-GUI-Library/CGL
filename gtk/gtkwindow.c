@@ -95,35 +95,30 @@
  * control whether a window has a resize grip, use
  * gtk_window_set_has_resize_grip().
  *
- * <refsect2 id="GtkWindow-BUILDER-UI">
- * <title>GtkWindow as GtkBuildable</title>
- * <para>
+ * ## GtkWindow as GtkBuildable
+ *
  * The GtkWindow implementation of the GtkBuildable interface supports a
  * custom <tag class="starttag">accel-groups</tag> element, which supports
  * any number of <tag class="starttag">group</tag> elements representing the
  * #GtkAccelGroup objects you want to add to your window (synonymous with
  * gtk_window_add_accel_group().
- * </para>
- * <example>
- * <title>A UI definition fragment with accel groups</title>
- * <programlisting><![CDATA[
+ *
+ * An example of a UI definition fragment with accel groups:
+ * |[
  * <object class="GtkWindow">
  *   <accel-groups>
  *     <group name="accelgroup1"/>
  *   </accel-groups>
  * </object>
- * <!-- -->
+ * 
  * ...
- * <!-- -->
+ * 
  * <object class="GtkAccelGroup" id="accelgroup1"/>
- * ]]></programlisting>
- * </example>
- * <para>
+ * ]|
+ * 
  * The GtkWindow implementation of the GtkBuildable interface
  * supports setting a child as the titlebar by specifying "titlebar" as
  * the "type" attribute of a <tag class="starttag">child</tag> element.
- * </para>
- * </refsect2>
  */
 
 #define MNEMONICS_DELAY 300 /* ms */
@@ -2662,7 +2657,7 @@ gtk_window_get_modal (GtkWindow *window)
  * Returns a list of all existing toplevel windows. The widgets
  * in the list are not individually referenced. If you want
  * to iterate through the list and perform actions involving
- * callbacks that might destroy the widgets, you <emphasis>must</emphasis> call
+ * callbacks that might destroy the widgets, you must call
  * <literal>g_list_foreach (result, (GFunc)g_object_ref, NULL)</literal> first, and
  * then unref all the widgets afterwards.
  *
@@ -3659,8 +3654,21 @@ gtk_window_set_titlebar (GtkWindow *window,
   GtkWidget *widget = GTK_WIDGET (window);
   GtkWindowPrivate *priv = window->priv;
   GdkVisual *visual;
+  gboolean was_mapped;
 
   g_return_if_fail (GTK_IS_WINDOW (window));
+
+  if ((!priv->title_box && titlebar) || (priv->title_box && !titlebar))
+    {
+      was_mapped = gtk_widget_get_mapped (widget);
+      if (gtk_widget_get_realized (widget))
+        {
+          g_warning ("gtk_window_set_titlebar() called on a realized window");
+          gtk_widget_unrealize (widget);
+        }
+    }
+  else
+    was_mapped = FALSE;
 
   unset_titlebar (window);
 
@@ -3685,7 +3693,8 @@ gtk_window_set_titlebar (GtkWindow *window,
   gtk_style_context_add_class (gtk_widget_get_style_context (titlebar),
                                GTK_STYLE_CLASS_TITLEBAR);
 
-  gtk_widget_queue_resize (widget);
+  if (was_mapped)
+    gtk_widget_map (widget);
 }
 
 gboolean
@@ -3995,6 +4004,73 @@ gtk_window_realize_icon (GtkWindow *window)
       g_signal_connect (icon_theme, "changed",
 			G_CALLBACK (update_themed_icon), window);
     }
+}
+
+static GdkPixbuf *
+icon_from_list (GList *list,
+                gint   size)
+{
+  GdkPixbuf *best;
+  GdkPixbuf *pixbuf;
+  GList *l;
+
+  best = NULL;
+  for (l = list; l; l = l->next)
+    {
+      pixbuf = list->data;
+      if (gdk_pixbuf_get_width (pixbuf) <= size)
+        {
+          best = g_object_ref (pixbuf);
+          break;
+        }
+    }
+
+  if (best == NULL)
+    best = gdk_pixbuf_scale_simple (GDK_PIXBUF (list->data), size, size, GDK_INTERP_BILINEAR);
+
+  return best;
+}
+
+static GdkPixbuf *
+icon_from_name (const gchar *name,
+                gint         size)
+{
+  return gtk_icon_theme_load_icon (gtk_icon_theme_get_default (),
+                                   name, size,
+                                   GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
+}
+
+GdkPixbuf *
+gtk_window_get_icon_for_size (GtkWindow *window,
+                              gint       size)
+{
+  GtkWindowPrivate *priv = window->priv;
+  GtkWindowIconInfo *info;
+  const gchar *name;
+
+  info = ensure_icon_info (window);
+
+  if (info->icon_list != NULL)
+    return icon_from_list (info->icon_list, size);
+
+  name = gtk_window_get_icon_name (window);
+  if (name != NULL)
+    return icon_from_name (name, size);
+
+  if (priv->transient_parent != NULL)
+    {
+      info = ensure_icon_info (priv->transient_parent);
+      if (info->icon_list)
+        return icon_from_list (info->icon_list, size);
+    }
+
+  if (default_icon_list != NULL)
+    return icon_from_list (default_icon_list, size);
+
+  if (default_icon_name != NULL)
+    return icon_from_name (default_icon_name, size);
+
+  return NULL;
 }
 
 static void
@@ -4748,7 +4824,7 @@ gtk_window_resize_to_geometry (GtkWindow *window,
  * "configure-event" on the window and adjust your size-dependent
  * state to match the size delivered in the #GdkEventConfigure.
  *
- * Note 2: The returned size does <emphasis>not</emphasis> include the
+ * Note 2: The returned size does not include the
  * size of the window manager decorations (aka the window frame or
  * border). Those are not drawn by GTK+ and GTK+ has no reliable
  * method of determining their size.
@@ -4768,7 +4844,7 @@ gtk_window_resize_to_geometry (GtkWindow *window,
  * application cannot.
  *
  * In any case, if you insist on application-specified window
- * positioning, there's <emphasis>still</emphasis> a better way than
+ * positioning, there's still a better way than
  * doing it yourself - gtk_window_set_position() will frequently
  * handle the details for you.
  * 
@@ -11374,7 +11450,7 @@ gtk_XParseGeometry (const char   *string,
  * to be called when the window has its "final" size, i.e. after calling
  * gtk_widget_show_all() on the contents and gtk_window_set_geometry_hints()
  * on the window.
- * |[
+ * |[<!-- language="C" -->
  * #include <gtk/gtk.h>
  *    
  * static void
@@ -11407,7 +11483,7 @@ gtk_XParseGeometry (const char   *string,
  * 				    GDK_HINT_BASE_SIZE | 
  * 				    GDK_HINT_RESIZE_INC);
  *   
- *   if (argc &gt; 1)
+ *   if (argc > 1)
  *     {
  *       if (!gtk_window_parse_geometry (GTK_WINDOW (window), argv[1]))
  *         fprintf (stderr, "Failed to parse '%s'\n", argv[1]);

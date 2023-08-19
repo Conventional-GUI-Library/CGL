@@ -34,25 +34,21 @@
  *
  * A #GtkTreeModelFilter is a tree model which wraps another tree model,
  * and can do the following things:
- * <itemizedlist>
- * <listitem><para>
- * Filter specific rows, based on data from a "visible column", a column
- * storing booleans indicating whether the row should be filtered or not,
- * or based on the return value of a "visible function", which gets a
- * model, iter and user_data and returns a boolean indicating whether the
- * row should be filtered or not.
- * </para></listitem>
- * <listitem><para>
- * Modify the "appearance" of the model, using a modify function.
- * This is extremely powerful and allows for just changing
- * some values and also for creating a completely different model based on
- * the given child model.
- * </para></listitem>
- * <listitem><para>
- * Set a different root node, also known as a "virtual root". You can pass in
- * a #GtkTreePath indicating the root node for the filter at construction time.
- * </para></listitem>
- * </itemizedlist>
+ * 
+ * - Filter specific rows, based on data from a "visible column", a column
+ *   storing booleans indicating whether the row should be filtered or not,
+ *   or based on the return value of a "visible function", which gets a
+ *   model, iter and user_data and returns a boolean indicating whether the
+ *   row should be filtered or not.
+ * 
+ * - Modify the "appearance" of the model, using a modify function.
+ *   This is extremely powerful and allows for just changing some
+ *   values and also for creating a completely different model based
+ *   on the given child model.
+ *
+ * - Set a different root node, also known as a "virtual root". You can pass
+ *   in a #GtkTreePath indicating the root node for the filter at construction
+ *   time.
  *
  * The basic API is similar to #GtkTreeModelSort. For an example on its usage,
  * see the section on #GtkTreeModelSort.
@@ -3834,7 +3830,7 @@ gtk_tree_model_filter_get_model (GtkTreeModelFilter *filter)
  * empty. The visible function should therefore take special care of empty
  * rows, like in the example below.
  *
- * <informalexample><programlisting>
+ * |[<!-- language="C" -->
  * static gboolean
  * visible_func (GtkTreeModel *model,
  *               GtkTreeIter  *iter,
@@ -3851,7 +3847,7 @@ gtk_tree_model_filter_get_model (GtkTreeModelFilter *filter)
  *
  *   return visible;
  * }
- * </programlisting></informalexample>
+ * ]|
  *
  * Since: 2.4
  */
@@ -3884,7 +3880,7 @@ gtk_tree_model_filter_set_visible_func (GtkTreeModelFilter            *filter,
  * With the @n_columns and @types parameters, you give an array of column
  * types for this model (which will be exposed to the parent model/view).
  * The @func, @data and @destroy parameters are for specifying the modify
- * function. The modify function will get called for <emphasis>each</emphasis>
+ * function. The modify function will get called for each
  * data access, the goal of the modify function is to return the data which 
  * should be displayed at the location specified using the parameters of the 
  * modify function.

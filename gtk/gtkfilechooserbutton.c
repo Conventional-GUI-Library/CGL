@@ -72,7 +72,7 @@
  *
  * <example>
  * <title>Create a button to let the user select a file in /etc</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * {
  *   GtkWidget *button;
  *
@@ -81,7 +81,7 @@
  *   gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (button),
  *                                        "/etc");
  * }
- * </programlisting>
+ * ]|
  * </example>
  *
  * The #GtkFileChooserButton supports the #GtkFileChooserAction<!-- -->s
@@ -390,7 +390,7 @@ gtk_file_chooser_button_class_init (GtkFileChooserButtonClass * class)
    *
    * The ::file-set signal is emitted when the user selects a file.
    *
-   * Note that this signal is only emitted when the <emphasis>user</emphasis>
+   * Note that this signal is only emitted when the user
    * changes the file.
    *
    * Since: 2.12

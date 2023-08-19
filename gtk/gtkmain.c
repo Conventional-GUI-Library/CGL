@@ -54,10 +54,10 @@
  * example, when an Open button is clicked you might display a
  * #GtkFileChooserDialog. After a callback finishes, GTK+ will return to the
  * main loop and await more user input.
- * </para>
+ *
  * <example>
- * <title>Typical <function>main()</function> function for a GTK+ application</title>
- * <programlisting>
+ * <title>Typical main() function for a GTK+ application</title>
+ * |[<!-- language="C" -->
  * int
  * main (int argc, char **argv)
  * {
@@ -82,9 +82,9 @@
  *   /&ast; The user lost interest &ast;/
  *   return 0;
  * }
- * </programlisting>
+ * ]|
  * </example>
- * <para>
+ *
  * It's OK to use the GLib main loop directly instead of gtk_main(), though it
  * involves slightly more typing. See #GMainLoop in the GLib documentation.
  */
@@ -1154,23 +1154,19 @@ gtk_init_check (int    *argc,
  * if you are calling gtk_parse_args(), gtk_init_check(),
  * gtk_init_with_args() or g_option_context_parse() with
  * the option group returned by gtk_get_option_group(),
- * you <emphasis>don't</emphasis> have to call gtk_init().
+ * you don't have to call gtk_init().
  *
- * <note><para>
  * This function will terminate your program if it was unable to
  * initialize the windowing system for some reason. If you want
  * your program to fall back to a textual interface you want to
  * call gtk_init_check() instead.
- * </para></note>
  *
- * <note><para>
  * Since 2.18, GTK+ calls <literal>signal (SIGPIPE, SIG_IGN)</literal>
  * during initialization, to ignore SIGPIPE signals, since these are
  * almost never wanted in graphical applications. If you do need to
  * handle SIGPIPE for some reason, reset the handler after gtk_init(),
  * but notice that other libraries (e.g. libdbus or gvfs) might do
  * similar things.
- * </para></note>
  */
 void
 gtk_init (int *argc, char ***argv)
@@ -1266,7 +1262,7 @@ gtk_init_check_abi_check (int *argc, char ***argv, int num_checks, size_t sizeof
  * changed after GTK+ has already been initialized. In this case,
  * you can use it to update the default text direction as follows:
  *
- * |[
+ * |[<!-- language="C" -->
  * setlocale (LC_ALL, new_locale);
  * direction = gtk_get_locale_direction ();
  * gtk_widget_set_default_direction (direction);
@@ -1398,14 +1394,14 @@ gtk_main_quit (void)
  *
  * <example>
  * <title>Updating the UI during a long computation</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  *  /&ast; computation going on... &ast;/
  *
  *  while (gtk_events_pending ())
  *    gtk_main_iteration ();
  *
  *  /&ast; ...computation continued &ast;/
- * </programlisting>
+ * ]|
  * </example>
  *
  * Returns: %TRUE if any events are pending, %FALSE otherwise
@@ -1941,15 +1937,15 @@ gtk_main_do_event (GdkEvent *event)
  *
  * <example>
  * <title>A persistent window</title>
- * <programlisting>
- * #include &lt;gtk/gtk.h>&lt;
+ * |[<!-- language="C" -->
+ * #include <gtk/gtk.h>
  *
  * int
  * main (int argc, char **argv)
  * {
  *   GtkWidget *win, *but;
  *
- *   gtk_init (&amp;argc, &amp;argv);
+ *   gtk_init (&argc, &argv);
  *
  *   win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
  *   g_signal_connect (win, "delete-event",
@@ -1968,7 +1964,7 @@ gtk_main_do_event (GdkEvent *event)
  *
  *   return 0;
  * }
- * </programlisting>
+ * ]|
  * </example>
  *
  * Returns: %TRUE

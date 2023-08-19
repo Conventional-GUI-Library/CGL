@@ -78,7 +78,7 @@
  * menu, then it will automatically be included in the menubar.
  *
  * <example><title>A GtkApplicationWindow with a menubar</title>
- * <programlisting><![CDATA[
+ * |[<!-- language="C" -->
  * app = gtk_application_new ();
  *
  * builder = gtk_builder_new ();

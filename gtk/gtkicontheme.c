@@ -75,27 +75,23 @@
  * Named icons are similar to the <xref linkend="gtk3-Themeable-Stock-Images"/>
  * facility, and the distinction between the two may be a bit confusing.
  * A few things to keep in mind:
- * <itemizedlist>
- * <listitem>
- * Stock images usually are used in conjunction with
- * <xref linkend="gtk3-Stock-Items"/>, such as %GTK_STOCK_OK or
- * %GTK_STOCK_OPEN. Named icons are easier to set up and therefore
- * are more useful for new icons that an application wants to
- * add, such as application icons or window icons.
- * </listitem>
- * <listitem>
- * Stock images can only be loaded at the symbolic sizes defined
- * by the #GtkIconSize enumeration, or by custom sizes defined
- * by gtk_icon_size_register(), while named icons are more flexible
- * and any pixel size can be specified.
- * </listitem>
- * <listitem>
- * Because stock images are closely tied to stock items, and thus
- * to actions in the user interface, stock images may come in
- * multiple variants for different widget states or writing
- * directions.
- * </listitem>
- * </itemizedlist>
+ * 
+ * - Stock images usually are used in conjunction with
+ *   <xref linkend="gtk3-Stock-Items"/>, such as %GTK_STOCK_OK or
+ *   %GTK_STOCK_OPEN. Named icons are easier to set up and therefore
+ *   are more useful for new icons that an application wants to
+ *   add, such as application icons or window icons.
+ * 
+ * - Stock images can only be loaded at the symbolic sizes defined
+ *   by the #GtkIconSize enumeration, or by custom sizes defined
+ *   by gtk_icon_size_register(), while named icons are more flexible
+ *   and any pixel size can be specified.
+ * 
+ * - Because stock images are closely tied to stock items, and thus
+ *   to actions in the user interface, stock images may come in
+ *   multiple variants for different widget states or writing
+ *   directions.
+ *
  * A good rule of thumb is that if there is a stock image for what
  * you want to use, use it, otherwise use a named icon. It turns
  * out that internally stock images are generally defined in
@@ -113,8 +109,7 @@
  * so that the icon information is shared with other people
  * looking up icons. In the case where the default screen is
  * being used, looking up an icon can be as simple as:
- * <informalexample>
- * <programlisting>
+ * |[<!-- language="C" -->
  * GError *error = NULL;
  * GtkIconTheme *icon_theme;
  * GdkPixbuf *pixbuf;
@@ -135,8 +130,7 @@
  *     // Use the pixbuf
  *     g_object_unref (pixbuf);
  *   }
- * </programlisting>
- * </informalexample>
+ * ]|
  */
 
 
@@ -264,6 +258,7 @@ struct _GtkIconInfo
   guint raw_coordinates : 1;
   guint forced_size     : 1;
   guint emblems_applied : 1;
+  guint is_svg          : 1;
 
   /* Cached information if we go ahead and try to load
    * the icon.
@@ -1739,6 +1734,13 @@ choose_icon (GtkIconTheme       *icon_theme,
  out:
   if (icon_info)
     {
+      if (icon_info->filename)
+        icon_info->is_svg = (suffix_from_name (icon_info->filename) == ICON_SUFFIX_SVG);
+      else
+        /* This can only happen when we have an icon cache. In this case, we know we're
+         * not dealing with an SVG, but with raw pixel data. */
+        icon_info->is_svg = FALSE;
+
       icon_info->desired_size = size;
       icon_info->desired_scale = scale;
       icon_info->forced_size = (flags & GTK_ICON_LOOKUP_FORCE_SIZE) != 0;
@@ -1813,7 +1815,7 @@ choose_icon (GtkIconTheme       *icon_theme,
  * @size: desired icon size
  * @flags: flags modifying the behavior of the icon lookup
  * 
- * Looks up a named icon and returns a structure containing
+ * Looks up a named icon and returns a #GtkIconInfo containing
  * information such as the filename of the icon. The icon
  * can then be rendered into a pixbuf using
  * gtk_icon_info_load_icon(). (gtk_icon_theme_load_icon()
@@ -1851,7 +1853,7 @@ gtk_icon_theme_lookup_icon (GtkIconTheme       *icon_theme,
  * @flags: flags modifying the behavior of the icon lookup
  *
  * Looks up a named icon for a particular window scale and returns a
- * structure containing information such as the filename of the
+ * #GtkIconInfo containing information such as the filename of the
  * icon. The icon can then be rendered into a pixbuf using
  * gtk_icon_info_load_icon(). (gtk_icon_theme_load_icon() combines
  * these two steps if all you need is the pixbuf.)
@@ -1950,7 +1952,7 @@ gtk_icon_theme_lookup_icon_for_scale (GtkIconTheme       *icon_theme,
  * @size: desired icon size
  * @flags: flags modifying the behavior of the icon lookup
  * 
- * Looks up a named icon and returns a structure containing
+ * Looks up a named icon and returns a #GtkIconInfo containing
  * information such as the filename of the icon. The icon
  * can then be rendered into a pixbuf using
  * gtk_icon_info_load_icon(). (gtk_icon_theme_load_icon()
@@ -1989,7 +1991,7 @@ gtk_icon_theme_choose_icon (GtkIconTheme       *icon_theme,
  * @flags: flags modifying the behavior of the icon lookup
  * 
  * Looks up a named icon for a particular window scale and returns a
- * structure containing information such as the filename of the
+ * #GtkIconInfo containing information such as the filename of the
  * icon. The icon can then be rendered into a pixbuf using
  * gtk_icon_info_load_icon(). (gtk_icon_theme_load_icon() combines
  * these two steps if all you need is the pixbuf.)
@@ -3550,7 +3552,7 @@ gtk_icon_info_get_filename (GtkIconInfo *icon_info)
 
 /**
  * gtk_icon_info_get_builtin_pixbuf:
- * @icon_info: a #GtkIconInfo structure
+ * @icon_info: a #GtkIconInfo
  * 
  * Gets the built-in image for this icon, if any. To allow
  * GTK+ to use built in icon images, you must pass the
@@ -3577,7 +3579,7 @@ gtk_icon_info_get_builtin_pixbuf (GtkIconInfo *icon_info)
 
 /**
  * gtk_icon_info_is_symbolic:
- * @icon_info: a #GtkIconInfo structure
+ * @icon_info: a #GtkIconInfo
  *
  * Checks if the icon is symbolic or not. This currently uses only
  * the file name and not the file contents for determining this.
@@ -3716,7 +3718,6 @@ icon_info_ensure_scale_and_pixbuf (GtkIconInfo  *icon_info,
   int image_width, image_height;
   int scaled_desired_size;
   GdkPixbuf *source_pixbuf;
-  gboolean is_svg;
 
   /* First check if we already succeeded have the necessary
    * information (or failed earlier)
@@ -3741,30 +3742,7 @@ icon_info_ensure_scale_and_pixbuf (GtkIconInfo  *icon_info,
 
   scaled_desired_size = icon_info->desired_size * icon_info->desired_scale;
 
-  is_svg = FALSE;
-  if (G_IS_FILE_ICON (icon_info->loadable))
-    {
-      GFile *file;
-      GFileInfo *file_info;
-      const gchar *content_type;
-
-      file = g_file_icon_get_file (G_FILE_ICON (icon_info->loadable));
-      file_info = g_file_query_info (file, 
-                                     G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE,
-                                     G_FILE_QUERY_INFO_NONE,
-                                     NULL, NULL);
-      if (file_info) 
-        {
-          content_type = g_file_info_get_content_type (file_info);
-
-          if (content_type && strcmp (content_type, "image/svg+xml") == 0)
-            is_svg = TRUE;
-
-          g_object_unref (file_info);
-       }
-    }
-
-  if (is_svg)
+  if (icon_info->is_svg)
     {
       GInputStream *stream;
 
@@ -3909,7 +3887,7 @@ proxy_pixbuf_destroy (guchar *pixels, gpointer data)
 
 /**
  * gtk_icon_info_load_icon:
- * @icon_info: a #GtkIconInfo structure from gtk_icon_theme_lookup_icon()
+ * @icon_info: a #GtkIconInfo from gtk_icon_theme_lookup_icon()
  * @error: (allow-none): location to store error information on failure,
  *     or %NULL.
  *
@@ -3983,7 +3961,7 @@ gtk_icon_info_load_icon (GtkIconInfo *icon_info,
 
 /**
  * gtk_icon_info_load_surface:
- * @icon_info: a #GtkIconInfo structure from gtk_icon_theme_lookup_icon()
+ * @icon_info: a #GtkIconInfo from gtk_icon_theme_lookup_icon()
  * @for_window: (allow-none): #GdkWindow to optimize drawing for, or %NULL
  * @error: (allow-none): location to store error information on failure,
  *     or %NULL.
@@ -4043,7 +4021,7 @@ load_icon_thread  (GTask           *task,
 
 /**
  * gtk_icon_info_load_icon_async:
- * @icon_info: a #GtkIconInfo structure from gtk_icon_theme_lookup_icon()
+ * @icon_info: a #GtkIconInfo from gtk_icon_theme_lookup_icon()
  * @cancellable: (allow-none): optional #GCancellable object,
  *     %NULL to ignore
  * @callback: (scope async): a #GAsyncReadyCallback to call when the
@@ -4091,7 +4069,7 @@ gtk_icon_info_load_icon_async (GtkIconInfo          *icon_info,
 
 /**
  * gtk_icon_info_load_icon_finish:
- * @icon_info: a #GtkIconInfo structure from gtk_icon_theme_lookup_icon()
+ * @icon_info: a #GtkIconInfo from gtk_icon_theme_lookup_icon()
  * @res: a #GAsyncResult
  * @error: (allow-none): location to store error information on failure,
  *     or %NULL.
@@ -4557,7 +4535,7 @@ load_symbolic_icon_thread  (GTask           *task,
 
 /**
  * gtk_icon_info_load_symbolic_async:
- * @icon_info: a #GtkIconInfo structure from gtk_icon_theme_lookup_icon()
+ * @icon_info: a #GtkIconInfo from gtk_icon_theme_lookup_icon()
  * @fg: a #GdkRGBA representing the foreground color of the icon
  * @success_color: (allow-none): a #GdkRGBA representing the warning color
  *     of the icon or %NULL to use the default color
@@ -4652,7 +4630,7 @@ gtk_icon_info_load_symbolic_async (GtkIconInfo   *icon_info,
 
 /**
  * gtk_icon_info_load_symbolic_finish:
- * @icon_info: a #GtkIconInfo structure from gtk_icon_theme_lookup_icon()
+ * @icon_info: a #GtkIconInfo from gtk_icon_theme_lookup_icon()
  * @res: a #GAsyncResult
  * @was_symbolic: (out) (allow-none): a #gboolean, returns whether the
  *     loaded icon was a symbolic one and whether the @fg color was
@@ -4716,7 +4694,7 @@ gtk_icon_info_load_symbolic_finish (GtkIconInfo   *icon_info,
 
 /**
  * gtk_icon_info_load_symbolic_for_context_async:
- * @icon_info: a #GtkIconInfo structure from gtk_icon_theme_lookup_icon()
+ * @icon_info: a #GtkIconInfo from gtk_icon_theme_lookup_icon()
  * @context: a #GtkStyleContext
  * @cancellable: (allow-none): optional #GCancellable object,
  *     %NULL to ignore
@@ -4781,7 +4759,7 @@ gtk_icon_info_load_symbolic_for_context_async (GtkIconInfo      *icon_info,
 
 /**
  * gtk_icon_info_load_symbolic_for_context_finish:
- * @icon_info: a #GtkIconInfo structure from gtk_icon_theme_lookup_icon()
+ * @icon_info: a #GtkIconInfo from gtk_icon_theme_lookup_icon()
  * @res: a #GAsyncResult
  * @was_symbolic: (out) (allow-none): a #gboolean, returns whether the
  *     loaded icon was a symbolic one and whether the @fg color was
@@ -5220,12 +5198,12 @@ find_builtin_icon (const gchar *icon_name,
  * @size: desired icon size
  * @flags: flags modifying the behavior of the icon lookup
  * 
- * Looks up an icon and returns a structure containing
+ * Looks up an icon and returns a #GtkIconInfo containing
  * information such as the filename of the icon. 
  * The icon can then be rendered into a pixbuf using
  * gtk_icon_info_load_icon().
  *
- * Return value: (transfer full): a #GtkIconInfo structure containing 
+ * Return value: (transfer full): a #GtkIconInfo containing 
  *     information about the icon, or %NULL if the icon 
  *     wasn't found. Free with gtk_icon_info_free()
  *

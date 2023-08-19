@@ -47,7 +47,7 @@
  * gdk_color_copy:
  * @color: a #GdkColor
  *
- * Makes a copy of a color structure.
+ * Makes a copy of a #GdkColor.
  *
  * The result must be freed using gdk_color_free().
  *
@@ -69,7 +69,7 @@ gdk_color_copy (const GdkColor *color)
  * gdk_color_free:
  * @color: a #GdkColor
  *
- * Frees a color structure created with gdk_color_copy().
+ * Frees a #GdkColor created with gdk_color_copy().
  */
 void
 gdk_color_free (GdkColor *color)
@@ -128,9 +128,7 @@ G_DEFINE_BOXED_TYPE (GdkColor, gdk_color,
  * @color: (out): the #GdkColor to fill in
  *
  * Parses a textual specification of a color and fill in the
- * <structfield>red</structfield>, <structfield>green</structfield>,
- * and <structfield>blue</structfield> fields of a #GdkColor
- * structure.
+ * @red, @green, and @blue fields of a #GdkColor.
  *
  * The string can either one of a large set of standard names
  * (taken from the X11 <filename>rgb.txt</filename> file), or

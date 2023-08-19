@@ -78,33 +78,29 @@
  * #GtkFileChooser, your program can get the selected names
  * either as filenames or as URIs.  For URIs, the normal escaping
  * rules are applied if the URI contains non-ASCII characters.
- * However, filenames are <emphasis>always</emphasis> returned in
+ * However, filenames are always returned in
  * the character set specified by the
  * <envar>G_FILENAME_ENCODING</envar> environment variable.
  * Please see the GLib documentation for more details about this
  * variable.
- * <note>
- *    This means that while you can pass the result of
- *    gtk_file_chooser_get_filename() to
- *    <function>open(2)</function> or
- *    <function>fopen(3)</function>, you may not be able to
- *    directly set it as the text of a #GtkLabel widget unless you
- *    convert it first to UTF-8, which all GTK+ widgets expect.
- *    You should use g_filename_to_utf8() to convert filenames
- *    into strings that can be passed to GTK+ widgets.
- * </note>
- * </refsect2>
- * <refsect2 id="gtkfilechooser-preview">
- * <title>Adding a Preview Widget</title>
- * <para>
+ *
+ * This means that while you can pass the result of
+ * gtk_file_chooser_get_filename() to open() or fopen(),
+ * you may not be able to directly set it as the text of a
+ * #GtkLabel widget unless you convert it first to UTF-8,
+ * which all GTK+ widgets expect. You should use g_filename_to_utf8()
+ * to convert filenames into strings that can be passed to GTK+
+ * widgets.
+ *
+ * ## Adding a Preview Widget
+ *
  * You can add a custom preview widget to a file chooser and then
  * get notification about when the preview needs to be updated.
  * To install a preview widget, use
  * gtk_file_chooser_set_preview_widget().  Then, connect to the
  * #GtkFileChooser::update-preview signal to get notified when
  * you need to update the contents of the preview.
- * </para>
- * <para>
+ *
  * Your callback should use
  * gtk_file_chooser_get_preview_filename() to see what needs
  * previewing.  Once you have generated the preview for the
@@ -112,10 +108,9 @@
  * gtk_file_chooser_set_preview_widget_active() with a boolean
  * flag that indicates whether your callback could successfully
  * generate a preview.
- * </para>
- * <example id="example-gtkfilechooser-preview">
- * <title>Sample Usage</title>
- * <programlisting>
+ * 
+ * <para id="gtkfilechooser-preview">An example for using a  preview widget:</para>
+ * |[<!-- language="C" -->
  * {
  *   GtkImage *preview;
  *
@@ -149,22 +144,19 @@
  *
  *   gtk_file_chooser_set_preview_widget_active (file_chooser, have_preview);
  * }
- * </programlisting>
- * </example>
- * </refsect2>
- * <refsect2 id="gtkfilechooser-extra">
- * <title>Adding Extra Widgets</title>
- * <para>
+ * ]|
+ *
+ * ## Adding Extra Widgets
+ *
  * You can add extra widgets to a file chooser to provide options
  * that are not present in the default design.  For example, you
  * can add a toggle button to give the user the option to open a
  * file in read-only mode.  You can use
  * gtk_file_chooser_set_extra_widget() to insert additional
  * widgets in a file chooser.
- * </para>
- * <example id="example-gtkfilechooser-extra">
- * <title>Sample Usage</title>
- * <programlisting>
+ *
+ * An example for adding extra widgets:
+ * |[<!-- language="C" -->
  *
  *   GtkWidget *toggle;
  *
@@ -174,7 +166,7 @@
  *   gtk_widget_show (toggle);
  *   gtk_file_chooser_set_extra_widget (my_file_chooser, toggle);
  * }
- * </programlisting>
+ * ]|
  * </example>
  * <note>
  *    If you want to set more than one extra widget in the file
@@ -182,351 +174,6 @@
  *    and include your widgets in it.  Then, set the container as
  *    the whole extra widget.
  * </note>
- * </refsect2>
- * <refsect2 id="gtkfilechooser-key-bindings">
- * <title>Key Bindings</title>
- * <para>
- * Internally, GTK+ implements a file chooser's graphical user
- * interface with the private
- * <classname>GtkFileChooserDefaultClass</classname>.  This
- * widget has several <link linkend="gtk-Bindings">key
- * bindings</link> and their associated signals.  This section
- * describes the available key binding signals.
- * </para>
- * <example id="gtkfilechooser-key-binding-example">
- * <title>GtkFileChooser key binding example</title>
- * <para>
- * The default keys that activate the key-binding signals in
- * <classname>GtkFileChooserDefaultClass</classname> are as
- * follows:
- * </para>
- * 	<informaltable>
- * 	  <tgroup cols="2">
- * 	    <tbody>
- * 	      <row>
- * 		<entry>Signal name</entry>
- * 		<entry>Default key combinations</entry>
- * 	      </row>
- * 	      <row>
- * 		<entry>location-popup</entry>
- * 		<entry>
- * 		  <keycombo><keycap>Control</keycap><keycap>L</keycap></keycombo> (empty path);
- * 		  <keycap>/</keycap> (path of "/")
- *                <footnote>
- * 		      Both the individual <keycap>/</keycap> key and the
- * 		      numeric keypad's "divide" key are supported.
- * 		  </footnote>;
- * 		  <keycap>~</keycap> (path of "~")
- * 		</entry>
- * 	      </row>
- * 	      <row>
- * 		<entry>up-folder</entry>
- * 		<entry>
- * 		  <keycombo><keycap>Alt</keycap><keycap>Up</keycap></keycombo>;
- *                <keycombo><keycap>Alt</keycap><keycap>Shift</keycap><keycap>Up</keycap></keycombo>
- *                <footnote>
- * 		      Both the individual Up key and the numeric
- * 		      keypad's Up key are supported.
- * 		  </footnote>;
- * 		  <keycap>Backspace</keycap>
- * 		</entry>
- * 	      </row>
- * 	      <row>
- * 		<entry>down-folder</entry>
- * 		<entry>
- *                <keycombo><keycap>Alt</keycap><keycap>Down</keycap></keycombo>;
- *                <keycombo><keycap>Alt</keycap><keycap>Shift</keycap><keycap>Down</keycap></keycombo>
- *                <footnote>
- * 		      Both the individual Down key and the numeric
- * 		      keypad's Down key are supported.
- * 		  </footnote>
- *              </entry>
- * 	      </row>
- * 	      <row>
- * 		<entry>home-folder</entry>
- * 		<entry><keycombo><keycap>Alt</keycap><keycap>Home</keycap></keycombo></entry>
- * 	      </row>
- * 	      <row>
- * 		<entry>desktop-folder</entry>
- * 		<entry><keycombo><keycap>Alt</keycap><keycap>D</keycap></keycombo></entry>
- * 	      </row>
- * 	      <row>
- * 		<entry>quick-bookmark</entry>
- * 		<entry><keycombo><keycap>Alt</keycap><keycap>1</keycap></keycombo> through <keycombo><keycap>Alt</keycap><keycap>0</keycap></keycombo></entry>
- * 	      </row>
- * 	    </tbody>
- * 	  </tgroup>
- * 	</informaltable>
- * <para>
- * You can change these defaults to something else.  For
- * example, to add a <keycap>Shift</keycap> modifier to a few
- * of the default bindings, you can include the following
- * fragment in your <filename>.config/gtk-3.0/gtk.css</filename> file:
- * </para>
- * <programlisting>
- * @binding-set MyOwnFilechooserBindings
- * {
- *   bind "&lt;Alt&gt;&lt;Shift&gt;Up" { "up-folder" () }
- *   bind "&lt;Alt&gt;&lt;Shift&gt;Down" { "down-folder" () }
- *   bind "&lt;Alt&gt;&lt;Shift&gt;Home" { "home-folder" () }
- * }
- *
- * GtkFileChooserDefault
- * {
- *    gtk-key-bindings: MyOwnFilechooserBindings
- * }
- * </programlisting>
- * </example>
- * <refsect3 id="GtkFileChooserDefault-location-popup">
- * <title>The &quot;GtkFileChooserDefault::location-popup&quot; signal</title>
- * <programlisting>
- *    void user_function (GtkFileChooserDefault *chooser,
- *                        const char            *path,
- * <link linkend="gpointer">gpointer</link>      user_data);
- * </programlisting>
- * <para>
- * This is used to make the file chooser show a "Location"
- * dialog which the user can use to manually type the name of
- * the file he wishes to select.  The
- * <parameter>path</parameter> argument is a string that gets
- * put in the text entry for the file name.  By default this is bound to
- * <keycombo><keycap>Control</keycap><keycap>L</keycap></keycombo>
- * with a <parameter>path</parameter> string of "" (the empty
- * string).  It is also bound to <keycap>/</keycap> with a
- * <parameter>path</parameter> string of "<literal>/</literal>"
- * (a slash):  this lets you type <keycap>/</keycap> and
- * immediately type a path name.  On Unix systems, this is bound to
- * <keycap>~</keycap> (tilde) with a <parameter>path</parameter> string
- * of "~" itself for access to home directories.
- * </para>
- * 	<variablelist role="params">
- * 	  <varlistentry>
- * 	    <term><parameter>chooser</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		the object which received the signal.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	  <varlistentry>
- * 	    <term><parameter>path</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		default contents for the text entry for the file name
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	  <varlistentry>
- * 	    <term><parameter>user_data</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		user data set when the signal handler was connected.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	</variablelist>
- * <note>
- *    You can create your own bindings for the
- *    #GtkFileChooserDefault::location-popup signal with custom
- *    <parameter>path</parameter> strings, and have a crude form
- *    of easily-to-type bookmarks.  For example, say you access
- *    the path <filename>/home/username/misc</filename> very
- *    frequently.  You could then create an <keycombo>
- *    <keycap>Alt</keycap> <keycap>M</keycap> </keycombo>
- *    shortcut by including the following in your
- *    <filename>.config/gtk-3.0/gtk.css</filename>:
- *    <programlisting>
- *    @binding-set MiscShortcut
- *    {
- *      bind "&lt;Alt&gt;M" { "location-popup" ("/home/username/misc") }
- *    }
- *
- *    GtkFileChooserDefault
- *    {
- *      gtk-key-bindings: MiscShortcut
- *    }
- *    </programlisting>
- * </note>
- * </refsect3>
- * <refsect3 id="GtkFileChooserDefault-up-folder">
- * <title>The &quot;GtkFileChooserDefault::up-folder&quot; signal</title>
- * <programlisting>
- *           void user_function (GtkFileChooserDefault *chooser,
- *                               <link linkend="gpointer">gpointer</link> user_data);
- * </programlisting>
- * <para>
- * This is used to make the file chooser go to the parent of
- * the current folder in the file hierarchy.  By default this
- * is bound to <keycap>Backspace</keycap> and
- * <keycombo><keycap>Alt</keycap><keycap>Up</keycap></keycombo>
- * (the Up key in the numeric keypad also works).
- * </para>
- * 	<variablelist role="params">
- * 	  <varlistentry>
- * 	    <term><parameter>chooser</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		the object which received the signal.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	  <varlistentry>
- * 	    <term><parameter>user_data</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		user data set when the signal handler was connected.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	</variablelist>
- * </refsect3>
- * <refsect3 id="GtkFileChooserDefault-down-folder">
- * <title>The &quot;GtkFileChooserDefault::down-folder&quot; signal</title>
- * <programlisting>
- *           void user_function (GtkFileChooserDefault *chooser,
- *                               <link linkend="gpointer">gpointer</link> user_data);
- * </programlisting>
- * <para>
- * This is used to make the file chooser go to a child of the
- * current folder in the file hierarchy.  The subfolder that
- * will be used is displayed in the path bar widget of the file
- * chooser.  For example, if the path bar is showing
- * "/foo/<emphasis>bar/</emphasis>baz", then this will cause
- * the file chooser to switch to the "baz" subfolder.  By
- * default this is bound to
- * <keycombo><keycap>Alt</keycap><keycap>Down</keycap></keycombo>
- * (the Down key in the numeric keypad also works).
- * </para>
- * 	<variablelist role="params">
- * 	  <varlistentry>
- * 	    <term><parameter>chooser</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		the object which received the signal.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	  <varlistentry>
- * 	    <term><parameter>user_data</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		user data set when the signal handler was connected.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	</variablelist>
- * </refsect3>
- * <refsect3 id="GtkFileChooserDefault-home-folder">
- * <title>The &quot;GtkFileChooserDefault::home-folder&quot; signal</title>
- * <programlisting>
- *           void user_function (GtkFileChooserDefault *chooser,
- *                               <link linkend="gpointer">gpointer</link> user_data);
- * </programlisting>
- * <para>
- * This is used to make the file chooser show the user's home
- * folder in the file list.  By default this is bound to
- * <keycombo><keycap>Alt</keycap><keycap>Home</keycap></keycombo>
- * (the Home key in the numeric keypad also works).
- * </para>
- * 	<variablelist role="params">
- * 	  <varlistentry>
- * 	    <term><parameter>chooser</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		the object which received the signal.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	  <varlistentry>
- * 	    <term><parameter>user_data</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		user data set when the signal handler was connected.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	</variablelist>
- * </refsect3>
- * <refsect3 id="GtkFileChooserDefault-desktop-folder">
- * <title>The &quot;GtkFileChooserDefault::desktop-folder&quot; signal</title>
- * <programlisting>
- *           void user_function (GtkFileChooserDefault *chooser,
- *                               <link linkend="gpointer">gpointer</link> user_data);
- * </programlisting>
- * <para>
- * This is used to make the file chooser show the user's Desktop
- * folder in the file list.  By default this is bound to
- * <keycombo><keycap>Alt</keycap><keycap>D</keycap></keycombo>.
- * </para>
- * 	<variablelist role="params">
- * 	  <varlistentry>
- * 	    <term><parameter>chooser</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		the object which received the signal.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	  <varlistentry>
- * 	    <term><parameter>user_data</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		user data set when the signal handler was connected.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	</variablelist>
- * </refsect3>
- * <refsect3 id="GtkFileChooserDefault-quick-bookmark">
- * <title>The &quot;GtkFileChooserDefault::quick-bookmark&quot; signal</title>
- * <programlisting>
- *           void user_function (GtkFileChooserDefault *chooser,
- *                               gint bookmark_index,
- *                               <link linkend="gpointer">gpointer</link> user_data);
- * </programlisting>
- * <para>
- * This is used to make the file chooser switch to the bookmark
- * specified in the <parameter>bookmark_index</parameter> parameter.
- * For example, if you have three bookmarks, you can pass 0, 1, 2 to
- * this signal to switch to each of them, respectively.  By default this is bound to
- * <keycombo><keycap>Alt</keycap><keycap>1</keycap></keycombo>,
- * <keycombo><keycap>Alt</keycap><keycap>2</keycap></keycombo>,
- * etc. until
- * <keycombo><keycap>Alt</keycap><keycap>0</keycap></keycombo>.  Note
- * that in the default binding,
- * that <keycombo><keycap>Alt</keycap><keycap>1</keycap></keycombo> is
- * actually defined to switch to the bookmark at index 0, and so on
- * successively;
- * <keycombo><keycap>Alt</keycap><keycap>0</keycap></keycombo> is
- * defined to switch to the bookmark at index 10.
- * </para>
- * 	<variablelist role="params">
- * 	  <varlistentry>
- * 	    <term><parameter>chooser</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		the object which received the signal.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	  <varlistentry>
- * 	    <term><parameter>bookmark_indes</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		index of the bookmark to switch to; the indices start at 0.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	  <varlistentry>
- * 	    <term><parameter>user_data</parameter>&nbsp;:</term>
- * 	    <listitem>
- * 	      <simpara>
- * 		user data set when the signal handler was connected.
- * 	      </simpara>
- * 	    </listitem>
- * 	  </varlistentry>
- * 	</variablelist>
- * </refsect3>
  * </refsect2>
  */
 
@@ -696,7 +343,7 @@ gtk_file_chooser_default_init (GtkFileChooserInterface *iface)
    * illustrates this.
    * <example id="gtkfilechooser-confirmation">
    * <title>Custom confirmation</title>
-   * <programlisting>
+   * |[<!-- language="C" -->
    * static GtkFileChooserConfirmation
    * confirm_overwrite_callback (GtkFileChooser *chooser, gpointer data)
    * {
@@ -726,7 +373,7 @@ gtk_file_chooser_default_init (GtkFileChooserInterface *iface)
    *         save_to_file (gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (chooser));
    *
    * gtk_widget_destroy (chooser);
-   * </programlisting>
+   * ]|
    * </example>
    *
    * Returns: a #GtkFileChooserConfirmation value that indicates which
@@ -1083,14 +730,14 @@ gtk_file_chooser_get_filename (GtkFileChooser *chooser)
  * Note that the file must exist, or nothing will be done except
  * for the directory change.
  *
- * You should use this function only when implementing a <guimenuitem>File/Save
- * As...</guimenuitem> dialog for which you already have a file name to which
+ * You should use this function only when implementing a save
+ * dialog for which you already have a file name to which
  * the user may save.  For example, when the user opens an existing file and
- * then does <guimenuitem>File/Save As...</guimenuitem> on it to save a copy or
+ * then does Save As... to save a copy or
  * a modified version.  If you don't have a file name already &mdash; for
  * example, if the user just created a new file and is saving it for the first
  * time, do not call this function.  Instead, use something similar to this:
- * |[
+ * |[<!-- language="C" -->
  * if (document_is_new)
  *   {
  *     /&ast; the user just created a new document &ast;/
@@ -1292,7 +939,7 @@ gtk_file_chooser_set_current_folder (GtkFileChooser *chooser,
  * See gtk_file_chooser_set_current_folder().
  *
  * Note that this is the folder that the file chooser is currently displaying
- * (e.g. "/home/username/Documents"), which is <emphasis>not the same</emphasis>
+ * (e.g. "/home/username/Documents"), which is not the same
  * as the currently-selected folder if the chooser is in
  * %GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER mode
  * (e.g. "/home/username/Documents/selected-folder/".  To get the
@@ -1435,14 +1082,14 @@ gtk_file_chooser_get_uri (GtkFileChooser *chooser)
  * Note that the URI must exist, or nothing will be done except for the 
  * directory change.
  *
- * You should use this function only when implementing a <guimenuitem>File/Save
- * As...</guimenuitem> dialog for which you already have a file name to which
- * the user may save.  For example, whenthe user opens an existing file and then
- * does <guimenuitem>File/Save As...</guimenuitem> on it to save a copy or a
+ * You should use this function only when implementing a save
+ * dialog for which you already have a file name to which
+ * the user may save.  For example, when the user opens an existing file and then
+ * does Save As... to save a copy or a
  * modified version.  If you don't have a file name already &mdash; for example,
  * if the user just created a new file and is saving it for the first time, do
  * not call this function.  Instead, use something similar to this:
- * |[
+ * |[<!-- language="C" -->
  * if (document_is_new)
  *   {
  *     /&ast; the user just created a new document &ast;/
@@ -1638,7 +1285,7 @@ gtk_file_chooser_set_current_folder_uri (GtkFileChooser *chooser,
  * See gtk_file_chooser_set_current_folder_uri().
  *
  * Note that this is the folder that the file chooser is currently displaying
- * (e.g. "file:///home/username/Documents"), which is <emphasis>not the same</emphasis>
+ * (e.g. "file:///home/username/Documents"), which is not the same
  * as the currently-selected folder if the chooser is in
  * %GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER mode
  * (e.g. "file:///home/username/Documents/selected-folder/".  To get the
@@ -1801,14 +1448,14 @@ gtk_file_chooser_get_files (GtkFileChooser *chooser)
  * Note that the file must exist, or nothing will be done except
  * for the directory change.
  *
- * If you are implementing a <guimenuitem>File/Save As...</guimenuitem> dialog,
+ * If you are implementing a save dialog,
  * you should use this function if you already have a file name to which the
  * user may save; for example, when the user opens an existing file and then
- * does <guimenuitem>File/Save As...</guimenuitem> on it.  If you don't have
+ * does Save As...  If you don't have
  * a file name already &mdash; for example, if the user just created a new
  * file and is saving it for the first time, do not call this function.
  * Instead, use something similar to this:
- * |[
+ * |[<!-- language="C" -->
  * if (document_is_new)
  *   {
  *     /&ast; the user just created a new document &ast;/

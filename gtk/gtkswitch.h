@@ -51,7 +51,7 @@ typedef struct _GtkSwitchClass          GtkSwitchClass;
 /**
  * GtkSwitch:
  *
- * The <structname>GtkSwitch</structname> structure contains private
+ * The #GtkSwitch-struct contains private
  * data and it should only be accessed using the provided API.
  */
 struct _GtkSwitch

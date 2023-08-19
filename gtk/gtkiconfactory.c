@@ -122,7 +122,7 @@
  * </variablelist>
  * <example>
  * <title>A #GtkIconFactory UI definition fragment.</title>
- * <programlisting><![CDATA[
+ * |[
  * <object class="GtkIconFactory" id="iconfactory1">
  *   <sources>
  *     <source stock-id="apple-red" filename="apple-red.png"/>
@@ -136,8 +136,7 @@
  *     </object>
  *   </child>
  * </object>
- * ]]>
- * </programlisting>
+ * ]|
  * </example>
  * </para>
  * </refsect2>
@@ -2569,7 +2568,7 @@ gtk_icon_source_set_size (GtkIconSource *source,
  * @source: a #GtkIconSource
  *
  * Obtains the text direction this icon source applies to. The return
- * value is only useful/meaningful if the text direction is <emphasis>not</emphasis>
+ * value is only useful/meaningful if the text direction is not
  * wildcarded.
  *
  * Return value: text direction this source matches
@@ -2587,7 +2586,7 @@ gtk_icon_source_get_direction (const GtkIconSource *source)
  * @source: a #GtkIconSource
  *
  * Obtains the widget state this icon source applies to. The return
- * value is only useful/meaningful if the widget state is <emphasis>not</emphasis>
+ * value is only useful/meaningful if the widget state is not
  * wildcarded.
  *
  * Return value: widget state this source matches
@@ -2605,7 +2604,7 @@ gtk_icon_source_get_state (const GtkIconSource *source)
  * @source: a #GtkIconSource
  *
  * Obtains the icon size this source applies to. The return value
- * is only useful/meaningful if the icon size is <emphasis>not</emphasis> wildcarded.
+ * is only useful/meaningful if the icon size is not wildcarded.
  *
  * Return value: (type int): icon size this source matches.
  */

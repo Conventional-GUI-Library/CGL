@@ -27,7 +27,7 @@
  * attributes and data funcs.
  *
  * One of the notable features provided by implementations of GtkCellLayout
- * are <emphasis>attributes</emphasis>. Attributes let you set the properties
+ * are attributes. Attributes let you set the properties
  * in flexible ways. They can just be set to constant values like regular
  * properties. But they can also be mapped to a column of the underlying
  * tree model with gtk_cell_layout_set_attributes(), which means that the value
@@ -48,9 +48,8 @@
  * a name attribute which specifies a property of the cell renderer; the
  * content of the element is the attribute value.
  *
- * <example>
- * <title>A UI definition fragment specifying attributes</title>
- * <programlisting><![CDATA[
+ * This is an example of a UI definition fragment specifying attributes:
+ * |[
  * <object class="GtkCellView">
  *   <child>
  *     <object class="GtkCellRendererText"/>
@@ -59,17 +58,17 @@
  *     </attributes>
  *   </child>"
  * </object>
- * ]]></programlisting>
- * </example>
+ * ]|
  *
- * Furthermore for implementations of GtkCellLayout that use a #GtkCellArea
- * to lay out cells (all GtkCellLayouts in GTK+ use a GtkCellArea)
- * <link linkend="cell-properties">cell properties</link> can also be defined
- * in the format by specifying the custom &lt;cell-packing&gt; attribute which
- * can contain multiple &lt;property&gt; elements defined in the normal way.
- * <example>
- * <title>A UI definition fragment specifying cell properties</title>
- * <programlisting><![CDATA[
+ * Furthermore for implementations of GtkCellLayout that use a
+ * #GtkCellArea to lay out cells (all GtkCellLayouts in GTK+ use
+ * a GtkCellArea) <link linkend="cell-properties">cell properties</link>
+ * can also be defined in the format by specifying the custom
+ * &lt;cell-packing&gt; attribute which can contain multiple
+ * &lt;property&gt; elements defined in the normal way.
+ *
+ * Here is a UI definition fragment specifying cell properties:
+ * |[
  * <object class="GtkTreeViewColumn">
  *   <child>
  *     <object class="GtkCellRendererText"/>
@@ -79,30 +78,26 @@
  *     </cell-packing>
  *   </child>"
  * </object>
- * ]]></programlisting>
- * </example>
- * </para>
- * </refsect2>
+ * ]|
  *
- * <refsect2>
- * <title>Subclassing GtkCellLayout implementations</title>
- * <para>
+ * ## Subclassing GtkCellLayout implementations
+ *
  * When subclassing a widget that implements #GtkCellLayout like
  * #GtkIconView or #GtkComboBox, there are some considerations related
  * to the fact that these widgets internally use a #GtkCellArea.
  * The cell area is exposed as a construct-only property by these
  * widgets. This means that it is possible to e.g. do
- * <informalexample><programlisting>
+ * |[<!-- language="C" -->
  * combo = g_object_new (GTK_TYPE_COMBO_BOX, "cell-area", my_cell_area, NULL);
- * </programlisting></informalexample>
+ * ]|
  * to use a custom cell area with a combo box. But construct properties
- * are only initialized <emphasis>after</emphasis> instance init()
+ * are only initialized after instance init()
  * functions have run, which means that using functions which rely on
  * the existence of the cell area in your subclass' init() function will
  * cause the default cell area to be instantiated. In this case, a provided
  * construct property value will be ignored (with a warning, to alert
  * you to the problem).
- * <informalexample><programlisting>
+ * |[<!-- language="C" -->
  * static void
  * my_combo_box_init (MyComboBox *b)
  * {
@@ -124,14 +119,12 @@
  *    &ast;/
  *   return g_object_new (MY_TYPE_COMBO_BOX, "cell-area", area, NULL);
  * }
- * </programlisting></informalexample>
+ * ]|
  * If supporting alternative cell areas with your derived widget is
  * not important, then this does not have to concern you. If you want
  * to support alternative cell areas, you can do so by moving the
  * problematic calls out of init() and into a constructor()
  * for your class.
- * </para>
- * </refsect2>
  */
 
 #include "config.h"

@@ -74,7 +74,7 @@ typedef enum
 /**
  * GdkVisual:
  *
- * The #GdkVisual structure contains information about
+ * A #GdkVisual contains information about
  * a particular visual.
  */
 

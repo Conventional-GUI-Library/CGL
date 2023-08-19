@@ -47,16 +47,16 @@
  *
  * <example>
  * <title>Connecting the popup signal handler.</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  *   /<!---->* connect our handler which will popup the menu *<!---->/
  *   g_signal_connect_swapped (window, "button_press_event",
  *	G_CALLBACK (my_popup_handler), menu);
- * </programlisting>
+ * ]|
  * </example>
  *
  * <example>
  * <title>Signal handler which displays a popup menu.</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * static gint
  * my_popup_handler (GtkWidget *widget, GdkEvent *event)
  * {
@@ -85,7 +85,7 @@
  * 
  *   return FALSE;
  * }
- * </programlisting>
+ * ]|
  * </example>
  */
 

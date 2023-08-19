@@ -79,31 +79,19 @@
  * gtk_print_job_new().
  *
  * #GtkPrintUnixDialog uses the following response values:
- * <variablelist>
- *   <varlistentry><term>%GTK_RESPONSE_OK</term>
- *     <listitem><para>for the "Print" button</para></listitem>
- *   </varlistentry>
- *   <varlistentry><term>%GTK_RESPONSE_APPLY</term>
- *     <listitem><para>for the "Preview" button</para></listitem>
- *   </varlistentry>
- *   <varlistentry><term>%GTK_RESPONSE_CANCEL</term>
- *     <listitem><para>for the "Cancel" button</para></listitem>
- *   </varlistentry>
- * </variablelist>
- *
- * <!-- FIXME example here -->
+ * - %GTK_RESPONSE_OK: for the "Print" button
+ * - %GTK_RESPONSE_APPLY: for the "Preview" button
+ * - %GTK_RESPONSE_CANCEL: for the "Cancel" button
  *
  * Printing support was added in GTK+ 2.10.
  *
- * <refsect2 id="GtkPrintUnixDialog-BUILDER-UI">
- * <title>GtkPrintUnixDialog as GtkBuildable</title>
- * <para>
+ * ## GtkPrintUnixDialog as GtkBuildable
+ *
  * The GtkPrintUnixDialog implementation of the GtkBuildable interface exposes its
  * @notebook internal children with the name "notebook".
  *
- * <example>
- * <title>A <structname>GtkPrintUnixDialog</structname> UI definition fragment.</title>
- * <programlisting><![CDATA[
+ * An example of a #GtkPrintUnixDialog UI definition fragment:
+ * |[
  * <object class="GtkPrintUnixDialog" id="dialog1">
  *   <child internal-child="notebook">
  *     <object class="GtkNotebook" id="notebook">
@@ -124,10 +112,7 @@
  *     </object>
  *   </child>
  * </object>
- * ]]></programlisting>
- * </example>
- * </para>
- * </refsect2>
+ * ]|
  */
 
 
@@ -175,6 +160,11 @@ static void     set_cell_sensitivity_func          (GtkTreeViewColumn *tree_colu
 static gboolean set_active_printer                 (GtkPrintUnixDialog *dialog,
                                                     const gchar        *printer_name);
 static void redraw_page_layout_preview             (GtkPrintUnixDialog *dialog);
+static gboolean printer_compare                    (GtkTreeModel       *model,
+                                                    gint                column,
+                                                    const gchar        *key,
+                                                    GtkTreeIter        *iter,
+                                                    gpointer            search_data);
 
 /* GtkBuildable */
 static void gtk_print_unix_dialog_buildable_init                    (GtkBuildableIface *iface);
@@ -475,24 +465,6 @@ set_busy_cursor (GtkPrintUnixDialog *dialog,
     g_object_unref (cursor);
 }
 
-static void
-add_custom_button_to_dialog (GtkDialog   *dialog,
-                             const gchar *mnemonic_label,
-                             const gchar *stock_id,
-                             gint         response_id)
-{
-  GtkWidget *button = NULL;
-
-  button = gtk_button_new_with_mnemonic (mnemonic_label);
-  gtk_widget_set_can_default (button, TRUE);
-  gtk_button_set_image (GTK_BUTTON (button),
-                        gtk_image_new_from_stock (stock_id,
-                                                  GTK_ICON_SIZE_BUTTON));
-  gtk_widget_show (button);
-
-  gtk_dialog_add_action_widget (GTK_DIALOG (dialog), button, response_id);
-}
-
 /* This function handles error messages before printing.
  */
 static gboolean
@@ -556,10 +528,12 @@ error_dialogs (GtkPrintUnixDialog *print_dialog,
 
                       gtk_dialog_add_button (GTK_DIALOG (dialog),
                                              GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
-                      add_custom_button_to_dialog (GTK_DIALOG (dialog),
-                                                   _("_Replace"),
-                                                   GTK_STOCK_PRINT,
-                                                   GTK_RESPONSE_ACCEPT);
+						gtk_dialog_add_button (GTK_DIALOG (dialog),
+                                             _("_Replace"),
+                                             GTK_RESPONSE_ACCEPT);
+                                          
+                                                   
+                                                   
                       gtk_dialog_set_alternative_button_order (GTK_DIALOG (dialog),
                                                                GTK_RESPONSE_ACCEPT,
                                                                GTK_RESPONSE_CANCEL,
@@ -657,6 +631,9 @@ gtk_print_unix_dialog_init (GtkPrintUnixDialog *dialog)
 
   priv->custom_paper_list = gtk_list_store_new (1, G_TYPE_OBJECT);
   _gtk_print_load_custom_papers (priv->custom_paper_list);
+
+  gtk_tree_view_set_search_equal_func (GTK_TREE_VIEW (priv->printer_treeview),
+                                       printer_compare, NULL, NULL);
 
   populate_dialog (dialog);
 }
@@ -2041,6 +2018,87 @@ selected_printer_changed (GtkTreeSelection   *selection,
   g_object_notify ( G_OBJECT(dialog), "selected-printer");
 }
 
+
+static gboolean
+printer_compare (GtkTreeModel *model,
+                 gint          column,
+                 const gchar  *key,
+                 GtkTreeIter  *iter,
+                 gpointer      search_data)
+{
+  gboolean matches = FALSE;
+
+  if (key != NULL)
+    {
+      gchar  *name = NULL;
+      gchar  *location = NULL;
+      gchar  *casefold_key = NULL;
+      gchar  *casefold_name = NULL;
+      gchar  *casefold_location = NULL;
+      gchar **keys;
+      gchar  *tmp1, *tmp2;
+      gint    i;
+
+      gtk_tree_model_get (model, iter,
+                          PRINTER_LIST_COL_NAME, &name,
+                          PRINTER_LIST_COL_LOCATION, &location,
+                          -1);
+
+      casefold_key = g_utf8_casefold (key, -1);
+
+      if (name != NULL)
+        {
+          casefold_name = g_utf8_casefold (name, -1);
+          g_free (name);
+        }
+
+      if (location != NULL)
+        {
+          casefold_location = g_utf8_casefold (location, -1);
+          g_free (location);
+        }
+
+      if (casefold_name != NULL ||
+          casefold_location != NULL)
+        {
+          keys = g_strsplit_set (casefold_key, " \t", 0);
+          if (keys != NULL)
+            {
+              matches = TRUE;
+
+              for (i = 0; keys[i] != NULL; i++)
+                {
+                  if (keys[i][0] != '\0')
+                    {
+                      tmp1 = tmp2 = NULL;
+
+                      if (casefold_name != NULL)
+                        tmp1 = g_strstr_len (casefold_name, -1, keys[i]);
+
+                      if (casefold_location != NULL)
+                        tmp2 = g_strstr_len (casefold_location, -1, keys[i]);
+
+                      if (tmp1 == NULL && tmp2 == NULL)
+                        {
+                          matches = FALSE;
+                          break;
+                        }
+                    }
+                }
+
+              g_strfreev (keys);
+            }
+        }
+
+      g_free (casefold_location);
+      g_free (casefold_name);
+      g_free (casefold_key);
+    }
+
+  return !matches;
+}
+
+
 static void
 update_collate_icon (GtkToggleButton    *toggle_button,
                      GtkPrintUnixDialog *dialog)
@@ -2228,7 +2286,7 @@ create_main_page (GtkPrintUnixDialog *dialog)
   treeview = gtk_tree_view_new_with_model ((GtkTreeModel *) priv->printer_list_filter);
   priv->printer_treeview = treeview;
   gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (treeview), TRUE);
-  gtk_tree_view_set_search_column (GTK_TREE_VIEW (treeview), PRINTER_LIST_COL_NAME);
+  //gtk_tree_view_set_search_column (GTK_TREE_VIEW (treeview), PRINTER_LIST_COL_NAME);
   gtk_tree_view_set_enable_search (GTK_TREE_VIEW (treeview), TRUE);
   selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (treeview));
   gtk_tree_selection_set_mode (selection, GTK_SELECTION_BROWSE);
@@ -4160,7 +4218,7 @@ gtk_print_unix_dialog_set_settings (GtkPrintUnixDialog *dialog,
  *
  * Gets a new #GtkPrintSettings object that represents the
  * current values in the print dialog. Note that this creates a
- * <emphasis>new object</emphasis>, and you need to unref it
+ * new object, and you need to unref it
  * if don't want to keep it.
  *
  * Returns: a new #GtkPrintSettings object with the values from @dialog

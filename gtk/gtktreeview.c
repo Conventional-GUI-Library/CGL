@@ -74,30 +74,15 @@
  * These are:
  *
  * <inlinegraphic fileref="tree-view-coordinates.png" format="PNG"></inlinegraphic>
- * <variablelist><title>Coordinate systems in GtkTreeView API</title>
- * <varlistentry><term>Widget coordinates</term>
- * <listitem>
- * <para>
- * Coordinates relative to the widget (usually <literal>widget->window</literal>).
- * </para>
- * </listitem>
- * </varlistentry>
- * <varlistentry><term>Bin window coordinates</term>
- * <listitem>
- * <para>
- * Coordinates relative to the window that GtkTreeView renders to.
- * </para>
- * </listitem>
- * </varlistentry>
- * <varlistentry><term>Tree coordinates</term>
- * <listitem>
- * <para>
- * Coordinates relative to the entire scrollable area of GtkTreeView. These
- * coordinates start at (0, 0) for row 0 of the tree.
- * </para>
- * </listitem>
- * </varlistentry>
- * </variablelist>
+ *
+ * Coordinate systems in GtkTreeView API:
+ *
+ * - Widget coordinates: Coordinates relative to the widget (usually <literal>widget->window</literal>).
+ *
+ * - Bin window coordinates: Coordinates relative to the window that GtkTreeView renders to.
+ *
+ * - Tree coordinates: Coordinates relative to the entire scrollable area of GtkTreeView. These
+ *   coordinates start at (0, 0) for row 0 of the tree.
  *
  * Several functions are available for converting between the different
  * coordinate systems.  The most common translations are between widget and bin
@@ -106,14 +91,14 @@
  * (and vice versa), for the latter gtk_tree_view_convert_bin_window_to_tree_coords()
  * (and vice versa).
  *
- * <refsect2 id="GtkTreeView-BUILDER-UI">
- * <title>GtkTreeView as GtkBuildable</title>
+ * ## GtkTreeView as GtkBuildable
+ *
  * The GtkTreeView implementation of the GtkBuildable interface accepts
  * #GtkTreeViewColumn objects as &lt;child&gt; elements and exposes the
  * internal #GtkTreeSelection in UI definitions.
- * <example>
- * <title>A UI definition fragment with GtkTreeView</title>
- * <programlisting><![CDATA[
+ *
+ * An example of a UI definition fragment with GtkTreeView:
+ * |[
  * <object class="GtkTreeView" id="treeview">
  *   <property name="model">liststore1</property>
  *   <child>
@@ -133,9 +118,7 @@
  *     </object>
  *   </child>
  * </object>
- * ]]></programlisting>
- * </example>
- * </refsect2>
+ * ]|
  */
 
 enum
@@ -11698,12 +11681,12 @@ gtk_tree_view_get_headers_clickable (GtkTreeView *tree_view)
  * This function tells GTK+ that the user interface for your
  * application requires users to read across tree rows and associate
  * cells with one another. By default, GTK+ will then render the tree
- * with alternating row colors. Do <emphasis>not</emphasis> use it
+ * with alternating row colors. Do not use it
  * just because you prefer the appearance of the ruled tree; that's a
  * question for the theme. Some themes will draw tree rows in
  * alternating colors even when rules are turned off, and users who
  * prefer that appearance all the time can choose those themes. You
- * should call this function only as a <emphasis>semantic</emphasis>
+ * should call this function only as a semantic
  * hint to the theme engine that your tree makes alternating colors
  * useful from a functional standpoint (since it has lots of columns,
  * generally).

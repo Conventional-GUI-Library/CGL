@@ -50,7 +50,7 @@ typedef struct _GtkAdjustmentClass    GtkAdjustmentClass;
 /**
  * GtkAdjustment:
  *
- * The #GtkAdjustment struct contains only private fields and
+ * The #GtkAdjustment-struct contains only private fields and
  * should not be directly accessed.
  */
 struct _GtkAdjustment

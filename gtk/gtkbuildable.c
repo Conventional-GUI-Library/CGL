@@ -29,11 +29,10 @@
  * The GtkBuildable interface is implemented by all widgets and
  * many of the non-widget objects that are provided by GTK+. The
  * main user of this interface is #GtkBuilder. There should be
- * very little need for applications to call any
- * <function>gtk_buildable_...</function> functions.
+ * very little need for applications to call any of these functions directly.
  *
- * <note><para>An object only needs to implement this interface if it needs
- * to extend the #GtkBuilder format or run any extra routines at deserialization time</para></note>
+ * An object only needs to implement this interface if it needs to extend the
+ * #GtkBuilder format or run any extra routines at deserialization time.
  */
 
 #include "config.h"
@@ -233,7 +232,7 @@ gtk_buildable_construct_child (GtkBuildable *buildable,
  * @builder: a #GtkBuilder used to construct this object
  * @child: (allow-none): child object or %NULL for non-child tags
  * @tagname: name of tag
- * @parser: (out): a #GMarkupParser structure to fill in
+ * @parser: (out): a #GMarkupParser to fill in
  * @data: (out): return location for user data that will be passed in 
  *   to parser functions
  *

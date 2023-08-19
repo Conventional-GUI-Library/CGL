@@ -67,20 +67,19 @@
  * of the abstract GtkContainer base class.
  *
  * The first type of container widget has a single child widget and derives
- * from #GtkBin. These containers are <emphasis>decorators</emphasis>, which
+ * from #GtkBin. These containers are decorators, which
  * add some kind of functionality to the child. For example, a #GtkButton makes
  * its child into a clickable button; a #GtkFrame draws a frame around its child
  * and a #GtkWindow places its child widget inside a top-level window.
  *
  * The second type of container can have more than one child; its purpose is to
- * manage <emphasis>layout</emphasis>. This means that these containers assign
+ * manage layout. This means that these containers assign
  * sizes and positions to their children. For example, a #GtkHBox arranges its
  * children in a horizontal row, and a #GtkTable arranges the widgets it contains
  * in a two-dimensional grid.
  *
- * <refsect2 id="container-geometry-management">
- * <title>Height for width geometry management</title>
- * <para>
+ * ## Height for width geometry management
+ *
  * GTK+ uses a height-for-width (and width-for-height) geometry management system.
  * Height-for-width means that a widget can change how much vertical space it needs,
  * depending on the amount of horizontal space that it is given (and similar for
@@ -108,7 +107,7 @@
  * the container must return the height for its minimum width. This is easily achieved by
  * simply calling the reverse apis implemented for itself as follows:
  *
- * <programlisting><![CDATA[
+ * |[<!-- language="C" -->
  * static void
  * foo_container_get_preferred_height (GtkWidget *widget, gint *min_height, gint *nat_height)
  * {
@@ -127,12 +126,12 @@
  *        stacked vertically (or whatever is appropriate for this container) ...
  *      }
  * }
- * ]]></programlisting>
+ * ]|
  *
  * Similarly, when gtk_widget_get_preferred_width_for_height() is called for a container or widget
  * that is height-for-width, it then only needs to return the base minimum width like so:
  *
- * <programlisting><![CDATA[
+ * |[<!-- language="C" -->
  * static void
  * foo_container_get_preferred_width_for_height (GtkWidget *widget, gint for_height,
  *                                               gint *min_width, gint *nat_width)
@@ -147,11 +146,11 @@
  *        of the children collectively if the container were to be allocated the said height ...
  *      }
  * }
- * ]]></programlisting>
+ * ]|
  *
  * Height for width requests are generally implemented in terms of a virtual allocation
  * of widgets in the input orientation. Assuming an height-for-width request mode, a container
- * would implement the <function>get_preferred_height_for_width(<!-- -->)</function> virtual function by first calling
+ * would implement the get_preferred_height_for_width() virtual function by first calling
  * gtk_widget_get_preferred_width() for each of its children.
  *
  * For each potential group of children that are lined up horizontally, the values returned by
@@ -180,12 +179,10 @@
  *
  * See <link linkend="geometry-management">GtkWidget's geometry management section</link>
  * to learn more about implementing height-for-width geometry management for widgets.
- * </para>
- * </refsect2>
- * <refsect2 id="child-properties">
- * <title>Child properties</title>
- * <para>
- * GtkContainer introduces <emphasis>child properties</emphasis>.
+ *
+ * ## Child properties
+ *
+ * GtkContainer introduces child properties.
  * These are object properties that are not specific
  * to either the container or the contained widget, but rather to their relation.
  * Typical examples of child properties are the position or pack-type of a widget
@@ -202,18 +199,16 @@
  * gtk_container_child_get_property(), gtk_container_child_get() or
  * gtk_container_child_get_valist(). To emit notification about child property
  * changes, use gtk_widget_child_notify().
- * </para>
- * </refsect2>
- * <refsect2 id="GtkContainer-BUILDER-UI">
- * <title>GtkContainer as GtkBuildable</title>
- * <para>
+ *
+ * ## GtkContainer as GtkBuildable
+ *
  * The GtkContainer implementation of the GtkBuildable interface
  * supports a &lt;packing&gt; element for children, which can
  * contain multiple &lt;property&gt; elements that specify
  * child properties for the child.
- * <example>
- * <title>Child properties in UI definitions</title>
- * <programlisting><![CDATA[
+ * 
+ * An example of child properties in UI definitions:
+ * |[
  * <object class="GtkVBox">
  *   <child>
  *     <object class="GtkLabel"/>
@@ -222,13 +217,11 @@
  *     </packing>
  *   </child>
  * </object>
- * ]]></programlisting>
- * </example>
+ * ]|
+ *
  * Since 2.16, child properties can also be marked as translatable using
  * the same "translatable", "comments" and "context" attributes that are used
  * for regular properties.
- * </para>
- * </refsect2>
  */
 
 
@@ -1444,7 +1437,7 @@ gtk_container_get_property (GObject         *object,
 /**
  * gtk_container_set_border_width:
  * @container: a #GtkContainer
- * @border_width: amount of blank space to leave <emphasis>outside</emphasis>
+ * @border_width: amount of blank space to leave outside
  *   the container. Valid values are in the range 0-65535 pixels.
  *
  * Sets the border width of the container.

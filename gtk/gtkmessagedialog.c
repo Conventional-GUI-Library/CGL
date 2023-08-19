@@ -56,44 +56,40 @@
  * you can also pass in the %GTK_DIALOG_MODAL flag, gtk_dialog_run() automatically
  * makes the dialog modal and waits for the user to respond to it. gtk_dialog_run()
  * returns when any dialog button is clicked.
- * <example>
- * <title>A modal dialog.</title>
- * <programlisting>
+ *
+ * An example for using a modal dialog:
+ * |[<!-- language="C" -->
  *  dialog = gtk_message_dialog_new (main_application_window,
  *                                   GTK_DIALOG_DESTROY_WITH_PARENT,
  *                                   GTK_MESSAGE_ERROR,
  *                                   GTK_BUTTONS_CLOSE,
- *                                   "Error loading file '&percnt;s': &percnt;s",
+ *                                   "Error loading file '%s': %s",
  *                                   filename, g_strerror (errno));
  *  gtk_dialog_run (GTK_DIALOG (dialog));
  *  gtk_widget_destroy (dialog);
- * </programlisting>
- * </example>
+ * ]|
+ *
  * You might do a non-modal #GtkMessageDialog as follows:
- * <example>
- * <title>A non-modal dialog.</title>
- * <programlisting>
+ *
+ * An example for a non-modal dialog:
+ * |[<!-- language="C" -->
  *  dialog = gtk_message_dialog_new (main_application_window,
  *                                   GTK_DIALOG_DESTROY_WITH_PARENT,
  *                                   GTK_MESSAGE_ERROR,
  *                                   GTK_BUTTONS_CLOSE,
- *                                   "Error loading file '&percnt;s': &percnt;s",
+ *                                   "Error loading file '%s': %s",
  *                                   filename, g_strerror (errno));
  *
  *  /&ast; Destroy the dialog when the user responds to it (e.g. clicks a button) &ast;/
  *  g_signal_connect_swapped (dialog, "response",
  *                            G_CALLBACK (gtk_widget_destroy),
  *                            dialog);
- * </programlisting>
- * </example>
+ * ]|
  *
- * <refsect2 id="GtkMessageDialog-BUILDER-UI">
- * <title>GtkMessageDialog as GtkBuildable</title>
- * <para>
+ * ## GtkMessageDialog as GtkBuildable
+ *
  * The GtkMessageDialog implementation of the GtkBuildable interface exposes
  * the message area as an internal child with the name "message_area".
- * </para>
- * </refsect2>
  */
 
 struct _GtkMessageDialogPrivate
@@ -670,7 +666,7 @@ gtk_message_dialog_new (GtkWindow     *parent,
  * instead, since you can't pass the markup string either
  * as the format (it might contain '%' characters) or as a string
  * argument.
- * |[
+ * |[<!-- language="C" -->
  *  GtkWidget *dialog;
  *  dialog = gtk_message_dialog_new (main_application_window,
  *                                   GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -860,13 +856,13 @@ gtk_message_dialog_format_secondary_text (GtkMessageDialog *message_dialog,
  * may contain special XML characters, you should use g_markup_printf_escaped()
  * to escape it.
 
- * <informalexample><programlisting>
+ * |[<!-- language="C" -->
  * gchar *msg;
  *
  * msg = g_markup_printf_escaped (message_format, ...);
  * gtk_message_dialog_format_secondary_markup (message_dialog, "&percnt;s", msg);
  * g_free (msg);
- * </programlisting></informalexample>
+ * ]|
  *
  * Since: 2.6
  */

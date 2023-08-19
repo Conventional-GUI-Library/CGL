@@ -42,9 +42,8 @@
  *
  * Recently used files are supported since GTK+ 2.10.
  *
- * <refsect2 id="GtkRecentFilter-BUILDER-UI">
- * <title>GtkRecentFilter as GtkBuildable</title>
- * <para>
+ * ## GtkRecentFilter as GtkBuildable
+ *
  * The GtkRecentFilter implementation of the GtkBuildable interface
  * supports adding rules using the &lt;mime-types&gt;, &lt;patterns&gt; and
  * &lt;applications&gt; elements and listing the rules within. Specifying
@@ -52,9 +51,8 @@
  * as calling gtk_recent_filter_add_mime_type(), gtk_recent_filter_add_pattern()
  * or gtk_recent_filter_add_application().
  *
- * <example>
- * <title>A UI definition fragment specifying GtkRecentFilter rules</title>
- * <programlisting><![CDATA[
+ * An example of a UI definition fragment specifying GtkRecentFilter rules:
+ * |[
  * <object class="GtkRecentFilter">
  *   <mime-types>
  *     <mime-type>text/plain</mime-type>
@@ -70,10 +68,7 @@
  *     <application>glade</application>
  *   </applications>
  * </object>
- * ]]></programlisting>
- * </example>
- * </para>
- * </refsect2>
+ * ]|
  */
 
 #include "config.h"
@@ -408,7 +403,7 @@ gtk_recent_filter_buildable_custom_tag_end (GtkBuildable *buildable,
  * gtk_recent_filter_add_pattern(), gtk_recent_filter_add_mime_type(),
  * gtk_recent_filter_add_application(), gtk_recent_filter_add_age().
  * To create a filter that accepts any recently used resource, use:
- * |[
+ * |[<!-- language="C" -->
  * GtkRecentFilter *filter = gtk_recent_filter_new ();
  * gtk_recent_filter_add_pattern (filter, "*");
  * ]|
@@ -470,7 +465,7 @@ gtk_recent_filter_get_name (GtkRecentFilter *filter)
  * gtk_recent_filter_get_needed:
  * @filter: a #GtkRecentFilter
  *
- * Gets the fields that need to be filled in for the structure
+ * Gets the fields that need to be filled in for the #GtkRecentFilterInfo
  * passed to gtk_recent_filter_filter()
  * 
  * This function will not typically be used by applications; it
@@ -697,11 +692,11 @@ gtk_recent_filter_add_custom (GtkRecentFilter      *filter,
 /**
  * gtk_recent_filter_filter:
  * @filter: a #GtkRecentFilter
- * @filter_info: a #GtkRecentFilterInfo structure containing information
+ * @filter_info: a #GtkRecentFilterInfo containing information
  *   about a recently used resource
  *
  * Tests whether a file should be displayed according to @filter.
- * The #GtkRecentFilterInfo structure @filter_info should include
+ * The #GtkRecentFilterInfo @filter_info should include
  * the fields returned from gtk_recent_filter_get_needed().
  *
  * This function will not typically be used by applications; it

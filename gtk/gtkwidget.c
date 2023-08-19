@@ -80,26 +80,23 @@
  * GtkWidget is the base class all widgets in GTK+ derive from. It manages the
  * widget lifecycle, states and style.
  *
- * <refsect2 id="geometry-management">
- * <title>Height-for-width Geometry Management</title>
- * <para>
- * GTK+ uses a height-for-width (and width-for-height) geometry management
+ * ## Height-for-width Geometry Management
+ *
+ * <para id="geometry-management">GTK+ uses a height-for-width (and width-for-height) geometry management
  * system. Height-for-width means that a widget can change how much
  * vertical space it needs, depending on the amount of horizontal space
  * that it is given (and similar for width-for-height). The most common
  * example is a label that reflows to fill up the available width, wraps
- * to fewer lines, and therefore needs less height.
+ * to fewer lines, and therefore needs less height.</para>
  *
  * Height-for-width geometry management is implemented in GTK+ by way
  * of five virtual methods:
- * <itemizedlist>
- *   <listitem>#GtkWidgetClass.get_request_mode()</listitem>
- *   <listitem>#GtkWidgetClass.get_preferred_width()</listitem>
- *   <listitem>#GtkWidgetClass.get_preferred_height()</listitem>
- *   <listitem>#GtkWidgetClass.get_preferred_height_for_width()</listitem>
- *   <listitem>#GtkWidgetClass.get_preferred_width_for_height()</listitem>
- *   <listitem>#GtkWidgetClass.get_preferred_height_and_baseline_for_width()</listitem>
- * </itemizedlist>
+ * - #GtkWidgetClass.get_request_mode()
+ * - #GtkWidgetClass.get_preferred_width()
+ * - #GtkWidgetClass.get_preferred_height()
+ * - #GtkWidgetClass.get_preferred_height_for_width()
+ * - #GtkWidgetClass.get_preferred_width_for_height()
+ * - #GtkWidgetClass.get_preferred_height_and_baseline_for_width()
  *
  * There are some important things to keep in mind when implementing
  * height-for-width and when using it in container implementations.
@@ -158,7 +155,7 @@
  * Here are some examples of how a %GTK_SIZE_REQUEST_HEIGHT_FOR_WIDTH widget
  * generally deals with width-for-height requests, for #GtkWidgetClass.get_preferred_height()
  * it will do:
- * <programlisting><![CDATA[
+ * |[<!-- language="C" -->
  * static void
  * foo_widget_get_preferred_height (GtkWidget *widget, gint *min_height, gint *nat_height)
  * {
@@ -176,12 +173,11 @@
  *         it will return the minimum and natural height for the rotated label here.
  *      }
  * }
- * ]]></programlisting>
+ * ]|
  *
  * And in #GtkWidgetClass.get_preferred_width_for_height() it will simply return
  * the minimum and natural width:
- *
- * <programlisting><![CDATA[
+ * |[<!-- language="C" -->
  * static void
  * foo_widget_get_preferred_width_for_height (GtkWidget *widget, gint for_height,
  *                                            gint *min_width, gint *nat_width)
@@ -197,20 +193,17 @@
  *         height calculation here.
  *      }
  * }
- * ]]></programlisting>
+ * ]|
  *
  * Often a widget needs to get its own request during size request or
  * allocation. For example, when computing height it may need to also
  * compute width. Or when deciding how to use an allocation, the widget
  * may need to know its natural size. In these cases, the widget should
  * be careful to call its virtual methods directly, like this:
- * <example>
- *   <title>Widget calling its own size request method.</title>
- *   <programlisting>
+ * |[<!-- language="C" -->
  * GTK_WIDGET_GET_CLASS(widget)-&gt;get_preferred_width (widget),
  *                                  &min, &natural);
- *   </programlisting>
- * </example>
+ * ]|
  *
  * It will not work to use the wrapper functions, such as
  * gtk_widget_get_preferred_width() inside your own size request
@@ -222,8 +215,8 @@
  * to do it.
  *
  * Of course if you are getting the size request for
- * <emphasis>another</emphasis> widget, such as a child of a
- * container, you <emphasis>must</emphasis> use the wrapper APIs.
+ * another widget, such as a child of a
+ * container, you must use the wrapper APIs.
  * Otherwise, you would not properly consider widget margins,
  * #GtkSizeGroup, and so forth.
  *
@@ -246,51 +239,42 @@
  * If this has a value other than -1 you need to align the widget such that the baseline
  * appears at the position.
  *
- * </para>
- * </refsect2>
- * <refsect2 id="style-properties">
- * <title>Style Properties</title>
- * <para>
- * <structname>GtkWidget</structname> introduces <firstterm>style
+ * ## Style Properties
+ *
+ * #GtkWidget introduces <firstterm>style
  * properties</firstterm> - these are basically object properties that are stored
  * not on the object, but in the style object associated to the widget. Style
  * properties are set in <link linkend="gtk3-Resource-Files">resource files</link>.
  * This mechanism is used for configuring such things as the location of the
  * scrollbar arrows through the theme, giving theme authors more control over the
  * look of applications without the need to write a theme engine in C.
- * </para>
- * <para>
+ *
  * Use gtk_widget_class_install_style_property() to install style properties for
  * a widget class, gtk_widget_class_find_style_property() or
  * gtk_widget_class_list_style_properties() to get information about existing
  * style properties and gtk_widget_style_get_property(), gtk_widget_style_get() or
  * gtk_widget_style_get_valist() to obtain the value of a style property.
- * </para>
- * </refsect2>
- * <refsect2 id="GtkWidget-BUILDER-UI">
- * <title>GtkWidget as GtkBuildable</title>
- * <para>
+ *
+ * ## GtkWidget as GtkBuildable
+ *
  * The GtkWidget implementation of the GtkBuildable interface supports a
  * custom &lt;accelerator&gt; element, which has attributes named key,
  * modifiers and signal and allows to specify accelerators.
- * </para>
- * <example>
- * <title>A UI definition fragment specifying an accelerator</title>
- * <programlisting><![CDATA[
+ *
+ * An example of a UI definition fragment specifying an accelerator:
+ * |[
  * <object class="GtkButton">
  *   <accelerator key="q" modifiers="GDK_CONTROL_MASK" signal="clicked"/>
  * </object>
- * ]]></programlisting>
- * </example>
- * <para>
- * In addition to accelerators, <structname>GtkWidget</structname> also support a
+ * ]|
+ *
+ * In addition to accelerators, #GtkWidget also support a
  * custom &lt;accessible&gt; element, which supports actions and relations.
  * Properties on the accessible implementation of an object can be set by accessing the
- * internal child "accessible" of a <structname>GtkWidget</structname>.
- * </para>
- * <example>
- * <title>A UI definition fragment specifying an accessible</title>
- * <programlisting><![CDATA[
+ * internal child "accessible" of a #GtkWidget.
+ *
+ * An example of a UI definition fragment specifying an accessible:
+ * |[
  * <object class="GtkButton" id="label1"/>
  *   <property name="label">I am a Label for a Button</property>
  * </object>
@@ -305,41 +289,32 @@
  *     </object>
  *   </child>
  * </object>
- * ]]></programlisting>
- * </example>
- * <para>
+ * ]|
+ *
  * Finally, GtkWidget allows style information such as style classes to
  * be associated with widgets, using the custom &lt;style&gt; element:
- * <example>
- * <title>A UI definition fragment specifying an style class</title>
- * <programlisting><![CDATA[
+ * |[
  * <object class="GtkButton" id="button1">
  *   <style>
  *     <class name="my-special-button-class"/>
  *     <class name="dark-button"/>
  *   </style>
  * </object>
- * ]]></programlisting>
- * </example>
- * </para>
- * </refsect2>
- * <refsect2 id="GtkWidget-BUILDER-TEMPLATES">
- * <title>Building composite widgets from template XML</title>
- * <para>
+ * ]|
+ *
+ * ## Building composite widgets from template XML
+ *
  * GtkWidget exposes some facilities to automate the proceedure
  * of creating composite widgets using #GtkBuilder interface description
  * language.
- * </para>
- * <para>
+ *
  * To create composite widgets with #GtkBuilder XML, one must associate
  * the interface description with the widget class at class initialization
  * time using gtk_widget_class_set_template().
- * </para>
- * <para>
+ *
  * The interface description semantics expected in composite template descriptions
  * is slightly different from regulare #GtkBuilder XML.
- * </para>
- * <para>
+ *
  * Unlike regular interface descriptions, gtk_widget_class_set_template() will expect a
  * &lt;template&gt; tag as a direct child of the toplevel &lt;interface&gt;
  * tag. The &lt;template&gt; tag must specify the "class" attribute which
@@ -348,24 +323,20 @@
  * is ignored by the GtkBuilder but required for Glade to introspect what kind
  * of properties and internal children exist for a given type when the actual
  * type does not exist.
- * </para>
- * <para>
+ *
  * The XML which is contained inside the &lt;template&gt; tag behaves as if
  * it were added to the &lt;object&gt; tag defining @widget itself. You may set
  * properties on @widget by inserting &lt;property&gt; tags into the &lt;template&gt; 
  * tag, and also add &lt;child&gt; tags to add children and extend @widget in the
  * normal way you would with &lt;object&gt; tags.
- * </para>
- * <para>
+ *
  * Additionally, &lt;object&gt; tags can also be added before and
  * after the initial &lt;template&gt; tag in the normal way, allowing
  * one to define auxilary objects which might be referenced by other
  * widgets declared as children of the &lt;template&gt; tag.
- * </para>
- * <para>
- * <example>
- * <title>A GtkBuilder Template Definition</title>
- * <programlisting><![CDATA[
+ *
+ * An example of a GtkBuilder Template Definition:
+ * |[
  * <interface>
  *   <template class="FooWidget" parent="GtkBox">
  *     <property name="orientation">GTK_ORIENTATION_HORIZONTAL</property>
@@ -382,10 +353,7 @@
  *     </child>
  *   </template>
  * </interface>
- * ]]></programlisting>
- * </example>
- * </para>
- * </refsect2>
+ * ]|
  */
 
 #define GTK_STATE_FLAGS_DO_PROPAGATE (GTK_STATE_FLAG_INSENSITIVE|GTK_STATE_FLAG_BACKDROP)
@@ -3000,7 +2968,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
    * last #GtkWidget::drag-leave and if not, treat the drag-motion signal as
    * an "enter" signal. Upon an "enter", the handler will typically highlight
    * the drop site with gtk_drag_highlight().
-   * |[
+   * |[<!-- language="C" -->
    * static void
    * drag_motion (GtkWidget *widget,
    *              GdkDragContext *context,
@@ -3151,7 +3119,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
    * The ::drag-data-received signal is emitted on the drop site when the
    * dragged data has been received. If the data was received in order to
    * determine whether the drop will be accepted, the handler is expected
-   * to call gdk_drag_status() and <emphasis>not</emphasis> finish the drag.
+   * to call gdk_drag_status() and not finish the drag.
    * If the data was received in response to a #GtkWidget::drag-drop signal
    * (and this is the last target to be received), the handler for this
    * signal is expected to process the received data and then call
@@ -3495,7 +3463,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
   gtk_widget_class_install_style_property (klass,
 					   g_param_spec_string ("focus-line-pattern",
 								P_("Focus line dash pattern"),
-								P_("Dash pattern used to draw the focus indicator"),
+								P_("Dash pattern used to draw the focus indicator. The character values are interpreted as pixel widths of alternating on and off segments of the line."),
 								"\1\1",
 								GTK_PARAM_READABLE));
   gtk_widget_class_install_style_property (klass,
@@ -5252,10 +5220,10 @@ gtk_widget_queue_draw (GtkWidget *widget)
  * For example, when you change the text in a #GtkLabel, #GtkLabel
  * queues a resize to ensure there's enough space for the new text.
  *
- * <note><para>You cannot call gtk_widget_queue_resize() on a widget
+ * Note that you cannot call gtk_widget_queue_resize() on a widget
  * from inside its implementation of the GtkWidgetClass::size_allocate 
  * virtual method. Calls to gtk_widget_queue_resize() from inside
- * GtkWidgetClass::size_allocate will be silently ignored.</para></note>
+ * GtkWidgetClass::size_allocate will be silently ignored.
  **/
 void
 gtk_widget_queue_resize (GtkWidget *widget)
@@ -6516,9 +6484,9 @@ _gtk_widget_draw_internal (GtkWidget *widget,
  * is fine to modify the context with cairo_save() and
  * cairo_push_group() prior to calling this function.
  *
- * <note><para>Special purpose widgets may contain special code for
+ * Note that special-purpose widgets may contain special code for
  * rendering to the screen and might appear differently on screen
- * and when rendered using gtk_widget_draw().</para></note>
+ * and when rendered using gtk_widget_draw().
  *
  * Since: 3.0
  **/
@@ -7237,10 +7205,12 @@ gtk_widget_real_grab_focus (GtkWidget *focus_widget)
 
 	      if (widget != common_ancestor)
 		{
-		  while (widget->priv->parent && widget->priv->parent != common_ancestor)
+		  while (widget->priv->parent)
 		    {
 		      widget = widget->priv->parent;
 		      gtk_container_set_focus_child (GTK_CONTAINER (widget), NULL);
+		      if (widget == common_ancestor)
+		        break;
 		    }
 		}
 	    }
@@ -8465,7 +8435,7 @@ gtk_widget_get_double_buffered (GtkWidget *widget)
  * the widget will not even redraw if its position changes; this is to
  * allow containers that don't draw anything to avoid excess
  * invalidations. If you set this flag on a widget with no window that
- * <emphasis>does</emphasis> draw on @widget->window, you are
+ * does draw on @widget->window, you are
  * responsible for invalidating both the old and new allocation of the
  * widget when the widget is moved and responsible for invalidating
  * regions newly when the widget increases size.
@@ -8993,26 +8963,28 @@ _gtk_widget_get_modifier_properties (GtkWidget *widget)
  *
  * All other style values are left untouched.
  *
- * <note><para>
+ * This function does not act recursively. Setting the color of a
+ * container does not affect its children. Note that some widgets that
+ * you may not think of as containers, for instance #GtkButton<!-- -->s,
+ * are actually containers.
+ *
  * This API is mostly meant as a quick way for applications to
  * change a widget appearance. If you are developing a widgets
  * library and intend this change to be themeable, it is better
  * done by setting meaningful CSS classes and regions in your
  * widget/container implementation through gtk_style_context_add_class()
  * and gtk_style_context_add_region().
- * </para><para>
+ *
  * This way, your widget library can install a #GtkCssProvider
  * with the %GTK_STYLE_PROVIDER_PRIORITY_FALLBACK priority in order
  * to provide a default styling for those widgets that need so, and
  * this theming may fully overridden by the user's theme.
- * </para></note>
- * <note><para>
+ *
  * Note that for complex widgets this may bring in undesired
  * results (such as uniform background color everywhere), in
  * these cases it is better to fully style such widgets through a
  * #GtkCssProvider with the %GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
  * priority.
- * </para></note>
  *
  * Since: 3.8
  */
@@ -10120,19 +10092,16 @@ gtk_widget_render_icon (GtkWidget      *widget,
  *
  * Sets a non default parent window for @widget.
  *
- * For GtkWindow classes, setting a @parent_window effects whether
+ * For #GtkWindow classes, setting a @parent_window effects whether
  * the window is a toplevel window or can be embedded into other
  * widgets.
  *
- * <note><para>
- * For GtkWindow classes, this needs to be called before the
+ * For #GtkWindow classes, this needs to be called before the
  * window is realized.
- * </para></note>
- * 
- **/
+ */
 void
-gtk_widget_set_parent_window   (GtkWidget           *widget,
-				GdkWindow           *parent_window)
+gtk_widget_set_parent_window (GtkWidget *widget,
+                              GdkWindow *parent_window)
 {
   GdkWindow *old_parent_window;
 
@@ -11045,7 +11014,7 @@ gtk_widget_add_device_events (GtkWidget    *widget,
  * To reliably find the toplevel #GtkWindow, use
  * gtk_widget_get_toplevel() and call gtk_widget_is_toplevel()
  * on the result.
- * |[
+ * |[<!-- language="C" -->
  *  GtkWidget *toplevel = gtk_widget_get_toplevel (widget);
  *  if (gtk_widget_is_toplevel (toplevel))
  *    {
@@ -11165,7 +11134,7 @@ gtk_widget_get_visual (GtkWidget *widget)
         }
     }
 
-  return gdk_screen_get_system_visual (screen);
+  return gdk_screen_get_preferred_visual (screen);
 }
 
 /**
@@ -11371,7 +11340,7 @@ gtk_widget_get_composite_name (GtkWidget *widget)
  * builders might want to treat them in a different way.
  *
  * Here is a simple example:
- * |[
+ * |[<!-- language="C" -->
  *   gtk_widget_push_composite_child ();
  *   scrolled_window->hscrollbar = gtk_scrollbar_new (GTK_ORIENTATION_HORIZONTAL, hadjustment);
  *   gtk_widget_set_composite_name (scrolled_window->hscrollbar, "hscrollbar");
@@ -12150,8 +12119,15 @@ synth_crossing (GtkWidget       *widget,
   event->crossing.send_event = TRUE;
   event->crossing.subwindow = g_object_ref (window);
   event->crossing.time = GDK_CURRENT_TIME;
-  event->crossing.x = event->crossing.y = 0;
-  event->crossing.x_root = event->crossing.y_root = 0;
+  gdk_device_get_position_double (device,
+                                  NULL,
+                                  &event->crossing.x_root,
+                                  &event->crossing.y_root);
+  gdk_window_get_device_position_double (window,
+                                         device,
+                                         &event->crossing.x,
+                                         &event->crossing.y,
+                                         NULL);
   event->crossing.mode = mode;
   event->crossing.detail = detail;
   event->crossing.focus = FALSE;
@@ -12462,11 +12438,11 @@ static const GtkWidgetAuxInfo default_aux_info = {
 /*
  * gtk_widget_get_aux_info:
  * @widget: a #GtkWidget
- * @create: if %TRUE, create the structure if it doesn't exist
+ * @create: if %TRUE, create the #GtkWidgetAuxInfo-struct if it doesn't exist
  *
- * Get the #GtkWidgetAuxInfo structure for the widget.
+ * Get the #GtkWidgetAuxInfo-struct for the widget.
  *
- * Return value: the #GtkAuxInfo structure for the widget, or
+ * Return value: the #GtkWidgetAuxInfo-struct for the widget, or
  *    %NULL if @create is %FALSE and one doesn't already exist.
  */
 static GtkWidgetAuxInfo *
@@ -12781,7 +12757,7 @@ gtk_widget_style_get_property (GtkWidget   *widget,
  * gtk_widget_style_get_valist:
  * @widget: a #GtkWidget
  * @first_property_name: the name of the first property to get
- * @var_args: a <type>va_list</type> of pairs of property names and
+ * @var_args: a va_list of pairs of property names and
  *     locations to return the property values, starting with the location
  *     for @first_property_name.
  *
@@ -13015,7 +12991,7 @@ gtk_widget_class_path (GtkWidget *widget,
 /**
  * gtk_requisition_new:
  *
- * Allocates a new #GtkRequisition structure and initializes its elements to zero.
+ * Allocates a new #GtkRequisition-struct and initializes its elements to zero.
  *
  * Returns: a new empty #GtkRequisition. The newly allocated #GtkRequisition should
  *   be freed with gtk_requisition_free().
@@ -14843,7 +14819,7 @@ gtk_widget_get_clipboard (GtkWidget *widget, GdkAtom selection)
  * The widgets in the list are not individually referenced. If you
  * want to iterate through the list and perform actions involving
  * callbacks that might destroy the widgets, you
- * <emphasis>must</emphasis> call <literal>g_list_foreach (result,
+ * must call <literal>g_list_foreach (result,
  * (GFunc)g_object_ref, NULL)</literal> first, and then unref all the
  * widgets afterwards.
 
@@ -15426,7 +15402,7 @@ gtk_widget_get_requisition (GtkWidget      *widget,
  * by calling gtk_widget_set_has_window(). This is usually done in the
  * widget's init() function.
  *
- * <note><para>This function does not add any reference to @window.</para></note>
+ * Note that this function does not add any reference to @window.
  *
  * Since: 2.18
  */
@@ -15823,7 +15799,7 @@ _gtk_widget_set_has_focus (GtkWidget *widget,
  *
  * An example of its usage is:
  *
- * |[
+ * |[<!-- language="C" -->
  *   GdkEvent *fevent = gdk_event_new (GDK_FOCUS_CHANGE);
  *
  *   fevent->focus_change.type = GDK_FOCUS_CHANGE;
@@ -16518,8 +16494,8 @@ gtk_widget_init_template (GtkWidget *widget)
  *
  * For convenience, gtk_widget_class_set_template_from_resource() is also provided.
  *
- * <note><para>Any class that installs templates must call gtk_widget_init_template()
- * in the widget's instance initializer</para></note>
+ * Note that any class that installs templates must call gtk_widget_init_template()
+ * in the widget's instance initializer.
  *
  * Since: 3.10
  */
@@ -16542,8 +16518,8 @@ gtk_widget_class_set_template (GtkWidgetClass    *widget_class,
  *
  * A convenience function to call gtk_widget_class_set_template().
  *
- * <note><para>Any class that installs templates must call gtk_widget_init_template()
- * in the widget's instance initializer</para></note>
+ * Note that any class that installs templates must call gtk_widget_init_template()
+ * in the widget's instance initializer.
  *
  * Since: 3.10
  */
@@ -16587,8 +16563,8 @@ gtk_widget_class_set_template_from_resource (GtkWidgetClass    *widget_class,
  * Declares a @callback_symbol to handle @callback_name from the template XML
  * defined for @widget_type. See gtk_builder_add_callback_symbol().
  *
- * <note><para>This must be called from a composite widget classes class
- * initializer after calling gtk_widget_class_set_template()</para></note>
+ * Note that this must be called from a composite widget classes class
+ * initializer after calling gtk_widget_class_set_template().
  *
  * Since: 3.10
  */
@@ -16619,8 +16595,8 @@ gtk_widget_class_bind_template_callback_full (GtkWidgetClass *widget_class,
  * For use in lanuage bindings, this will override the default #GtkBuilderConnectFunc to be
  * used when parsing GtkBuilder xml from this class's template data.
  *
- * <note><para>This must be called from a composite widget classes class
- * initializer after calling gtk_widget_class_set_template()</para></note>
+ * Note that this must be called from a composite widget classes class
+ * initializer after calling gtk_widget_class_set_template().
  *
  * Since: 3.10
  */
@@ -16669,8 +16645,8 @@ gtk_widget_class_set_connect_func (GtkWidgetClass        *widget_class,
  * gtk_widget_class_bind_template_child_private() and gtk_widget_class_bind_template_child_internal_private()
  * might be more convenient to use.
  *
- * <note><para>This must be called from a composite widget classes class
- * initializer after calling gtk_widget_class_set_template()</para></note>
+ * Note that this must be called from a composite widget classes class
+ * initializer after calling gtk_widget_class_set_template().
  *
  * Since: 3.10
  */

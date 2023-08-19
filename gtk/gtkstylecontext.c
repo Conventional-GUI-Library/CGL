@@ -75,21 +75,18 @@
  * #GtkSettings:gtk-theme-name setting or a hierarchy change in the rendered
  * widget.
  *
- * <refsect2 id="gtkstylecontext-animations">
- * <title>Transition animations</title>
- * <para>
+ * ## Transition animations
+ *
  * #GtkStyleContext has built-in support for state change transitions.
  * Note that these animations respect the #GtkSettings:gtk-enable-animations
  * setting.
- * </para>
- * <para>
+ *
  * For simple widgets where state changes affect the whole widget area,
  * calling gtk_style_context_notify_state_change() with a %NULL region
  * is sufficient to trigger the transition animation. And GTK+ already
  * does that when gtk_widget_set_state() or gtk_widget_set_state_flags()
  * are called.
- * </para>
- * <para>
+ *
  * If a widget needs to declare several animatable regions (i.e. not
  * affecting the whole widget area), its #GtkWidget::draw signal handler
  * needs to wrap the render operations for the different regions with
@@ -98,10 +95,9 @@
  * identifier for the region which must be unique within the style context.
  * For simple widgets with a fixed set of animatable regions, using an
  * enumeration works well:
- * </para>
- * <example>
- * <title>Using an enumeration to identify  animatable regions</title>
- * <programlisting>
+ *
+ * An example for Using an enumeration to identify animatable regions:
+ * |[<!-- language="C" -->
  * enum {
  *   REGION_ENTRY,
  *   REGION_BUTTON_UP,
@@ -128,17 +124,15 @@
  *
  *   ...
  * }
- * </programlisting>
- * </example>
- * <para>
+ * ]|
+ *
  * For complex widgets with an arbitrary number of animatable regions, it
  * is up to the implementation to come up with a way to uniquely identify
  * each animatable region. Using pointers to internal structs is one way
  * to achieve this:
- * </para>
- * <example>
- * <title>Using struct pointers to identify animatable regions</title>
- * <programlisting>
+ *
+ * An example for using struct pointers to identify animatable regions:
+ * |[<!-- language="C" -->
  * void
  * notebook_draw_tab (GtkWidget    *widget,
  *                    NotebookPage *page,
@@ -148,15 +142,13 @@
  *   gtk_render_extension (cr, page->x, page->y, page->width, page->height);
  *   gtk_style_context_pop_animatable_region (context);
  * }
- * </programlisting>
- * </example>
- * <para>
+ * ]|
+ *
  * The widget also needs to notify the style context about a state change
  * for a given animatable region so the animation is triggered.
- * </para>
- * <example>
- * <title>Triggering a state change animation on a region</title>
- * <programlisting>
+ *
+ * An example for triggering a state change animation on a region:
+ * |[<!-- language="C" -->
  * gboolean
  * notebook_motion_notify (GtkWidget      *widget,
  *                         GdkEventMotion *event)
@@ -173,71 +165,18 @@
  *                                          TRUE);
  *   ...
  * }
- * </programlisting>
- * </example>
- * <para>
+ * ]|
+ *
  * gtk_style_context_notify_state_change() accepts %NULL region IDs as a
  * special value, in this case, the whole widget area will be updated
  * by the animation.
- * </para>
- * </refsect2>
- * <refsect2 id="gtkstylecontext-classes">
- * <title>Style classes and regions</title>
- * <para>
- * Widgets can add style classes to their context, which can be used
- * to associate different styles by class (see <xref linkend="gtkcssprovider-selectors"/>). Theme engines can also use style classes to vary their
- * rendering. GTK+ has a number of predefined style classes:
- * #GTK_STYLE_CLASS_CELL,
- * #GTK_STYLE_CLASS_ENTRY,
- * #GTK_STYLE_CLASS_BUTTON,
- * #GTK_STYLE_CLASS_COMBOBOX_ENTRY,
- * #GTK_STYLE_CLASS_CALENDAR,
- * #GTK_STYLE_CLASS_SLIDER,
- * #GTK_STYLE_CLASS_BACKGROUND,
- * #GTK_STYLE_CLASS_RUBBERBAND,
- * #GTK_STYLE_CLASS_TOOLTIP,
- * #GTK_STYLE_CLASS_MENU,
- * #GTK_STYLE_CLASS_MENUBAR,
- * #GTK_STYLE_CLASS_MENUITEM,
- * #GTK_STYLE_CLASS_TOOLBAR,
- * #GTK_STYLE_CLASS_PRIMARY_TOOLBAR,
- * #GTK_STYLE_CLASS_INLINE_TOOLBAR,
- * #GTK_STYLE_CLASS_RADIO,
- * #GTK_STYLE_CLASS_CHECK,
- * #GTK_STYLE_CLASS_TROUGH,
- * #GTK_STYLE_CLASS_SCROLLBAR,
- * #GTK_STYLE_CLASS_SCALE,
- * #GTK_STYLE_CLASS_SCALE_HAS_MARKS_ABOVE,
- * #GTK_STYLE_CLASS_SCALE_HAS_MARKS_BELOW,
- * #GTK_STYLE_CLASS_HEADER,
- * #GTK_STYLE_CLASS_ACCELERATOR,
- * #GTK_STYLE_CLASS_GRIP,
- * #GTK_STYLE_CLASS_DOCK,
- * #GTK_STYLE_CLASS_PROGRESSBAR,
- * #GTK_STYLE_CLASS_SPINNER,
- * #GTK_STYLE_CLASS_EXPANDER,
- * #GTK_STYLE_CLASS_SPINBUTTON,
- * #GTK_STYLE_CLASS_NOTEBOOK,
- * #GTK_STYLE_CLASS_VIEW,
- * #GTK_STYLE_CLASS_SIDEBAR,
- * #GTK_STYLE_CLASS_IMAGE,
- * #GTK_STYLE_CLASS_HIGHLIGHT,
- * #GTK_STYLE_CLASS_FRAME,
- * #GTK_STYLE_CLASS_DND,
- * #GTK_STYLE_CLASS_PANE_SEPARATOR,
- * #GTK_STYLE_CLASS_SEPARATOR,
- * #GTK_STYLE_CLASS_INFO,
- * #GTK_STYLE_CLASS_WARNING,
- * #GTK_STYLE_CLASS_QUESTION,
- * #GTK_STYLE_CLASS_ERROR,
- * #GTK_STYLE_CLASS_HORIZONTAL,
- * #GTK_STYLE_CLASS_VERTICAL,
- * #GTK_STYLE_CLASS_TOP,
- * #GTK_STYLE_CLASS_BOTTOM,
- * #GTK_STYLE_CLASS_LEFT,
- * #GTK_STYLE_CLASS_RIGHT,
- * </para>
- * <para>
+ *
+ * ## Style classes and regions
+ *
+ * <para id="gtkstylecontext-classes">Widgets can add style classes to their context, which can be used
+ * to associate different styles by class (see <xref linkend="gtkcssprovider-selectors"/>).
+ * Theme engines can also use style classes to vary their rendering.</para>
+ *
  * Widgets can also add regions with flags to their context.
  * The regions used by GTK+ widgets are:
  * <informaltable>
@@ -278,19 +217,16 @@
  *     </tbody>
  *   </tgroup>
  * </informaltable>
- * </para>
- * </refsect2>
- * <refsect2 id="gtkstylecontext-custom-styling">
- * <title>Custom styling in UI libraries and applications</title>
- * <para>
+ *
+ * ## Custom styling in UI libraries and applications
+ *
  * If you are developing a library with custom #GtkWidget<!-- -->s that
  * render differently than standard components, you may need to add a
  * #GtkStyleProvider yourself with the %GTK_STYLE_PROVIDER_PRIORITY_FALLBACK
  * priority, either a #GtkCssProvider or a custom object implementing the
  * #GtkStyleProvider interface. This way theming engines may still attempt
  * to style your UI elements in a different way if needed so.
- * </para>
- * <para>
+ *
  * If you are using custom styling on an applications, you probably want then
  * to make your style information prevail to the theme's, so you must use
  * a #GtkStyleProvider with the %GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
@@ -298,14 +234,11 @@
  * <filename><replaceable>XDG_CONFIG_HOME</replaceable>/gtk-3.0/gtk.css</filename> will
  * still take precedence over your changes, as it uses the
  * %GTK_STYLE_PROVIDER_PRIORITY_USER priority.
- * </para>
- * <para>
+ *
  * If a custom theming engine is needed, you probably want to implement a
  * #GtkStyleProvider yourself so it points to your #GtkThemingEngine
  * implementation, as #GtkCssProvider uses gtk_theming_engine_load()
  * which loads the theming engine module from the standard paths.
- * </para>
- * </refsect2>
  */
 
 /* When these change we do a full restyling. Otherwise we try to figure out
@@ -355,8 +288,8 @@ struct _GtkStyleContextPrivate
 {
   GdkScreen *screen;
 
+  guint cascade_changed_id;
   GtkStyleCascade *cascade;
-
   GtkStyleContext *parent;
   GSList *children;
   GtkWidget *widget;
@@ -686,21 +619,20 @@ gtk_style_context_set_cascade (GtkStyleContext *context,
   if (priv->cascade == cascade)
     return;
 
+  if (priv->cascade)
+    {
+      g_signal_handler_disconnect (priv->cascade, priv->cascade_changed_id);
+      priv->cascade_changed_id = 0;
+      g_object_unref (priv->cascade);
+    }
+
   if (cascade)
     {
       g_object_ref (cascade);
-      g_signal_connect (cascade,
-                        "-gtk-private-changed",
-                        G_CALLBACK (gtk_style_context_cascade_changed),
-                        context);
-    }
-
-  if (priv->cascade)
-    {
-      g_signal_handlers_disconnect_by_func (priv->cascade, 
-                                            gtk_style_context_cascade_changed,
-                                            context);
-      g_object_unref (priv->cascade);
+      priv->cascade_changed_id = g_signal_connect (cascade,
+                                                   "-gtk-private-changed",
+                                                   G_CALLBACK (gtk_style_context_cascade_changed),
+                                                   context);
     }
 
   priv->cascade = cascade;
@@ -1115,12 +1047,10 @@ gtk_style_context_queue_invalidate_internal (GtkStyleContext *context,
  * won't be attached to any widget, so you may want
  * to call gtk_style_context_set_path() yourself.
  *
- * <note>
  * This function is only useful when using the theming layer
  * separated from GTK+, if you are using #GtkStyleContext to
  * theme #GtkWidget<!-- -->s, use gtk_widget_get_style_context()
  * in order to get a style context ready to theme the widget.
- * </note>
  *
  * Returns: A newly created #GtkStyleContext.
  **/
@@ -1156,9 +1086,9 @@ _gtk_style_context_set_widget (GtkStyleContext *context,
  *
  * Adds a style provider to @context, to be used in style construction.
  *
- * <note><para>If both priorities are the same, A #GtkStyleProvider
+ * Note: If both priorities are the same, a #GtkStyleProvider
  * added through this function takes precedence over another added
- * through gtk_style_context_add_provider_for_screen().</para></note>
+ * through gtk_style_context_add_provider_for_screen().
  *
  * Since: 3.0
  **/
@@ -1267,9 +1197,9 @@ gtk_style_context_reset_widgets (GdkScreen *screen)
  * GTK+ uses this to make styling information from #GtkSettings
  * available.
  *
- * <note><para>If both priorities are the same, A #GtkStyleProvider
+ * Note: If both priorities are the same, A #GtkStyleProvider
  * added through gtk_style_context_add_provider() takes precedence
- * over another added through this function.</para></note>
+ * over another added through this function.
  *
  * Since: 3.0
  **/
@@ -1888,15 +1818,15 @@ region_find (GArray *array,
  * In the CSS file format, a #GtkEntry defining an "entry"
  * class, would be matched by:
  *
- * <programlisting>
+ * |[
  * GtkEntry.entry { ... }
- * </programlisting>
+ * ]|
  *
  * While any widget defining an "entry" class would be
  * matched by:
- * <programlisting>
+ * |[
  * .entry { ... }
- * </programlisting>
+ * ]|
  *
  * Since: 3.0
  **/
@@ -2113,21 +2043,21 @@ _gtk_style_context_check_region_name (const gchar *str)
  * In the CSS file format, a #GtkTreeView defining a "row"
  * region, would be matched by:
  *
- * <programlisting>
+ * |[
  * GtkTreeView row { ... }
- * </programlisting>
+ * ]|
  *
  * Pseudo-classes are used for matching @flags, so the two
  * following rules:
- * <programlisting>
+ * |[
  * GtkTreeView row:nth-child(even) { ... }
  * GtkTreeView row:nth-child(odd) { ... }
- * </programlisting>
+ * ]|
  *
  * would apply to even and odd rows, respectively.
  *
- * <note><para>Region names must only contain lowercase letters
- * and '-', starting always with a lowercase letter.</para></note>
+ * Region names must only contain lowercase letters
+ * and '-', starting always with a lowercase letter.
  *
  * Since: 3.0
  **/
@@ -2944,25 +2874,25 @@ gtk_style_context_lookup_color (GtkStyleContext *context,
  *
  * As a practical example, a #GtkButton notifying a state transition on
  * the prelight state:
- * <programlisting>
+ * |[<!-- language="C" -->
  * gtk_style_context_notify_state_change (context,
  *                                        gtk_widget_get_window (widget),
  *                                        NULL,
  *                                        GTK_STATE_PRELIGHT,
  *                                        button->in_button);
- * </programlisting>
+ * ]|
  *
  * Can be handled in the CSS file like this:
- * <programlisting>
+ * |[
  * GtkButton {
- *     background-color: &num;f00
+ *     background-color: #f00
  * }
  *
  * GtkButton:hover {
- *     background-color: &num;fff;
+ *     background-color: #fff;
  *     transition: 200ms linear
  * }
- * </programlisting>
+ * ]|
  *
  * This combination will animate the button background from red to white
  * if a pointer enters the button, and back to red if the pointer leaves

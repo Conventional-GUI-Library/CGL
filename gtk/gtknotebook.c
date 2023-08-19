@@ -63,9 +63,8 @@
  * will be a popup menu allowing the users to switch pages.
  * (see gtk_notebook_popup_enable(), gtk_notebook_popup_disable())
  *
- * <refsect2 id="GtkNotebook-BUILDER-UI">
- * <title>GtkNotebook as GtkBuildable</title>
- * <para>
+ * ## GtkNotebook as GtkBuildable
+ * 
  * The GtkNotebook implementation of the #GtkBuildable interface
  * supports placing children into tabs by specifying "tab" as the
  * "type" attribute of a &lt;child&gt; element. Note that the content
@@ -76,10 +75,9 @@
  * To add a child widget in the notebooks action area, specify
  * "action-start" or "action-end" as the "type" attribute of the &lt;child&gt;
  * element.
- * </para>
- * <example>
- * <title>A UI definition fragment with GtkNotebook</title>
- * <programlisting><![CDATA[
+ *
+ * An example of a UI definition fragment with GtkNotebook:
+ * |[
  * <object class="GtkNotebook">
  *   <child>
  *     <object class="GtkLabel" id="notebook-content">
@@ -92,9 +90,7 @@
  *     </object>
  *   </child>
  * </object>
- * ]]></programlisting>
- * </example>
- * </refsect2>
+ * ]|
  */
 
 
@@ -2014,6 +2010,8 @@ notebook_tab_prepare_style_context (GtkNotebook *notebook,
         state |= GTK_STATE_FLAG_ACTIVE;
       if (page == notebook->priv->prelight_tab)
         state |= GTK_STATE_FLAG_PRELIGHT;
+      if (page->reorderable)
+        gtk_style_context_add_class (context, "reorderable-page");
     }
 
   gtk_style_context_set_state (context, state);
@@ -3291,6 +3289,26 @@ gtk_notebook_button_release (GtkWidget      *widget,
 }
 
 static void
+update_prelight_tab (GtkNotebook     *notebook,
+                     GtkNotebookPage *page)
+{
+  GtkNotebookPrivate *priv = notebook->priv;
+
+  if (priv->prelight_tab == page)
+    return;
+
+  if (priv->prelight_tab && priv->prelight_tab->tab_label)
+    gtk_style_context_remove_class (gtk_widget_get_style_context (priv->prelight_tab->tab_label),
+                                    "prelight-page");
+
+  if (page && page->tab_label)
+    gtk_style_context_add_class (gtk_widget_get_style_context (page->tab_label),
+                                 "prelight-page");
+
+  priv->prelight_tab = page;
+}
+
+static void
 tab_prelight (GtkNotebook *notebook,
               GdkEvent    *event)
 {
@@ -3304,7 +3322,7 @@ tab_prelight (GtkNotebook *notebook,
       if ((tab == NULL && priv->prelight_tab != NULL) ||
           (tab != NULL && tab->data != priv->prelight_tab))
         {
-          priv->prelight_tab = tab == NULL ? NULL : tab->data;
+          update_prelight_tab (notebook, tab == NULL ? NULL : tab->data);
           gtk_notebook_redraw_tabs (notebook);
        }
     }
@@ -5083,7 +5101,7 @@ gtk_notebook_real_remove (GtkNotebook *notebook,
   if (priv->detached_tab == list->data)
     priv->detached_tab = NULL;
   if (priv->prelight_tab == list->data)
-    priv->prelight_tab = NULL;
+    update_prelight_tab (notebook, NULL);
   if (priv->switch_tab == list)
     priv->switch_tab = NULL;
 
@@ -7907,6 +7925,10 @@ gtk_notebook_set_tab_label (GtkNotebook *notebook,
     gtk_style_context_add_class (gtk_widget_get_style_context (page->tab_label),
 				 "active-page");
 
+  if (priv->prelight_tab == page)
+    gtk_style_context_add_class (gtk_widget_get_style_context (page->tab_label),
+                                 "prelight-page");
+
   if (priv->show_tabs && gtk_widget_get_visible (child))
     {
       gtk_widget_show (page->tab_label);
@@ -8420,7 +8442,7 @@ gtk_notebook_get_tab_detachable (GtkNotebook *notebook,
  * destination and accept the target "GTK_NOTEBOOK_TAB". The notebook
  * will fill the selection with a GtkWidget** pointing to the child
  * widget that corresponds to the dropped tab.
- * |[
+ * |[<!-- language="C" -->
  *  static void
  *  on_drop_zone_drag_data_received (GtkWidget        *widget,
  *                                   GdkDragContext   *context,

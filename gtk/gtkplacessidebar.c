@@ -2635,6 +2635,35 @@ get_unmount_operation (GtkPlacesSidebar *sidebar)
 }
 
 static void
+drive_stop_cb (GObject      *source_object,
+               GAsyncResult *res,
+               gpointer      user_data)
+{
+  GtkPlacesSidebar *sidebar;
+  GError *error;
+  gchar *primary;
+  gchar *name;
+
+  sidebar = user_data;
+
+  error = NULL;
+  if (!g_drive_stop_finish (G_DRIVE (source_object), res, &error))
+    {
+      if (error->code != G_IO_ERROR_FAILED_HANDLED)
+        {
+          name = g_drive_get_name (G_DRIVE (source_object));
+          primary = g_strdup_printf (_("Unable to stop %s"), name);
+          g_free (name);
+          emit_show_error_message (sidebar, primary, error->message);
+          g_free (primary);
+        }
+      g_error_free (error);
+    }
+
+  g_object_unref (sidebar);
+}
+
+static void
 do_unmount (GMount *mount,
 	    GtkPlacesSidebar *sidebar)
 {
@@ -2776,8 +2805,14 @@ do_eject (GMount *mount,
 		g_volume_eject_with_operation (volume, 0, mount_op, NULL, volume_eject_cb,
 					      g_object_ref (sidebar));
 	} else if (drive != NULL) {
-		g_drive_eject_with_operation (drive, 0, mount_op, NULL, drive_eject_cb,
-					      g_object_ref (sidebar));
+    {
+      if (g_drive_can_stop (drive))
+        g_drive_stop (drive, 0, mount_op, NULL, drive_stop_cb,
+                      g_object_ref (sidebar));
+      else
+        g_drive_eject_with_operation (drive, 0, mount_op, NULL, drive_eject_cb,
+                                      g_object_ref (sidebar));
+    }
 	}
 	g_object_unref (mount_op);
 }
@@ -2897,7 +2932,7 @@ drive_poll_for_media_cb (GObject *source_object,
 		g_error_free (error);
 	}
 
-	/* FIXME: drive_stop_cb() gets a reffed sidebar, and unrefs it.  Do we need to do the same here? */
+  g_object_unref (sidebar);
 }
 
 static void
@@ -2916,7 +2951,7 @@ rescan_shortcut_cb (GtkMenuItem           *item,
 			    -1);
 
 	if (drive != NULL) {
-		g_drive_poll_for_media (drive, NULL, drive_poll_for_media_cb, sidebar);
+		      g_drive_poll_for_media (drive, NULL, drive_poll_for_media_cb, g_object_ref (sidebar));
 		g_object_unref (drive);
 	}
 }
@@ -2934,7 +2969,7 @@ drive_start_cb (GObject      *source_object,
 	sidebar = GTK_PLACES_SIDEBAR (user_data);
 
 	error = NULL;
-	if (!g_drive_poll_for_media_finish (G_DRIVE (source_object), res, &error)) {
+	if (!g_drive_start_finish (G_DRIVE (source_object), res, &error)) {
 		if (error->code != G_IO_ERROR_FAILED_HANDLED) {
 			name = g_drive_get_name (G_DRIVE (source_object));
 			primary = g_strdup_printf (_("Unable to start %s"), name);
@@ -2945,7 +2980,7 @@ drive_start_cb (GObject      *source_object,
 		g_error_free (error);
 	}
 
-	/* FIXME: drive_stop_cb() gets a reffed sidebar, and unrefs it.  Do we need to do the same here? */
+  g_object_unref (sidebar);
 }
 
 static void
@@ -2968,39 +3003,13 @@ start_shortcut_cb (GtkMenuItem           *item,
 
 		mount_op = gtk_mount_operation_new (GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (sidebar))));
 
-		g_drive_start (drive, G_DRIVE_START_NONE, mount_op, NULL, drive_start_cb, sidebar);
+        g_drive_start (drive, G_DRIVE_START_NONE, mount_op, NULL, drive_start_cb, g_object_ref (sidebar));
 
 		g_object_unref (mount_op);
 		g_object_unref (drive);
 	}
 }
 
-static void
-drive_stop_cb (GObject *source_object,
-	       GAsyncResult *res,
-	       gpointer user_data)
-{
-	GtkPlacesSidebar *sidebar;
-	GError *error;
-	char *primary;
-	char *name;
-
-	sidebar = user_data;
-
-	error = NULL;
-	if (!g_drive_poll_for_media_finish (G_DRIVE (source_object), res, &error)) {
-		if (error->code != G_IO_ERROR_FAILED_HANDLED) {
-			name = g_drive_get_name (G_DRIVE (source_object));
-			primary = g_strdup_printf (_("Unable to stop %s"), name);
-			g_free (name);
-			emit_show_error_message (sidebar, primary, error->message);
-			g_free (primary);
-		}
-		g_error_free (error);
-	}
-
-	g_object_unref (sidebar);
-}
 
 static void
 stop_shortcut_cb (GtkMenuItem           *item,
@@ -4810,7 +4819,7 @@ gtk_places_sidebar_remove_shortcut (GtkPlacesSidebar *sidebar, GFile *location)
  * Return value: (element-type GFile) (transfer full): A #GSList of #GFile of the locations
  * that have been added as application-specific shortcuts with gtk_places_sidebar_add_shortcut().
  * To free this list, you can use
- * |[
+ * |[<!-- language="C" -->
  * g_slist_free_full (list, (GDestroyNotify) g_object_unref);
  * ]|
  *

@@ -56,40 +56,36 @@
  * A #GdkWindow is a (usually) rectangular region on the screen.
  * It's a low-level object, used to implement high-level objects such as
  * #GtkWidget and #GtkWindow on the GTK+ level. A #GtkWindow is a toplevel
- * window, the thing a user might think of as a "window" with a titlebar and
- * so on; a #GtkWindow may contain many #GdkWindows. For example, each
- * #GtkButton has a #GdkWindow associated with it.
+ * window, the thing a user might think of as a "window" with a titlebar
+ * and so on; a #GtkWindow may contain many #GdkWindows. For example,
+ * each #GtkButton has a #GdkWindow associated with it.
  *
- * <refsect2 id="COMPOSITED-WINDOWS">
- * <title>Composited Windows</title>
- * <para>
- * Normally, the windowing system takes care of rendering the contents of a
- * child window onto its parent window. This mechanism can be intercepted by
- * calling gdk_window_set_composited() on the child window. For a
- * <firstterm>composited</firstterm> window it is the responsibility of the
- * application to render the window contents at the right spot.
- * </para>
- * </refsect2>
- * <refsect2 id="OFFSCREEN-WINDOWS">
- * <title>Offscreen Windows</title>
- * <para>
- * Offscreen windows are more general than composited windows, since they allow
- * not only to modify the rendering of the child window onto its parent, but
- * also to apply coordinate transformations.
+ * ## Composited Windows
  *
- * To integrate an offscreen window into a window hierarchy, one has to call
- * gdk_offscreen_window_set_embedder() and handle a number of signals. The
- * #GdkWindow::pick-embedded-child signal on the embedder window is used to
- * select an offscreen child at given coordinates, and the
- * #GdkWindow::to-embedder and #GdkWindow::from-embedder signals on the
- * offscreen window are used to translate coordinates between the embedder and
- * the offscreen window.
+ * <para id="COMPOSITED-WINDOWS">Normally, the windowing system takes care of rendering the contents
+ * of a child window onto its parent window. This mechanism can be
+ * intercepted by calling gdk_window_set_composited() on the child
+ * window. For a <firstterm>composited</firstterm> window it is the
+ * responsibility of the application to render the window contents at
+ * the right spot.</para>
  *
- * For rendering an offscreen window onto its embedder, the contents of the
- * offscreen window are available as a surface, via
+ * ## Offscreen Windows
+ *
+ * <para id="OFFSCREEN-WINDOWS">Offscreen windows are more general than composited windows, since
+ * they allow not only to modify the rendering of the child window onto
+ * its parent, but also to apply coordinate transformations.</para>
+ *
+ * To integrate an offscreen window into a window hierarchy, one has
+ * to call gdk_offscreen_window_set_embedder() and handle a number of
+ * signals. The #GdkWindow::pick-embedded-child signal on the embedder
+ * window is used to select an offscreen child at given coordinates,
+ * and the #GdkWindow::to-embedder and #GdkWindow::from-embedder signals
+ * on the offscreen window are used to translate coordinates between
+ * the embedder and the offscreen window.
+ *
+ * For rendering an offscreen window onto its embedder, the contents
+ * of the offscreen window are available as a surface, via
  * gdk_offscreen_window_get_surface().
- * </para>
- * </refsect2>
  */
 
 
@@ -1460,7 +1456,7 @@ gdk_window_new (GdkWindow     *parent,
   if (attributes_mask & GDK_WA_VISUAL)
     window->visual = attributes->visual;
   else
-    window->visual = gdk_screen_get_system_visual (screen);
+    window->visual = gdk_screen_get_preferred_visual (screen);
 
   window->event_mask = attributes->event_mask;
 
@@ -3780,10 +3776,8 @@ _gdk_window_ref_cairo_surface (GdkWindow *window)
  * 
  * Creates a Cairo context for drawing to @window.
  *
- * <note><warning>
  * Note that calling cairo_reset_clip() on the resulting #cairo_t will
  * produce undefined results, so avoid it at all costs.
- * </warning></note>
  *
  * Return value: A newly created Cairo context. Free with
  *  cairo_destroy() when you are done drawing.
@@ -7119,15 +7113,13 @@ gdk_window_set_device_cursor (GdkWindow *window,
  * #GdkEventConfigure. gdk_window_get_position() in contrast gets the
  * position from the most recent configure event.
  *
- * <note>
- * If @window is not a toplevel, it is <emphasis>much</emphasis> better
+ * Note: If @window is not a toplevel, it is much better
  * to call gdk_window_get_position(), gdk_window_get_width() and
  * gdk_window_get_height() instead, because it avoids the roundtrip to
  * the X server and because these functions support the full 32-bit
  * coordinate space, whereas gdk_window_get_geometry() is restricted to
  * the 16-bit coordinates of X11.
- *</note>
- **/
+ */
 void
 gdk_window_get_geometry (GdkWindow *window,
 			 gint      *x,
@@ -7532,6 +7524,8 @@ do_child_shapes (GdkWindow *window,
   if (merge && window->shape)
     cairo_region_subtract (region, window->shape);
 
+  cairo_region_xor_rectangle (region, &r);
+
   gdk_window_shape_combine_region (window, region, 0, 0);
 }
 
@@ -7652,6 +7646,8 @@ do_child_input_shapes (GdkWindow *window,
     cairo_region_subtract (region, window->shape);
   if (merge && window->input_shape)
     cairo_region_subtract (region, window->input_shape);
+
+  cairo_region_xor_rectangle (region, &r);
 
   gdk_window_input_shape_combine_region (window, region, 0, 0);
 }
@@ -10561,7 +10557,7 @@ gdk_window_set_modal_hint (GdkWindow *window,
  * Toggles whether a window should appear in a task list or window
  * list. If a window's semantic type as specified with
  * gdk_window_set_type_hint() already fully describes the window, this
- * function should <emphasis>not</emphasis> be called in addition,
+ * function should not be called in addition,
  * instead you should allow the window to be treated according to
  * standard policy for its semantic type.
  *
@@ -10584,7 +10580,7 @@ gdk_window_set_skip_taskbar_hint (GdkWindow *window,
  * thumbnail representation of the windows on the desktop). If a
  * window's semantic type as specified with gdk_window_set_type_hint()
  * already fully describes the window, this function should
- * <emphasis>not</emphasis> be called in addition, instead you should
+ * not be called in addition, instead you should
  * allow the window to be treated according to standard policy for
  * its semantic type.
  *
@@ -11726,8 +11722,6 @@ gdk_test_simulate_button (GdkWindow      *window,
  * property does not exist, then the function returns %FALSE,
  * and %GDK_NONE will be stored in @actual_property_type.
  *
- * <note>
- * <para>
  * The XGetWindowProperty() function that gdk_property_get()
  * uses has a very confusing and complicated set of semantics.
  * Unfortunately, gdk_property_get() makes the situation
@@ -11735,10 +11729,7 @@ gdk_test_simulate_button (GdkWindow      *window,
  * undefined), and also prints warnings to stderr in cases where it
  * should return a useful error to the program. You are advised to use
  * XGetWindowProperty() directly until a replacement function for
- * gdk_property_get()
- * is provided.
- * </para>
- * </note>
+ * gdk_property_get() is provided.
  *
  * Returns: %TRUE if data was successfully received and stored
  *   in @data, otherwise %FALSE.

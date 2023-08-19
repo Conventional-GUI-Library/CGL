@@ -70,7 +70,7 @@
  *
  * <example>
  * <title>Obtaining the window ID of a socket.</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * GtkWidget *socket = gtk_socket_new (<!-- -->);
  * gtk_widget_show (socket);
  * gtk_container_add (GTK_CONTAINER (parent), socket);
@@ -81,7 +81,7 @@
  * gtk_widget_realize (socket);
  * g_print ("The ID of the sockets window is %#x\n",
  *          gtk_socket_get_id (socket));
- * </programlisting>
+ * ]|
  * </example>
  *
  * Note that if you pass the window ID of the socket to another
@@ -107,13 +107,11 @@
  * integration when embedding a <application>Qt</application> widget
  * in GTK or vice versa.
  *
- * <note>
  * The #GtkPlug and #GtkSocket widgets are only available when GTK+
  * is compiled for the X11 platform and %GDK_WINDOWING_X11 is defined.
  * They can only be used on a #GdkX11Display. To use #GtkPlug and
  * #GtkSocket, you need to include the <filename>gtk/gtkx.h</filename>
  * header.
- * </note>
  */
 
 /* Forward declararations */

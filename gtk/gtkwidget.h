@@ -90,7 +90,7 @@ typedef struct _GtkWindow              GtkWindow;
  * @width: the width of the widget's allocated area.
  * @height: the height of the widget's allocated area.
  *
- * A <structname>GtkAllocation</structname> of a widget represents region
+ * A #GtkAllocation-struct of a widget represents region
  * which has been allocated to the widget by its parent. It is a subregion
  * of its parents allocation. See <xref linkend="geometry-management"/> for
  * more information.
@@ -130,7 +130,7 @@ typedef gboolean (*GtkTickCallback) (GtkWidget     *widget,
  * @width: the widget's desired width
  * @height: the widget's desired height
  *
- * A <structname>GtkRequisition</structname> represents the desired size of a widget. See
+ * A #GtkRequisition-struct represents the desired size of a widget. See
  * <xref linkend="geometry-management"/> for more information.
  */
 struct _GtkRequisition

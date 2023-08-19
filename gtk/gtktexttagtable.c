@@ -46,25 +46,20 @@
  * conceptual overview</link> which gives an overview of all the objects and
  * data types related to the text widget and how they work together.
  *
- * <refsect2 id="GtkTextTagTable-BUILDER-UI">
- * <title>GtkTextTagTables as GtkBuildable</title>
- * <para>
+ * ## GtkTextTagTables as GtkBuildable
+ *
  * The GtkTextTagTable implementation of the GtkBuildable interface
  * supports adding tags by specifying "tag" as the "type"
  * attribute of a &lt;child&gt; element.
  *
- * <example>
- * <title>A UI definition fragment specifying tags</title>
- * <programlisting><![CDATA[
+ * An example of a UI definition fragment specifying tags:
+ * |[
  * <object class="GtkTextTagTable">
  *  <child type="tag">
  *    <object class="GtkTextTag"/>
  *  </child>
  * </object>
- * ]]></programlisting>
- * </example>
- * </para>
- * </refsect2>
+ * ]|
  */
 
 struct _GtkTextTagTablePrivate

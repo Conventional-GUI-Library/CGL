@@ -39,34 +39,19 @@
  * elements. It's essentially a blank widget; you can draw on it. After
  * creating a drawing area, the application may want to connect to:
  *
- * <itemizedlist>
- *   <listitem>
- *     <para>
- *     Mouse and button press signals to respond to input from
- *     the user. (Use gtk_widget_add_events() to enable events
- *     you wish to receive.)
- *     </para>
- *   </listitem>
- *   <listitem>
- *     <para>
- *     The #GtkWidget::realize signal to take any necessary actions
- *     when the widget is instantiated on a particular display.
- *     (Create GDK resources in response to this signal.)
- *     </para>
- *   </listitem>
- *   <listitem>
- *     <para>
- *     The #GtkWidget::configure-event signal to take any necessary
- *     actions when the widget changes size.
- *     </para>
- *   </listitem>
- *   <listitem>
- *     <para>
- *     The #GtkWidget::draw signal to handle redrawing the
- *     contents of the widget.
- *     </para>
- *   </listitem>
- * </itemizedlist>
+ * - Mouse and button press signals to respond to input from
+ *   the user. (Use gtk_widget_add_events() to enable events
+ *   you wish to receive.)
+ *
+ * - The #GtkWidget::realize signal to take any necessary actions
+ *   when the widget is instantiated on a particular display.
+ *   (Create GDK resources in response to this signal.)
+ * 
+ * - The #GtkWidget::configure-event signal to take any necessary
+ *   actions when the widget changes size.
+ *
+ * - The #GtkWidget::draw signal to handle redrawing the
+ *   contents of the widget.
  *
  * The following code portion demonstrates using a drawing
  * area to display a circle in the normal widget foreground
@@ -78,7 +63,7 @@
  *
  * <example>
  * <title>Simple GtkDrawingArea usage</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * gboolean
  * draw_callback (GtkWidget *widget, cairo_t *cr, gpointer data)
  * {
@@ -94,8 +79,8 @@
  *
  *   gtk_style_context_get_color (gtk_widget_get_style_context (widget),
  *                                0,
- *                                &amp;color);
- *   gdk_cairo_set_source_rgba (cr, &amp;color);
+ *                                &color);
+ *   gdk_cairo_set_source_rgba (cr, &color);
  *
  *   cairo_fill (cr);
  *
@@ -106,7 +91,7 @@
  *   gtk_widget_set_size_request (drawing_area, 100, 100);
  *   g_signal_connect (G_OBJECT (drawing_area), "draw",
  *                     G_CALLBACK (draw_callback), NULL);
- * </programlisting>
+ * ]|
  * </example>
  *
  * Draw signals are normally delivered when a drawing area first comes

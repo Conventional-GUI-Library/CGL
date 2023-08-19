@@ -42,7 +42,7 @@
  * The margins specified in this object are the "print margins", i.e. the
  * parts of the page that the printer cannot print on. These are different
  * from the layout margins that a word processor uses; they are typically
- * used to determine the <emphasis>minimal</emphasis> size for the layout
+ * used to determine the minimal size for the layout
  * margins.
  * </para>
  *
@@ -52,7 +52,7 @@
  *
  * <example>
  * <title>A page setup dialog</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * static GtkPrintSettings *settings = NULL;
  * static GtkPageSetup *page_setup = NULL;
  *
@@ -72,7 +72,7 @@
  *
  *   page_setup = new_page_setup;
  * }
- * </programlisting>
+ * ]|
  * </example>
  *
  * Printing support was added in GTK+ 2.10.

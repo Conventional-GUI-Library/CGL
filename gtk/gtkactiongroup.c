@@ -72,7 +72,7 @@
  * </para>
  * <example>
  * <title>A #GtkDialog UI definition fragment.</title>
- * <programlisting><![CDATA[
+ * |[
  * <object class="GtkActionGroup" id="actiongroup">
  *   <child>
  *       <object class="GtkAction" id="About">
@@ -83,7 +83,7 @@
  *       <accelerator key="F1" modifiers="GDK_CONTROL_MASK | GDK_SHIFT_MASK"/>
  *   </child>
  * </object>
- * ]]></programlisting>
+ * ]|
  * </example>
  * </refsect2>
  */

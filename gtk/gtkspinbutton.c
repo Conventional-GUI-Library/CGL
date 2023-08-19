@@ -76,7 +76,7 @@
  *
  * <example>
  * <title>Using a GtkSpinButton to get an integer</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * /&ast; Provides a function to retrieve an integer value from a
  *  &ast; GtkSpinButton and creates a spin button to model percentage
  *  &ast; values.
@@ -107,12 +107,12 @@
  *
  *   gtk_widget_show_all (window);
  * }
- * </programlisting>
+ * ]|
  * </example>
  *
  * <example>
  * <title>Using a GtkSpinButton to get a floating point value</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * /&ast; Provides a function to retrieve a floating point value from a
  *  &ast; GtkSpinButton, and creates a high precision spin button.
  *  &ast;/
@@ -141,7 +141,7 @@
  *
  *   gtk_widget_show_all (window);
  * }
- * </programlisting>
+ * ]|
  * </example>
  */
 
@@ -450,7 +450,7 @@ gtk_spin_button_class_init (GtkSpinButtonClass *class)
    *
    * The ::output signal can be used to change to formatting
    * of the value that is displayed in the spin buttons entry.
-   * |[
+   * |[<!-- language="C" -->
    * /&ast; show leading zeros &ast;/
    * static gboolean
    * on_output (GtkSpinButton *spin,

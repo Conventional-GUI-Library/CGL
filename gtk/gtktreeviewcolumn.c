@@ -1658,7 +1658,7 @@ gtk_tree_view_column_new_with_area (GtkCellArea *area)
  * gtk_tree_view_column_set_attributes() on the newly created #GtkTreeViewColumn.
  *
  * Here's a simple example:
- * |[
+ * |[<!-- language="C" -->
  *  enum { TEXT_COLUMN, COLOR_COLUMN, N_COLUMNS };
  *  ...
  *  {
@@ -2800,7 +2800,7 @@ gtk_tree_view_column_get_sort_indicator  (GtkTreeViewColumn     *tree_column)
  *
  * Changes the appearance of the sort indicator. 
  * 
- * This <emphasis>does not</emphasis> actually sort the model.  Use
+ * This does not actually sort the model.  Use
  * gtk_tree_view_column_set_sort_column_id() if you want automatic sorting
  * support.  This function is primarily for custom sorting behavior, and should
  * be used in conjunction with gtk_tree_sortable_set_sort_column() to do

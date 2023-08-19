@@ -35,7 +35,7 @@
  * @Short_description: RGBA colors
  * @Title: RGBA Colors
  *
- * The #GdkRGBA struct is a convenient way to pass rgba colors around.
+ * #GdkRGBA is a convenient way to pass rgba colors around.
  * It's based on cairo's way to deal with colors and mirrors its behavior.
  * All values are in the range from 0.0 to 1.0 inclusive. So the color
  * (0.0, 0.0, 0.0, 0.0) represents transparent black and
@@ -54,7 +54,7 @@ G_DEFINE_BOXED_TYPE (GdkRGBA, gdk_rgba,
  * @alpha: The opacity of the color from 0.0 for completely translucent to
  *   1.0 for opaque
  *
- * The GdkRGBA structure is used to represent a (possibly translucent)
+ * A #GdkRGBA is used to represent a (possibly translucent)
  * color, in a way that is compatible with cairos notion of color.
  */
 
@@ -62,7 +62,7 @@ G_DEFINE_BOXED_TYPE (GdkRGBA, gdk_rgba,
  * gdk_rgba_copy:
  * @rgba: a #GdkRGBA
  *
- * Makes a copy of a #GdkRGBA structure.
+ * Makes a copy of a #GdkRGBA.
  *
  * The result must be freed through gdk_rgba_free().
  *
@@ -80,7 +80,7 @@ gdk_rgba_copy (const GdkRGBA *rgba)
  * gdk_rgba_free:
  * @rgba: a #GdkRGBA
  *
- * Frees a #GdkRGBA struct created with gdk_rgba_copy()
+ * Frees a #GdkRGBA created with gdk_rgba_copy()
  *
  * Since: 3.0
  */
@@ -134,31 +134,19 @@ parse_rgb_value (const gchar  *str,
 
 /**
  * gdk_rgba_parse:
- * @rgba: the #GdkRGBA struct to fill in
+ * @rgba: the #GdkRGBA to fill in
  * @spec: the string specifying the color
  *
  * Parses a textual representation of a color, filling in
- * the <structfield>red</structfield>, <structfield>green</structfield>,
- * <structfield>blue</structfield> and <structfield>alpha</structfield>
- * fields of the @rgba struct.
+ * the @red, @green, @blue and @alpha fields of the @rgba #GdkRGBA.
  *
  * The string can be either one of:
- * <itemizedlist>
- * <listitem>
- * A standard name (Taken from the X11 rgb.txt file).
- * </listitem>
- * <listitem>
- * A hex value in the form '&num;rgb' '&num;rrggbb' '&num;rrrgggbbb'
- * or '&num;rrrrggggbbbb'
- * </listitem>
- * <listitem>
- * A RGB color in the form 'rgb(r,g,b)' (In this case the color will
- * have full opacity)
- * </listitem>
- * <listitem>
- * A RGBA color in the form 'rgba(r,g,b,a)'
- * </listitem>
- * </itemizedlist>
+ * - A standard name (Taken from the X11 rgb.txt file).
+ * - A hex value in the form '&num;rgb' '&num;rrggbb' '&num;rrrgggbbb'
+ *   or '&num;rrrrggggbbbb'
+ * - A RGB color in the form 'rgb(r,g,b)' (In this case the color will
+ *   have full opacity)
+ * - A RGBA color in the form 'rgba(r,g,b,a)'
  *
  * Where 'r', 'g', 'b' and 'a' are respectively the red, green, blue and
  * alpha color values. In the last two cases, r g and b are either integers

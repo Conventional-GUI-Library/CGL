@@ -73,9 +73,8 @@
  * by using gtk_info_bar_set_message_type(). GTK+ uses the message type
  * to determine the background color of the message area.
  *
- * <example>
- * <title>Simple GtkInfoBar usage.</title>
- * <programlisting>
+ * A simple example for using a GtkInfoBar:
+ * |[<!-- language="C" -->
  * /&ast; set up info bar &ast;/
  * info_bar = gtk_info_bar_new ();
  * gtk_widget_set_no_show_all (info_bar, TRUE);
@@ -100,23 +99,18 @@
  * gtk_info_bar_set_message_type (GTK_INFO_BAR (info_bar),
  *                                GTK_MESSAGE_ERROR);
  * gtk_widget_show (info_bar);
- * </programlisting>
- * </example>
+ * ]|
  *
- * <refsect2 id="GtkInfoBar-BUILDER-UI">
- * <title>GtkInfoBar as GtkBuildable</title>
- * <para>
+ * ## GtkInfoBar as GtkBuildable
+ *
  * The GtkInfoBar implementation of the GtkBuildable interface exposes
  * the content area and action area as internal children with the names
  * "content_area" and "action_area".
- * </para>
- * <para>
+ *
  * GtkInfoBar supports a custom &lt;action-widgets&gt; element, which
  * can contain multiple &lt;action-widget&gt; elements. The "response"
  * attribute specifies a numeric response, and the content of the element
  * is the id of widget (which should be a child of the dialogs @action_area).
- * </para>
- * </refsect2>
  */
 
 enum

@@ -54,10 +54,10 @@
  * #GdkPixbuf ("pixel buffer") from a file, and then display that.
  * There's a convenience function to do this, gtk_image_new_from_file(),
  * used as follows:
- * <informalexample><programlisting>
+ * |[<!-- language="C" -->
  *   GtkWidget *image;
  *   image = gtk_image_new_from_file ("myfile.png");
- * </programlisting></informalexample>
+ * ]|
  * If the file isn't loaded successfully, the image will contain a
  * "broken image" icon similar to that used in many web browsers.
  * If you want to handle errors in loading the file yourself,
@@ -77,9 +77,8 @@
  * on the image, such as button clicks, place the image inside a
  * #GtkEventBox, then connect to the event signals on the event box.
  * <example>
- * <title>Handling button press events on a
- * <structname>GtkImage</structname>.</title>
- * <programlisting>
+ * <title>Handling button press events on a #GtkImage.</title>
+ * |[<!-- language="C" -->
  *   static gboolean
  *   button_press_callback (GtkWidget      *event_box,
  *                          GdkEventButton *event,
@@ -115,7 +114,7 @@
  *
  *     return image;
  *   }
- * </programlisting>
+ * ]|
  * </example>
  *
  * When handling events on the event box, keep in mind that coordinates

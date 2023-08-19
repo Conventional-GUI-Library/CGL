@@ -851,12 +851,9 @@ gtk_icon_view_class_init (GtkIconViewClass *klass)
    * programmatically.
    *
    * The default bindings for this signal include
-   * <itemizedlist>
-   * <listitem>Arrow keys which move by individual steps</listitem>
-   * <listitem>Home/End keys which move to the first/last item</listitem>
-   * <listitem>PageUp/PageDown which move by "pages"</listitem>
-   * </itemizedlist>
-   *
+   * - Arrow keys which move by individual steps
+   * - Home/End keys which move to the first/last item
+   * - PageUp/PageDown which move by "pages"
    * All of these will extend the selection when combined with
    * the Shift modifier.
    */
@@ -3285,7 +3282,9 @@ _gtk_icon_view_set_cursor_item (GtkIconView     *icon_view,
 
   if (item_obj != NULL)
     {
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS;
       atk_focus_tracker_notify (item_obj);
+      G_GNUC_END_IGNORE_DEPRECATIONS;
       atk_object_notify_state_change (item_obj, ATK_STATE_FOCUSED, TRUE);
       g_object_unref (item_obj); 
     }

@@ -44,20 +44,15 @@
  * @Title: GdkDisplay
  *
  * #GdkDisplay objects purpose are two fold:
- * <itemizedlist>
- * <listitem>
- *   To manage and provide information about input devices (pointers
- *   and keyboards)
- * </listitem>
- * <listitem>
- *   To manage and provide information about the available #GdkScreens
- * </listitem>
- * </itemizedlist>
+ *
+ * - To manage and provide information about input devices (pointers and keyboards)
+ *
+ * - To manage and provide information about the available #GdkScreens
  *
  * GdkDisplay objects are the GDK representation of an X Display,
- * which can be described as <emphasis>a workstation consisting of
+ * which can be described as a workstation consisting of
  * a keyboard, a pointing device (such as a mouse) and one or more
- * screens</emphasis>.
+ * screens.
  * It is used to open and keep track of various GdkScreen objects
  * currently instantiated by the application. It is also used to
  * access the keyboard(s) and mouse pointer(s) of the display.
@@ -2118,7 +2113,7 @@ static GQueue gdk_error_traps = G_QUEUE_INIT;
  *
 * <example>
  * <title>Trapping an X error</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * gdk_error_trap_push (<!-- -->);
  *
  *  // ... Call the X function which may cause an error here ...
@@ -2128,7 +2123,7 @@ static GQueue gdk_error_traps = G_QUEUE_INIT;
  *  {
  *    // ... Handle the error here ...
  *  }
- * </programlisting>
+ * ]|
  * </example>
  */
 void

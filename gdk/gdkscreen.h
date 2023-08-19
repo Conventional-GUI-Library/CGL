@@ -43,7 +43,7 @@ GType        gdk_screen_get_type              (void) G_GNUC_CONST;
 GdkVisual *  gdk_screen_get_system_visual     (GdkScreen   *screen);
 GdkVisual *  gdk_screen_get_rgba_visual       (GdkScreen   *screen);
 gboolean     gdk_screen_is_composited         (GdkScreen   *screen);
-
+GdkVisual *  gdk_screen_get_preferred_visual  (GdkScreen   *screen);
 GdkWindow *  gdk_screen_get_root_window       (GdkScreen   *screen);
 GdkDisplay * gdk_screen_get_display           (GdkScreen   *screen);
 gint         gdk_screen_get_number            (GdkScreen   *screen);

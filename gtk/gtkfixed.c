@@ -39,23 +39,18 @@
  * results in broken applications.  With #GtkFixed, the following
  * things will result in truncated text, overlapping widgets, and
  * other display bugs:
- * <itemizedlist>
- *  <listitem><para>
- *   Themes, which may change widget sizes.
- *  </para></listitem>
- *  <listitem><para>
- *   Fonts other than the one you used to write the app will of course
+ *
+ * - Themes, which may change widget sizes.
+ *
+ * - Fonts other than the one you used to write the app will of course
  *   change the size of widgets containing text; keep in mind that
  *   users may use a larger font because of difficulty reading the
  *   default, or they may be using Windows or the framebuffer port of
  *   GTK+, where different fonts are available.
- *  </para></listitem>
- *  <listitem><para>
- *   Translation of text into other languages changes its size. Also,
+ *
+ * - Translation of text into other languages changes its size. Also,
  *   display of non-English text will use a different font in many
  *   cases.
- *  </para></listitem>
- * </itemizedlist>
  *
  * In addition, the fixed widget can't properly be mirrored in
  * right-to-left languages such as Hebrew and Arabic. i.e. normally
@@ -101,8 +96,6 @@ static void gtk_fixed_get_preferred_height (GtkWidget *widget,
                                             gint      *natural);
 static void gtk_fixed_size_allocate (GtkWidget        *widget,
                                      GtkAllocation    *allocation);
-static gboolean gtk_fixed_draw      (GtkWidget        *widget,
-                                     cairo_t          *cr);
 static void gtk_fixed_add           (GtkContainer     *container,
                                      GtkWidget        *widget);
 static void gtk_fixed_remove        (GtkContainer     *container,
@@ -139,7 +132,6 @@ gtk_fixed_class_init (GtkFixedClass *class)
   widget_class->get_preferred_width = gtk_fixed_get_preferred_width;
   widget_class->get_preferred_height = gtk_fixed_get_preferred_height;
   widget_class->size_allocate = gtk_fixed_size_allocate;
-  widget_class->draw = gtk_fixed_draw;
 
   container_class->add = gtk_fixed_add;
   container_class->remove = gtk_fixed_remove;
@@ -491,22 +483,6 @@ gtk_fixed_size_allocate (GtkWidget     *widget,
       child_allocation.height = child_requisition.height;
       gtk_widget_size_allocate (child->widget, &child_allocation);
     }
-}
-
-static gboolean
-gtk_fixed_draw (GtkWidget *widget,
-                cairo_t   *cr)
-{
-  GtkStyleContext *context;
-  GtkAllocation alloc;
-
-  context = gtk_widget_get_style_context (widget);
-  gtk_widget_get_allocation (widget, &alloc);
-
-  gtk_render_background (context, cr, 0, 0, alloc.width, alloc.height);
-  gtk_render_frame (context, cr, 0, 0, alloc.width, alloc.height);
-
-  return GTK_WIDGET_CLASS (gtk_fixed_parent_class)->draw (widget, cr);
 }
 
 static void

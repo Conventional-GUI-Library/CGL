@@ -39,7 +39,7 @@
  *
  * <example>
  * <title>Using GtkPrintContext in a #GtkPrintOperation::draw-page callback</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * static void
  * draw_page (GtkPrintOperation *operation,
  * 	   GtkPrintContext   *context,
@@ -91,7 +91,7 @@
  *
  *   g_object_unref (layout);
  * }
- * </programlisting>
+ * ]|
  * </example>
  *
  * Printing support was added in GTK+ 2.10.

@@ -44,7 +44,7 @@
  * The widget path generation is generally simple:
  * <example>
  * <title>Defining a button within a window</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * {
  *   GtkWidgetPath *path;
  *
@@ -52,7 +52,7 @@
  *   gtk_widget_path_append_type (path, GTK_TYPE_WINDOW);
  *   gtk_widget_path_append_type (path, GTK_TYPE_BUTTON);
  * }
- * </programlisting>
+ * ]|
  * </example>
  *
  * Although more complex information, such as widget names, or
@@ -61,7 +61,7 @@
  *
  * <example>
  * <title>Defining the first tab widget in a notebook</title>
- * <programlisting>
+ * |[<!-- language="C" -->
  * {
  *   GtkWidgetPath *path;
  *   guint pos;
@@ -74,7 +74,7 @@
  *   pos = gtk_widget_path_append_type (path, GTK_TYPE_LABEL);
  *   gtk_widget_path_iter_set_name (path, pos, "first tab label");
  * }
- * </programlisting>
+ * ]|
  * </example>
  *
  * All this information will be used to match the style information
@@ -980,8 +980,8 @@ gtk_widget_path_iter_has_class (const GtkWidgetPath *path,
  * the hierarchy defined in @path. See
  * gtk_style_context_add_region().
  *
- * <note><para>Region names must only contain lowercase letters
- * and '-', starting always with a lowercase letter.</para></note>
+ * Region names must only contain lowercase letters
+ * and '-', starting always with a lowercase letter.
  *
  * Since: 3.0
  **/

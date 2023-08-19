@@ -35,10 +35,10 @@
  * Thus, all children of a GtkBox are allocated one dimension in common,
  * which is the height of a row, or the width of a column.
  *
- * GtkBox uses a notion of <emphasis>packing</emphasis>. Packing refers
+ * GtkBox uses a notion of packing. Packing refers
  * to adding widgets with reference to a particular position in a
  * #GtkContainer. For a GtkBox, there are two reference positions: the
- * <emphasis>start</emphasis> and the <emphasis>end</emphasis> of the box.
+ * start and the end of the box.
  * For a vertical #GtkBox, the start is defined as the top of the box and
  * the end is defined as the bottom. For a horizontal #GtkBox the start
  * is defined as the left side and the end is defined as the right side.
@@ -58,9 +58,9 @@
  *
  * Use gtk_box_set_spacing() to determine how much space will be
  * minimally placed between all children in the GtkBox. Note that
- * spacing is added <emphasis>between</emphasis> the children, while
+ * spacing is added between the children, while
  * padding added by gtk_box_pack_start() or gtk_box_pack_end() is added
- * <emphasis>on either side</emphasis> of the widget it belongs to.
+ * on either side of the widget it belongs to.
  *
  * Use gtk_box_reorder_child() to move a GtkBox child to a different
  * place in the box.
@@ -69,10 +69,8 @@
  * fill and padding child properties.
  * Use gtk_box_query_child_packing() to query these fields.
  *
- * <note><para>
  * Note that a single-row or single-column #GtkGrid provides exactly
  * the same functionality as #GtkBox.
- * </para></note>
  */
 
 #include "config.h"
@@ -1883,8 +1881,7 @@ _gtk_box_get_spacing_set (GtkBox *box)
  *   the list
  *
  * Moves @child to a new @position in the list of @box children.
- * The list is the <structfield>children</structfield> field of
- * #GtkBox-struct, and contains both widgets packed #GTK_PACK_START
+ * The list contains widgets packed #GTK_PACK_START
  * as well as widgets packed #GTK_PACK_END, in the order that these
  * widgets were added to @box.
  *

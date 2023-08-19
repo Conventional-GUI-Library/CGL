@@ -495,48 +495,46 @@ gdk_keymap_lookup_key (GdkKeymap          *keymap,
  * @state. For convenience, #GdkEventKey already contains the translated
  * keyval, so this function isn't as useful as you might think.
  *
- * <note><para>
  * @consumed_modifiers gives modifiers that should be masked out
  * from @state when comparing this key press to a hot key. For
  * instance, on a US keyboard, the <literal>plus</literal>
  * symbol is shifted, so when comparing a key press to a
  * <literal>&lt;Control&gt;plus</literal> accelerator &lt;Shift&gt; should
  * be masked out.
- * </para>
- * <informalexample><programlisting>
- * &sol;* We want to ignore irrelevant modifiers like ScrollLock *&sol;
- * &num;define ALL_ACCELS_MASK (GDK_CONTROL_MASK | GDK_SHIFT_MASK | GDK_MOD1_MASK)
+ *
+ * |[<!-- language="C" -->
+ * /&ast; We want to ignore irrelevant modifiers like ScrollLock &ast;/;
+ * #define ALL_ACCELS_MASK (GDK_CONTROL_MASK | GDK_SHIFT_MASK | GDK_MOD1_MASK)
  * gdk_keymap_translate_keyboard_state (keymap, event->hardware_keycode,
  *                                      event->state, event->group,
- *                                      &amp;keyval, NULL, NULL, &amp;consumed);
+ *                                      &keyval, NULL, NULL, &consumed);
  * if (keyval == GDK_PLUS &&
- *     (event->state &amp; ~consumed &amp; ALL_ACCELS_MASK) == GDK_CONTROL_MASK)
- *   &sol;* Control was pressed *&sol;
- * </programlisting></informalexample>
- * <para>
+ *     (event->state & ~consumed & ALL_ACCELS_MASK) == GDK_CONTROL_MASK)
+ *   /&ast; Control was pressed &ast;/
+ * ]|
+ * 
  * An older interpretation @consumed_modifiers was that it contained
  * all modifiers that might affect the translation of the key;
  * this allowed accelerators to be stored with irrelevant consumed
- * modifiers, by doing:</para>
- * <informalexample><programlisting>
- * &sol;* XXX Don't do this XXX *&sol;
+ * modifiers, by doing:
+ * |[<!-- language="C" -->
+ * /&ast; XXX Don't do this XXX &ast;/
  * if (keyval == accel_keyval &&
- *     (event->state &amp; ~consumed &amp; ALL_ACCELS_MASK) == (accel_mods &amp; ~consumed))
- *   &sol;* Accelerator was pressed *&sol;
- * </programlisting></informalexample>
- * <para>
+ *     (event->state & ~consumed & ALL_ACCELS_MASK) == (accel_mods & ~consumed))
+ *   /&ast; Accelerator was pressed &ast;/
+ * ]|
+ *
  * However, this did not work if multi-modifier combinations were
  * used in the keymap, since, for instance, <literal>&lt;Control&gt;</literal>
  * would be masked out even if only <literal>&lt;Control&gt;&lt;Alt&gt;</literal>
  * was used in the keymap. To support this usage as well as well as
- * possible, all <emphasis>single modifier</emphasis> combinations
+ * possible, all single modifier combinations
  * that could affect the key for any combination of modifiers will
  * be returned in @consumed_modifiers; multi-modifier combinations
  * are returned only when actually found in @state. When you store
  * accelerators, you should always store them with consumed modifiers
  * removed. Store <literal>&lt;Control&gt;plus</literal>,
  * not <literal>&lt;Control&gt;&lt;Shift&gt;plus</literal>,
- * </para></note>
  *
  * Return value: %TRUE if there was a keyval bound to the keycode/state/group
  **/

@@ -820,16 +820,18 @@ create_focus_window (GdkDisplay *display,
   GdkEventMask event_mask;
   Display *xdisplay;
   Window focus_window;
+  XSetWindowAttributes attrs;
 
   xdisplay = GDK_DISPLAY_XDISPLAY (display);
   display_x11 = GDK_X11_DISPLAY (display);
 
-  focus_window = XCreateSimpleWindow (xdisplay, parent,
-                                      -1, -1, 1, 1, 0,
-                                      0, 0);
+  focus_window = XCreateWindow (xdisplay, parent,
+                                -1, -1, 1, 1, 0,
+                                0, /* depth */
+                                InputOnly,
+                                CopyFromParent,
+                                0, &attrs);
 
-  /* FIXME: probably better to actually track the requested event mask for the toplevel
-   */
   event_mask = (GDK_KEY_PRESS_MASK |
                 GDK_KEY_RELEASE_MASK |
                 GDK_FOCUS_CHANGE_MASK);
@@ -1173,7 +1175,7 @@ x_event_mask_to_gdk_event_mask (long mask)
 /**
  * gdk_x11_window_foreign_new_for_display:
  * @display: (type GdkX11Display): the #GdkDisplay where the window handle comes from.
- * @window: an XLib <type>Window</type>
+ * @window: an Xlib Window
  *
  * Wraps a native window in a #GdkWindow. The function will try to
  * look up the window using gdk_x11_window_lookup_for_display() first.

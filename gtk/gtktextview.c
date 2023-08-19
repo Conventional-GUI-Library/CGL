@@ -861,13 +861,11 @@ gtk_text_view_class_init (GtkTextViewClass *klass)
    * the variant with the Shift modifier extends the selection,
    * the variant without the Shift modifer does not.
    * There are too many key combinations to list them all here.
-   * <itemizedlist>
-   * <listitem>Arrow keys move by individual characters/lines</listitem>
-   * <listitem>Ctrl-arrow key combinations move by words/paragraphs</listitem>
-   * <listitem>Home/End keys move to the ends of the buffer</listitem>
-   * <listitem>PageUp/PageDown keys move vertically by pages</listitem>
-   * <listitem>Ctrl-PageUp/PageDown keys move horizontally by pages</listitem>
-   * </itemizedlist>
+   * - Arrow keys move by individual characters/lines
+   * - Ctrl-arrow key combinations move by words/paragraphs
+   * - Home/End keys move to the ends of the buffer
+   * - PageUp/PageDown keys move vertically by pages
+   * - Ctrl-PageUp/PageDown keys move horizontally by pages
    */
   signals[MOVE_CURSOR] = 
     g_signal_new (I_("move-cursor"),
@@ -1760,7 +1758,7 @@ gtk_text_view_get_iter_at_location (GtkTextView *text_view,
  * gtk_text_view_window_to_buffer_coords().
  *
  * Note that this is different from gtk_text_view_get_iter_at_location(),
- * which returns cursor locations, i.e. positions <emphasis>between</emphasis>
+ * which returns cursor locations, i.e. positions between
  * characters.
  *
  * Since: 2.6
@@ -6926,7 +6924,7 @@ gtk_text_view_reset_im_context (GtkTextView *text_view)
  * you need to insert your own key handling between the input method
  * and the default key event handling of the #GtkTextView.
  *
- * |[
+ * |[<!-- language="C" -->
  * static gboolean
  * gtk_foo_bar_key_press_event (GtkWidget   *widget,
  *                              GdkEventKey *event)

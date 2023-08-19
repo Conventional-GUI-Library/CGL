@@ -85,13 +85,13 @@
  * application, but in order to ensure proper translation of the title,
  * applications should set the title property explicitly when constructing
  * a GtkAboutDialog, as shown in the following example:
- * <informalexample><programlisting>
+ * |[<!-- language="C" -->
  * gtk_show_about_dialog (NULL,
  *                        "program-name", "ExampleCode",
  *                        "logo", example_logo,
  *                        "title" _("About ExampleCode"),
  *                        NULL);
- * </programlisting></informalexample>
+ * ]|
  *
  * It is also possible to show a #GtkAboutDialog like any other #GtkDialog,
  * e.g. using gtk_dialog_run(). In this case, you might need to know that
@@ -501,8 +501,8 @@ gtk_about_dialog_class_init (GtkAboutDialogClass *klass)
   /**
    * GtkAboutDialog:logo:
    *
-   * A logo for the about box. If this is not set, it defaults to
-   * gtk_window_get_default_icon_list().
+   * A logo for the about box. If it is %NULL, the default window icon
+   * set with gtk_window_set_default_icon() will be used.
    *
    * Since: 2.6
    */
@@ -1702,7 +1702,7 @@ gtk_about_dialog_get_translator_credits (GtkAboutDialog *about)
  * of the language which is currently used in the user interface.
  * Using gettext(), a simple way to achieve that is to mark the
  * string for translation:
- * |[
+ * |[<!-- language="C" -->
  *  gtk_about_dialog_set_translator_credits (about, _("translator-credits"));
  * ]|
  * It is a good idea to use the customary msgid "translator-credits" for this

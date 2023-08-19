@@ -42,15 +42,15 @@
  * it also implements the tree <link linkend="gtktreednd">drag and
  * drop</link> interfaces.
  *
- * <refsect2 id="GtkTreeStore-BUILDER-UI">
- * <title>GtkTreeStore as GtkBuildable</title>
+ * ## GtkTreeStore as GtkBuildable
+ *
  * The GtkTreeStore implementation of the #GtkBuildable interface allows
  * to specify the model columns with a &lt;columns&gt; element that may
  * contain multiple &lt;column&gt; elements, each specifying one model
  * column. The "type" attribute specifies the data type for the column.
- * <example>
- * <title>A UI Definition fragment for a tree store</title>
- * <programlisting><![CDATA[
+ *
+ * An example of a UI Definition fragment for a tree store:
+ * |[
  * <object class="GtkTreeStore">
  *   <columns>
  *     <column type="gchararray"/>
@@ -58,9 +58,7 @@
  *     <column type="gint"/>
  *   </columns>
  * </object>
- * ]]></programlisting>
- * </example>
- * </refsect2>
+ * ]|
  */
 
 struct _GtkTreeStorePrivate
@@ -312,7 +310,7 @@ gtk_tree_store_init (GtkTreeStore *tree_store)
  *
  * As an example, <literal>gtk_tree_store_new (3, G_TYPE_INT, G_TYPE_STRING,
  * GDK_TYPE_PIXBUF);</literal> will create a new #GtkTreeStore with three columns, of type
- * <type>int</type>, <type>string</type> and #GdkPixbuf respectively.
+ * #gint, #gchararray, and #GdkPixbuf respectively.
  *
  * Return value: a new #GtkTreeStore
  **/
@@ -1129,9 +1127,9 @@ gtk_tree_store_set_valuesv (GtkTreeStore *tree_store,
  * gtk_tree_store_set_valist:
  * @tree_store: A #GtkTreeStore
  * @iter: A valid #GtkTreeIter for the row being modified
- * @var_args: <type>va_list</type> of column/value pairs
+ * @var_args: va_list of column/value pairs
  *
- * See gtk_tree_store_set(); this version takes a <type>va_list</type> for
+ * See gtk_tree_store_set(); this version takes a va_list for
  * use by language bindings.
  *
  **/
@@ -1502,7 +1500,7 @@ gtk_tree_store_insert_after (GtkTreeStore *tree_store,
  * Calling
  * <literal>gtk_tree_store_insert_with_values (tree_store, iter, position, ...)</literal>
  * has the same effect as calling
- * |[
+ * |[<!-- language="C" -->
  * gtk_tree_store_insert (tree_store, iter, position);
  * gtk_tree_store_set (tree_store, iter, ...);
  * ]|
